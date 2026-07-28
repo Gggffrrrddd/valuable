@@ -110,7 +110,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#090b0a] px-6">
+      <div className="fixed inset-0 z-50 bg-[#090b0a]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(197,255,84,.11),transparent_32rem)]" />
         <div
           className="absolute inset-0 opacity-20"
@@ -120,31 +120,31 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           }}
         />
 
-        <div className="absolute right-5 top-5 z-20 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2 font-display text-sm font-bold tabular-nums text-stone-400 backdrop-blur sm:right-8 sm:top-8">
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-4 rounded-full bg-lime-300/[.025] blur-3xl" />
+          <FocusVisual theme={visualTheme} progress={progress} />
+        </div>
+
+        <div className="absolute right-5 top-5 z-20 rounded-xl border border-white/[.08] bg-black/40 px-3 py-2 font-display text-sm font-bold tabular-nums text-stone-400 backdrop-blur sm:right-8 sm:top-8">
           {timeStr}
         </div>
 
-        <div className="relative z-10 flex w-full flex-col items-center">
-          {subjectTag && (
-            <div className="mb-3 rounded-full border border-white/[.08] bg-white/[.035] px-4 py-1.5 text-xs font-bold uppercase tracking-[.14em] text-lime-300 sm:mb-6">
-              {subjectTag}
-            </div>
-          )}
-
-          <div className="relative flex h-[min(58vh,430px)] w-full max-w-xl items-center justify-center">
-            <div className="absolute inset-10 rounded-full bg-lime-300/[.025] blur-3xl" />
-            <FocusVisual theme={visualTheme} progress={progress} />
+        {subjectTag && (
+          <div className="absolute left-1/2 top-8 z-20 -translate-x-1/2 rounded-full border border-white/[.08] bg-black/40 px-4 py-1.5 text-xs font-bold uppercase tracking-[.14em] text-lime-300 backdrop-blur sm:top-9">
+            {subjectTag}
           </div>
+        )}
 
-          <div className="mt-2 text-[11px] font-bold uppercase tracking-[.22em] text-stone-600">
-            {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
-          </div>
+        <div className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/40 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[.22em] text-stone-400 backdrop-blur">
+          {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
+        </div>
 
-          {phase !== 'completing' && <div className="mt-6 flex items-center gap-4 sm:mt-8">
+        {phase !== 'completing' && (
+          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4">
             {phase === 'focus' ? (
               <button
                 onClick={handlePause}
-                className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-white hover:bg-slate-700 transition-colors"
+                className="w-14 h-14 rounded-full bg-black/50 border border-white/[.12] flex items-center justify-center text-white backdrop-blur hover:bg-black/70 transition-colors"
                 aria-label="Pause"
               >
                 <Pause className="w-6 h-6" />
@@ -152,7 +152,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             ) : (
               <button
                 onClick={handleResume}
-                className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 hover:bg-emerald-400 transition-colors"
+                className="w-14 h-14 rounded-full bg-emerald-500/80 flex items-center justify-center text-slate-950 backdrop-blur hover:bg-emerald-400 transition-colors"
                 aria-label="Resume"
               >
                 <Play className="w-6 h-6 ml-0.5" />
@@ -160,13 +160,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             )}
             <button
               onClick={handleQuitRequest}
-              className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-colors"
+              className="w-14 h-14 rounded-full bg-black/50 border border-white/[.12] flex items-center justify-center text-white/70 backdrop-blur hover:text-red-400 hover:bg-black/70 transition-colors"
               aria-label="Quit session"
             >
               <X className="w-6 h-6" />
             </button>
-          </div>}
-        </div>
+          </div>
+        )}
 
         {showQuitConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">

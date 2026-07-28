@@ -17,11 +17,15 @@ export default function HourglassVisual({ progress }: FocusVisualProps) {
   }, []);
 
   useEffect(() => {
+    videoRef.current?.pause();
+  }, []);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !video.readyState || !loaded) return;
 
     const now = Date.now();
-    if (now - lastSeekRef.current < 250) return;
+    if (now - lastSeekRef.current < 80) return;
     lastSeekRef.current = now;
 
     const value = Math.max(0, Math.min(1, progress));
