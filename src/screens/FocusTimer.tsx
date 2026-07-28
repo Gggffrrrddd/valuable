@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
+import FocusVisual from '@/components/focus-visuals/FocusVisual';
+import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 
 interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number) => void;
 }
 
-type Phase = 'config' | 'focus' | 'paused';
+type Phase = 'config' | 'focus' | 'paused' | 'completing';
+
+const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
 
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
@@ -19,15 +23,20 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [phase, setPhase] = useState<Phase>('config');
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+  const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
+    const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
+    return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
+  });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
 
   useEffect(() => {
-    if (phase === 'focus' || phase === 'paused') return;
+    if (phase === 'focus' || phase === 'paused' || phase === 'completing') return;
     setSecondsLeft(totalFocusSeconds);
   }, [totalFocusSeconds, phase]);
 
@@ -35,8 +44,10 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     setSecondsLeft((s) => {
       if (s <= 1) {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        setPhase('config');
-        onComplete(totalFocusSeconds, subjectTag || null, true, breakMinutes);
+        setPhase('completing');
+        completionRef.current = setTimeout(() => {
+          onComplete(totalFocusSeconds, subjectTag || null, true, breakMinutes);
+        }, 1300);
         return 0;
       }
       return s - 1;
@@ -51,6 +62,15 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
       };
     }
   }, [phase, tick]);
+
+  useEffect(() => () => {
+    if (completionRef.current) clearTimeout(completionRef.current);
+  }, []);
+
+  function selectVisual(theme: FocusVisualTheme) {
+    setVisualTheme(theme);
+    localStorage.setItem(VISUAL_STORAGE_KEY, theme);
+  }
 
   function handleStart() {
     setSecondsLeft(totalFocusSeconds);
@@ -88,7 +108,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const timeStr = `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
   const progress = totalFocusSeconds > 0 ? 1 - secondsLeft / totalFocusSeconds : 0;
 
-  if (phase === 'focus' || phase === 'paused') {
+  if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#090b0a] px-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(197,255,84,.11),transparent_32rem)]" />
@@ -100,35 +120,27 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           }}
         />
 
-        <div className="relative z-10 flex flex-col items-center w-full">
+        <div className="absolute right-5 top-5 z-20 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2 font-display text-sm font-bold tabular-nums text-stone-400 backdrop-blur sm:right-8 sm:top-8">
+          {timeStr}
+        </div>
+
+        <div className="relative z-10 flex w-full flex-col items-center">
           {subjectTag && (
-            <div className="mb-12 px-4 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/50 text-emerald-400 text-sm font-medium">
+            <div className="mb-3 rounded-full border border-white/[.08] bg-white/[.035] px-4 py-1.5 text-xs font-bold uppercase tracking-[.14em] text-lime-300 sm:mb-6">
               {subjectTag}
             </div>
           )}
 
-          <div className="relative flex items-center justify-center">
-            <svg className="absolute -inset-8 w-[calc(100%+4rem)] h-[calc(100%+4rem)] -rotate-90" viewBox="0 0 200 200">
-              <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
-              <circle
-                cx="100" cy="100" r="92" fill="none" stroke="#c5ff54" strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 92}
-                strokeDashoffset={2 * Math.PI * 92 * (1 - progress)}
-                style={{ transition: 'stroke-dashoffset 1s linear' }}
-              />
-            </svg>
-            <div className="text-center py-12">
-              <div className="font-display text-6xl font-extrabold text-stone-50 tabular-nums tracking-[-.06em] sm:text-8xl">
-                {timeStr}
-              </div>
-              <div className="text-slate-500 text-sm mt-3 uppercase tracking-widest">
-                {phase === 'paused' ? 'Paused' : 'Focusing'}
-              </div>
-            </div>
+          <div className="relative flex h-[min(58vh,430px)] w-full max-w-xl items-center justify-center">
+            <div className="absolute inset-10 rounded-full bg-lime-300/[.025] blur-3xl" />
+            <FocusVisual theme={visualTheme} progress={progress} />
           </div>
 
-          <div className="flex items-center gap-4 mt-16">
+          <div className="mt-2 text-[11px] font-bold uppercase tracking-[.22em] text-stone-600">
+            {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
+          </div>
+
+          {phase !== 'completing' && <div className="mt-6 flex items-center gap-4 sm:mt-8">
             {phase === 'focus' ? (
               <button
                 onClick={handlePause}
@@ -153,7 +165,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             >
               <X className="w-6 h-6" />
             </button>
-          </div>
+          </div>}
         </div>
 
         {showQuitConfirm && (
@@ -223,6 +235,21 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             {customFocus}m focus · {customBreak}m break
           </span>
         </button>
+      </div>
+
+      <div className="mb-6">
+        <div className="mb-3 flex items-end justify-between px-1">
+          <div><div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">Choose your focus visual</div><p className="mt-1 text-xs text-stone-600">Your visual unfolds as the session progresses.</p></div>
+          <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">Saved automatically</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {FOCUS_VISUAL_THEMES.map((theme, index) => (
+            <button key={theme.id} type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
+              <div className="flex h-24 items-center justify-center rounded-xl bg-black/20 sm:h-28"><FocusVisual theme={theme.id} progress={[.35, .3, .5, .42][index]} /></div>
+              <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {isCustom && (
