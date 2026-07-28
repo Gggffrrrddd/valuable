@@ -20,6 +20,8 @@ export default function HourglassVisual({ progress }: FocusVisualProps) {
     videoRef.current?.pause();
   }, []);
 
+  const SPEED = 3; // full video duration scrubs within first 1/SPEED of session
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !video.readyState || !loaded) return;
@@ -29,9 +31,10 @@ export default function HourglassVisual({ progress }: FocusVisualProps) {
     lastSeekRef.current = now;
 
     const value = Math.max(0, Math.min(1, progress));
+    const accelerated = Math.min(value * SPEED, 1);
     const target = reducedRef.current
-      ? Math.floor(value * 20) / 20 * (video.duration || 0)
-      : value * (video.duration || 0);
+      ? Math.floor(accelerated * 20) / 20 * (video.duration || 0)
+      : accelerated * (video.duration || 0);
 
     video.currentTime = target;
   }, [progress, loaded]);
