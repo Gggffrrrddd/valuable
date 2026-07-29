@@ -11,6 +11,7 @@ interface MaskAlignment {
   x: number;
   y: number;
   scale: number;
+  rotation: number;
 }
 
 interface DragState {
@@ -26,7 +27,7 @@ const VIDEO_DURATION = 1799.9;
 const MASK_URL = '/visuals/hourglass/hourglass-mask-source.png';
 const MASK_STORAGE_KEY = 'valuable-hourglass-mask-v2';
 const MASK_ASPECT_RATIO = 666 / 374;
-const DEFAULT_ALIGNMENT: MaskAlignment = { x: 0.5, y: 0.5, scale: 1 };
+const DEFAULT_ALIGNMENT: MaskAlignment = { x: 0.5, y: 0.5, scale: 1, rotation: 0 };
 
 const clamp = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, value));
 
@@ -43,6 +44,7 @@ function readSavedAlignment(): MaskAlignment | null {
         x: clamp(saved.x, -0.5, 1.5),
         y: clamp(saved.y, -0.5, 1.5),
         scale: clamp(saved.scale, 0.2, 2.5),
+        rotation: typeof saved.rotation === 'number' ? clamp(saved.rotation, -180, 180) : 0,
       };
     }
   } catch {
@@ -62,6 +64,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const [savedAlignment, setSavedAlignment] = useState<MaskAlignment | null>(() => readSavedAlignment());
   const [draftAlignment, setDraftAlignment] = useState<MaskAlignment>(() => readSavedAlignment() ?? DEFAULT_ALIGNMENT);
   const [calibrating, setCalibrating] = useState(() => readSavedAlignment() === null);
+  const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
 
@@ -117,17 +120,51 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const maskLeft = containerSize.width * (alignment?.x ?? 0.5) - maskWidth / 2;
   const maskTop = containerSize.height * (alignment?.y ?? 0.5) - maskHeight / 2;
   const videoStyle: CSSProperties | undefined = !calibrating && savedAlignment
-    ? {
-        maskImage: `url(${MASK_URL})`,
-        WebkitMaskImage: `url(${MASK_URL})`,
+    ? maskDataUrl ? {
+        maskImage: `url(${maskDataUrl})`,
+        WebkitMaskImage: `url(${maskDataUrl})`,
         maskRepeat: 'no-repeat',
         WebkitMaskRepeat: 'no-repeat',
-        maskSize: `${maskWidth}px ${maskHeight}px`,
-        WebkitMaskSize: `${maskWidth}px ${maskHeight}px`,
-        maskPosition: `${maskLeft}px ${maskTop}px`,
-        WebkitMaskPosition: `${maskLeft}px ${maskTop}px`,
-      }
+        maskSize: '100% 100%',
+        WebkitMaskSize: '100% 100%',
+        maskPosition: '0 0',
+        WebkitMaskPosition: '0 0',
+      } : { opacity: 0 }
     : undefined;
+
+  useEffect(() => {
+    if (!savedAlignment || calibrating || !containerSize.width || !containerSize.height) {
+      setMaskDataUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    const image = new Image();
+    image.src = MASK_URL;
+    image.onload = () => {
+      if (cancelled) return;
+      const canvas = document.createElement('canvas');
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(containerSize.width * pixelRatio);
+      canvas.height = Math.round(containerSize.height * pixelRatio);
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      const width = containerSize.width * savedAlignment.scale;
+      const height = width / MASK_ASPECT_RATIO;
+      const centerX = containerSize.width * savedAlignment.x;
+      const centerY = containerSize.height * savedAlignment.y;
+      context.scale(pixelRatio, pixelRatio);
+      context.translate(centerX, centerY);
+      context.rotate(savedAlignment.rotation * Math.PI / 180);
+      context.drawImage(image, -width / 2, -height / 2, width, height);
+      setMaskDataUrl(canvas.toDataURL('image/png'));
+    };
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calibrating, containerSize, savedAlignment]);
 
   const startPointerAction = (event: ReactPointerEvent<HTMLElement>, mode: DragState['mode']) => {
     const container = containerRef.current;
@@ -230,6 +267,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
               top: `${maskTop}px`,
               width: `${maskWidth}px`,
               height: `${maskHeight}px`,
+              transform: `rotate(${draftAlignment.rotation}deg)`,
             }}
             onPointerDown={(event) => startPointerAction(event, 'move')}
             onPointerMove={movePointer}
@@ -250,7 +288,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
 
           <div className="hourglass-mask-controls">
             <strong>Align mask</strong>
-            <span>Drag the image. Use the corner handle or slider to resize.</span>
+            <span>Drag the image. Use the corner handle or sliders to resize and rotate.</span>
             <label>
               Size
               <input
@@ -261,6 +299,18 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
                 value={draftAlignment.scale}
                 onChange={(event) => setDraftAlignment((current) => ({ ...current, scale: Number(event.target.value) }))}
               />
+            </label>
+            <label>
+              Rotate
+              <input
+                type="range"
+                min="-180"
+                max="180"
+                step="1"
+                value={draftAlignment.rotation}
+                onChange={(event) => setDraftAlignment((current) => ({ ...current, rotation: Number(event.target.value) }))}
+              />
+              <output>{Math.round(draftAlignment.rotation)}°</output>
             </label>
             <div>
               <button type="button" onClick={() => setDraftAlignment(DEFAULT_ALIGNMENT)}>Reset</button>
