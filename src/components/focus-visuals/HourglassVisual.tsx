@@ -6,36 +6,21 @@ interface HourglassProps extends FocusVisualProps {
   running: boolean;
 }
 
-interface Iris {
-  cx: number;
-  cy: number;
-  innerRx: number;
-  innerRy: number;
-  outerRx: number;
-  outerRy: number;
-}
-
 const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
-const WORKING_WIDTH = 520;
-const IRIS: Iris = {
-  cx: 0.505,
-  cy: 0.501,
-  innerRx: 0.263,
-  innerRy: 0.45,
-  outerRx: 0.275,
-  outerRy: 0.462,
-};
 
-const clamp = (value: number, minimum = 0, maximum = 1) => Math.max(minimum, Math.min(maximum, value));
+const MASK_URL = '/visuals/hourglass/hourglass-mask-source.png';
+const MASK_WIDTH = 666;
+const MASK_HEIGHT = 374;
 
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const irisRef = useRef<Iris>(IRIS);
   const videoEndedRef = useRef(false);
-  const [loaded, setLoaded] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [maskLoaded, setMaskLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const loaded = videoLoaded && maskLoaded;
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
 
@@ -72,27 +57,13 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
 
   useEffect(() => {
     const video = videoRef.current;
-    const displayCanvas = canvasRef.current;
-    if (!video || !displayCanvas || !loaded) return;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !loaded) return;
 
-    const sourceWidth = video.videoWidth;
-    const sourceHeight = video.videoHeight;
-    if (!sourceWidth || !sourceHeight) return;
-
-    const workWidth = Math.min(WORKING_WIDTH, sourceWidth);
-    const workHeight = Math.max(1, Math.round(workWidth * sourceHeight / sourceWidth));
-    const workCanvas = typeof OffscreenCanvas !== 'undefined'
-      ? new OffscreenCanvas(workWidth, workHeight)
-      : document.createElement('canvas');
-    workCanvas.width = workWidth;
-    workCanvas.height = workHeight;
-
-    const workContext = workCanvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-    const displayContext = displayCanvas.getContext('2d', { willReadFrequently: true });
-    if (!workContext || !displayContext) return;
-
-    displayCanvas.width = workWidth;
-    displayCanvas.height = workHeight;
+    canvas.width = MASK_WIDTH;
+    canvas.height = MASK_HEIGHT;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     let frameId = 0;
     let lastFrame = 0;
@@ -102,33 +73,14 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       if (now - lastFrame < TARGET_FRAME_MS || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       lastFrame = now;
 
-      workContext.drawImage(video, 0, 0, workWidth, workHeight);
-      const frame = workContext.getImageData(0, 0, workWidth, workHeight);
-      const pixels = frame.data;
-      const activeIris = irisRef.current;
-      const centerX = activeIris.cx * workWidth;
-      const centerY = activeIris.cy * workHeight;
-      const innerRadiusX = activeIris.innerRx * workWidth;
-      const innerRadiusY = activeIris.innerRy * workHeight;
-      const outerRadiusX = activeIris.outerRx * workWidth;
-      const outerRadiusY = activeIris.outerRy * workHeight;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const scale = Math.min(MASK_WIDTH / vw, MASK_HEIGHT / vh);
+      const dx = (MASK_WIDTH - vw * scale) / 2;
+      const dy = (MASK_HEIGHT - vh * scale) / 2;
 
-      for (let index = 0; index < pixels.length; index += 4) {
-        const pixel = index / 4;
-        const deltaX = pixel % workWidth - centerX;
-        const deltaY = Math.floor(pixel / workWidth) - centerY;
-        const angle = Math.atan2(deltaY, deltaX);
-        const cosine = Math.cos(angle);
-        const sine = Math.sin(angle);
-        const radius = Math.hypot(deltaX, deltaY);
-        const innerBoundary = 1 / Math.sqrt((cosine / innerRadiusX) ** 2 + (sine / innerRadiusY) ** 2);
-        const outerBoundary = 1 / Math.sqrt((cosine / outerRadiusX) ** 2 + (sine / outerRadiusY) ** 2);
-        const outsideAmount = clamp((radius - innerBoundary) / Math.max(1, outerBoundary - innerBoundary));
-
-        pixels[index + 3] = Math.round(pixels[index + 3] * (1 - outsideAmount));
-      }
-
-      displayContext.putImageData(frame, 0, 0);
+      ctx.clearRect(0, 0, MASK_WIDTH, MASK_HEIGHT);
+      ctx.drawImage(video, dx, dy, vw * scale, vh * scale);
     };
 
     frameId = requestAnimationFrame(draw);
@@ -147,11 +99,18 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         muted
         playsInline
         src="https://res.cloudinary.com/dcydj6gao/video/upload/v1785294925/project_video_1_rdj9o6.mp4"
-        onLoadedData={() => setLoaded(true)}
+        onLoadedData={() => setVideoLoaded(true)}
         onEnded={handleEnded}
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
+      <img
+        src={MASK_URL}
+        onLoad={() => setMaskLoaded(true)}
+        style={{ display: 'none' }}
+        alt=""
+        aria-hidden="true"
+      />
     </div>
   );
 }
