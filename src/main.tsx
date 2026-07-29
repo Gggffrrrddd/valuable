@@ -3,20 +3,17 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// Disable PWA caching during the prototype so deployments always load fresh assets.
 if ('serviceWorker' in navigator) {
-  if (import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => undefined);
-    });
-  } else {
-    // A production worker must never intercept Vite's source modules or HMR socket.
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => registration.unregister());
-    });
-    caches.keys().then((keys) => {
-      keys.filter((key) => key.startsWith('valuable-')).forEach((key) => caches.delete(key));
-    });
-  }
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+}
+
+if ('caches' in window) {
+  caches.keys().then((keys) => {
+    keys.filter((key) => key.startsWith('valuable-')).forEach((key) => caches.delete(key));
+  });
 }
 
 createRoot(document.getElementById('root')!).render(
