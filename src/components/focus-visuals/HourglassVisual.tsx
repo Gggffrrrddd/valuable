@@ -24,7 +24,7 @@ const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
 const WORKING_WIDTH = 520;
 const CORNER_SAMPLE_SIZE = 24;
-const INITIAL_ELLIPSE: Ellipse = { cx: 0.5, cy: 0.5, rx: 0.28, ry: 0.4 };
+const INITIAL_ELLIPSE: Ellipse = { cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.36 };
 
 const clamp = (value: number, minimum = 0, maximum = 1) => Math.max(minimum, Math.min(maximum, value));
 
@@ -48,7 +48,7 @@ function calibrateBackground(context: CanvasRenderingContext2D | OffscreenCanvas
   const averageDistance = distances.reduce((sum, value) => sum + value, 0) / total;
   const variance = distances.reduce((sum, value) => sum + (value - averageDistance) ** 2, 0) / total;
 
-  return { red, green, blue, threshold: averageDistance + Math.sqrt(variance) * 2.5 + 10 };
+  return { red, green, blue, threshold: (averageDistance + Math.sqrt(variance) * 2.5 + 10) * 1.15 };
 }
 
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
@@ -184,8 +184,13 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
             pixels[index + 1] - background.green,
             pixels[index + 2] - background.blue,
           );
-          const colorAlpha = clamp((distance - background.threshold + 16) / 28);
-          pixels[index + 3] = Math.round(pixels[index + 3] * colorAlpha * ellipseAlpha);
+          const foregroundAlpha = clamp((distance - background.threshold) / 34);
+          const matteAlpha = 1 - foregroundAlpha;
+
+          pixels[index] = Math.round(pixels[index] * foregroundAlpha + 9 * matteAlpha);
+          pixels[index + 1] = Math.round(pixels[index + 1] * foregroundAlpha + 11 * matteAlpha);
+          pixels[index + 2] = Math.round(pixels[index + 2] * foregroundAlpha + 10 * matteAlpha);
+          pixels[index + 3] = Math.round(255 * ellipseAlpha);
         }
 
         displayContext.putImageData(frame, 0, 0);
