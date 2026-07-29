@@ -9,33 +9,35 @@ interface HourglassProps extends FocusVisualProps {
 const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
 const WORKING_WIDTH = 520;
-function clipToHourglass(context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, width: number, height: number) {
-  const cropLeft = 0.23 * width;
-  const cropTop = 0.039 * height;
-  const cropWidth = 0.55 * width;
-  const cropHeight = 0.924 * height;
+const BOUNDARY_STORAGE_KEY = 'valuable-hourglass-boundary-v1';
 
-  const x = (value: number) => cropLeft + value * cropWidth;
-  const y = (value: number) => cropTop + value * cropHeight;
-  const center = x(0.5);
+type BoundaryPoint = [number, number];
 
-  // Hand-drawn smooth silhouette, based on the hourglass proportions in the source crop.
+const DEFAULT_BOUNDARY: BoundaryPoint[] = [
+  [0.274, 0.057], [0.5, 0.057], [0.736, 0.057], [0.756, 0.095],
+  [0.703, 0.245], [0.636, 0.382], [0.555, 0.473], [0.505, 0.51],
+  [0.555, 0.565], [0.636, 0.664], [0.703, 0.805], [0.756, 0.943],
+  [0.736, 0.945], [0.5, 0.945], [0.274, 0.945], [0.244, 0.943],
+  [0.297, 0.805], [0.364, 0.664], [0.445, 0.565], [0.495, 0.51],
+  [0.445, 0.473], [0.364, 0.382], [0.297, 0.245], [0.244, 0.095],
+];
+
+function readBoundary(): BoundaryPoint[] {
+  if (typeof window === 'undefined') return DEFAULT_BOUNDARY;
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(BOUNDARY_STORAGE_KEY) ?? '');
+    if (!Array.isArray(saved) || saved.length < 3) return DEFAULT_BOUNDARY;
+    return saved.map(([x, y]) => [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))]);
+  } catch {
+    return DEFAULT_BOUNDARY;
+  }
+}
+
+function clipToHourglass(context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, width: number, height: number, boundary: BoundaryPoint[]) {
+  const first = boundary[0];
   context.beginPath();
-  context.moveTo(x(0.08), y(0.02));
-  context.lineTo(x(0.92), y(0.02));
-  context.bezierCurveTo(x(0.96), y(0.02), x(0.97), y(0.07), x(0.93), y(0.12));
-  context.bezierCurveTo(x(0.86), y(0.23), x(0.74), y(0.38), x(0.59), y(0.47));
-  context.bezierCurveTo(x(0.55), y(0.49), center, y(0.5), center, y(0.51));
-  context.bezierCurveTo(center, y(0.52), x(0.55), y(0.54), x(0.59), y(0.57));
-  context.bezierCurveTo(x(0.74), y(0.66), x(0.86), y(0.81), x(0.93), y(0.9));
-  context.bezierCurveTo(x(0.97), y(0.95), x(0.96), y(0.98), x(0.92), y(0.98));
-  context.lineTo(x(0.08), y(0.98));
-  context.bezierCurveTo(x(0.04), y(0.98), x(0.03), y(0.95), x(0.07), y(0.9));
-  context.bezierCurveTo(x(0.14), y(0.81), x(0.26), y(0.66), x(0.41), y(0.57));
-  context.bezierCurveTo(x(0.45), y(0.54), center, y(0.52), center, y(0.51));
-  context.bezierCurveTo(center, y(0.5), x(0.45), y(0.49), x(0.41), y(0.47));
-  context.bezierCurveTo(x(0.26), y(0.38), x(0.14), y(0.23), x(0.07), y(0.12));
-  context.bezierCurveTo(x(0.03), y(0.07), x(0.04), y(0.02), x(0.08), y(0.02));
+  context.moveTo(first[0] * width, first[1] * height);
+  boundary.slice(1).forEach(([x, y]) => context.lineTo(x * width, y * height));
   context.closePath();
   context.clip();
 }
@@ -46,8 +48,10 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const videoEndedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [boundary, setBoundary] = useState<BoundaryPoint[]>(readBoundary);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
+  const calibrationMode = duration > 0 && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('calibrateHourglass');
 
   const handleEnded = () => {
     videoEndedRef.current = true;
@@ -112,17 +116,34 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       if (now - lastFrame < TARGET_FRAME_MS || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       lastFrame = now;
 
+      workContext.drawImage(video, 0, 0, workWidth, workHeight);
       displayContext.clearRect(0, 0, workWidth, workHeight);
       displayContext.save();
-      clipToHourglass(displayContext, workWidth, workHeight);
-      workContext.drawImage(video, 0, 0, workWidth, workHeight);
+      if (!calibrationMode) clipToHourglass(displayContext, workWidth, workHeight, boundary);
       displayContext.drawImage(workCanvas, 0, 0);
       displayContext.restore();
     };
 
     frameId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frameId);
-  }, [loaded]);
+  }, [loaded, boundary, calibrationMode]);
+
+  function movePoint(index: number, event: React.PointerEvent<SVGCircleElement>) {
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const bounds = svg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+    setBoundary((points) => points.map((point, pointIndex) => pointIndex === index ? [x, y] : point));
+  }
+
+  function saveBoundary() {
+    window.localStorage.setItem(BOUNDARY_STORAGE_KEY, JSON.stringify(boundary));
+  }
+
+  function copyBoundary() {
+    navigator.clipboard?.writeText(JSON.stringify(boundary));
+  }
 
   return (
     <div className={`hybrid-hourglass ${complete ? 'hybrid-hourglass-complete' : ''}`} role="img" aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}>
@@ -141,6 +162,31 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
+      {calibrationMode && (
+        <div className="hourglass-calibration" role="dialog" aria-label="Hourglass boundary calibration">
+          <svg className="hourglass-calibration-path" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polygon points={boundary.map(([x, y]) => `${x * 100},${y * 100}`).join(' ')} />
+            {boundary.map(([x, y], index) => (
+              <circle
+                key={index}
+                cx={x * 100}
+                cy={y * 100}
+                r="1.25"
+                onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+                onPointerMove={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) movePoint(index, event);
+                }}
+              />
+            ))}
+          </svg>
+          <div className="hourglass-calibration-actions">
+            <span>Drag each marker to the hourglass edge</span>
+            <button type="button" onClick={() => setBoundary(DEFAULT_BOUNDARY)}>Reset</button>
+            <button type="button" onClick={saveBoundary}>Save boundary</button>
+            <button type="button" onClick={copyBoundary}>Copy coordinates</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

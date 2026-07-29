@@ -436,6 +436,78 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   pointer-events: none;
 }
 
+.hourglass-calibration {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
+.hourglass-calibration-path {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hourglass-calibration-path polygon {
+  fill: rgba(197, 255, 84, 0.05);
+  stroke: #c5ff54;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.hourglass-calibration-path circle {
+  fill: #f5f3eb;
+  stroke: #11130f;
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  touch-action: none;
+}
+
+.hourglass-calibration-path circle:active { cursor: grabbing; }
+
+.hourglass-calibration-actions {
+  position: absolute;
+  left: 50%;
+  bottom: -4.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  transform: translateX(-50%);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.85rem;
+  background: rgba(10, 11, 10, 0.9);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+}
+
+.hourglass-calibration-actions span {
+  margin-right: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a9aaa2;
+}
+
+.hourglass-calibration-actions button {
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f3eb;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.hourglass-calibration-actions button:last-child {
+  background: #c5ff54;
+  color: #11130f;
+}
+
 .focus-orbit-left {
   top: -38%;
   left: -28%;
