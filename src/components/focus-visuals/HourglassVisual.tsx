@@ -14,56 +14,65 @@ const BOUNDARY_STORAGE_KEY = 'valuable-hourglass-boundary-v1';
 
 export type BoundaryPoint = [number, number];
 
-// Exact hourglass outline extracted from the ChatGPT screenshot.
+// Hourglass outline designed for quadraticCurveTo pairing:
+// index 0 = moveTo, then odd = control, even = endpoint.
 const DEFAULT_TEMPLATE: BoundaryPoint[] = [
   [0.500,0.000],
-  [0.440,0.005],
-  [0.390,0.015],
-  [0.345,0.035],
-  [0.315,0.070],
-  [0.300,0.120],
-  [0.302,0.175],
-  [0.315,0.235],
-  [0.338,0.295],
-  [0.365,0.345],
-  [0.400,0.405],
-  [0.435,0.455],
-  [0.470,0.500],
-  [0.490,0.535],
-  [0.495,0.560],
-  [0.480,0.585],
-  [0.450,0.620],
-  [0.410,0.665],
-  [0.365,0.725],
-  [0.330,0.790],
-  [0.305,0.855],
-  [0.295,0.915],
-  [0.305,0.965],
-  [0.340,0.995],
+  [0.462,0.003],
+  [0.420,0.010],
+  [0.378,0.024],
+  [0.340,0.048],
+  [0.312,0.086],
+  [0.298,0.138],
+  [0.300,0.198],
+  [0.316,0.266],
+  [0.344,0.338],
+  [0.382,0.408],
+  [0.430,0.472],
+
+  [0.468,0.522],
+  [0.490,0.552],
+  [0.495,0.575],
+  [0.490,0.600],
+
+  [0.470,0.628],
+  [0.440,0.660],
+  [0.402,0.705],
+  [0.365,0.758],
+  [0.335,0.815],
+  [0.315,0.875],
+  [0.308,0.930],
+  [0.318,0.972],
+  [0.352,0.995],
+
   [0.500,1.000],
-  [0.660,0.995],
-  [0.695,0.965],
-  [0.705,0.915],
-  [0.695,0.855],
-  [0.670,0.790],
-  [0.635,0.725],
-  [0.590,0.665],
-  [0.550,0.620],
-  [0.520,0.585],
-  [0.505,0.560],
-  [0.510,0.535],
-  [0.530,0.500],
-  [0.565,0.455],
-  [0.600,0.405],
-  [0.635,0.345],
-  [0.662,0.295],
-  [0.685,0.235],
-  [0.698,0.175],
-  [0.700,0.120],
-  [0.685,0.070],
-  [0.655,0.035],
-  [0.610,0.015],
-  [0.560,0.005],
+
+  [0.648,0.995],
+  [0.682,0.972],
+  [0.692,0.930],
+  [0.685,0.875],
+  [0.665,0.815],
+  [0.635,0.758],
+  [0.598,0.705],
+  [0.560,0.660],
+  [0.530,0.628],
+
+  [0.510,0.600],
+  [0.505,0.575],
+  [0.510,0.552],
+  [0.532,0.522],
+
+  [0.570,0.472],
+  [0.618,0.408],
+  [0.656,0.338],
+  [0.684,0.266],
+  [0.700,0.198],
+  [0.702,0.138],
+  [0.688,0.086],
+  [0.660,0.048],
+  [0.622,0.024],
+  [0.580,0.010],
+  [0.538,0.003],
   [0.500,0.000],
 ];
 
@@ -108,7 +117,11 @@ function applyTransform(points: BoundaryPoint[], t: TemplateTransform): Boundary
 
 function pathData(points: BoundaryPoint[]) {
   if (!points.length) return '';
-  return points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x * 100} ${y * 100}`).join(' ') + ' Z';
+  let d = `M ${points[0][0] * 100} ${points[0][1] * 100}`;
+  for (let i = 1; i + 1 < points.length; i += 2) {
+    d += ` Q ${points[i][0] * 100} ${points[i][1] * 100} ${points[i + 1][0] * 100} ${points[i + 1][1] * 100}`;
+  }
+  return d + ' Z';
 }
 
 function clipToHourglass(
@@ -121,7 +134,12 @@ function clipToHourglass(
   const first = boundary[0];
   context.beginPath();
   context.moveTo(first[0] * width, first[1] * height);
-  boundary.slice(1).forEach(([x, y]) => context.lineTo(x * width, y * height));
+  for (let i = 1; i + 1 < boundary.length; i += 2) {
+    context.quadraticCurveTo(
+      boundary[i][0] * width, boundary[i][1] * height,
+      boundary[i + 1][0] * width, boundary[i + 1][1] * height,
+    );
+  }
   context.closePath();
   context.clip();
   return true;
