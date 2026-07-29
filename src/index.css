@@ -255,11 +255,13 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   text-shadow: 0 0 20px rgba(197, 255, 84, 0.16);
 }
 
-/* --- Individual flip card --- */
+/* ===================================================================
+   Flip Card — individual digit
+   =================================================================== */
 .flip-card {
   position: relative;
   width: clamp(3.8rem, 6.4vw, 5.8rem);
-  aspect-ratio: 0.85;
+  aspect-ratio: 0.82;
   border-radius: 14px;
   background: linear-gradient(180deg, #1e211e 0%, #0c0d0c 100%);
   box-shadow:
@@ -268,41 +270,46 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
     0 4px 0 #070807,
     0 14px 34px rgba(0, 0, 0, 0.48);
   perspective: 1200px;
+  transform-style: preserve-3d;
 }
 
-/* Each half — static or flap — is exactly 50% of card height */
-.flip-card__half,
-.flip-card__flap {
+/* All four card elements + divider share position */
+.flip-card__static-top,
+.flip-card__static-bottom,
+.flip-card__flap-top,
+.flip-card__flap-bottom {
   position: absolute;
   left: 0;
   right: 0;
   height: 50%;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
-/* --- Static halves (always present) --- */
-.flip-card__half--top {
+/* ---- Static halves ---- */
+.flip-card__static-top {
   top: 0;
   border-radius: 14px 14px 0 0;
   background: linear-gradient(180deg, #242724 0%, #171a17 100%);
 }
 
-.flip-card__half--bottom {
+.flip-card__static-bottom {
   bottom: 0;
   border-radius: 0 0 14px 14px;
   background: linear-gradient(180deg, #111311 0%, #0a0b0a 100%);
 }
 
-/* --- Animated flaps (only visible during flip) --- */
-.flip-card__flap {
+/* ---- Animated flaps ---- */
+.flip-card__flap-top,
+.flip-card__flap-bottom {
   z-index: 2;
   transform-style: preserve-3d;
-  -webkit-transform-style: preserve-3d;
 }
 
-.flip-card__flap--top {
+.flip-card__flap-top {
   top: 0;
   border-radius: 14px 14px 0 0;
   background: linear-gradient(180deg, #242724 0%, #171a17 100%);
@@ -311,7 +318,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   animation: flipTop 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.flip-card__flap--bottom {
+.flip-card__flap-bottom {
   bottom: 0;
   border-radius: 0 0 14px 14px;
   background: linear-gradient(180deg, #111311 0%, #0a0b0a 100%);
@@ -320,35 +327,32 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   animation: flipBottom 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* --- Digit character — pinned at the hinge line --- */
-.flip-card__char {
-  position: absolute;
-  left: 0;
-  right: 0;
+/* ---- Digit character ---- */
+.flip-card__digit {
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(3.6rem, 6.6vw, 5.8rem);
   font-weight: 800;
   line-height: 1;
-  text-align: center;
+  letter-spacing: 0;
   color: #f5f3eb;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  pointer-events: none;
 }
 
-/* Top half: character bottom aligns with hinge */
-.flip-card__half--top .flip-card__char,
-.flip-card__flap--top .flip-card__char {
-  bottom: 0;
+/* Top half: shift digit down so its upper portion is visible */
+.flip-card__static-top .flip-card__digit,
+.flip-card__flap-top .flip-card__digit {
+  transform: translateY(50%);
 }
 
-/* Bottom half: character top aligns with hinge */
-.flip-card__half--bottom .flip-card__char,
-.flip-card__flap--bottom .flip-card__char {
-  top: 0;
+/* Bottom half: shift digit up so its lower portion is visible */
+.flip-card__static-bottom .flip-card__digit,
+.flip-card__flap-bottom .flip-card__digit {
+  transform: translateY(-50%);
 }
 
-/* --- Center divider line --- */
+/* ---- Center divider ---- */
 .flip-card__divider {
   position: absolute;
   left: 6%;
@@ -368,7 +372,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   opacity: 0.65;
 }
 
-/* --- Keyframes --- */
+/* ---- Keyframes ---- */
 @keyframes flipTop {
   0%   { transform: rotateX(0deg); }
   100% { transform: rotateX(-90deg); }
@@ -379,9 +383,10 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   100% { transform: rotateX(0deg); }
 }
 
-/* --- Reduced motion --- */
+/* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
-  .flip-card__flap {
+  .flip-card__flap-top,
+  .flip-card__flap-bottom {
     display: none !important;
   }
 }
@@ -455,7 +460,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   .flip-clock { gap: 0.5rem; padding: 0.8rem; }
   .flip-clock-group { gap: 0.25rem; }
   .flip-card { width: clamp(3.25rem, 18vw, 4.3rem); }
-  .flip-card__char { font-size: clamp(3rem, 15vw, 4rem); }
+  .flip-card__digit { font-size: clamp(3rem, 15vw, 4rem); }
 }
 
 @layer components {

@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
-const FLIP_MS = 520;
-const HALF_MS = FLIP_MS / 2;
+const FULL_MS = 520;
+const HALF_MS = 260;
 
 type Phase = 'idle' | 'top' | 'bottom';
 
-interface FlipDigitProps {
-  value: number;
-}
-
-function FlipDigit({ value }: FlipDigitProps) {
+function FlipDigit({ value }: { value: number }) {
   const [display, setDisplay] = useState(value);
   const [phase, setPhase] = useState<Phase>('idle');
   const [oldDigit, setOldDigit] = useState(value);
@@ -22,8 +18,8 @@ function FlipDigit({ value }: FlipDigitProps) {
   );
 
   useEffect(() => {
-    if (value === prevRef.current) return;
     if (reduced) { setDisplay(value); prevRef.current = value; return; }
+    if (value === prevRef.current) return;
 
     const old = prevRef.current;
     prevRef.current = value;
@@ -31,9 +27,9 @@ function FlipDigit({ value }: FlipDigitProps) {
     clearTimeout(t1.current);
     clearTimeout(t2.current);
 
-    setPhase('top');
     setOldDigit(old);
     setNewDigit(value);
+    setPhase('top');
 
     t1.current = setTimeout(() => {
       setDisplay(value);
@@ -42,29 +38,29 @@ function FlipDigit({ value }: FlipDigitProps) {
 
     t2.current = setTimeout(() => {
       setPhase('idle');
-    }, FLIP_MS);
+    }, FULL_MS);
 
     return () => { clearTimeout(t1.current); clearTimeout(t2.current); };
   }, [value, reduced]);
 
   return (
-    <div className="flip-card" aria-hidden="true">
-      <div className="flip-card__half flip-card__half--top">
-        <span className="flip-card__char">{display}</span>
+    <div className="flip-card">
+      <div className="flip-card__static-top">
+        <span className="flip-card__digit">{display}</span>
       </div>
-      <div className="flip-card__half flip-card__half--bottom">
-        <span className="flip-card__char">{display}</span>
+      <div className="flip-card__static-bottom">
+        <span className="flip-card__digit">{display}</span>
       </div>
 
       {phase === 'top' && (
-        <div className="flip-card__flap flip-card__flap--top">
-          <span className="flip-card__char">{oldDigit}</span>
+        <div className="flip-card__flap-top">
+          <span className="flip-card__digit">{oldDigit}</span>
         </div>
       )}
 
       {phase === 'bottom' && (
-        <div className="flip-card__flap flip-card__flap--bottom">
-          <span className="flip-card__char">{newDigit}</span>
+        <div className="flip-card__flap-bottom">
+          <span className="flip-card__digit">{newDigit}</span>
         </div>
       )}
 
