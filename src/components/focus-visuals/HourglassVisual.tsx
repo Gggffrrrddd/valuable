@@ -9,64 +9,42 @@ interface HourglassProps extends FocusVisualProps {
 const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
 const WORKING_WIDTH = 520;
-const MASK_BOUNDS = { left: 0.23, top: 0.039, width: 0.55, height: 0.924 };
-const MASK_ALPHA_THRESHOLD = 8;
+function clipToHourglass(context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, width: number, height: number) {
+  const cropLeft = 0.23 * width;
+  const cropTop = 0.039 * height;
+  const cropWidth = 0.55 * width;
+  const cropHeight = 0.924 * height;
 
-function buildFilledSilhouette(image: HTMLImageElement) {
-  const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return null;
+  const x = (value: number) => cropLeft + value * cropWidth;
+  const y = (value: number) => cropTop + value * cropHeight;
+  const center = x(0.5);
 
-  context.drawImage(image, 0, 0);
-  const source = context.getImageData(0, 0, canvas.width, canvas.height);
-  const silhouette = context.createImageData(canvas.width, canvas.height);
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-
-  for (let y = 0; y < canvas.height; y += 1) {
-    let left = canvas.width;
-    let right = -1;
-
-    for (let x = 0; x < canvas.width; x += 1) {
-      if (source.data[(y * canvas.width + x) * 4 + 3] <= MASK_ALPHA_THRESHOLD) continue;
-      left = Math.min(left, x);
-      right = Math.max(right, x);
-    }
-
-    if (right < left) continue;
-    minX = Math.min(minX, left);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, right);
-    maxY = Math.max(maxY, y);
-
-    for (let x = left; x <= right; x += 1) {
-      const edgeDistance = Math.min(x - left, right - x);
-      const alpha = Math.min(255, Math.round((edgeDistance + 1) * 128));
-      const index = (y * canvas.width + x) * 4;
-      silhouette.data[index] = 255;
-      silhouette.data[index + 1] = 255;
-      silhouette.data[index + 2] = 255;
-      silhouette.data[index + 3] = alpha;
-    }
-  }
-
-  if (maxX < minX || maxY < minY) return null;
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.putImageData(silhouette, 0, 0);
-  return { canvas, x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+  // Hand-drawn smooth silhouette, based on the hourglass proportions in the source crop.
+  context.beginPath();
+  context.moveTo(x(0.08), y(0.02));
+  context.lineTo(x(0.92), y(0.02));
+  context.bezierCurveTo(x(0.96), y(0.02), x(0.97), y(0.07), x(0.93), y(0.12));
+  context.bezierCurveTo(x(0.86), y(0.23), x(0.74), y(0.38), x(0.59), y(0.47));
+  context.bezierCurveTo(x(0.55), y(0.49), center, y(0.5), center, y(0.51));
+  context.bezierCurveTo(center, y(0.52), x(0.55), y(0.54), x(0.59), y(0.57));
+  context.bezierCurveTo(x(0.74), y(0.66), x(0.86), y(0.81), x(0.93), y(0.9));
+  context.bezierCurveTo(x(0.97), y(0.95), x(0.96), y(0.98), x(0.92), y(0.98));
+  context.lineTo(x(0.08), y(0.98));
+  context.bezierCurveTo(x(0.04), y(0.98), x(0.03), y(0.95), x(0.07), y(0.9));
+  context.bezierCurveTo(x(0.14), y(0.81), x(0.26), y(0.66), x(0.41), y(0.57));
+  context.bezierCurveTo(x(0.45), y(0.54), center, y(0.52), center, y(0.51));
+  context.bezierCurveTo(center, y(0.5), x(0.45), y(0.49), x(0.41), y(0.47));
+  context.bezierCurveTo(x(0.26), y(0.38), x(0.14), y(0.23), x(0.07), y(0.12));
+  context.bezierCurveTo(x(0.03), y(0.07), x(0.04), y(0.02), x(0.08), y(0.02));
+  context.closePath();
+  context.clip();
 }
 
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const maskImageRef = useRef<HTMLImageElement>(null);
   const videoEndedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
-  const [maskLoaded, setMaskLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
@@ -105,8 +83,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   useEffect(() => {
     const video = videoRef.current;
     const displayCanvas = canvasRef.current;
-    const maskImage = maskImageRef.current;
-    if (!video || !displayCanvas || !maskImage || !loaded || !maskLoaded) return;
+    if (!video || !displayCanvas || !loaded) return;
 
     const sourceWidth = video.videoWidth;
     const sourceHeight = video.videoHeight;
@@ -124,27 +101,6 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     const displayContext = displayCanvas.getContext('2d');
     if (!workContext || !displayContext) return;
 
-    const silhouette = buildFilledSilhouette(maskImage);
-    if (!silhouette) return;
-
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = workWidth;
-    maskCanvas.height = workHeight;
-    const maskContext = maskCanvas.getContext('2d');
-    if (!maskContext) return;
-    maskContext.imageSmoothingEnabled = true;
-    maskContext.drawImage(
-      silhouette.canvas,
-      silhouette.x,
-      silhouette.y,
-      silhouette.width,
-      silhouette.height,
-      MASK_BOUNDS.left * workWidth,
-      MASK_BOUNDS.top * workHeight,
-      MASK_BOUNDS.width * workWidth,
-      MASK_BOUNDS.height * workHeight,
-    );
-
     displayCanvas.width = workWidth;
     displayCanvas.height = workHeight;
 
@@ -156,31 +112,22 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       if (now - lastFrame < TARGET_FRAME_MS || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       lastFrame = now;
 
-      workContext.drawImage(video, 0, 0, workWidth, workHeight);
       displayContext.clearRect(0, 0, workWidth, workHeight);
-      displayContext.globalCompositeOperation = 'source-over';
+      displayContext.save();
+      clipToHourglass(displayContext, workWidth, workHeight);
+      workContext.drawImage(video, 0, 0, workWidth, workHeight);
       displayContext.drawImage(workCanvas, 0, 0);
-      displayContext.globalCompositeOperation = 'destination-in';
-      displayContext.drawImage(maskCanvas, 0, 0);
-      displayContext.globalCompositeOperation = 'source-over';
+      displayContext.restore();
     };
 
     frameId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frameId);
-  }, [loaded, maskLoaded]);
+  }, [loaded]);
 
   return (
     <div className={`hybrid-hourglass ${complete ? 'hybrid-hourglass-complete' : ''}`} role="img" aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}>
       <div className="hourglass-ambient" />
-      {(!loaded || !maskLoaded) && <div className="hourglass-loading" />}
-      <img
-        ref={maskImageRef}
-        className="hourglass-mask-source"
-        src="/visuals/hourglass/hourglass-shell.png"
-        onLoad={() => setMaskLoaded(true)}
-        alt=""
-        aria-hidden="true"
-      />
+      {!loaded && <div className="hourglass-loading" />}
       <video
         ref={videoRef}
         className="hourglass-video"
