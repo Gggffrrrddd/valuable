@@ -121,18 +121,7 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
   pointer-events: none;
 }
 
-.hourglass-fallback .hourglass-video {
-  opacity: 1;
-  mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 52% 58% at 50% 48%, #fff 28%, rgba(255,255,255,.75) 54%, transparent 82%);
-  mask-image: radial-gradient(ellipse 52% 58% at 50% 48%, #fff 28%, rgba(255,255,255,.75) 54%, transparent 82%);
-}
-
-.hourglass-fallback .hourglass-canvas {
-  display: none;
-}
-
-.hourglass-ellipse-control {
+.hourglass-iris-control {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -146,11 +135,11 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
   touch-action: none;
 }
 
-.hourglass-ellipse-control:active {
+.hourglass-iris-control:active {
   cursor: grabbing;
 }
 
-.hourglass-ellipse-label {
+.hourglass-iris-label {
   position: absolute;
   top: -.2rem;
   left: 50%;
@@ -167,10 +156,18 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
   pointer-events: none;
 }
 
-.hourglass-ellipse-handle {
+.hourglass-iris-inner {
   position: absolute;
-  right: 6%;
-  bottom: 6%;
+  left: 50%;
+  top: 50%;
+  border: 1px dashed rgba(255,255,255,.9);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.hourglass-iris-handle {
+  position: absolute;
   width: .85rem;
   height: .85rem;
   padding: 0;
@@ -180,6 +177,19 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
   box-shadow: 0 0 .7rem rgba(197,255,84,.85);
   cursor: nwse-resize;
   touch-action: none;
+  pointer-events: auto;
+}
+
+.hourglass-iris-inner-handle {
+  right: 5%;
+  bottom: 5%;
+  background: #fff;
+  box-shadow: 0 0 .7rem rgba(255,255,255,.75);
+}
+
+.hourglass-iris-outer-handle {
+  right: 5%;
+  bottom: 5%;
 }
 
 .hourglass-loading {
