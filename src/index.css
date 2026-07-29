@@ -202,60 +202,71 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .flip-clock {
   display: inline-flex;
   align-items: center;
-  gap: clamp(0.5rem, 1.2vw, 0.9rem);
-  padding: clamp(0.85rem, 1.6vw, 1.25rem) clamp(1rem, 2vw, 1.75rem);
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(9, 11, 10, 0.5);
+  gap: clamp(0.7rem, 1.5vw, 1.3rem);
+  padding: clamp(1rem, 1.8vw, 1.5rem);
+  border-radius: 1.65rem;
+  border: 1px solid rgba(245, 243, 235, 0.1);
+  background: linear-gradient(145deg, rgba(31, 33, 31, 0.88), rgba(10, 11, 10, 0.92));
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 28px 90px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
-.flip-clock-group {
+.flip-clock-shell {
   display: flex;
-  align-items: flex-start;
-  gap: clamp(0.25rem, 0.5vw, 0.45rem);
-  position: relative;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
-.flip-clock-label {
-  position: absolute;
-  bottom: -1.1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.55rem;
+.flip-clock-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding-left: 0.35rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #73766f;
-  white-space: nowrap;
+  color: #a9aaa2;
+}
+
+.flip-clock-caption i {
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(197, 255, 84, 0.9), transparent);
+}
+
+.flip-clock-group {
+  display: flex;
+  gap: clamp(0.38rem, 0.8vw, 0.65rem);
 }
 
 .flip-colon {
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  font-size: clamp(2.6rem, 5.4vw, 4.4rem);
   font-weight: 800;
   line-height: 1;
-  color: rgba(197, 255, 84, 0.85);
-  padding-bottom: 0.55rem;
-  text-shadow: 0 0 18px rgba(197, 255, 84, 0.22);
+  color: #c5ff54;
+  padding-bottom: 0.1em;
+  text-shadow: 0 0 20px rgba(197, 255, 84, 0.16);
 }
 
 .flip-digit {
   position: relative;
-  width: clamp(2.6rem, 6vw, 4.6rem);
-  aspect-ratio: 0.78;
-  border-radius: 0.7rem;
-  background: linear-gradient(180deg, #1a1d1a 0%, #0e100f 100%);
+  width: clamp(3.8rem, 6.4vw, 5.8rem);
+  aspect-ratio: 0.72;
+  border-radius: 0.82rem;
+  background: linear-gradient(180deg, #202320 0%, #0c0e0d 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
-    0 3px 0 #080908,
-    0 10px 28px rgba(0, 0, 0, 0.45);
-  perspective: 420px;
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 4px 0 #070807,
+    0 14px 34px rgba(0, 0, 0, 0.48);
+  perspective: 560px;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
 }
@@ -263,7 +274,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .digit-char {
   display: block;
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2.8rem, 6.6vw, 5rem);
+  font-size: clamp(4rem, 7.4vw, 6.6rem);
   font-weight: 800;
   line-height: 1;
   color: #f5f3eb;
@@ -289,16 +300,16 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .digit-face-top,
 .flip-flap-top {
   top: 0;
-  border-radius: 0.7rem 0.7rem 0 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, #1f221f 0%, #161916 100%);
+  border-radius: 0.82rem 0.82rem 0 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #262a26 0%, #191c19 100%);
   transform-origin: bottom;
 }
 
 .digit-face-bottom,
 .flip-flap-bottom {
   bottom: 0;
-  border-radius: 0 0 0.7rem 0.7rem;
+  border-radius: 0 0 0.82rem 0.82rem;
   border-top: 1px solid rgba(0, 0, 0, 0.3);
   background: linear-gradient(180deg, #131513 0%, #0e100f 100%);
   transform-origin: top;
@@ -306,12 +317,12 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .digit-face-top .digit-char,
 .flip-flap-top .digit-char {
-  padding-top: 106%;
+  transform: translateY(50%);
 }
 
 .digit-face-bottom .digit-char,
 .flip-flap-bottom .digit-char {
-  padding-bottom: 106%;
+  transform: translateY(-50%);
 }
 
 .flip-flap {
@@ -353,9 +364,9 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(197, 255, 84, 0.25) 20%,
+    rgba(197, 255, 84, 0.4) 20%,
     rgba(255, 255, 255, 0.12) 55%,
-    rgba(197, 255, 84, 0.25) 80%,
+    rgba(197, 255, 84, 0.4) 80%,
     transparent 100%
   );
   z-index: 4;
@@ -389,31 +400,72 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 }
 
 /* --------------------------------------------------------------------------
-   Premium ambient depth
+   Focus screen architectural backdrop
    -------------------------------------------------------------------------- */
-.ambient-glow {
+.focus-atmosphere {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.55;
   background:
-    radial-gradient(circle at 28% 45%, rgba(197, 255, 84, 0.1), transparent 34rem),
-    radial-gradient(circle at 72% 55%, rgba(197, 255, 84, 0.05), transparent 28rem);
-  animation: ambientPulse 12s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 58% 8%, rgba(245, 243, 235, 0.055), transparent 36rem),
+    linear-gradient(115deg, #080909 0%, #101210 46%, #090a09 100%);
 }
 
-@keyframes ambientPulse {
-  0% { opacity: 0.4; transform: scale(1); }
-  100% { opacity: 0.62; transform: scale(1.06); }
+.focus-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(245, 243, 235, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 243, 235, 0.05) 1px, transparent 1px);
+  background-size: 5rem 5rem;
+  mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ambient-glow {
-    animation: none;
-    opacity: 0.45;
-    transform: none;
-  }
+.focus-orbit {
+  position: fixed;
+  z-index: 0;
+  width: min(68vw, 66rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(245, 243, 235, 0.07);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.focus-orbit-left {
+  top: -38%;
+  left: -28%;
+}
+
+.focus-orbit-right {
+  right: -38%;
+  bottom: -48%;
+  width: min(58vw, 56rem);
+  border-color: rgba(197, 255, 84, 0.12);
+}
+
+.focus-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+@media (max-width: 1023px) {
+  .flip-clock-shell { align-items: center; }
+  .flip-clock-caption { align-self: stretch; }
+}
+
+@media (max-width: 480px) {
+  .flip-clock { gap: 0.5rem; padding: 0.8rem; }
+  .flip-clock-group { gap: 0.25rem; }
+  .flip-digit { width: clamp(3.25rem, 18vw, 4.3rem); }
+  .digit-char { font-size: clamp(3.45rem, 18vw, 4.7rem); }
 }
 
 @layer components {

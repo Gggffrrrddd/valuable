@@ -109,20 +109,12 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className="fixed inset-0 z-50 bg-[#090b0a]">
-        {/* Ambient depth layers */}
-        <div className="ambient-glow" aria-hidden="true" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(197,255,84,.10),transparent_34rem)]" aria-hidden="true" />
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            background:
-               'radial-gradient(circle at 50% 40%, rgba(197,255,84,0.1), transparent 60%)',
-          }}
-          aria-hidden="true"
-        />
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden" aria-hidden="true">
-          <div className="absolute inset-4 rounded-full bg-lime-300/[.025] blur-3xl" />
-        </div>
+        {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
+        <div className="focus-atmosphere" aria-hidden="true" />
+        <div className="focus-grid" aria-hidden="true" />
+        <div className="focus-orbit focus-orbit-left" aria-hidden="true" />
+        <div className="focus-orbit focus-orbit-right" aria-hidden="true" />
+        <div className="focus-vignette" aria-hidden="true" />
 
         {/* Subject tag */}
         {subjectTag && (
@@ -132,16 +124,16 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right */}
-        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 md:flex-row md:items-center md:justify-center md:pb-20 md:pt-16">
+        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16">
           {/* Left / center zone: hourglass visual */}
-          <div className="flex w-full flex-1 items-center justify-center md:w-3/5 md:justify-end md:pr-8 lg:pr-16">
-            <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center md:max-h-[76vh] md:max-w-2xl">
+          <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
+            <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
               <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} />
             </div>
           </div>
 
           {/* Right zone: flip-clock timer */}
-          <div className="mt-6 flex w-full items-center justify-center md:mt-0 md:w-2/5 md:justify-start md:pl-8 lg:pl-16">
+          <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>

@@ -93,24 +93,28 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
   const s2 = ss % 10;
 
   return (
-    <div
-      className="flip-clock"
-      role="timer"
-      aria-live="off"
-      aria-label={`${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`}
-    >
-      <div className="flip-clock-group">
-        <FlipDigit value={m1} />
-        <FlipDigit value={m2} />
-        <span className="flip-clock-label">min</span>
+    <div className="flip-clock-shell">
+      <div className="flip-clock-caption" aria-hidden="true">
+        <span>Time remaining</span>
+        <i />
       </div>
+      <div
+        className="flip-clock"
+        role="timer"
+        aria-live="off"
+        aria-label={`${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`}
+      >
+        <div className="flip-clock-group">
+          <FlipDigit value={m1} />
+          <FlipDigit value={m2} />
+        </div>
 
-      <span className="flip-colon" aria-hidden="true">:</span>
+        <span className="flip-colon" aria-hidden="true">:</span>
 
-      <div className="flip-clock-group">
-        <FlipDigit value={s1} />
-        <FlipDigit value={s2} />
-        <span className="flip-clock-label">sec</span>
+        <div className="flip-clock-group">
+          <FlipDigit value={s1} />
+          <FlipDigit value={s2} />
+        </div>
       </div>
     </div>
   );
