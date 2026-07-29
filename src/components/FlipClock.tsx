@@ -4,77 +4,76 @@ interface FlipDigitProps {
   value: number;
 }
 
-const FLIP_DURATION_MS = 520;
+interface DigitTransition {
+  from: number;
+  to: number;
+  id: number;
+}
+
+function DigitHalf({ digit, half, animated = false, onAnimationEnd }: {
+  digit: number;
+  half: 'top' | 'bottom';
+  animated?: boolean;
+  onAnimationEnd?: () => void;
+}) {
+  const className = animated
+    ? `flip-digit__flap flip-digit__flap--${half}`
+    : `flip-digit__face flip-digit__face--${half}`;
+
+  return (
+    <div className={className} onAnimationEnd={onAnimationEnd}>
+      <span className="flip-digit__number">{digit}</span>
+    </div>
+  );
+}
 
 function FlipDigit({ value }: FlipDigitProps) {
-  const [current, setCurrent] = useState(value);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const isFlippingRef = useRef(isFlipping);
+  const [settled, setSettled] = useState(value);
+  const [transition, setTransition] = useState<DigitTransition | null>(null);
+  const sequenceRef = useRef(0);
   const latestValueRef = useRef(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [prefersReducedMotion] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
-
-  useEffect(() => {
-    isFlippingRef.current = isFlipping;
-  }, [isFlipping]);
+  const [prefersReducedMotion] = useState(() => (
+    typeof window !== 'undefined'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ));
 
   useEffect(() => {
     latestValueRef.current = value;
 
     if (prefersReducedMotion) {
-      setCurrent(value);
-      setIsFlipping(false);
+      setSettled(value);
+      setTransition(null);
       return;
     }
 
-    if (value === current) {
-      if (isFlippingRef.current) setIsFlipping(false);
-      return;
+    if (!transition && value !== settled) {
+      sequenceRef.current += 1;
+      setTransition({ from: settled, to: value, id: sequenceRef.current });
     }
+  }, [value, settled, transition, prefersReducedMotion]);
 
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setIsFlipping(true);
+  const finishTransition = () => {
+    if (!transition) return;
+    const completedValue = transition.to;
+    setSettled(completedValue);
+    setTransition(null);
+  };
 
-    timerRef.current = setTimeout(() => {
-      setCurrent(latestValueRef.current);
-      setIsFlipping(false);
-      timerRef.current = null;
-    }, FLIP_DURATION_MS);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [value, current, prefersReducedMotion]);
-
-  const digit = prefersReducedMotion ? value : current;
-  const target = prefersReducedMotion ? value : value;
+  const from = transition?.from ?? settled;
+  const to = transition?.to ?? settled;
 
   return (
-    <div className="flip-digit" aria-hidden="true">
-      {/* Static face showing the settled/current digit */}
-      <div className="digit-face digit-face-top">
-        <span className="digit-char">{digit}</span>
-      </div>
-      <div className="digit-face digit-face-bottom">
-        <span className="digit-char">{digit}</span>
-      </div>
+    <div className={`flip-digit ${transition ? 'flip-digit--active' : ''}`} aria-hidden="true">
+      <DigitHalf digit={to} half="top" />
+      <DigitHalf digit={from} half="bottom" />
 
-      {/* Animated split-flap overlays ??? only the changing digits flip */}
-      {isFlipping && !prefersReducedMotion && (
-        <>
-          <div className="flip-flap flip-flap-top">
-            <span className="digit-char">{digit}</span>
-          </div>
-          <div className="flip-flap flip-flap-bottom">
-            <span className="digit-char">{target}</span>
-          </div>
-        </>
+      {transition && (
+        <div className="flip-digit__animation" key={transition.id}>
+          <DigitHalf digit={from} half="top" animated />
+          <DigitHalf digit={to} half="bottom" animated onAnimationEnd={finishTransition} />
+        </div>
       )}
 
-      {/* Subtle seam/glint line at the vertical midpoint */}
       <div className="digit-seam" />
     </div>
   );

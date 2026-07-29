@@ -232,17 +232,21 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .flip-clock-group {
   display: flex;
+  align-items: stretch;
   gap: clamp(0.38rem, 0.8vw, 0.65rem);
 }
 
 .flip-colon {
+  display: grid;
+  align-self: stretch;
+  place-items: center;
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2.6rem, 5.4vw, 4.4rem);
   font-weight: 800;
   line-height: 1;
   color: #c5ff54;
-  padding-bottom: 0.1em;
   text-shadow: 0 0 20px rgba(197, 255, 84, 0.16);
+  transform: translateY(-0.025em);
 }
 
 .flip-digit {
@@ -257,38 +261,58 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
     0 4px 0 #070807,
     0 14px 34px rgba(0, 0, 0, 0.48);
   perspective: 560px;
+  contain: layout paint style;
+  isolation: isolate;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
 }
 
-.digit-char {
-  display: block;
+.flip-digit--active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 4px 0 #070807,
+    0 14px 34px rgba(0, 0, 0, 0.48),
+    0 0 22px rgba(197, 255, 84, 0.08);
+}
+
+.flip-digit__number {
+  position: absolute;
+  left: 0;
+  display: grid;
+  width: 100%;
+  height: 200%;
+  place-items: center;
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(4rem, 7.4vw, 6.6rem);
   font-weight: 800;
   line-height: 1;
   color: #f5f3eb;
+  text-align: center;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-.digit-face,
-.flip-flap {
+.flip-digit__face,
+.flip-digit__flap {
   position: absolute;
   left: 0;
   right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 50%;
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-.digit-face-top,
-.flip-flap-top {
+.flip-digit__face--top,
+.flip-digit__flap--top {
   top: 0;
   border-radius: 0.82rem 0.82rem 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -296,8 +320,8 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform-origin: bottom;
 }
 
-.digit-face-bottom,
-.flip-flap-bottom {
+.flip-digit__face--bottom,
+.flip-digit__flap--bottom {
   bottom: 0;
   border-radius: 0 0 0.82rem 0.82rem;
   border-top: 1px solid rgba(0, 0, 0, 0.3);
@@ -305,32 +329,40 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform-origin: top;
 }
 
-.digit-face-top .digit-char,
-.flip-flap-top .digit-char {
-  transform: translateY(50%);
+.flip-digit__face--top .flip-digit__number,
+.flip-digit__flap--top .flip-digit__number {
+  top: 0;
 }
 
-.digit-face-bottom .digit-char,
-.flip-flap-bottom .digit-char {
-  transform: translateY(-50%);
+.flip-digit__face--bottom .flip-digit__number,
+.flip-digit__flap--bottom .flip-digit__number {
+  bottom: 0;
 }
 
-.flip-flap {
-  z-index: 2;
+.flip-digit__animation {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
 }
 
-.flip-flap-top {
-  animation: flipTop 0.52s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+.flip-digit__flap {
+  z-index: 2;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
-.flip-flap-bottom {
-  animation: flipBottom 0.52s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+.flip-digit__flap--top {
+  animation: flipTop 0.6s cubic-bezier(0.45, 0, 0.55, 1) both;
 }
 
-/* Dynamic shadow/highlight that sweeps across the flap mid-flip */
-.flip-flap::after {
+.flip-digit__flap--bottom {
+  animation: flipBottom 0.6s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+.flip-digit__flap::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -341,8 +373,9 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
     rgba(0, 0, 0, 0.35) 100%
   );
   opacity: 0;
-  animation: flapShade 0.52s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+  animation: flapShade 0.6s cubic-bezier(0.45, 0, 0.55, 1) both;
   pointer-events: none;
+  will-change: opacity;
 }
 
 .digit-seam {
@@ -365,25 +398,26 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 }
 
 @keyframes flipTop {
-  0% { transform: rotateX(0deg); }
-  100% { transform: rotateX(-90deg); }
+  0% { transform: translateZ(0) rotateX(0deg); }
+  50%, 100% { transform: translateZ(0) rotateX(-90deg); }
 }
 
 @keyframes flipBottom {
-  0% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0deg); }
+  0%, 50% { transform: translateZ(0) rotateX(90deg); }
+  100% { transform: translateZ(0) rotateX(0deg); }
 }
 
 @keyframes flapShade {
   0% { opacity: 0; }
-  35% { opacity: 1; }
+  48% { opacity: 0.85; }
+  52% { opacity: 0.55; }
   100% { opacity: 0; }
 }
 
 /* Reduced motion: instant swap, no 3D flip, retain card styling */
 @media (prefers-reduced-motion: reduce) {
-  .flip-flap,
-  .flip-flap::after {
+  .flip-digit__animation,
+  .flip-digit__flap::after {
     animation: none !important;
     display: none !important;
   }
@@ -458,7 +492,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   .flip-clock { gap: 0.5rem; padding: 0.8rem; }
   .flip-clock-group { gap: 0.25rem; }
   .flip-digit { width: clamp(3.25rem, 18vw, 4.3rem); }
-  .digit-char { font-size: clamp(3.45rem, 18vw, 4.7rem); }
+  .flip-digit__number { font-size: clamp(3.45rem, 18vw, 4.7rem); }
 }
 
 @layer components {
