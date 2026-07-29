@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Large video - served from Cloudinary
+public/visuals/hourglass/hourglass-drain.mp4

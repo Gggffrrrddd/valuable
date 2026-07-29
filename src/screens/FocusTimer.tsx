@@ -122,7 +122,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
           <div className="absolute inset-4 rounded-full bg-lime-300/[.025] blur-3xl" />
-          <FocusVisual theme={visualTheme} progress={progress} />
+          <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} remaining={secondsLeft} />
         </div>
 
         <div className="absolute right-5 top-5 z-20 rounded-xl border border-white/[.08] bg-black/40 px-3 py-2 font-display text-sm font-bold tabular-nums text-stone-400 backdrop-blur sm:right-8 sm:top-8">

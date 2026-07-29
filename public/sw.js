@@ -1,4 +1,4 @@
-const CACHE_NAME = 'valuable-shell-v3';
+const CACHE_NAME = 'valuable-shell-v4';
 const SHELL = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
