@@ -9,18 +9,12 @@ interface HourglassProps extends FocusVisualProps {
 const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
 
-const MASK_URL = '/visuals/hourglass/hourglass-mask-source.png';
-const MASK_WIDTH = 666;
-const MASK_HEIGHT = 374;
-
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoEndedRef = useRef(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const [maskLoaded, setMaskLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const loaded = videoLoaded && maskLoaded;
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
 
@@ -32,7 +26,6 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !loaded) return;
-
     if (running && !videoEndedRef.current && !complete) {
       if (progress === 0) video.currentTime = 0;
       video.playbackRate = playbackRate;
@@ -60,8 +53,8 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     const canvas = canvasRef.current;
     if (!video || !canvas || !loaded) return;
 
-    canvas.width = MASK_WIDTH;
-    canvas.height = MASK_HEIGHT;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -72,15 +65,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       frameId = requestAnimationFrame(draw);
       if (now - lastFrame < TARGET_FRAME_MS || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       lastFrame = now;
-
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const scale = Math.min(MASK_WIDTH / vw, MASK_HEIGHT / vh);
-      const dx = (MASK_WIDTH - vw * scale) / 2;
-      const dy = (MASK_HEIGHT - vh * scale) / 2;
-
-      ctx.clearRect(0, 0, MASK_WIDTH, MASK_HEIGHT);
-      ctx.drawImage(video, dx, dy, vw * scale, vh * scale);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     };
 
     frameId = requestAnimationFrame(draw);
@@ -99,15 +84,14 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         muted
         playsInline
         src="https://res.cloudinary.com/dcydj6gao/video/upload/v1785294925/project_video_1_rdj9o6.mp4"
-        onLoadedData={() => setVideoLoaded(true)}
+        onLoadedData={() => setLoaded(true)}
         onEnded={handleEnded}
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
       <img
-        src={MASK_URL}
-        onLoad={() => setMaskLoaded(true)}
-        style={{ display: 'none' }}
+        src="/visuals/hourglass/hourglass-mask-source.png"
+        className="hourglass-overlay"
         alt=""
         aria-hidden="true"
       />
