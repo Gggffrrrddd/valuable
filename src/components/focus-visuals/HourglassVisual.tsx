@@ -4,12 +4,11 @@ import type { FocusVisualProps } from './types';
 interface HourglassProps extends FocusVisualProps {
   duration: number;
   running: boolean;
-  remaining: number;
 }
 
 const VIDEO_DURATION = 1799.9;
 
-export default function HourglassVisual({ progress, duration, running, remaining }: HourglassProps) {
+export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -64,13 +63,6 @@ export default function HourglassVisual({ progress, duration, running, remaining
         aria-hidden="true"
       />
 
-      <div className="absolute bottom-2 left-2 z-30 rounded bg-black/70 px-2 py-1 font-mono text-[10px] leading-tight text-white/80">
-        <div>Study: {Math.round(duration / 60)} min</div>
-        <div>Video: {VIDEO_DURATION}s</div>
-        <div>Rate: {playbackRate.toFixed(4)}x</div>
-        <div>VidTime: {videoRef.current?.currentTime.toFixed(1) ?? '0.0'}s</div>
-        <div>Timer: {remaining}s</div>
-      </div>
     </div>
   );
 }
