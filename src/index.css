@@ -215,6 +215,14 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   -webkit-backdrop-filter: blur(18px);
 }
 
+.hourglass-mask-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .flip-clock-shell {
   display: flex;
   flex-direction: column;
