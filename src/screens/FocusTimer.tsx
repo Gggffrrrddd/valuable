@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
+import FlipClock from '@/components/FlipClock';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 
 interface FocusTimerProps {
@@ -103,67 +104,79 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     }
   }
 
-  const mm = Math.floor(secondsLeft / 60);
-  const ss = secondsLeft % 60;
-  const timeStr = `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
   const progress = totalFocusSeconds > 0 ? 1 - secondsLeft / totalFocusSeconds : 0;
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className="fixed inset-0 z-50 bg-[#090b0a]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(197,255,84,.11),transparent_32rem)]" />
+        {/* Ambient depth layers */}
+        <div className="ambient-glow" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(197,255,84,.10),transparent_34rem)]" aria-hidden="true" />
         <div
           className="absolute inset-0 opacity-20"
           style={{
             background:
                'radial-gradient(circle at 50% 40%, rgba(197,255,84,0.1), transparent 60%)',
           }}
+          aria-hidden="true"
         />
-
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden" aria-hidden="true">
           <div className="absolute inset-4 rounded-full bg-lime-300/[.025] blur-3xl" />
-          <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} />
         </div>
 
-        <div className="absolute right-5 top-5 z-20 rounded-xl border border-white/[.08] bg-black/40 px-3 py-2 font-display text-sm font-bold tabular-nums text-stone-400 backdrop-blur sm:right-8 sm:top-8">
-          {timeStr}
-        </div>
-
+        {/* Subject tag */}
         {subjectTag && (
-          <div className="absolute left-1/2 top-8 z-20 -translate-x-1/2 rounded-full border border-white/[.08] bg-black/40 px-4 py-1.5 text-xs font-bold uppercase tracking-[.14em] text-lime-300 backdrop-blur sm:top-9">
+          <div className="absolute left-1/2 top-7 z-20 -translate-x-1/2 rounded-full border border-white/[.08] bg-black/35 px-5 py-2 text-[11px] font-bold uppercase tracking-[.16em] text-lime-300 backdrop-blur-xl sm:top-9">
             {subjectTag}
           </div>
         )}
 
-        <div className="absolute bottom-28 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/40 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[.22em] text-stone-400 backdrop-blur">
+        {/* Premium split-layout: hourglass left/center, flip-clock right */}
+        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 md:flex-row md:items-center md:justify-center md:pb-20 md:pt-16">
+          {/* Left / center zone: hourglass visual */}
+          <div className="flex w-full flex-1 items-center justify-center md:w-3/5 md:justify-end md:pr-8 lg:pr-16">
+            <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center md:max-h-[76vh] md:max-w-2xl">
+              <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} />
+            </div>
+          </div>
+
+          {/* Right zone: flip-clock timer */}
+          <div className="mt-6 flex w-full items-center justify-center md:mt-0 md:w-2/5 md:justify-start md:pl-8 lg:pl-16">
+            <FlipClock secondsLeft={secondsLeft} />
+          </div>
+        </div>
+
+        {/* Session status */}
+        <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
           {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
 
+        {/* Session controls */}
         {phase !== 'completing' && (
-          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4">
+          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
             {phase === 'focus' ? (
               <button
                 onClick={handlePause}
-                className="w-14 h-14 rounded-full bg-black/50 border border-white/[.12] flex items-center justify-center text-white backdrop-blur hover:bg-black/70 transition-colors"
+                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-100 transition hover:bg-white/[.10] hover:scale-105 active:scale-95"
                 aria-label="Pause"
               >
-                <Pause className="w-6 h-6" />
+                <Pause className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
               </button>
             ) : (
               <button
                 onClick={handleResume}
-                className="w-14 h-14 rounded-full bg-emerald-500/80 flex items-center justify-center text-slate-950 backdrop-blur hover:bg-emerald-400 transition-colors"
+                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#11130f] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
                 aria-label="Resume"
               >
-                <Play className="w-6 h-6 ml-0.5" />
+                <Play className="h-7 w-7 ml-0.5 transition group-hover:scale-105" strokeWidth={1.8} />
               </button>
             )}
             <button
               onClick={handleQuitRequest}
-              className="w-14 h-14 rounded-full bg-black/50 border border-white/[.12] flex items-center justify-center text-white/70 backdrop-blur hover:text-red-400 hover:bg-black/70 transition-colors"
+              className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-300 transition hover:bg-white/[.10] hover:text-red-400 hover:scale-105 active:scale-95"
               aria-label="Quit session"
             >
-              <X className="w-6 h-6" />
+              <X className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
             </button>
           </div>
         )}
