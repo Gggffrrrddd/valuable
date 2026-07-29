@@ -484,25 +484,21 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   width: 100%;
   height: 100%;
   overflow: visible;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
 }
 
-.hourglass-calibration-path polygon {
+.hourglass-calibration-path path {
   fill: rgba(197, 255, 84, 0.05);
   stroke: #c5ff54;
-  stroke-width: 0.45;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
-.hourglass-calibration-path circle {
-  fill: #f5f3eb;
-  stroke: #11130f;
-  stroke-width: 0.55;
-  vector-effect: non-scaling-stroke;
-  cursor: grab;
-  touch-action: none;
-}
-
-.hourglass-calibration-path circle:active { cursor: grabbing; }
+.hourglass-calibration-preview .hourglass-calibration-path path { fill: transparent; stroke-dasharray: 5 4; opacity: 0.6; }
 
 .hourglass-calibration-actions {
   position: absolute;
@@ -544,6 +540,11 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .hourglass-calibration-actions button:last-child {
   background: #c5ff54;
   color: #11130f;
+}
+
+.hourglass-calibration-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 @media (max-width: 640px) {
