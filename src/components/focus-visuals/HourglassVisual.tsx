@@ -12,77 +12,95 @@ const TARGET_FRAME_MS = 1000 / 18;
 const WORKING_WIDTH = 520;
 const BOUNDARY_STORAGE_KEY = 'valuable-hourglass-boundary-v1';
 
-type BoundaryPoint = [number, number];
+export type BoundaryPoint = [number, number];
 
-const DEFAULT_BOUNDARY: BoundaryPoint[] = [
-  [0.274, 0.057], [0.5, 0.057], [0.736, 0.057], [0.756, 0.095],
-  [0.703, 0.245], [0.636, 0.382], [0.555, 0.473], [0.505, 0.51],
-  [0.555, 0.565], [0.636, 0.664], [0.703, 0.805], [0.756, 0.943],
-  [0.736, 0.945], [0.5, 0.945], [0.274, 0.945], [0.244, 0.943],
-  [0.297, 0.805], [0.364, 0.664], [0.445, 0.565], [0.495, 0.51],
-  [0.445, 0.473], [0.364, 0.382], [0.297, 0.245], [0.244, 0.095],
+// Generic hourglass template. You can drag, scale, rotate and stretch it over the video.
+const DEFAULT_TEMPLATE: BoundaryPoint[] = [
+  [0.27, 0.055], [0.5, 0.055], [0.73, 0.055], [0.77, 0.09],
+  [0.74, 0.23], [0.66, 0.37], [0.59, 0.45], [0.55, 0.49],
+  [0.5, 0.51], [0.45, 0.49], [0.41, 0.45], [0.34, 0.37],
+  [0.26, 0.23], [0.23, 0.09], [0.27, 0.055],
+  [0.23, 0.91], [0.27, 0.945], [0.5, 0.945], [0.73, 0.945],
+  [0.77, 0.91], [0.74, 0.77], [0.66, 0.63], [0.59, 0.55],
+  [0.55, 0.53], [0.5, 0.51], [0.45, 0.53], [0.41, 0.55],
+  [0.34, 0.63], [0.26, 0.77], [0.23, 0.91],
 ];
+
+const DEFAULT_BOUNDARY: BoundaryPoint[] = DEFAULT_TEMPLATE;
+
+interface TemplateTransform {
+  x: number;
+  y: number;
+  scale: number;
+  rotate: number;
+  width: number;
+}
+
+const DEFAULT_TRANSFORM: TemplateTransform = { x: 0, y: 0, scale: 1, rotate: 0, width: 1 };
 
 function readBoundary(): BoundaryPoint[] {
   if (typeof window === 'undefined') return DEFAULT_BOUNDARY;
   try {
     const saved = JSON.parse(window.localStorage.getItem(BOUNDARY_STORAGE_KEY) ?? '');
     if (!Array.isArray(saved) || saved.length < 3) return DEFAULT_BOUNDARY;
-    return saved.map(([x, y]) => [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))]);
+    return saved.map(([x, y]: number[]) => [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))]);
   } catch {
     return DEFAULT_BOUNDARY;
   }
 }
 
-function smoothBoundary(points: BoundaryPoint[]) {
-  const sampled = points.filter((point, index) => {
-    if (index === 0) return true;
-    const previous = points[index - 1];
-    return Math.hypot(point[0] - previous[0], point[1] - previous[1]) >= 0.0025;
-  });
-  const limited = sampled.length > 180
-    ? sampled.filter((_, index) => index % Math.ceil(sampled.length / 180) === 0)
-    : sampled;
-  if (limited.length < 8) return points;
+function applyTransform(points: BoundaryPoint[], t: TemplateTransform): BoundaryPoint[] {
+  const cx = 0.5;
+  const cy = 0.5;
+  const rad = (t.rotate * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
 
-  return limited.map((point, index) => {
-    const previous = limited[(index - 1 + limited.length) % limited.length];
-    const next = limited[(index + 1) % limited.length];
-    return [
-      previous[0] * 0.15 + point[0] * 0.7 + next[0] * 0.15,
-      previous[1] * 0.15 + point[1] * 0.7 + next[1] * 0.15,
-    ] as BoundaryPoint;
+  return points.map(([x, y]) => {
+    const dx = (x - cx) * t.scale * t.width;
+    const dy = (y - cy) * t.scale;
+    const rx = dx * cos - dy * sin;
+    const ry = dx * sin + dy * cos;
+    return [Math.max(0, Math.min(1, cx + rx + t.x)), Math.max(0, Math.min(1, cy + ry + t.y))];
   });
 }
 
-function boundaryPath(boundary: BoundaryPoint[]) {
-  if (!boundary.length) return '';
-  return `${boundary.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x * 100} ${y * 100}`).join(' ')} Z`;
+function pathData(points: BoundaryPoint[]) {
+  if (!points.length) return '';
+  return points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x * 100} ${y * 100}`).join(' ') + ' Z';
 }
 
-function clipToHourglass(context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, width: number, height: number, boundary: BoundaryPoint[]) {
+function clipToHourglass(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  width: number,
+  height: number,
+  boundary: BoundaryPoint[],
+) {
+  if (boundary.length < 3) return false;
   const first = boundary[0];
   context.beginPath();
   context.moveTo(first[0] * width, first[1] * height);
   boundary.slice(1).forEach(([x, y]) => context.lineTo(x * width, y * height));
   context.closePath();
   context.clip();
+  return true;
 }
 
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoEndedRef = useRef(false);
-  const drawingRef = useRef(false);
-  const calibrationStartRef = useRef<BoundaryPoint[]>(DEFAULT_BOUNDARY);
+  const dragStartRef = useRef<{ clientX: number; clientY: number; x: number; y: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [boundary, setBoundary] = useState<BoundaryPoint[]>(readBoundary);
-  const [history, setHistory] = useState<BoundaryPoint[][]>([]);
+  const [transform, setTransform] = useState<TemplateTransform>(DEFAULT_TRANSFORM);
   const [calibrationMode, setCalibrationMode] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
+
+  const workingBoundary = applyTransform(DEFAULT_TEMPLATE, transform);
 
   const handleEnded = () => {
     videoEndedRef.current = true;
@@ -125,14 +143,17 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     if (!sourceWidth || !sourceHeight) return;
 
     const workWidth = Math.min(WORKING_WIDTH, sourceWidth);
-    const workHeight = Math.max(1, Math.round(workWidth * sourceHeight / sourceWidth));
+    const workHeight = Math.max(1, Math.round((workWidth * sourceHeight) / sourceWidth));
     const workCanvas = typeof OffscreenCanvas !== 'undefined'
       ? new OffscreenCanvas(workWidth, workHeight)
       : document.createElement('canvas');
     workCanvas.width = workWidth;
     workCanvas.height = workHeight;
 
-    const workContext = workCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    const workContext = workCanvas.getContext('2d') as
+      | CanvasRenderingContext2D
+      | OffscreenCanvasRenderingContext2D
+      | null;
     const displayContext = displayCanvas.getContext('2d');
     if (!workContext || !displayContext) return;
 
@@ -161,74 +182,62 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     return () => cancelAnimationFrame(frameId);
   }, [loaded, boundary, calibrationMode, previewMode]);
 
-  function pointerPosition(event: React.PointerEvent<SVGSVGElement>): BoundaryPoint {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    return [
-      Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
-      Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
-    ];
-  }
-
-  function startDrawing(event: React.PointerEvent<SVGSVGElement>) {
-    if (previewMode) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drawingRef.current = true;
-    setHistory((items) => [...items.slice(-4), boundary]);
-    setBoundary([pointerPosition(event)]);
-  }
-
-  function continueDrawing(event: React.PointerEvent<SVGSVGElement>) {
-    if (!drawingRef.current || previewMode) return;
-    const point = pointerPosition(event);
-    setBoundary((points) => {
-      const previous = points[points.length - 1];
-      if (previous && Math.hypot(point[0] - previous[0], point[1] - previous[1]) < 0.0025) return points;
-      return [...points, point];
-    });
-  }
-
-  function finishDrawing(event: React.PointerEvent<SVGSVGElement>) {
-    if (!drawingRef.current) return;
-    drawingRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    setBoundary((points) => points.length >= 8 ? smoothBoundary(points) : history[history.length - 1] ?? DEFAULT_BOUNDARY);
-  }
-
   function openCalibration() {
-    calibrationStartRef.current = boundary;
-    setHistory([]);
+    setTransform(DEFAULT_TRANSFORM);
     setPreviewMode(false);
     setCalibrationMode(true);
   }
 
   function cancelCalibration() {
-    setBoundary(calibrationStartRef.current);
-    setCalibrationMode(false);
+    setTransform(DEFAULT_TRANSFORM);
     setPreviewMode(false);
-  }
-
-  function undoBoundary() {
-    setHistory((items) => {
-      const previous = items[items.length - 1];
-      if (previous) setBoundary(previous);
-      return items.slice(0, -1);
-    });
+    setCalibrationMode(false);
   }
 
   function saveBoundary() {
-    window.localStorage.setItem(BOUNDARY_STORAGE_KEY, JSON.stringify(boundary));
+    const next = workingBoundary.map(([x, y]) => [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))] as BoundaryPoint);
+    setBoundary(next);
+    window.localStorage.setItem(BOUNDARY_STORAGE_KEY, JSON.stringify(next));
     setCalibrationMode(false);
     setPreviewMode(false);
   }
 
   function copyBoundary() {
-    navigator.clipboard?.writeText(JSON.stringify(boundary));
+    navigator.clipboard?.writeText(JSON.stringify(workingBoundary));
+  }
+
+  function updateTransform(patch: Partial<TemplateTransform>) {
+    setTransform((current) => ({ ...current, ...patch }));
+  }
+
+  function startDrag(event: React.PointerEvent<SVGRectElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStartRef.current = { clientX: event.clientX, clientY: event.clientY, x: transform.x, y: transform.y };
+  }
+
+  function onDrag(event: React.PointerEvent<SVGRectElement>) {
+    if (!dragStartRef.current) return;
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const dx = (event.clientX - dragStartRef.current.clientX) / rect.width;
+    const dy = (event.clientY - dragStartRef.current.clientY) / rect.height;
+    setTransform((current) => ({ ...current, x: dragStartRef.current!.x + dx, y: dragStartRef.current!.y + dy }));
+  }
+
+  function endDrag(event: React.PointerEvent<SVGRectElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragStartRef.current = null;
   }
 
   return (
-    <div className={`hybrid-hourglass ${complete ? 'hybrid-hourglass-complete' : ''}`} role="img" aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}>
+    <div
+      className={`hybrid-hourglass ${complete ? 'hybrid-hourglass-complete' : ''}`}
+      role="img"
+      aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}
+    >
       <div className="hourglass-ambient" />
       {!loaded && <div className="hourglass-loading" />}
       <video
@@ -244,6 +253,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
+
       {duration > 0 && !calibrationMode && (
         <button
           type="button"
@@ -255,27 +265,70 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
           <span>Edit outline</span>
         </button>
       )}
+
       {calibrationMode && (
         <div className={`hourglass-calibration ${previewMode ? 'hourglass-calibration-preview' : ''}`} role="dialog" aria-label="Hourglass boundary calibration">
-          <svg
-            className="hourglass-calibration-path"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            onPointerDown={startDrawing}
-            onPointerMove={continueDrawing}
-            onPointerUp={finishDrawing}
-            onPointerCancel={finishDrawing}
-          >
-            {boundary.length >= 2 && <path d={boundaryPath(boundary)} />}
+          <svg className="hourglass-calibration-path" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <rect
+              className="hourglass-calibration-drag-surface"
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              onPointerDown={startDrag}
+              onPointerMove={onDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            />
+            <path d={pathData(workingBoundary)} />
           </svg>
+
           <div className="hourglass-calibration-actions">
-            <span>{previewMode ? 'Previewing final crop' : 'Draw once around the complete outer edge'}</span>
-            <button type="button" onClick={undoBoundary} disabled={!history.length}>Undo</button>
-            <button type="button" onClick={() => { setHistory((items) => [...items, boundary]); setBoundary([]); }}>Clear</button>
-            <button type="button" onClick={() => setPreviewMode((value) => !value)} disabled={boundary.length < 3}>{previewMode ? 'Draw again' : 'Preview'}</button>
-            <button type="button" onClick={cancelCalibration}>Cancel</button>
-            <button type="button" onClick={saveBoundary} disabled={boundary.length < 3}>Save boundary</button>
-            <button type="button" onClick={copyBoundary}>Copy coordinates</button>
+            <span>Drag outline, then tune with sliders</span>
+
+            <div className="hourglass-calibration-sliders">
+              <label>
+                Scale
+                <input
+                  type="range"
+                  min="0.3"
+                  max="2"
+                  step="0.005"
+                  value={transform.scale}
+                  onChange={(event) => updateTransform({ scale: Number(event.target.value) })}
+                />
+              </label>
+              <label>
+                Width
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.5"
+                  step="0.005"
+                  value={transform.width}
+                  onChange={(event) => updateTransform({ width: Number(event.target.value) })}
+                />
+              </label>
+              <label>
+                Rotate
+                <input
+                  type="range"
+                  min="-45"
+                  max="45"
+                  step="0.5"
+                  value={transform.rotate}
+                  onChange={(event) => updateTransform({ rotate: Number(event.target.value) })}
+                />
+              </label>
+            </div>
+
+            <div className="hourglass-calibration-buttons">
+              <button type="button" onClick={() => setTransform(DEFAULT_TRANSFORM)}>Reset</button>
+              <button type="button" onClick={() => setPreviewMode((value) => !value)}>{previewMode ? 'Edit' : 'Preview'}</button>
+              <button type="button" onClick={cancelCalibration}>Cancel</button>
+              <button type="button" onClick={saveBoundary}>Save boundary</button>
+              <button type="button" onClick={copyBoundary}>Copy coordinates</button>
+            </div>
           </div>
         </div>
       )}

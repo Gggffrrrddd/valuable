@@ -484,68 +484,106 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   width: 100%;
   height: 100%;
   overflow: visible;
-  cursor: crosshair;
   touch-action: none;
   user-select: none;
 }
 
+.hourglass-calibration-drag-surface {
+  fill: transparent;
+  cursor: grab;
+}
+
 .hourglass-calibration-path path {
-  fill: rgba(197, 255, 84, 0.05);
+  fill: rgba(197, 255, 84, 0.06);
   stroke: #c5ff54;
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
-.hourglass-calibration-preview .hourglass-calibration-path path { fill: transparent; stroke-dasharray: 5 4; opacity: 0.6; }
+.hourglass-calibration-preview .hourglass-calibration-path path { fill: transparent; stroke-dasharray: 5 4; opacity: 0.55; }
 
 .hourglass-calibration-actions {
   position: absolute;
   left: 50%;
-  bottom: -4.4rem;
+  bottom: -8.5rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.65rem;
   width: max-content;
+  min-width: min(24rem, calc(100vw - 2rem));
   max-width: calc(100vw - 2rem);
   transform: translateX(-50%);
-  padding: 0.55rem 0.7rem;
+  padding: 0.85rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.85rem;
-  background: rgba(10, 11, 10, 0.9);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(14px);
+  border-radius: 1rem;
+  background: rgba(10, 11, 10, 0.92);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
 }
 
 .hourglass-calibration-actions span {
-  margin-right: 0.35rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a9aaa2;
+  text-align: center;
+}
+
+.hourglass-calibration-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.hourglass-calibration-sliders label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #a9aaa2;
+  color: #d8d7d0;
 }
 
-.hourglass-calibration-actions button {
+.hourglass-calibration-sliders input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #c5ff54;
+}
+
+.hourglass-calibration-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.hourglass-calibration-buttons button {
   border: 0;
   border-radius: 0.55rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.5rem 0.7rem;
   background: rgba(255, 255, 255, 0.08);
   color: #f5f3eb;
   font-size: 0.68rem;
   font-weight: 700;
+  transition: background 150ms ease;
 }
 
-.hourglass-calibration-actions button:last-child {
+.hourglass-calibration-buttons button:hover { background: rgba(255, 255, 255, 0.14); }
+
+.hourglass-calibration-buttons button:nth-last-child(2) {
   background: #c5ff54;
   color: #11130f;
 }
 
-.hourglass-calibration-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
-}
+.hourglass-calibration-buttons button:nth-last-child(2):hover { background: #d8ff7f; }
 
 @media (max-width: 640px) {
   .hourglass-calibration-trigger {
@@ -554,13 +592,10 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   }
 
   .hourglass-calibration-actions {
-    bottom: -5.2rem;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: min(28rem, calc(100vw - 2rem));
+    bottom: -10rem;
+    min-width: calc(100vw - 2rem);
+    padding: 0.7rem 0.8rem;
   }
-
-  .hourglass-calibration-actions span { width: 100%; text-align: center; }
 }
 
 .focus-orbit-left {
