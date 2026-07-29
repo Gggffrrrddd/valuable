@@ -1,81 +1,74 @@
 import { useEffect, useRef, useState } from 'react';
 
+const FLIP_MS = 520;
+const HALF_MS = FLIP_MS / 2;
+
+type Phase = 'idle' | 'top' | 'bottom';
+
 interface FlipDigitProps {
   value: number;
 }
 
-const FLIP_DURATION_MS = 520;
-
 function FlipDigit({ value }: FlipDigitProps) {
-  const [current, setCurrent] = useState(value);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const isFlippingRef = useRef(isFlipping);
-  const latestValueRef = useRef(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [prefersReducedMotion] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
+  const [display, setDisplay] = useState(value);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [oldDigit, setOldDigit] = useState(value);
+  const [newDigit, setNewDigit] = useState(value);
+  const prevRef = useRef(value);
+  const t1 = useRef<ReturnType<typeof setTimeout>>();
+  const t2 = useRef<ReturnType<typeof setTimeout>>();
+  const [reduced] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
 
   useEffect(() => {
-    isFlippingRef.current = isFlipping;
-  }, [isFlipping]);
+    if (value === prevRef.current) return;
+    if (reduced) { setDisplay(value); prevRef.current = value; return; }
 
-  useEffect(() => {
-    latestValueRef.current = value;
+    const old = prevRef.current;
+    prevRef.current = value;
 
-    if (prefersReducedMotion) {
-      setCurrent(value);
-      setIsFlipping(false);
-      return;
-    }
+    clearTimeout(t1.current);
+    clearTimeout(t2.current);
 
-    if (value === current) {
-      if (isFlippingRef.current) setIsFlipping(false);
-      return;
-    }
+    setPhase('top');
+    setOldDigit(old);
+    setNewDigit(value);
 
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setIsFlipping(true);
+    t1.current = setTimeout(() => {
+      setDisplay(value);
+      setPhase('bottom');
+    }, HALF_MS);
 
-    timerRef.current = setTimeout(() => {
-      setCurrent(latestValueRef.current);
-      setIsFlipping(false);
-      timerRef.current = null;
-    }, FLIP_DURATION_MS);
+    t2.current = setTimeout(() => {
+      setPhase('idle');
+    }, FLIP_MS);
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [value, current, prefersReducedMotion]);
-
-  const digit = prefersReducedMotion ? value : current;
-  const target = prefersReducedMotion ? value : value;
+    return () => { clearTimeout(t1.current); clearTimeout(t2.current); };
+  }, [value, reduced]);
 
   return (
-    <div className="flip-digit" aria-hidden="true">
-      {/* Static face showing the settled/current digit */}
-      <div className="digit-face digit-face-top">
-        <span className="digit-char">{digit}</span>
+    <div className="flip-card" aria-hidden="true">
+      <div className="flip-card__half flip-card__half--top">
+        <span className="flip-card__char">{display}</span>
       </div>
-      <div className="digit-face digit-face-bottom">
-        <span className="digit-char">{digit}</span>
+      <div className="flip-card__half flip-card__half--bottom">
+        <span className="flip-card__char">{display}</span>
       </div>
 
-      {/* Animated split-flap overlays ??? only the changing digits flip */}
-      {isFlipping && !prefersReducedMotion && (
-        <>
-          <div className="flip-flap flip-flap-top">
-            <span className="digit-char">{digit}</span>
-          </div>
-          <div className="flip-flap flip-flap-bottom">
-            <span className="digit-char">{target}</span>
-          </div>
-        </>
+      {phase === 'top' && (
+        <div className="flip-card__flap flip-card__flap--top">
+          <span className="flip-card__char">{oldDigit}</span>
+        </div>
       )}
 
-      {/* Subtle seam/glint line at the vertical midpoint */}
-      <div className="digit-seam" />
+      {phase === 'bottom' && (
+        <div className="flip-card__flap flip-card__flap--bottom">
+          <span className="flip-card__char">{newDigit}</span>
+        </div>
+      )}
+
+      <div className="flip-card__divider" />
     </div>
   );
 }
@@ -108,9 +101,7 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
           <FlipDigit value={m1} />
           <FlipDigit value={m2} />
         </div>
-
         <span className="flip-colon" aria-hidden="true">:</span>
-
         <div className="flip-clock-group">
           <FlipDigit value={s1} />
           <FlipDigit value={s2} />
