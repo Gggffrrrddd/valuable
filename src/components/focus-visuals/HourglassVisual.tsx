@@ -18,7 +18,6 @@ interface Iris {
 const VIDEO_DURATION = 1799.9;
 const TARGET_FRAME_MS = 1000 / 18;
 const WORKING_WIDTH = 520;
-const OUTSIDE_COLOR = { red: 0, green: 0, blue: 0 };
 const IRIS: Iris = {
   cx: 0.505,
   cy: 0.501,
@@ -126,11 +125,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         const outerBoundary = 1 / Math.sqrt((cosine / outerRadiusX) ** 2 + (sine / outerRadiusY) ** 2);
         const outsideAmount = clamp((radius - innerBoundary) / Math.max(1, outerBoundary - innerBoundary));
 
-        if (outsideAmount === 0) continue;
-        pixels[index] = Math.round(pixels[index] * (1 - outsideAmount) + OUTSIDE_COLOR.red * outsideAmount);
-        pixels[index + 1] = Math.round(pixels[index + 1] * (1 - outsideAmount) + OUTSIDE_COLOR.green * outsideAmount);
-        pixels[index + 2] = Math.round(pixels[index + 2] * (1 - outsideAmount) + OUTSIDE_COLOR.blue * outsideAmount);
-        pixels[index + 3] = 255;
+        pixels[index + 3] = Math.round(pixels[index + 3] * (1 - outsideAmount));
       }
 
       displayContext.putImageData(frame, 0, 0);
