@@ -23,11 +23,11 @@ const WORKING_WIDTH = 520;
 const DEBUG_OUTSIDE_COLOR = { red: 255, green: 0, blue: 0 };
 const INITIAL_IRIS: Iris = {
   cx: 0.5,
-  cy: 0.5,
-  innerRx: 0.245,
-  innerRy: 0.355,
-  outerRx: 0.275,
-  outerRy: 0.385,
+  cy: 0.515,
+  innerRx: 0.225,
+  innerRy: 0.34,
+  outerRx: 0.255,
+  outerRy: 0.415,
 };
 
 const clamp = (value: number, minimum = 0, maximum = 1) => Math.max(minimum, Math.min(maximum, value));
