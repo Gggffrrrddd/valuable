@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import type { FocusVisualProps } from './types';
 
 interface HourglassProps extends FocusVisualProps {
@@ -49,9 +50,9 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [boundary, setBoundary] = useState<BoundaryPoint[]>(readBoundary);
+  const [calibrationMode, setCalibrationMode] = useState(false);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
-  const calibrationMode = duration > 0 && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('calibrateHourglass');
 
   const handleEnded = () => {
     videoEndedRef.current = true;
@@ -139,6 +140,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
 
   function saveBoundary() {
     window.localStorage.setItem(BOUNDARY_STORAGE_KEY, JSON.stringify(boundary));
+    setCalibrationMode(false);
   }
 
   function copyBoundary() {
@@ -162,6 +164,17 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
+      {duration > 0 && !calibrationMode && (
+        <button
+          type="button"
+          className="hourglass-calibration-trigger"
+          onClick={() => setCalibrationMode(true)}
+          aria-label="Edit hourglass boundary"
+        >
+          <Pencil aria-hidden="true" />
+          <span>Edit outline</span>
+        </button>
+      )}
       {calibrationMode && (
         <div className="hourglass-calibration" role="dialog" aria-label="Hourglass boundary calibration">
           <svg className="hourglass-calibration-path" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -182,6 +195,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
           <div className="hourglass-calibration-actions">
             <span>Drag each marker to the hourglass edge</span>
             <button type="button" onClick={() => setBoundary(DEFAULT_BOUNDARY)}>Reset</button>
+            <button type="button" onClick={() => setCalibrationMode(false)}>Cancel</button>
             <button type="button" onClick={saveBoundary}>Save boundary</button>
             <button type="button" onClick={copyBoundary}>Copy coordinates</button>
           </div>
