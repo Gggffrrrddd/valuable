@@ -204,6 +204,11 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         aria-hidden="true"
       />
       <canvas ref={canvasRef} className="hourglass-canvas" aria-hidden="true" />
+      <div className="absolute left-1/2 top-1 z-10 -translate-x-1/2 rounded bg-black/80 px-2 py-1 font-mono text-[10px] leading-relaxed text-lime-300">
+        cx={iris.cx.toFixed(3)} cy={iris.cy.toFixed(3)}<br />
+        innerRx={iris.innerRx.toFixed(3)} innerRy={iris.innerRy.toFixed(3)}<br />
+        outerRx={iris.outerRx.toFixed(3)} outerRy={iris.outerRy.toFixed(3)}
+      </div>
       <div
         className="hourglass-iris-control"
         style={{ left: `${iris.cx * 100}%`, top: `${iris.cy * 100}%`, width: `${iris.outerRx * 200}%`, height: `${iris.outerRy * 200}%` }}
