@@ -144,25 +144,80 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
 button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .visual-level { transition: all .9s linear; }
 
-.tree-scene {
-  position: relative;
-  width: min(100%, 52rem);
-  height: auto;
-  aspect-ratio: 1672 / 941;
-  overflow: hidden;
-  border-radius: 1.4rem;
-  container-type: size;
-  isolation: isolate;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
-}
-
-.tree-scene__background {
+.tree-focus-background {
   position: absolute;
   inset: 0;
   z-index: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tree-focus-session .focus-atmosphere,
+.tree-focus-session .focus-grid,
+.tree-focus-session .focus-orbit,
+.tree-focus-session .focus-vignette {
+  display: none;
+}
+
+.tree-focus-layout > div:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.tree-focus-layout > div:first-child > div {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+}
+
+.tree-focus-layout > div:last-child {
+  position: absolute;
+  right: clamp(1.5rem, 6vw, 7rem);
+  top: 50%;
+  z-index: 20;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
+.tree-leaf-editor {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tree-leaf-editor--fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+.tree-leaf-editor--preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+}
+
+.tree-leaf-editor__preview-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   pointer-events: none;
   user-select: none;
 }
@@ -181,73 +236,111 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   pointer-events: none;
 }
 
-.tree-leaf {
+.tree-placed-leaf {
   position: absolute;
-  z-index: 2;
-  display: block;
-  width: clamp(1.15rem, 3.2cqw, 2rem);
+  z-index: 5;
+  display: grid;
+  width: clamp(1.5rem, 4vw, 4rem);
   aspect-ratio: 3 / 2;
-  pointer-events: none;
-  transform: translateZ(0);
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  transform-origin: center;
+  user-select: none;
 }
 
-.tree-leaf img {
+.tree-placed-leaf:active { cursor: grabbing; }
+
+.tree-placed-leaf--selected {
+  outline: 2px dashed #c5ff54;
+  outline-offset: 0.35rem;
+}
+
+.tree-placed-leaf img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transform-origin: center;
+  pointer-events: none;
   user-select: none;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-.tree-leaf--falling {
-  z-index: 4;
-  animation: treeLeafFall 2.7s linear both;
-  will-change: transform;
+.tree-leaf-controls {
+  position: fixed;
+  left: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 100;
+  display: grid;
+  width: min(23rem, calc(100vw - 2rem));
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(9, 11, 10, 0.94);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px);
 }
 
-.tree-scene--paused .tree-leaf--falling { animation-play-state: paused; }
-
-.tree-leaf--landed {
-  z-index: 3;
-  transform: translateZ(0);
+.tree-leaf-controls__header,
+.tree-leaf-controls label,
+.tree-leaf-controls__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.tree-leaf--landed::after {
-  position: absolute;
-  left: 50%;
-  top: 54%;
-  z-index: -1;
-  width: 72%;
-  height: 28%;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.34);
-  filter: blur(3px);
-  content: '';
-  transform: translate(-50%, -50%);
+.tree-leaf-controls__header { justify-content: space-between; }
+.tree-leaf-controls__header span,
+.tree-leaf-controls p { color: #a9aaa2; font-size: 0.68rem; }
+.tree-leaf-controls p { margin: 0; }
+
+.tree-leaf-controls label {
+  color: #d8d7d0;
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-@keyframes treeLeafFall {
-  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
-  18% { transform: translate3d(var(--sway-one), var(--fall-y-17), 0) rotate(var(--rotation-18)); }
-  38% { transform: translate3d(var(--sway-two), var(--fall-y-40), 0) rotate(var(--rotation-42)); }
-  61% { transform: translate3d(var(--sway-three), var(--fall-y-67), 0) rotate(var(--rotation-70)); }
-  82% { transform: translate3d(var(--fall-x), var(--fall-y-94), 0) rotate(var(--fall-rotation)); }
-  91% { transform: translate3d(var(--fall-x), var(--bounce-y), 0) rotate(var(--bounce-rotation)); }
-  100% { transform: translate3d(var(--fall-x), var(--fall-y), 0) rotate(var(--fall-rotation)); }
+.tree-leaf-controls input { flex: 1; min-width: 0; accent-color: #c5ff54; }
+.tree-leaf-controls output { width: 2.5rem; color: #c5ff54; text-align: right; }
+.tree-leaf-controls__actions { justify-content: flex-end; flex-wrap: wrap; }
+
+.tree-leaf-controls button,
+.tree-leaf-edit-button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.6rem;
+  padding: 0.48rem 0.68rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f3eb;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tree-leaf--falling {
-    animation: none;
-    transform: translate3d(var(--fall-x), var(--fall-y), 0);
-    will-change: auto;
-  }
+.tree-leaf-controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+.tree-leaf-controls .tree-leaf-controls__save { background: #c5ff54; color: #11130f; }
 
-  .tree-leaf--falling img {
-    transform: translate(-50%, -50%) rotate(var(--landed-rotation)) scale(var(--landed-scale)) !important;
+.tree-leaf-edit-button {
+  position: fixed;
+  left: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 50;
+  border-radius: 999px;
+  background: rgba(9, 11, 10, 0.82);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 1023px) {
+  .tree-focus-layout > div:last-child {
+    right: 50%;
+    top: auto;
+    bottom: 8.5rem;
+    transform: translateX(50%);
   }
 }
 
