@@ -139,7 +139,7 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
       fallingRef.current = 0; animsRef.current.clear();
       setLeafState({}); return;
     }
-    if (complete || progress >= 0.98) {
+    if (complete || progress >= 0.95) {
       queueRef.current = []; scheduledRef.current = TOTAL_LEAVES;
       fallingRef.current = 0; animsRef.current.clear();
       setLeafState(Object.fromEntries(LEAVES.map((l) => [l.id, 'landed' as const])));
@@ -175,7 +175,7 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
 
   useEffect(() => {
     if (!activeSession) return;
-    if (complete || progress >= 0.98) return;
+    if (complete || progress >= 0.95) return;
     let raf: number, canceled = false;
     const tick = () => {
       if (canceled) return;
@@ -240,7 +240,7 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
       <div className="tree-scene__completion-glow visual-finish-glow" aria-hidden="true" />
 
       {LEAVES.map((leaf) => {
-        const forceLand = activeSession && (complete || progress >= 0.98);
+        const forceLand = activeSession && (complete || progress >= 0.95);
         const rawState = leafState[leaf.id];
         const state = activeSession ? (rawState === 'landed' || forceLand ? 'landed' : rawState) : undefined;
         const a = LEAF_ANIMS.get(leaf.id)!;
