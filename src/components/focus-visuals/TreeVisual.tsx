@@ -99,6 +99,10 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
   const animsRef = useRef<Map<number, { t0: number; anim: LeafAnim }>>(new Map());
   const pauseRef = useRef<number | null>(null);
   const lastRunningRef = useRef(running);
+  const boundaryRef = useRef(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const clampX = useCallback((rawX: number) => Math.min(rawX, boundaryRef.current - 0.008), []);
 
   const startQueued = useCallback(() => {
     const slots = MAX_FALLING - fallingRef.current;
@@ -119,12 +123,23 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
   }, []);
 
   useEffect(() => {
+    if (!activeSession) return;
+    const colon = document.querySelector('.flip-colon');
+    const container = containerRef.current;
+    if (colon && container) {
+      const cr = container.getBoundingClientRect();
+      const loc = colon.getBoundingClientRect();
+      boundaryRef.current = Math.max(0.15, Math.min(0.98, (loc.left - cr.left) / cr.width));
+    }
+  }, [activeSession]);
+
+  useEffect(() => {
     if (!activeSession || progress <= 0) {
       queueRef.current = []; scheduledRef.current = 0;
       fallingRef.current = 0; animsRef.current.clear();
       setLeafState({}); return;
     }
-    if (complete) {
+    if (complete || progress >= 0.98) {
       queueRef.current = []; scheduledRef.current = TOTAL_LEAVES;
       fallingRef.current = 0; animsRef.current.clear();
       setLeafState(Object.fromEntries(LEAVES.map((l) => [l.id, 'landed' as const])));
@@ -174,7 +189,8 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
 
         const swayDec = 1 - mT * 0.55;
         const sway = Math.sin(mT * a.swayFreq + a.phase1) * a.swayAmp * swayDec;
-        const x = a.startX + (a.landX - a.startX) * mT + sway;
+        const drift = a.startX + (a.landX - a.startX) * mT;
+        const x = clampX(drift + sway);
         const easeY = 1 - Math.pow(1 - mT, 2.6);
         let y = a.startY + (a.landY - a.startY) * easeY;
         if (sT > 0) y -= Math.sin(sT * Math.PI) * (1 - sT) * 0.006;
@@ -210,10 +226,11 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
     };
     tick();
     return () => { canceled = true; cancelAnimationFrame(raf); };
-  }, [activeSession, running, startQueued]);
+  }, [activeSession, running, startQueued, clampX]);
 
   return (
     <div
+      ref={containerRef}
       className={`tree-leaf-editor focus-visual ${activeSession ? 'tree-leaf-editor--fullscreen' : 'tree-leaf-editor--preview'} ${complete ? 'visual-complete' : ''}`}
       role="img"
       aria-label={`Tree ${Math.round(progress * 100)} percent complete with ${TOTAL_LEAVES} placed leaves`}
@@ -224,11 +241,12 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
       {LEAVES.map((leaf) => {
         const state = activeSession ? leafState[leaf.id] : undefined;
         const a = LEAF_ANIMS.get(leaf.id)!;
+        const cx = (rawX: number) => activeSession ? clampX(rawX) * 100 : rawX * 100;
         let lPct: number, tPct: number, rDeg: number, zIdx: number | undefined;
         if (state === 'landed') {
-          lPct = a.landX * 100; tPct = a.landY * 100; rDeg = a.landRotation; zIdx = a.zIndex;
+          lPct = cx(a.landX); tPct = a.landY * 100; rDeg = a.landRotation; zIdx = a.zIndex;
         } else {
-          lPct = a.startX * 100; tPct = a.startY * 100; rDeg = a.startRotation; zIdx = undefined;
+          lPct = cx(a.startX); tPct = a.startY * 100; rDeg = a.startRotation; zIdx = undefined;
         }
         const style: CSSProperties = {
           left: `${lPct}%`, top: `${tPct}%`,
