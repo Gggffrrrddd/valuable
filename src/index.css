@@ -144,13 +144,112 @@ button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
 button .focus-visual { width: 5.5rem; max-height: 6rem; }
 .visual-level { transition: all .9s linear; }
 
-@keyframes leafShed {
-  0% { opacity: 1; }
-  25% { transform: translate(5px, 9px) rotate(15deg); opacity: .9; }
-  100% { transform: translate(-13px, 92px) rotate(85deg); opacity: 0; }
+.tree-scene {
+  position: relative;
+  width: min(100%, 52rem);
+  height: auto;
+  aspect-ratio: 1672 / 941;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  container-type: size;
+  isolation: isolate;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
 }
-.tree-leaf { transition: opacity .35s ease; }
-.tree-leaf-shed { animation: leafShed .9s cubic-bezier(.25,.7,.3,1) forwards; }
+
+.tree-scene__background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tree-scene__completion-glow {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 7%;
+  z-index: 1;
+  height: 12%;
+  border-radius: 50%;
+  background: rgba(197, 255, 84, 0.12);
+  filter: blur(24px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tree-leaf {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  width: clamp(1.15rem, 3.2cqw, 2rem);
+  aspect-ratio: 3 / 2;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.tree-leaf img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+  user-select: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.tree-leaf--falling {
+  z-index: 4;
+  animation: treeLeafFall 2.7s linear both;
+  will-change: transform;
+}
+
+.tree-scene--paused .tree-leaf--falling { animation-play-state: paused; }
+
+.tree-leaf--landed {
+  z-index: 3;
+  transform: translateZ(0);
+}
+
+.tree-leaf--landed::after {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  z-index: -1;
+  width: 72%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  filter: blur(3px);
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+@keyframes treeLeafFall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  18% { transform: translate3d(var(--sway-one), var(--fall-y-17), 0) rotate(var(--rotation-18)); }
+  38% { transform: translate3d(var(--sway-two), var(--fall-y-40), 0) rotate(var(--rotation-42)); }
+  61% { transform: translate3d(var(--sway-three), var(--fall-y-67), 0) rotate(var(--rotation-70)); }
+  82% { transform: translate3d(var(--fall-x), var(--fall-y-94), 0) rotate(var(--fall-rotation)); }
+  91% { transform: translate3d(var(--fall-x), var(--bounce-y), 0) rotate(var(--bounce-rotation)); }
+  100% { transform: translate3d(var(--fall-x), var(--fall-y), 0) rotate(var(--fall-rotation)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-leaf--falling {
+    animation: none;
+    transform: translate3d(var(--fall-x), var(--fall-y), 0);
+    will-change: auto;
+  }
+
+  .tree-leaf--falling img {
+    transform: translate(-50%, -50%) rotate(var(--landed-rotation)) scale(var(--landed-scale)) !important;
+  }
+}
 
 @keyframes pageFlip {
   0% { transform: perspective(300px) rotateY(0deg); opacity: .95; }
