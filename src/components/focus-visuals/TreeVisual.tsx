@@ -175,6 +175,7 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
 
   useEffect(() => {
     if (!activeSession) return;
+    if (complete || progress >= 0.98) return;
     let raf: number, canceled = false;
     const tick = () => {
       if (canceled) return;
@@ -226,7 +227,7 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
     };
     tick();
     return () => { canceled = true; cancelAnimationFrame(raf); };
-  }, [activeSession, running, startQueued, clampX]);
+  }, [activeSession, complete, progress, running, startQueued, clampX]);
 
   return (
     <div
@@ -239,7 +240,9 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
       <div className="tree-scene__completion-glow visual-finish-glow" aria-hidden="true" />
 
       {LEAVES.map((leaf) => {
-        const state = activeSession ? leafState[leaf.id] : undefined;
+        const forceLand = activeSession && (complete || progress >= 0.98);
+        const rawState = leafState[leaf.id];
+        const state = activeSession ? (rawState === 'landed' || forceLand ? 'landed' : rawState) : undefined;
         const a = LEAF_ANIMS.get(leaf.id)!;
         const cx = (rawX: number) => activeSession ? clampX(rawX) * 100 : rawX * 100;
         let lPct: number, tPct: number, rDeg: number, zIdx: number | undefined;
