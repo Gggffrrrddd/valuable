@@ -254,12 +254,9 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .tree-placed-leaf--falling {
   z-index: 6;
-  will-change: left, top, transform;
-  animation: treeLeafFall var(--leaf-fall-duration) linear both;
 }
 
 .tree-placed-leaf--landed {
-  z-index: 4;
   cursor: default;
   touch-action: auto;
 }
@@ -289,50 +286,6 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   user-select: none;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-}
-
-@keyframes treeLeafFall {
-  0% {
-    left: var(--leaf-start-x);
-    top: var(--leaf-start-y);
-    transform: translate(-50%, -50%) rotate(var(--leaf-start-rotation)) scale(var(--leaf-scale));
-  }
-  18% {
-    left: calc(var(--leaf-start-x) + var(--leaf-sway));
-    top: var(--leaf-y-14);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-start-rotation) + 8deg)) scale(var(--leaf-scale));
-  }
-  38% {
-    left: calc(var(--leaf-start-x) + var(--leaf-sway-back));
-    top: var(--leaf-y-36);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-start-rotation) + 15deg)) scale(var(--leaf-scale));
-  }
-  58% {
-    left: calc(var(--leaf-start-x) + var(--leaf-sway-forward));
-    top: var(--leaf-y-62);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-start-rotation) + 22deg)) scale(var(--leaf-scale));
-  }
-  76% {
-    left: calc(var(--leaf-land-x) + var(--leaf-sway-land));
-    top: var(--leaf-y-86);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-land-rotation) + 7deg)) scale(var(--leaf-scale));
-    animation-timing-function: cubic-bezier(.2, .75, .25, 1);
-  }
-  89% {
-    left: var(--leaf-land-x);
-    top: var(--leaf-y-bounce);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-land-rotation) + 4deg)) scale(var(--leaf-scale));
-  }
-  95% {
-    left: var(--leaf-land-x);
-    top: var(--leaf-y-settle);
-    transform: translate(-50%, -50%) rotate(calc(var(--leaf-land-rotation) - 2deg)) scale(var(--leaf-scale));
-  }
-  100% {
-    left: var(--leaf-land-x);
-    top: var(--leaf-land-y);
-    transform: translate(-50%, -50%) rotate(var(--leaf-land-rotation)) scale(var(--leaf-scale));
-  }
 }
 
 @media (max-width: 1023px) {
