@@ -25,12 +25,12 @@ const FISH_VARIANTS = [
 ];
 
 const TAP_PLACEMENT = {
-  x: 69,
-  y: 35,
+  x: 352,
+  y: 84,
   w: 416,
   h: 277,
-  spoutX: 231,
-  spoutY: 335,
+  spoutX: 512,
+  spoutY: 205,
 };
 
 function seededUnit(seed: number) {
