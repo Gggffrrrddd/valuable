@@ -228,20 +228,23 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
 }
 
-.jar-tap__drip {
-  animation: jar-drip 1.4s ease-in infinite;
-  transform-origin: center top;
+@keyframes jar-drip {
+  0%   { transform: translate(-50%, -50%) translateY(0) scale(1); opacity: 0; }
+  10%  { opacity: 1; }
+  70%  { transform: translate(-50%, -50%) translateY(40px) scale(1.05); opacity: 1; }
+  90%  { transform: translate(-50%, -50%) translateY(60px) scale(0.85); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) translateY(70px) scale(0.7); opacity: 0; }
 }
 
-.jar-tap__drip--2 { animation-delay: 0.45s; }
-.jar-tap__drip--3 { animation-delay: 0.9s; }
+@keyframes jar-fish-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
 
-@keyframes jar-drip {
-  0%   { transform: translateY(0) scale(1); opacity: 0; }
-  10%  { opacity: 1; }
-  70%  { transform: translateY(80px) scale(1.05); opacity: 1; }
-  90%  { transform: translateY(110px) scale(0.85); opacity: 0.5; }
-  100% { transform: translateY(130px) scale(0.7); opacity: 0; }
+@keyframes jar-fish-swim {
+  0%   { transform: translateX(-3px); }
+  50%  { transform: translateX(3px); }
+  100% { transform: translateX(-3px); }
 }
 
 .tree-leaf-editor {
