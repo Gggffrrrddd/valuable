@@ -51,7 +51,6 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
   async function handlePay() {
     if (!session) return;
     setError(null);
-    console.log('[DEBUG] PremiumScreen setLoading(true) triggered by handlePay()'); console.trace();
     setLoading(true);
     try {
       await loadRazorpayScript();

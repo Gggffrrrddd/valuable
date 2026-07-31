@@ -64,12 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' && sess) {
         const incomingUserId = sess.user?.id ?? null;
         if (currentUserIdRef.current && currentUserIdRef.current === incomingUserId) {
-          console.log('[DEBUG] SIGNED_IN skipped — same user, background recovery');
           setSession(sess);
           return;
         }
         currentUserIdRef.current = incomingUserId;
-        console.log('[DEBUG] auth.tsx setLoading(true) triggered by event:', event); console.trace();
         setSession(sess);
         setLoading(true);
         (async () => {
@@ -86,14 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setSession(sess);
       if (sess) {
-        console.log('[DEBUG] auth.tsx setLoading(true) triggered by event:', event); console.trace();
         setLoading(true);
         (async () => {
           await loadProfile(sess.user.id);
           if (mounted) setLoading(false);
         })();
       } else {
-        console.log('[DEBUG] auth.tsx setLoading(false) + clear profile triggered by event:', event); console.trace();
         setProfile(null);
         setLoading(false);
       }
