@@ -26,6 +26,7 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
 
   useEffect(() => {
     if (!session) return;
+    console.log('[DEBUG] StatsScreen setLoading(true) triggered by useEffect [session, isPremium]'); console.trace();
     setLoading(true);
     fetchStats(session.user.id, isPremium)
       .then(setStats)

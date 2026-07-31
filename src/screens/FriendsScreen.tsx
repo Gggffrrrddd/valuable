@@ -18,6 +18,7 @@ export default function FriendsScreen() {
 
   const loadFriends = useCallback(async () => {
     if (!session) return;
+    console.log('[DEBUG] FriendsScreen setLoading(true) triggered by loadFriends()'); console.trace();
     setLoading(true);
     try {
       const { data: friendships, error: fErr } = await supabase

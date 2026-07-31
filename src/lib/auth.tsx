@@ -61,12 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setSession(sess);
       if (sess) {
+        console.log('[DEBUG] auth.tsx setLoading(true) triggered by event:', event); console.trace();
         setLoading(true);
         (async () => {
           await loadProfile(sess.user.id);
           if (mounted) setLoading(false);
         })();
       } else {
+        console.log('[DEBUG] auth.tsx setLoading(false) + clear profile triggered by event:', event); console.trace();
         setProfile(null);
         setLoading(false);
       }
