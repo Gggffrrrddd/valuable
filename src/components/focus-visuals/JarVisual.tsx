@@ -220,17 +220,20 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       </div>
 
       {/* Drip drops — direct children of container so they're visible.
-          Clipped to jar interior via interiorClip wrapper. */}
+          Clipped to jar interior via interiorClip wrapper.
+          Colors: highlight #F5F6F3, mid #D6D8D3, shadow #9B9B94, deep #62615D.
+          Opacity 80-90%. Drops originate from tap nozzle tip (translate -100%). */}
       <div style={{ ...interiorClip, zIndex: 2 }} aria-hidden="true">
         <div
           style={{
             position: 'absolute',
             left: `${mouthPctX}%`,
             top: `${mouthPctY}%`,
-            width: '12px',
-            height: '16px',
+            width: '14px',
+            height: '18px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(180,220,255,0.3) 60%, rgba(140,200,255,0.15) 100%)',
+            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 40%, #9B9B94 75%, #62615D 100%)',
+            opacity: 0.9,
             filter: 'blur(0.3px)',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
@@ -241,10 +244,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
             position: 'absolute',
             left: `${mouthPctX}%`,
             top: `${mouthPctY}%`,
-            width: '10px',
-            height: '14px',
+            width: '12px',
+            height: '16px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(180,220,255,0.25) 60%, rgba(140,200,255,0.12) 100%)',
+            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 40%, #9B9B94 75%, #62615D 100%)',
+            opacity: 0.85,
             filter: 'blur(0.3px)',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
@@ -255,10 +259,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
             position: 'absolute',
             left: `${mouthPctX}%`,
             top: `${mouthPctY}%`,
-            width: '8px',
-            height: '12px',
+            width: '10px',
+            height: '14px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(180,220,255,0.2) 60%, rgba(140,200,255,0.1) 100%)',
+            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 45%, #9B9B94 80%, #62615D 100%)',
+            opacity: 0.8,
             filter: 'blur(0.3px)',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
