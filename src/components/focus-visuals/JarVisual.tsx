@@ -9,10 +9,10 @@ const VIEW_W = 1448;
 const VIEW_H = 1086;
 
 const JAR_INTERIOR = {
-  x: 470,
-  width: 360,
-  baseY: 970,
-  topY: 520,
+  x: 230,
+  width: 440,
+  baseY: 980,
+  topY: 500,
 };
 
 const FISH_COUNT = 4;
@@ -66,7 +66,7 @@ function buildFish(): FishInstance[] {
     const u8 = seededUnit(i + 811);
 
     const revealY = JAR_INTERIOR.baseY - 80 - u3 * (JAR_INTERIOR.baseY - JAR_INTERIOR.topY - 160);
-    const startY = revealY - FISH_H / 2;
+    const startY = revealY + FISH_H / 2;
 
     const swimKeyframes: { dx: number; rot: number }[] = [];
     const keyframeCount = 6;
