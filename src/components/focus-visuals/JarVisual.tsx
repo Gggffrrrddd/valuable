@@ -6,7 +6,7 @@ const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const BUILD_TAG = 'object-position-overlay-v2';
+const BUILD_TAG = 'object-position-overlay-v3';
 
 const JAR_OBJECT_POSITION = '40% 15%';
 
@@ -50,7 +50,14 @@ const jarKeyframes = `
   @keyframes jar-fish-swim {
     0%   { transform: translateX(-4px); }
     50%  { transform: translateX(4px); }
-    100% { transform: translateX(-4px); }
+    100%  { transform: translateX(-4px); }
+  }
+  @keyframes jar-drip {
+    0%   { transform: translate(-50%, -50%) translateY(0); opacity: 0; }
+    10%  { opacity: 1; }
+    70%  { transform: translate(-50%, -50%) translateY(40px); opacity: 1; }
+    90%  { transform: translate(-50%, -50%) translateY(55px); opacity: 0.5; }
+    100% { transform: translate(-50%, -50%) translateY(65px); opacity: 0; }
   }
 `;
 
@@ -105,9 +112,9 @@ export default function JarVisual({ progress }: FocusVisualProps) {
     return () => ro.disconnect();
   }, []);
 
-  /* Overlay container uses the same cover/position as the background,
-     so the container's 100%x100% space = the visible jar scene.
-     Children positioned as % of source image align with jar features on screen. */
+  /* The overlay container uses the same cover/position as the background.
+     Container's 100%x100% = visible jar scene. Children at source-image
+     pixel percentages align with jar features on screen. */
   const overlayLayerStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -120,6 +127,9 @@ export default function JarVisual({ progress }: FocusVisualProps) {
 
   const toPctX = (px: number) => `${(px / IMG_W) * 100}%`;
   const toPctY = (py: number) => `${(py / IMG_H) * 100}%`;
+
+  const mouthPctX = (JAR_MOUTH_CENTER.x / IMG_W) * 100;
+  const mouthPctY = (JAR_MOUTH_CENTER.y / IMG_H) * 100;
 
   return (
     <div
@@ -134,9 +144,8 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       {/* Visible jar background */}
       <div style={{ ...overlayLayerStyle, zIndex: 0 }} aria-hidden="true" />
 
-      {/* Overlay layer — same cover/position, used purely for coordinate alignment */}
+      {/* Water fill — inside overlay layer for coordinate alignment */}
       <div style={{ ...overlayLayerStyle, zIndex: 1, opacity: 0 }} aria-hidden="true">
-        {/* Water fill — clipped to jar interior via clip-path matching jar shape */}
         <div
           style={{
             position: 'absolute',
@@ -209,36 +218,35 @@ export default function JarVisual({ progress }: FocusVisualProps) {
             </div>
           );
         })}
-
-        {/* Tap image */}
-        <img
-          src={TAP_URL}
-          alt=""
-          draggable={false}
-          className="jar-tap"
-          style={{
-            position: 'absolute',
-            left: toPctX(TAP_BOUNDS.left),
-            top: toPctY(TAP_BOUNDS.top),
-            width: toPctX(TAP_BOUNDS.width),
-            height: toPctY(TAP_BOUNDS.height),
-            objectFit: 'contain',
-            objectPosition: 'center top',
-            pointerEvents: 'none',
-            zIndex: 3,
-          }}
-        />
       </div>
 
-      {/* Drip drops — positioned at the jar mouth center.
-          These are outside the overlay layer so the drip animation is visible. */}
+      {/* Tap image — direct child of container, visible */}
+      <img
+        src={TAP_URL}
+        alt=""
+        draggable={false}
+        className="jar-tap"
+        style={{
+          position: 'absolute',
+          left: toPctX(TAP_BOUNDS.left),
+          top: toPctY(TAP_BOUNDS.top),
+          width: toPctX(TAP_BOUNDS.width),
+          height: toPctY(TAP_BOUNDS.height),
+          objectFit: 'contain',
+          objectPosition: 'center top',
+          pointerEvents: 'none',
+          zIndex: 3,
+        }}
+      />
+
+      {/* Drip drops — at the jar mouth center, direct children so visible */}
       <div
         style={{
           position: 'absolute',
-          left: '15%',
-          top: '22%',
-          width: '6px',
-          height: '10px',
+          left: `${mouthPctX}%`,
+          top: `${mouthPctY}%`,
+          width: '8px',
+          height: '12px',
           background: '#bfe8ff',
           borderRadius: '50%',
           opacity: 0.85,
@@ -250,10 +258,10 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       <div
         style={{
           position: 'absolute',
-          left: '15%',
-          top: '22%',
-          width: '5px',
-          height: '8px',
+          left: `${mouthPctX}%`,
+          top: `${mouthPctY}%`,
+          width: '6px',
+          height: '10px',
           background: '#bfe8ff',
           borderRadius: '50%',
           opacity: 0.75,
@@ -265,10 +273,10 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       <div
         style={{
           position: 'absolute',
-          left: '15%',
-          top: '22%',
-          width: '4px',
-          height: '7px',
+          left: `${mouthPctX}%`,
+          top: `${mouthPctY}%`,
+          width: '5px',
+          height: '8px',
           background: '#bfe8ff',
           borderRadius: '50%',
           opacity: 0.7,
