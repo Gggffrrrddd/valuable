@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
@@ -142,6 +142,27 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const fishes = useMemo(() => buildFish(), []);
   const swimKeyframeCSS = useMemo(() => buildSwimKeyframeCSS(fishes), [fishes]);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      console.log(
+        `[JarVisual] svg=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
+        `viewport=${vw}x${vh} aspect=${(vw / vh).toFixed(3)}`,
+        `fillsScreen=${r.width >= vw - 1 && r.height >= vh - 1}`,
+        `preserveAspectRatio=${el.getAttribute('preserveAspectRatio')}`,
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const waterY = JAR_INTERIOR.baseY - (JAR_INTERIOR.baseY - JAR_INTERIOR.topY) * value;
   const waterHeight = JAR_INTERIOR.baseY - waterY;
@@ -158,6 +179,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       preserveAspectRatio="xMidYMid meet"
       className={`focus-visual ${complete ? 'visual-complete' : ''}`}

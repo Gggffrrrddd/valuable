@@ -145,6 +145,26 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     });
   }, [activeSession, shedCount, reducedMotion, sessionColor]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      console.log(
+        `[TreeVisual] box=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
+        `viewport=${vw}x${vh} aspect=${(vw / vh).toFixed(3)}`,
+        `fillsScreen=${r.width >= vw - 1 && r.height >= vh - 1}`,
+        `activeSession=${activeSession}`,
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeSession]);
+
   return (
     <div
       ref={containerRef}
