@@ -3,16 +3,25 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Disable PWA caching during the prototype so deployments always load fresh assets.
+// Force-cleanup any stale service worker + cache from prior deployments.
+// Earlier builds registered a hand-written /sw.js (valuable-shell-v*) and a
+// possible vite-plugin-pwa worker; their `clients.claim()` + `skipWaiting()`
+// can keep stale workers controlling the origin until all tabs are closed.
+// Unregister ALL workers and clear EVERY cache unconditionally so a fresh
+// load is guaranteed to be served by the network.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((registration) => registration.unregister());
+    registrations.forEach((registration) => {
+      registration.unregister().catch(() => undefined);
+    });
   });
 }
 
 if ('caches' in window) {
   caches.keys().then((keys) => {
-    keys.filter((key) => key.startsWith('valuable-')).forEach((key) => caches.delete(key));
+    keys.forEach((key) => {
+      caches.delete(key).catch(() => undefined);
+    });
   });
 }
 
