@@ -32,16 +32,16 @@ interface StoredSession {
 }
 
 function readStoredSession(): StoredSession | null {
-  const startRaw = localStorage.getItem(SESSION_START_KEY);
+  const startRaw = sessionStorage.getItem(SESSION_START_KEY);
   if (!startRaw) return null;
   const startMs = Number(startRaw);
-  const durationMs = Number(localStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
+  const durationMs = Number(sessionStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
   if (!Number.isFinite(startMs) || !Number.isFinite(durationMs) || durationMs <= 0) {
     return null;
   }
-  const pausedAtRaw = localStorage.getItem(SESSION_PAUSED_AT_KEY);
+  const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
   const pausedAtMs = pausedAtRaw ? Number(pausedAtRaw) : null;
-  const pausedTotalMs = Number(localStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+  const pausedTotalMs = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
   const now = Date.now();
   const pausedNowMs = pausedAtMs !== null ? Math.max(0, now - pausedAtMs) : 0;
   const pausedMs = pausedTotalMs + pausedNowMs;
@@ -52,8 +52,8 @@ function readStoredSession(): StoredSession | null {
     durationMs,
     pausedAtMs,
     pausedTotalMs,
-    subjectTag: localStorage.getItem(SESSION_SUBJECT_KEY) || null,
-    breakMinutes: Number(localStorage.getItem(SESSION_BREAK_KEY) ?? 5) || 5,
+    subjectTag: sessionStorage.getItem(SESSION_SUBJECT_KEY) || null,
+    breakMinutes: Number(sessionStorage.getItem(SESSION_BREAK_KEY) ?? 5) || 5,
     paused: pausedAtMs !== null,
     remainingMs,
     elapsedMs,
@@ -61,12 +61,12 @@ function readStoredSession(): StoredSession | null {
 }
 
 function clearSessionStorage() {
-  localStorage.removeItem(SESSION_START_KEY);
-  localStorage.removeItem(SESSION_DURATION_KEY);
-  localStorage.removeItem(SESSION_PAUSED_AT_KEY);
-  localStorage.removeItem(SESSION_PAUSED_TOTAL_KEY);
-  localStorage.removeItem(SESSION_SUBJECT_KEY);
-  localStorage.removeItem(SESSION_BREAK_KEY);
+  sessionStorage.removeItem(SESSION_START_KEY);
+  sessionStorage.removeItem(SESSION_DURATION_KEY);
+  sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+  sessionStorage.removeItem(SESSION_PAUSED_TOTAL_KEY);
+  sessionStorage.removeItem(SESSION_SUBJECT_KEY);
+  sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
@@ -165,12 +165,12 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   function handleStart() {
     sessionSubjectRef.current = subjectTag || null;
     sessionBreakRef.current = breakMinutes;
-    localStorage.setItem(SESSION_START_KEY, String(Date.now()));
-    localStorage.setItem(SESSION_DURATION_KEY, String(totalFocusSeconds));
-    localStorage.removeItem(SESSION_PAUSED_AT_KEY);
-    localStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
-    localStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
-    localStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
+    sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_DURATION_KEY, String(totalFocusSeconds));
+    sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
+    sessionStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
+    sessionStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
@@ -178,23 +178,23 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   function handlePause() {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    localStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
   }
 
   function handleResume() {
-    const pausedAtRaw = localStorage.getItem(SESSION_PAUSED_AT_KEY);
+    const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
     if (pausedAtRaw) {
-      const prevTotal = Number(localStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
-      localStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
-      localStorage.removeItem(SESSION_PAUSED_AT_KEY);
+      const prevTotal = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+      sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
+      sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
     }
     setPhase('focus');
   }
 
   function handleQuitRequest() {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    localStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
     setShowQuitConfirm(true);
   }

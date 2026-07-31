@@ -21,21 +21,21 @@ const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium'];
 function AppContent() {
   const { session, profile, loading, signOut } = useAuth();
   const [tab, setTab] = useState<Tab>(() => {
-    const saved = localStorage.getItem(TAB_STORAGE_KEY);
+    const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
     return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : 'home';
   });
   const [screen, setScreen] = useState<Screen>(() => {
-    const saved = localStorage.getItem(SCREEN_STORAGE_KEY);
+    const saved = sessionStorage.getItem(SCREEN_STORAGE_KEY);
     return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : 'tab';
   });
   const [breakMinutes, setBreakMinutes] = useState(5);
 
   useEffect(() => {
-    localStorage.setItem(TAB_STORAGE_KEY, tab);
+    sessionStorage.setItem(TAB_STORAGE_KEY, tab);
   }, [tab]);
 
   useEffect(() => {
-    localStorage.setItem(SCREEN_STORAGE_KEY, screen);
+    sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
   }, [screen]);
 
   if (loading) {
