@@ -257,18 +257,6 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transition: none !important;
 }
 
-.tree-placed-leaf::before {
-  content: '';
-  position: absolute;
-  inset: -25%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, var(--leaf-glow, transparent) 0%, transparent 70%);
-  opacity: 0.28;
-  filter: blur(8px);
-  pointer-events: none;
-}
-
 .tree-placed-leaf--falling {
   z-index: 6;
 }

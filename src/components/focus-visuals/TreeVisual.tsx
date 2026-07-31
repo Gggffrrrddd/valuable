@@ -136,10 +136,9 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         left: `${cx}%`,
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
-        filter: `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness}) drop-shadow(0 0 6px ${sessionColor.dropGlow}) drop-shadow(0 0 12px ${sessionColor.dropGlow})`,
+        filter: `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness})`,
         zIndex: zIdx,
-        '--leaf-glow': sessionColor.dropGlow,
-      } as CSSProperties;
+      };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
         + (reducedMotion ? ' tree-placed-leaf--instant' : '');
       return { id: leaf.id, style, cls };
