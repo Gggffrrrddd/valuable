@@ -55,13 +55,17 @@ const SHED_RANK = new Map<number, number>(
 
 const TOTAL_LEAVES = LEAVES.length;
 
-const AUTUMN_HUES = [
-  { hue: 15, brightness: 1.05, label: 'warm-orange' },
-  { hue: 25, brightness: 1.0, label: 'amber' },
-  { hue: -15, brightness: 0.95, label: 'crimson-red' },
-  { hue: 10, brightness: 0.9, label: 'rust' },
-  { hue: 40, brightness: 1.0, label: 'golden-brown' },
-  { hue: 50, brightness: 1.1, label: 'deep-yellow' },
+const SESSION_COLORS = [
+  { hue: 15, saturate: 1.5, brightness: 1.25, dropGlow: '#ff6a13', label: 'warm-orange' },
+  { hue: 30, saturate: 1.55, brightness: 1.3, dropGlow: '#ffb800', label: 'amber-gold' },
+  { hue: -15, saturate: 1.6, brightness: 1.2, dropGlow: '#e0113f', label: 'crimson-red' },
+  { hue: 8, saturate: 1.45, brightness: 1.15, dropGlow: '#c94a10', label: 'deep-rust' },
+  { hue: 50, saturate: 1.55, brightness: 1.35, dropGlow: '#ffd700', label: 'golden-yellow' },
+  { hue: 90, saturate: 1.5, brightness: 1.25, dropGlow: '#50c878', label: 'emerald-green' },
+  { hue: 170, saturate: 1.55, brightness: 1.3, dropGlow: '#00d4aa', label: 'teal-cyan' },
+  { hue: 210, saturate: 1.6, brightness: 1.3, dropGlow: '#0ea5ff', label: 'electric-blue' },
+  { hue: 270, saturate: 1.55, brightness: 1.25, dropGlow: '#b44dff', label: 'violet-purple' },
+  { hue: 315, saturate: 1.6, brightness: 1.25, dropGlow: '#ff44cc', label: 'hot-pink' },
 ];
 
 function useReducedMotion() {
@@ -81,11 +85,11 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef(1);
-  const [sessionHue, setSessionHue] = useState<{ hue: number; brightness: number }>({ hue: 0, brightness: 1 });
+  const [sessionColor, setSessionColor] = useState<(typeof SESSION_COLORS)[number]>(SESSION_COLORS[0]);
 
   useEffect(() => {
     if (!activeSession) return;
-    setSessionHue(AUTUMN_HUES[Math.floor(Math.random() * AUTUMN_HUES.length)]);
+    setSessionColor(SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
   }, [activeSession]);
 
   useEffect(() => {
@@ -132,14 +136,15 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         left: `${cx}%`,
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
-        filter: `hue-rotate(${sessionHue.hue}deg) brightness(${sessionHue.brightness})`,
+        filter: `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness}) drop-shadow(0 0 6px ${sessionColor.dropGlow}) drop-shadow(0 0 12px ${sessionColor.dropGlow})`,
         zIndex: zIdx,
-      };
+        '--leaf-glow': sessionColor.dropGlow,
+      } as CSSProperties;
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
         + (reducedMotion ? ' tree-placed-leaf--instant' : '');
       return { id: leaf.id, style, cls };
     });
-  }, [activeSession, shedCount, reducedMotion, sessionHue]);
+  }, [activeSession, shedCount, reducedMotion, sessionColor]);
 
   return (
     <div
