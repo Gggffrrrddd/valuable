@@ -6,14 +6,14 @@ const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const VIEW_W = 1448;
-const VIEW_H = 1086;
+const VIEW_W = 1672;
+const VIEW_H = 941;
 
 const JAR_INTERIOR = {
-  x: 230,
-  width: 440,
-  baseY: 980,
-  topY: 500,
+  x: 350,
+  width: 416,
+  baseY: 680,
+  topY: 220,
 };
 
 const FISH_COUNT = 4;
@@ -25,12 +25,12 @@ const FISH_VARIANTS = [
 ];
 
 const TAP_PLACEMENT = {
-  x: 60,
-  y: 30,
-  w: 360,
-  h: 240,
-  spoutX: 200,
-  spoutY: 290,
+  x: 69,
+  y: 35,
+  w: 416,
+  h: 277,
+  spoutX: 231,
+  spoutY: 335,
 };
 
 function seededUnit(seed: number) {
