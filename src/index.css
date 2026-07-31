@@ -250,6 +250,11 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   touch-action: none;
   transform-origin: center;
   user-select: none;
+  transition: left 2.5s ease-out, top 2.5s ease-out, transform 2.5s ease-out;
+}
+
+.tree-placed-leaf--instant {
+  transition: none !important;
 }
 
 .tree-placed-leaf--falling {

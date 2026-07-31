@@ -106,20 +106,10 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = totalFocusSeconds > 0 ? 1 - secondsLeft / totalFocusSeconds : 0;
 
-  const TOTAL_LEAVES = 213;
-  const expectedShedCount = Math.floor(progress * TOTAL_LEAVES);
-  const actualShedCount = progress >= 0.98 ? TOTAL_LEAVES : expectedShedCount;
-
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''}`}>
-        <div style={{position:'fixed',bottom:100,left:10,background:'rgba(0,0,0,0.85)',color:'#0f0',fontFamily:'monospace',fontSize:11,padding:'6px 10px',zIndex:9999,lineHeight:1.5,border:'1px solid #0f0',borderRadius:4,pointerEvents:'none'}}>
-          progress: <b>{progress.toFixed(6)}</b><br/>
-          shed: <b>{actualShedCount}</b> / {TOTAL_LEAVES}<br/>
-          secsLeft: <b>{secondsLeft}</b><br/>
-          focusMin: <b>{focusMinutes}</b><br/>
-          phase: <b>{phase}</b>
-        </div>
+        
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
