@@ -284,7 +284,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
                       width={f.fishW}
                       height={f.fishH}
                       filter={`hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`}
-                      preserveAspectRatio="xMidYMid meet"
+      preserveAspectRatio="xMidYMid slice"
                     />
                   </g>
                 </g>
