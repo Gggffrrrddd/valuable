@@ -55,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(sess);
         return;
       }
+      if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
+        setSession(sess);
+        return;
+      }
       setSession(sess);
       if (sess) {
         setLoading(true);
