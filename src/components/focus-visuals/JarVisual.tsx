@@ -4,6 +4,7 @@ import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
+const TAP_URL = '/visuals/jar/tap-prompt.png';
 
 const VIEW_W = 1448;
 const VIEW_H = 1086;
@@ -22,6 +23,15 @@ const FISH_VARIANTS = [
   { hue: 200, saturate: 0.4, brightness: 1.05, scale: 1.05 },
   { hue: 45, saturate: 1.4, brightness: 1.2, scale: 0.9 },
 ];
+
+const TAP_PLACEMENT = {
+  x: 60,
+  y: 30,
+  w: 360,
+  h: 240,
+  spoutX: 200,
+  spoutY: 290,
+};
 
 function seededUnit(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
@@ -42,7 +52,7 @@ interface FishInstance {
   bobDelay: number;
   swimDur: number;
   swimDelay: number;
-  swimKeyframes: { dx: number; rot: number }[];
+  swimKeyframes: { dx: number; dy: number; rot: number }[];
   fishW: number;
   fishH: number;
 }
@@ -50,8 +60,9 @@ interface FishInstance {
 const FISH_W = 130;
 const FISH_H = FISH_W * (391 / 638);
 const CENTER_X = JAR_INTERIOR.x + JAR_INTERIOR.width / 2;
-const SWIM_MIN = JAR_INTERIOR.x - CENTER_X + FISH_W / 2;
-const SWIM_MAX = JAR_INTERIOR.x + JAR_INTERIOR.width - CENTER_X - FISH_W / 2;
+const SWIM_MIN_X = JAR_INTERIOR.x - CENTER_X + FISH_W / 2;
+const SWIM_MAX_X = JAR_INTERIOR.x + JAR_INTERIOR.width - CENTER_X - FISH_W / 2;
+const SWIM_RANGE_Y = 50;
 
 function buildFish(): FishInstance[] {
   const out: FishInstance[] = [];
@@ -68,14 +79,16 @@ function buildFish(): FishInstance[] {
     const revealY = JAR_INTERIOR.baseY - 80 - u3 * (JAR_INTERIOR.baseY - JAR_INTERIOR.topY - 160);
     const startY = revealY + FISH_H / 2;
 
-    const swimKeyframes: { dx: number; rot: number }[] = [];
+    const swimKeyframes: { dx: number; dy: number; rot: number }[] = [];
     const keyframeCount = 6;
     for (let k = 0; k < keyframeCount; k++) {
       const ku = seededUnit(i * 100 + k + 901);
       const ku2 = seededUnit(i * 100 + k + 951);
-      const dx = SWIM_MIN + ku * (SWIM_MAX - SWIM_MIN);
-      const rot = (ku2 - 0.5) * 8;
-      swimKeyframes.push({ dx, rot });
+      const ku3 = seededUnit(i * 100 + k + 981);
+      const dx = SWIM_MIN_X + ku * (SWIM_MAX_X - SWIM_MIN_X);
+      const dy = (ku2 - 0.5) * SWIM_RANGE_Y;
+      const rot = (ku3 - 0.5) * 8;
+      swimKeyframes.push({ dx, dy, rot });
     }
 
     out.push({
@@ -104,7 +117,7 @@ function buildSwimKeyframeCSS(fishes: FishInstance[]): string {
   return fishes
     .map((f) => {
       const stops = f.swimKeyframes
-        .map((k, idx) => `${Math.round((idx / (f.swimKeyframes.length - 1)) * 100)}% { transform: translate(${k.dx.toFixed(2)}px, 0) rotate(${k.rot.toFixed(2)}deg); }`)
+        .map((k, idx) => `${Math.round((idx / (f.swimKeyframes.length - 1)) * 100)}% { transform: translate(${k.dx.toFixed(2)}px, ${k.dy.toFixed(2)}px) rotate(${k.rot.toFixed(2)}deg); }`)
         .join(' ');
       return `@keyframes jar-swim-${f.id} { ${stops} }`;
     })
@@ -133,6 +146,16 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const waterY = JAR_INTERIOR.baseY - (JAR_INTERIOR.baseY - JAR_INTERIOR.topY) * value;
   const waterHeight = JAR_INTERIOR.baseY - waterY;
 
+  const clipPathD = `M ${JAR_INTERIOR.x} ${JAR_INTERIOR.topY}
+                H ${JAR_INTERIOR.x + JAR_INTERIOR.width}
+                V ${JAR_INTERIOR.baseY - 30}
+                Q ${JAR_INTERIOR.x + JAR_INTERIOR.width} ${JAR_INTERIOR.baseY}
+                  ${JAR_INTERIOR.x + JAR_INTERIOR.width - 40} ${JAR_INTERIOR.baseY}
+                H ${JAR_INTERIOR.x + 40}
+                Q ${JAR_INTERIOR.x} ${JAR_INTERIOR.baseY}
+                  ${JAR_INTERIOR.x} ${JAR_INTERIOR.baseY - 30}
+                Z`;
+
   return (
     <svg
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -144,29 +167,60 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       <defs>
         <style>{`@keyframes jar-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } } ${swimKeyframeCSS}`}</style>
         <clipPath id="jar-inside">
-          <path
-            d={`M ${JAR_INTERIOR.x} ${JAR_INTERIOR.topY}
-                H ${JAR_INTERIOR.x + JAR_INTERIOR.width}
-                V ${JAR_INTERIOR.baseY - 30}
-                Q ${JAR_INTERIOR.x + JAR_INTERIOR.width} ${JAR_INTERIOR.baseY}
-                  ${JAR_INTERIOR.x + JAR_INTERIOR.width - 40} ${JAR_INTERIOR.baseY}
-                H ${JAR_INTERIOR.x + 40}
-                Q ${JAR_INTERIOR.x} ${JAR_INTERIOR.baseY}
-                  ${JAR_INTERIOR.x} ${JAR_INTERIOR.baseY - 30}
-                Z`}
-          />
+          <path d={clipPathD} />
         </clipPath>
-        <linearGradient id="jar-water" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7fd3ff" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#1a6fbf" stopOpacity="0.95" />
+        <linearGradient id="jar-water-tint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#7fd3ff" stopOpacity="0.32" />
+          <stop offset="0.5" stopColor="#4aa8e0" stopOpacity="0.38" />
+          <stop offset="1" stopColor="#1a6fbf" stopOpacity="0.48" />
         </linearGradient>
         <linearGradient id="jar-water-surface" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#bfe8ff" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#7fd3ff" stopOpacity="0.6" />
+          <stop offset="0" stopColor="#e8f7ff" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#7fd3ff" stopOpacity="0.0" />
         </linearGradient>
       </defs>
 
       <image href={JAR_SCENE_URL} x="0" y="0" width={VIEW_W} height={VIEW_H} />
+
+      <image
+        href={TAP_URL}
+        x={TAP_PLACEMENT.x}
+        y={TAP_PLACEMENT.y}
+        width={TAP_PLACEMENT.w}
+        height={TAP_PLACEMENT.h}
+        preserveAspectRatio="xMidYMin meet"
+        className="jar-tap"
+      />
+      <g className="jar-tap__drip" style={{ transformOrigin: `${TAP_PLACEMENT.spoutX}px ${TAP_PLACEMENT.spoutY}px` }}>
+        <ellipse
+          cx={TAP_PLACEMENT.spoutX}
+          cy={TAP_PLACEMENT.spoutY}
+          rx="5"
+          ry="7"
+          fill="#bfe8ff"
+          opacity="0.85"
+        />
+      </g>
+      <g className="jar-tap__drip jar-tap__drip--2" style={{ transformOrigin: `${TAP_PLACEMENT.spoutX}px ${TAP_PLACEMENT.spoutY}px` }}>
+        <ellipse
+          cx={TAP_PLACEMENT.spoutX}
+          cy={TAP_PLACEMENT.spoutY}
+          rx="4"
+          ry="6"
+          fill="#bfe8ff"
+          opacity="0.75"
+        />
+      </g>
+      <g className="jar-tap__drip jar-tap__drip--3" style={{ transformOrigin: `${TAP_PLACEMENT.spoutX}px ${TAP_PLACEMENT.spoutY}px` }}>
+        <ellipse
+          cx={TAP_PLACEMENT.spoutX}
+          cy={TAP_PLACEMENT.spoutY}
+          rx="3.5"
+          ry="5"
+          fill="#bfe8ff"
+          opacity="0.7"
+        />
+      </g>
 
       <g clipPath="url(#jar-inside)">
         <rect
@@ -174,78 +228,83 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           y={waterY}
           width={JAR_INTERIOR.width}
           height={waterHeight}
-          fill="url(#jar-water)"
+          fill="url(#jar-water-tint)"
+        />
+
+        {fishes.map((f) => {
+          const revealed = waterY <= f.revealY;
+          const opacity = revealed ? 1 : 0;
+
+          const revealStyle: CSSProperties = {
+            opacity,
+            transition: 'opacity 1.2s ease-out',
+          };
+
+          const bobStyle: CSSProperties = reducedMotion
+            ? {}
+            : { animation: `jar-bob ${f.bobDur}s ease-in-out ${f.bobDelay}s infinite alternate` };
+
+          const swimStyle: CSSProperties = reducedMotion
+            ? {}
+            : { animation: `jar-swim-${f.id} ${f.swimDur}s ease-in-out ${f.swimDelay}s infinite alternate` };
+
+          const scaleTransform = `scale(${f.faceLeft ? -f.scale : f.scale}, ${f.scale})`;
+
+          return (
+            <g key={f.id} transform={`translate(${f.startX}, ${f.startY})`} style={revealStyle}>
+              <g style={swimStyle}>
+                <g style={bobStyle}>
+                  <g transform={scaleTransform}>
+                    <image
+                      href={FISH_URL}
+                      x={-f.fishW / 2}
+                      y={-f.fishH / 2}
+                      width={f.fishW}
+                      height={f.fishH}
+                      filter={`hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`}
+                      preserveAspectRatio="xMidYMid meet"
+                    />
+                  </g>
+                </g>
+              </g>
+            </g>
+          );
+        })}
+
+        <rect
+          x={JAR_INTERIOR.x}
+          y={waterY - 8}
+          width={JAR_INTERIOR.width}
+          height="14"
+          fill="url(#jar-water-surface)"
+          className="jar-wave-surface"
         />
         <path
           d={`M ${JAR_INTERIOR.x - 10} ${waterY}
-              Q ${JAR_INTERIOR.x + 60} ${waterY - 6}
+              Q ${JAR_INTERIOR.x + 60} ${waterY - 5}
                 ${JAR_INTERIOR.x + 120} ${waterY}
               T ${JAR_INTERIOR.x + 240} ${waterY}
               T ${JAR_INTERIOR.x + 360} ${waterY}
               T ${JAR_INTERIOR.x + 400} ${waterY}`}
           fill="none"
-          stroke="url(#jar-water-surface)"
-          strokeWidth="6"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="2.5"
           strokeLinecap="round"
           className="jar-wave"
         />
         <path
           d={`M ${JAR_INTERIOR.x - 10} ${waterY + 4}
-              Q ${JAR_INTERIOR.x + 60} ${waterY - 2}
+              Q ${JAR_INTERIOR.x + 60} ${waterY - 1}
                 ${JAR_INTERIOR.x + 120} ${waterY + 4}
               T ${JAR_INTERIOR.x + 240} ${waterY + 4}
               T ${JAR_INTERIOR.x + 360} ${waterY + 4}`}
           fill="none"
-          stroke="rgba(255,255,255,0.35)"
-          strokeWidth="2"
+          stroke="rgba(255,255,255,0.25)"
+          strokeWidth="1.5"
           strokeLinecap="round"
           className="jar-wave-2"
         />
       </g>
-
-      {fishes.map((f) => {
-        const revealed = waterY <= f.revealY;
-        const opacity = revealed ? 1 : 0;
-
-        const revealStyle: CSSProperties = {
-          opacity,
-          transition: reducedMotion ? 'opacity 1.2s ease-out' : 'opacity 1.2s ease-out',
-        };
-
-        const bobStyle: CSSProperties = reducedMotion
-          ? {}
-          : {
-              animation: `jar-bob ${f.bobDur}s ease-in-out ${f.bobDelay}s infinite alternate`,
-            };
-
-        const swimStyle: CSSProperties = reducedMotion
-          ? {}
-          : {
-              animation: `jar-swim-${f.id} ${f.swimDur}s ease-in-out ${f.swimDelay}s infinite alternate`,
-            };
-
-        const scaleTransform = `scale(${f.faceLeft ? -f.scale : f.scale}, ${f.scale})`;
-
-        return (
-          <g key={f.id} transform={`translate(${f.startX}, ${f.startY})`} style={revealStyle}>
-            <g style={swimStyle}>
-              <g style={bobStyle}>
-                <g transform={scaleTransform}>
-                  <image
-                    href={FISH_URL}
-                    x={-f.fishW / 2}
-                    y={-f.fishH / 2}
-                    width={f.fishW}
-                    height={f.fishH}
-                    filter={`hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                </g>
-              </g>
-            </g>
-          </g>
-        );
-      })}
 
       <ellipse
         cx={CENTER_X}

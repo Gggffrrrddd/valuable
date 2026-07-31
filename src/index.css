@@ -189,6 +189,61 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
+.jar-focus-session .focus-atmosphere,
+.jar-focus-session .focus-grid,
+.jar-focus-session .focus-orbit,
+.jar-focus-session .focus-vignette {
+  display: none;
+}
+
+.jar-focus-layout > div:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.jar-focus-layout > div:first-child > div {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+}
+
+.jar-focus-layout > div:last-child {
+  position: absolute;
+  right: clamp(1.5rem, 6vw, 7rem);
+  top: 50%;
+  z-index: 20;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
+.jar-tap {
+  position: absolute;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
+}
+
+.jar-tap__drip {
+  animation: jar-drip 1.4s ease-in infinite;
+  transform-origin: center top;
+}
+
+.jar-tap__drip--2 { animation-delay: 0.45s; }
+.jar-tap__drip--3 { animation-delay: 0.9s; }
+
+@keyframes jar-drip {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  10%  { opacity: 1; }
+  70%  { transform: translateY(80px) scale(1.05); opacity: 1; }
+  90%  { transform: translateY(110px) scale(0.85); opacity: 0.5; }
+  100% { transform: translateY(130px) scale(0.7); opacity: 0; }
+}
+
 .tree-leaf-editor {
   position: relative;
   overflow: hidden;
