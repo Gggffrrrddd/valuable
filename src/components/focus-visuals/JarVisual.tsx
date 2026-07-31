@@ -6,14 +6,16 @@ const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
+const BUILD_TAG = 'jar-final-image-v1';
+
 const VIEW_W = 1672;
 const VIEW_H = 941;
 
 const JAR_INTERIOR = {
-  x: 350,
-  width: 416,
-  baseY: 680,
-  topY: 220,
+  x: 340,
+  width: 190,
+  baseY: 830,
+  topY: 465,
 };
 
 const FISH_COUNT = 4;
@@ -25,12 +27,12 @@ const FISH_VARIANTS = [
 ];
 
 const TAP_PLACEMENT = {
-  x: 352,
-  y: 84,
+  x: 260,
+  y: 334,
   w: 416,
   h: 277,
-  spoutX: 512,
-  spoutY: 205,
+  spoutX: 420,
+  spoutY: 455,
 };
 
 function seededUnit(seed: number) {
@@ -152,10 +154,12 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       console.log(
-        `[JarVisual] svg=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
+        `[JarVisual BUILD=${BUILD_TAG}] svg=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
         `viewport=${vw}x${vh} aspect=${(vw / vh).toFixed(3)}`,
         `fillsScreen=${r.width >= vw - 1 && r.height >= vh - 1}`,
-        `preserveAspectRatio=${el.getAttribute('preserveAspectRatio')}`,
+        `par=${el.getAttribute('preserveAspectRatio')}`,
+        `jarInterior=${JSON.stringify(JAR_INTERIOR)}`,
+        `tap=${JSON.stringify(TAP_PLACEMENT)}`,
       );
     };
     measure();
