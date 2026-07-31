@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { Profile } from '../types';
@@ -19,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const currentUserIdRef = useRef<string | null>(null);
 
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
+      currentUserIdRef.current = data.session?.user?.id ?? null;
       if (data.session) {
         loadProfile(data.session.user.id).finally(() => {
           if (mounted) setLoading(false);
@@ -58,6 +60,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
         setSession(sess);
         return;
+      }
+      if (event === 'SIGNED_IN' && sess) {
+        const incomingUserId = sess.user?.id ?? null;
+        if (currentUserIdRef.current && currentUserIdRef.current === incomingUserId) {
+          console.log('[DEBUG] SIGNED_IN skipped — same user, background recovery');
+          setSession(sess);
+          return;
+        }
+        currentUserIdRef.current = incomingUserId;
+        console.log('[DEBUG] auth.tsx setLoading(true) triggered by event:', event); console.trace();
+        setSession(sess);
+        setLoading(true);
+        (async () => {
+          await loadProfile(sess.user.id);
+          if (mounted) setLoading(false);
+        })();
+        return;
+      }
+      if (event === 'INITIAL_SESSION' && sess) {
+        currentUserIdRef.current = sess.user?.id ?? null;
+      }
+      if (event === 'SIGNED_OUT') {
+        currentUserIdRef.current = null;
       }
       setSession(sess);
       if (sess) {
