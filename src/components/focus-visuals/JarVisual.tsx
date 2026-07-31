@@ -53,11 +53,11 @@ const jarKeyframes = `
     100%  { transform: translateX(-4px); }
   }
   @keyframes jar-drip {
-    0%   { transform: translate(-50%, -50%) translateY(0); opacity: 0; }
-    10%  { opacity: 1; }
-    70%  { transform: translate(-50%, -50%) translateY(40px); opacity: 1; }
-    90%  { transform: translate(-50%, -50%) translateY(55px); opacity: 0.5; }
-    100% { transform: translate(-50%, -50%) translateY(65px); opacity: 0; }
+    0%   { transform: translate(-50%, -100%) translateY(0); opacity: 0; }
+    8%   { opacity: 1; }
+    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 1; }
+    95%  { transform: translate(-50%, -100%) translateY(40vh); opacity: 0.3; }
+    100% { transform: translate(-50%, -100%) translateY(42vh); opacity: 0; }
   }
 `;
 
@@ -245,13 +245,30 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           position: 'absolute',
           left: `${mouthPctX}%`,
           top: `${mouthPctY}%`,
+          width: '10px',
+          height: '14px',
+          background: '#7dd3fc',
+          borderRadius: '50%',
+          opacity: 0.9,
+          boxShadow: '0 0 6px rgba(125,211,252,0.6)',
+          transform: 'translate(-50%, -100%)',
+          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
+          zIndex: 4,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: `${mouthPctX}%`,
+          top: `${mouthPctY}%`,
           width: '8px',
           height: '12px',
-          background: '#bfe8ff',
+          background: '#7dd3fc',
           borderRadius: '50%',
           opacity: 0.85,
-          transform: 'translate(-50%, -50%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.4s ease-in infinite',
+          boxShadow: '0 0 5px rgba(125,211,252,0.5)',
+          transform: 'translate(-50%, -100%)',
+          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
           zIndex: 4,
         }}
       />
@@ -260,28 +277,14 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           position: 'absolute',
           left: `${mouthPctX}%`,
           top: `${mouthPctY}%`,
-          width: '6px',
+          width: '7px',
           height: '10px',
-          background: '#bfe8ff',
+          background: '#7dd3fc',
           borderRadius: '50%',
-          opacity: 0.75,
-          transform: 'translate(-50%, -50%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.4s ease-in 0.45s infinite',
-          zIndex: 4,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${mouthPctX}%`,
-          top: `${mouthPctY}%`,
-          width: '5px',
-          height: '8px',
-          background: '#bfe8ff',
-          borderRadius: '50%',
-          opacity: 0.7,
-          transform: 'translate(-50%, -50%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.4s ease-in 0.9s infinite',
+          opacity: 0.8,
+          boxShadow: '0 0 4px rgba(125,211,252,0.4)',
+          transform: 'translate(-50%, -100%)',
+          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
           zIndex: 4,
         }}
       />
