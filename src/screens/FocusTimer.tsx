@@ -12,6 +12,57 @@ interface FocusTimerProps {
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
 
 const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
+const SESSION_START_KEY = 'valuable-session-start';
+const SESSION_DURATION_KEY = 'valuable-session-duration';
+const SESSION_PAUSED_AT_KEY = 'valuable-session-paused-at';
+const SESSION_PAUSED_TOTAL_KEY = 'valuable-session-paused-total';
+const SESSION_SUBJECT_KEY = 'valuable-session-subject';
+const SESSION_BREAK_KEY = 'valuable-session-break';
+const SESSION_THEME_KEY = 'valuable-session-theme';
+
+interface StoredSession {
+  durationMs: number;
+  pausedAtMs: number | null;
+  pausedTotalMs: number;
+  subjectTag: string | null;
+  breakMinutes: number;
+  theme: FocusVisualTheme;
+  paused: boolean;
+  elapsedMs: number;
+  remainingMs: number;
+}
+
+function readStoredSession(): StoredSession | null {
+  const startRaw = localStorage.getItem(SESSION_START_KEY);
+  if (!startRaw) return null;
+  const startMs = Number(startRaw);
+  const durationMs = Number(localStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
+  if (!Number.isFinite(startMs) || !Number.isFinite(durationMs) || durationMs <= 0) {
+    localStorage.removeItem(SESSION_START_KEY);
+    return null;
+  }
+  const pausedAtRaw = localStorage.getItem(SESSION_PAUSED_AT_KEY);
+  const pausedAtMs = pausedAtRaw ? Number(pausedAtRaw) : null;
+  const pausedTotalMs = Number(localStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+  const now = Date.now();
+  const pausedNowMs = pausedAtMs !== null ? Math.max(0, now - pausedAtMs) : 0;
+  const pausedMs = pausedTotalMs + pausedNowMs;
+  const elapsedMs = Math.max(0, now - startMs - pausedMs);
+  const remainingMs = Math.max(0, durationMs - elapsedMs);
+  const themeRaw = localStorage.getItem(SESSION_THEME_KEY);
+  const theme = FOCUS_VISUAL_THEMES.some((t) => t.id === themeRaw) ? themeRaw as FocusVisualTheme : 'hourglass';
+  return {
+    durationMs,
+    pausedAtMs,
+    pausedTotalMs,
+    subjectTag: localStorage.getItem(SESSION_SUBJECT_KEY) || null,
+    breakMinutes: Number(localStorage.getItem(SESSION_BREAK_KEY) ?? 5) || 5,
+    theme,
+    paused: pausedAtMs !== null,
+    elapsedMs,
+    remainingMs,
+  };
+}
 
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
@@ -21,48 +72,115 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [subjectTag, setSubjectTag] = useState<string>('');
   const [showSubjects, setShowSubjects] = useState(false);
 
-  const [phase, setPhase] = useState<Phase>('config');
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [phase, setPhase] = useState<Phase>(() => {
+    const s = readStoredSession();
+    if (!s) return 'config';
+    return s.remainingMs <= 0 ? 'completing' : s.paused ? 'paused' : 'focus';
+  });
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const s = readStoredSession();
+    return s ? Math.ceil(s.remainingMs / 1000) : 25 * 60;
+  });
+  const [activeDurationSeconds, setActiveDurationSeconds] = useState(() => {
+    const s = readStoredSession();
+    return s ? s.durationMs / 1000 : 0;
+  });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
+    const s = readStoredSession();
+    if (s) return s.theme;
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
   });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const sessionSubjectRef = useRef<string | null>(null);
+  const sessionBreakRef = useRef(5);
+  const bootHandledRef = useRef(false);
 
   const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
 
-  useEffect(() => {
-    if (phase === 'focus' || phase === 'paused' || phase === 'completing') return;
-    setSecondsLeft(totalFocusSeconds);
-  }, [totalFocusSeconds, phase]);
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(SESSION_START_KEY);
+    localStorage.removeItem(SESSION_DURATION_KEY);
+    localStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    localStorage.removeItem(SESSION_PAUSED_TOTAL_KEY);
+    localStorage.removeItem(SESSION_SUBJECT_KEY);
+    localStorage.removeItem(SESSION_BREAK_KEY);
+    localStorage.removeItem(SESSION_THEME_KEY);
+  }, []);
+
+  const completeSession = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setPhase('completing');
+    completionRef.current = setTimeout(() => {
+      const s = readStoredSession();
+      const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
+      clearSession();
+      onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current);
+    }, 1300);
+  }, [clearSession, onComplete, totalFocusSeconds]);
 
   const tick = useCallback(() => {
-    setSecondsLeft((s) => {
-      if (s <= 1) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setPhase('completing');
-        completionRef.current = setTimeout(() => {
-          onComplete(totalFocusSeconds, subjectTag || null, true, breakMinutes);
-        }, 1300);
-        return 0;
-      }
-      return s - 1;
-    });
-  }, [breakMinutes, onComplete, subjectTag, totalFocusSeconds]);
+    const s = readStoredSession();
+    if (!s) return;
+    setSecondsLeft(Math.ceil(s.remainingMs / 1000));
+    if (s.remainingMs <= 0 && phaseRef.current === 'focus') {
+      completeSession();
+    }
+  }, [completeSession]);
+
+  useEffect(() => {
+    if (phase === 'config') setSecondsLeft(totalFocusSeconds);
+  }, [totalFocusSeconds, phase]);
 
   useEffect(() => {
     if (phase === 'focus') {
-      intervalRef.current = setInterval(tick, 1000);
+      intervalRef.current = setInterval(tick, 500);
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
     }
   }, [phase, tick]);
+
+  useEffect(() => {
+    if (bootHandledRef.current) return;
+    bootHandledRef.current = true;
+    const s = readStoredSession();
+    if (!s) return;
+    sessionSubjectRef.current = s.subjectTag;
+    sessionBreakRef.current = s.breakMinutes;
+    setActiveDurationSeconds(s.durationMs / 1000);
+    if (s.remainingMs <= 0) {
+      completeSession();
+    }
+  }, [completeSession]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      const s = readStoredSession();
+      if (!s) return;
+      setSecondsLeft(Math.ceil(s.remainingMs / 1000));
+      setActiveDurationSeconds(s.durationMs / 1000);
+      if (s.remainingMs <= 0 && phaseRef.current === 'focus') {
+        completeSession();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [completeSession]);
 
   useEffect(() => () => {
     if (completionRef.current) clearTimeout(completionRef.current);
@@ -74,21 +192,39 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   }
 
   function handleStart() {
+    sessionSubjectRef.current = subjectTag || null;
+    sessionBreakRef.current = breakMinutes;
+    localStorage.setItem(SESSION_START_KEY, String(Date.now()));
+    localStorage.setItem(SESSION_DURATION_KEY, String(totalFocusSeconds));
+    localStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    localStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
+    localStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
+    localStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
+    localStorage.setItem(SESSION_THEME_KEY, visualTheme);
+    setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
   }
 
   function handlePause() {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    localStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
   }
 
   function handleResume() {
+    const pausedAtRaw = localStorage.getItem(SESSION_PAUSED_AT_KEY);
+    if (pausedAtRaw) {
+      const prevTotal = Number(localStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+      localStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
+      localStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    }
     setPhase('focus');
   }
 
   function handleQuitRequest() {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    localStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
     setShowQuitConfirm(true);
   }
@@ -96,15 +232,17 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   function handleQuitConfirm(yes: boolean) {
     setShowQuitConfirm(false);
     if (yes) {
-      const totalElapsed = totalFocusSeconds - secondsLeft;
+      const s = readStoredSession();
+      const elapsedSeconds = s ? Math.max(0, Math.round(s.elapsedMs / 1000)) : Math.max(0, totalFocusSeconds - secondsLeft);
+      clearSession();
       setPhase('config');
-      onComplete(totalElapsed, subjectTag || null, false, breakMinutes);
+      onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
     } else {
-      setPhase('focus');
+      handleResume();
     }
   }
 
-  const progress = totalFocusSeconds > 0 ? 1 - secondsLeft / totalFocusSeconds : 0;
+  const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
@@ -130,7 +268,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           {/* Left / center zone: hourglass visual */}
           <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
             <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
-              <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} />
             </div>
           </div>
 
