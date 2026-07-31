@@ -153,7 +153,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
 
       {/* Inside-the-jar layer: drops, fish, water — all clipped to jar interior */}
       <div style={{ ...overlayLayerStyle, zIndex: 1, opacity: 0 }} aria-hidden="true">
-        {/* Interior clip wrapper — all inside-jar elements live here */}
+        {/* Interior clip wrapper — water/fish live here */}
         <div style={interiorClip}>
           {/* Water fill */}
           <div
@@ -216,54 +216,54 @@ export default function JarVisual({ progress }: FocusVisualProps) {
               </div>
             );
           })}
-
-          {/* Drip drops — translucent water gradient, clipped to interior */}
-          <div
-            style={{
-              position: 'absolute',
-              left: `${mouthPctX}%`,
-              top: `${mouthPctY}%`,
-              width: '12px',
-              height: '16px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(180,220,255,0.3) 60%, rgba(140,200,255,0.15) 100%)',
-              filter: 'blur(0.3px)',
-              transform: 'translate(-50%, -100%)',
-              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
-              zIndex: 3,
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: `${mouthPctX}%`,
-              top: `${mouthPctY}%`,
-              width: '10px',
-              height: '14px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(180,220,255,0.25) 60%, rgba(140,200,255,0.12) 100%)',
-              filter: 'blur(0.3px)',
-              transform: 'translate(-50%, -100%)',
-              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
-              zIndex: 3,
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: `${mouthPctX}%`,
-              top: `${mouthPctY}%`,
-              width: '8px',
-              height: '12px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(180,220,255,0.2) 60%, rgba(140,200,255,0.1) 100%)',
-              filter: 'blur(0.3px)',
-              transform: 'translate(-50%, -100%)',
-              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
-              zIndex: 3,
-            }}
-          />
         </div>
+      </div>
+
+      {/* Drip drops — direct children of container so they're visible.
+          Clipped to jar interior via interiorClip wrapper. */}
+      <div style={{ ...interiorClip, zIndex: 2 }} aria-hidden="true">
+        <div
+          style={{
+            position: 'absolute',
+            left: `${mouthPctX}%`,
+            top: `${mouthPctY}%`,
+            width: '12px',
+            height: '16px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(180,220,255,0.3) 60%, rgba(140,200,255,0.15) 100%)',
+            filter: 'blur(0.3px)',
+            transform: 'translate(-50%, -100%)',
+            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${mouthPctX}%`,
+            top: `${mouthPctY}%`,
+            width: '10px',
+            height: '14px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(180,220,255,0.25) 60%, rgba(140,200,255,0.12) 100%)',
+            filter: 'blur(0.3px)',
+            transform: 'translate(-50%, -100%)',
+            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${mouthPctX}%`,
+            top: `${mouthPctY}%`,
+            width: '8px',
+            height: '12px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(180,220,255,0.2) 60%, rgba(140,200,255,0.1) 100%)',
+            filter: 'blur(0.3px)',
+            transform: 'translate(-50%, -100%)',
+            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
+          }}
+        />
       </div>
 
       {/* Tap image — above the inside-jar layer, so the tap sits "outside/in front" */}
