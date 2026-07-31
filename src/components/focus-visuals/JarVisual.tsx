@@ -54,8 +54,8 @@ const jarKeyframes = `
   }
   @keyframes jar-drip {
     0%   { transform: translate(-50%, -100%) translateY(0); opacity: 0; }
-    8%   { opacity: 0.55; }
-    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 0.55; }
+    8%   { opacity: 0.9; }
+    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 0.9; }
     95%  { transform: translate(-50%, -100%) translateY(40vh); opacity: 0.15; }
     100% { transform: translate(-50%, -100%) translateY(42vh); opacity: 0; }
   }
@@ -219,11 +219,10 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         </div>
       </div>
 
-      {/* Drip drops — direct children of container so they're visible.
-          Clipped to jar interior via interiorClip wrapper.
-          Colors: highlight #F5F6F3, mid #D6D8D3, shadow #9B9B94, deep #62615D.
-          Opacity 80-90%. Drops originate from tap nozzle tip (translate -100%). */}
-      <div style={{ ...interiorClip, zIndex: 2 }} aria-hidden="true">
+      {/* Drip drops — direct children of container, NOT clipped by interiorClip
+          so they can originate at the tap nozzle (above jar interior top) and
+          fall into the jar. Parent container's overflow:hidden clips them. */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }} aria-hidden="true">
         <div
           style={{
             position: 'absolute',
