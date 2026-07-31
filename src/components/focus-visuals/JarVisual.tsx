@@ -6,7 +6,7 @@ const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const BUILD_TAG = 'object-position-overlay-v3';
+const BUILD_TAG = 'drop-inside-jar-v1';
 
 const JAR_OBJECT_POSITION = '40% 15%';
 
@@ -54,9 +54,9 @@ const jarKeyframes = `
   }
   @keyframes jar-drip {
     0%   { transform: translate(-50%, -100%) translateY(0); opacity: 0; }
-    8%   { opacity: 1; }
-    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 1; }
-    95%  { transform: translate(-50%, -100%) translateY(40vh); opacity: 0.3; }
+    8%   { opacity: 0.55; }
+    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 0.55; }
+    95%  { transform: translate(-50%, -100%) translateY(40vh); opacity: 0.15; }
     100% { transform: translate(-50%, -100%) translateY(42vh); opacity: 0; }
   }
 `;
@@ -112,9 +112,6 @@ export default function JarVisual({ progress }: FocusVisualProps) {
     return () => ro.disconnect();
   }, []);
 
-  /* The overlay container uses the same cover/position as the background.
-     Container's 100%x100% = visible jar scene. Children at source-image
-     pixel percentages align with jar features on screen. */
   const overlayLayerStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -131,6 +128,16 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const mouthPctX = (JAR_MOUTH_CENTER.x / IMG_W) * 100;
   const mouthPctY = (JAR_MOUTH_CENTER.y / IMG_H) * 100;
 
+  /* Interior clip bounds — drops/fish/water are all clipped to this */
+  const interiorClip: CSSProperties = {
+    position: 'absolute',
+    left: toPctX(JAR_INTERIOR.left),
+    top: toPctY(JAR_INTERIOR.top),
+    width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left),
+    height: toPctY(JAR_INTERIOR.bottom - JAR_INTERIOR.top),
+    overflow: 'hidden',
+  };
+
   return (
     <div
       ref={containerRef}
@@ -144,19 +151,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       {/* Visible jar background */}
       <div style={{ ...overlayLayerStyle, zIndex: 0 }} aria-hidden="true" />
 
-      {/* Water fill — inside overlay layer for coordinate alignment */}
+      {/* Inside-the-jar layer: drops, fish, water — all clipped to jar interior */}
       <div style={{ ...overlayLayerStyle, zIndex: 1, opacity: 0 }} aria-hidden="true">
-        <div
-          style={{
-            position: 'absolute',
-            left: toPctX(JAR_INTERIOR.left),
-            top: toPctY(JAR_INTERIOR.top),
-            width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left),
-            height: toPctY(JAR_INTERIOR.bottom - JAR_INTERIOR.top),
-            overflow: 'hidden',
-            clipPath: 'inset(0% 0% 0% 0% round 0 0 30% 30%)',
-          }}
-        >
+        {/* Interior clip wrapper — all inside-jar elements live here */}
+        <div style={interiorClip}>
+          {/* Water fill */}
           <div
             style={{
               position: 'absolute',
@@ -168,59 +167,106 @@ export default function JarVisual({ progress }: FocusVisualProps) {
               transition: 'height 0.6s ease-out',
             }}
           />
-        </div>
 
-        {/* Fish */}
-        {fishes.map((f) => {
-          const interiorHeight = JAR_INTERIOR.bottom - JAR_INTERIOR.top;
-          const fishProgress = value * interiorHeight;
-          const fishReveal = f.revealY - JAR_INTERIOR.top;
-          const revealed = fishProgress >= fishReveal;
-          return (
-            <div
-              key={f.id}
-              style={{
-                position: 'absolute',
-                left: toPctX(f.startX),
-                top: toPctY(f.startY),
-                transform: `translate(-50%, -50%) scaleX(${f.faceLeft ? -1 : 1})`,
-                opacity: revealed ? 1 : 0,
-                transition: 'opacity 1.2s ease-out',
-                zIndex: 2,
-              }}
-            >
+          {/* Fish */}
+          {fishes.map((f) => {
+            const interiorHeight = JAR_INTERIOR.bottom - JAR_INTERIOR.top;
+            const fishProgress = value * interiorHeight;
+            const fishReveal = f.revealY - JAR_INTERIOR.top;
+            const revealed = fishProgress >= fishReveal;
+            return (
               <div
+                key={f.id}
                 style={{
-                  animation: reducedMotion
-                    ? undefined
-                    : `jar-fish-swim ${f.swimDur}s ease-in-out ${f.swimDelay}s infinite alternate`,
+                  position: 'absolute',
+                  left: toPctX(f.startX),
+                  top: toPctY(f.startY),
+                  transform: `translate(-50%, -50%) scaleX(${f.faceLeft ? -1 : 1})`,
+                  opacity: revealed ? 1 : 0,
+                  transition: 'opacity 1.2s ease-out',
+                  zIndex: 2,
                 }}
               >
                 <div
                   style={{
                     animation: reducedMotion
                       ? undefined
-                      : `jar-fish-bob ${f.bobDur}s ease-in-out ${f.bobDelay}s infinite alternate`,
+                      : `jar-fish-swim ${f.swimDur}s ease-in-out ${f.swimDelay}s infinite alternate`,
                   }}
                 >
-                  <img
-                    src={FISH_URL}
-                    alt=""
-                    draggable={false}
+                  <div
                     style={{
-                      width: `${(130 / IMG_W) * 100}%`,
-                      filter: `hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`,
-                      transform: `scale(${f.scale})`,
+                      animation: reducedMotion
+                        ? undefined
+                        : `jar-fish-bob ${f.bobDur}s ease-in-out ${f.bobDelay}s infinite alternate`,
                     }}
-                  />
+                  >
+                    <img
+                      src={FISH_URL}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: `${(130 / IMG_W) * 100}%`,
+                        filter: `hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`,
+                        transform: `scale(${f.scale})`,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+
+          {/* Drip drops — translucent water gradient, clipped to interior */}
+          <div
+            style={{
+              position: 'absolute',
+              left: `${mouthPctX}%`,
+              top: `${mouthPctY}%`,
+              width: '12px',
+              height: '16px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(180,220,255,0.3) 60%, rgba(140,200,255,0.15) 100%)',
+              filter: 'blur(0.3px)',
+              transform: 'translate(-50%, -100%)',
+              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
+              zIndex: 3,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: `${mouthPctX}%`,
+              top: `${mouthPctY}%`,
+              width: '10px',
+              height: '14px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(180,220,255,0.25) 60%, rgba(140,200,255,0.12) 100%)',
+              filter: 'blur(0.3px)',
+              transform: 'translate(-50%, -100%)',
+              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
+              zIndex: 3,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: `${mouthPctX}%`,
+              top: `${mouthPctY}%`,
+              width: '8px',
+              height: '12px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(180,220,255,0.2) 60%, rgba(140,200,255,0.1) 100%)',
+              filter: 'blur(0.3px)',
+              transform: 'translate(-50%, -100%)',
+              animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
+              zIndex: 3,
+            }}
+          />
+        </div>
       </div>
 
-      {/* Tap image — direct child of container, visible */}
+      {/* Tap image — above the inside-jar layer, so the tap sits "outside/in front" */}
       <img
         src={TAP_URL}
         alt=""
@@ -235,58 +281,21 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           objectFit: 'contain',
           objectPosition: 'center top',
           pointerEvents: 'none',
-          zIndex: 3,
+          zIndex: 4,
         }}
       />
 
-      {/* Drip drops — at the jar mouth center, direct children so visible */}
+      {/* Glass-sheen overlay — subtle gradient above everything to sell "behind glass" depth.
+          This is the front glass wall reflection. */}
       <div
         style={{
           position: 'absolute',
-          left: `${mouthPctX}%`,
-          top: `${mouthPctY}%`,
-          width: '10px',
-          height: '14px',
-          background: '#7dd3fc',
-          borderRadius: '50%',
-          opacity: 0.9,
-          boxShadow: '0 0 6px rgba(125,211,252,0.6)',
-          transform: 'translate(-50%, -100%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
-          zIndex: 4,
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(255,255,255,0.03) 100%)',
+          pointerEvents: 'none',
+          zIndex: 5,
         }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${mouthPctX}%`,
-          top: `${mouthPctY}%`,
-          width: '8px',
-          height: '12px',
-          background: '#7dd3fc',
-          borderRadius: '50%',
-          opacity: 0.85,
-          boxShadow: '0 0 5px rgba(125,211,252,0.5)',
-          transform: 'translate(-50%, -100%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
-          zIndex: 4,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${mouthPctX}%`,
-          top: `${mouthPctY}%`,
-          width: '7px',
-          height: '10px',
-          background: '#7dd3fc',
-          borderRadius: '50%',
-          opacity: 0.8,
-          boxShadow: '0 0 4px rgba(125,211,252,0.4)',
-          transform: 'translate(-50%, -100%)',
-          animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
-          zIndex: 4,
-        }}
+        aria-hidden="true"
       />
 
       {/* Finish glow */}
@@ -303,7 +312,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           filter: 'blur(24px)',
           opacity: complete ? 0.28 : 0.05,
           pointerEvents: 'none',
-          zIndex: 5,
+          zIndex: 6,
         }}
       />
     </div>
