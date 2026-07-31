@@ -55,6 +55,15 @@ const SHED_RANK = new Map<number, number>(
 
 const TOTAL_LEAVES = LEAVES.length;
 
+const AUTUMN_HUES = [
+  { hue: 15, brightness: 1.05, label: 'warm-orange' },
+  { hue: 25, brightness: 1.0, label: 'amber' },
+  { hue: -15, brightness: 0.95, label: 'crimson-red' },
+  { hue: 10, brightness: 0.9, label: 'rust' },
+  { hue: 40, brightness: 1.0, label: 'golden-brown' },
+  { hue: 50, brightness: 1.1, label: 'deep-yellow' },
+];
+
 function useReducedMotion() {
   const [r, setR] = useState(false);
   useEffect(() => {
@@ -72,6 +81,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef(1);
+  const [sessionHue, setSessionHue] = useState<{ hue: number; brightness: number }>({ hue: 0, brightness: 1 });
+
+  useEffect(() => {
+    if (!activeSession) return;
+    setSessionHue(AUTUMN_HUES[Math.floor(Math.random() * AUTUMN_HUES.length)]);
+  }, [activeSession]);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -117,14 +132,14 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         left: `${cx}%`,
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
-        filter: `hue-rotate(${leaf.hue}deg) brightness(${leaf.brightness})`,
+        filter: `hue-rotate(${sessionHue.hue}deg) brightness(${sessionHue.brightness})`,
         zIndex: zIdx,
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
         + (reducedMotion ? ' tree-placed-leaf--instant' : '');
       return { id: leaf.id, style, cls };
     });
-  }, [activeSession, shedCount, reducedMotion]);
+  }, [activeSession, shedCount, reducedMotion, sessionHue]);
 
   return (
     <div
