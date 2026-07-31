@@ -219,10 +219,22 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         </div>
       </div>
 
-      {/* Drip drops — direct children of container, NOT clipped by interiorClip
-          so they can originate at the tap nozzle (above jar interior top) and
-          fall into the jar. Parent container's overflow:hidden clips them. */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }} aria-hidden="true">
+      {/* Drip drops — clipped horizontally to jar interior width so they stay
+          inside the glass walls, but vertically they can start from the nozzle
+          (above jar interior top) and fall to the pebble bed. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: toPctX(JAR_INTERIOR.left),
+          width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left),
+          top: 0,
+          height: '100%',
+          overflow: 'hidden',
+          zIndex: 2,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
         <div
           style={{
             position: 'absolute',
