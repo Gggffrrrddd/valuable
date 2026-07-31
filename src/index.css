@@ -325,6 +325,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   50% { transform: translateX(-7px); }
 }
 .jar-wave { animation: wave 1.8s ease-in-out infinite; }
+.jar-wave-2 { animation: wave 2.4s ease-in-out infinite reverse; }
 
 @keyframes finishGlow {
   0% { opacity: .1; transform: scale(.96); }
