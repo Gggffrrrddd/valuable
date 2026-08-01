@@ -14,6 +14,7 @@ const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
 const WATER_TOP = 461;
 const WATER_BASE = 843;
 const NOZZLE = { x: 420, y: 432 };
+const WATER_DEBUG = true;
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, swim: 9.5, bob: 3.8, delay: 0 },
@@ -97,14 +98,14 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           {/* The saved reference PNG is used only as an invisible, pixel-accurate alpha mask. */}
           <g mask="url(#jar-water-alpha-mask)">
             <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
-              <rect x="300" y="0" width="260" height={WATER_BASE} fill="url(#jar-water-depth)" />
-              <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
-                <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
-                <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke="#b6e7dc" strokeWidth="6" strokeLinecap="round" />
+              <rect x="300" y="0" width="260" height={WATER_BASE} fill={WATER_DEBUG ? '#ff2255' : 'url(#jar-water-depth)'} />
+              <g opacity={WATER_DEBUG ? 1 : .12} style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
+                <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke={WATER_DEBUG ? '#ff8800' : '#c6eee5'} strokeWidth={WATER_DEBUG ? 14 : 9} strokeLinecap="round" />
+                <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke={WATER_DEBUG ? '#a020f0' : '#b6e7dc'} strokeWidth={WATER_DEBUG ? 14 : 6} strokeLinecap="round" />
               </g>
               {/* Both surface strokes share the same PNG alpha mask as the water body. */}
-              <path d="M280 1 Q292 -2 304 1 T328 1 T352 1 T376 1 T400 1 T424 1 T448 1 T472 1 T496 1 T520 1 T544 1 T568 1" fill="none" stroke="rgba(220,249,242,.78)" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke="rgba(157,215,202,.64)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
+              <path d="M280 1 Q292 -2 304 1 T328 1 T352 1 T376 1 T400 1 T424 1 T448 1 T472 1 T496 1 T520 1 T544 1 T568 1" fill="none" stroke={WATER_DEBUG ? '#ffff00' : 'rgba(220,249,242,.78)'} strokeWidth={WATER_DEBUG ? 6 : 2.5} strokeLinecap="round" />
+              <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke={WATER_DEBUG ? '#00d4ff' : 'rgba(157,215,202,.64)'} strokeWidth={WATER_DEBUG ? 6 : 2} strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
             </g>
 
             {FISH.map((fish) => {
@@ -130,6 +131,19 @@ export default function JarVisual({ progress }: FocusVisualProps) {
 
           <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath="url(#tap-crop)" />
 
+          {WATER_DEBUG && (
+            <g fontFamily="ui-monospace, monospace" fontSize="14" fontWeight="700" pointerEvents="none">
+              <text x="0" y="18" fill="#ff2255">WATER-ELEMENT-1: gradient rect</text>
+              <text x="0" y="36" fill="#ff8800">WATER-ELEMENT-2: current streak A</text>
+              <text x="0" y="54" fill="#a020f0">WATER-ELEMENT-3: current streak B</text>
+              <text x="0" y="72" fill="#ffff00">WATER-ELEMENT-4: surface highlight</text>
+              <text x="0" y="90" fill="#00d4ff">WATER-ELEMENT-5: ripple stroke</text>
+              <g transform={`translate(${NOZZLE.x}px,${waterY + 4}px)`}>
+                <rect x="6" y="-8" width="170" height="18" fill="rgba(0,0,0,.55)" stroke="#fff" strokeWidth="1" rx="3" />
+                <text x="14" y="6" fill="#fff">surface labels above</text>
+              </g>
+            </g>
+          )}
         </g>
       </svg>
 
