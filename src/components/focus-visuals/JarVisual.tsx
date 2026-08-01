@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
@@ -7,16 +7,12 @@ const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
-const WATER_CALIBRATION_KEY = 'valuable-final-jar-water-calibration';
-const WATER_CALIBRATION_MODE = true;
 const IMG_W = 1672;
 const IMG_H = 941;
 const OBJECT_POSITION = { x: 0.4, y: 0.15 };
-type WaterCalibration = { x: number; y: number; width: number; height: number };
-type CalibrationDrag = { mode: 'move' | 'resize'; startX: number; startY: number; initial: WaterCalibration };
-const DEFAULT_CALIBRATION: WaterCalibration = { x: 580, y: 470, width: 340, height: 225 };
-const WATER_TOP = 455;
-const WATER_BASE = 825;
+const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
+const WATER_TOP = 461;
+const WATER_BASE = 843;
 const NOZZLE = { x: 420, y: 432 };
 
 const FISH = [
@@ -57,16 +53,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const complete = value >= 1;
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<CalibrationDrag | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
-  const [calibration, setCalibration] = useState<WaterCalibration>(() => {
-    try {
-      const saved = localStorage.getItem(WATER_CALIBRATION_KEY);
-      return saved ? { ...DEFAULT_CALIBRATION, ...JSON.parse(saved) } : DEFAULT_CALIBRATION;
-    } catch {
-      return DEFAULT_CALIBRATION;
-    }
-  });
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
 
   useEffect(() => {
@@ -85,44 +72,14 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const sceneTransform = `translate(${offsetX} ${offsetY}) scale(${scale})`;
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
   const dripVariables = { '--water-y': `${Math.max(NOZZLE.y, waterY)}px` } as CSSProperties;
-  const pointerToScene = (event: ReactPointerEvent<SVGElement>) => {
-    const bounds = containerRef.current?.getBoundingClientRect();
-    if (!bounds) return { x: 0, y: 0 };
-    return { x: (event.clientX - bounds.left - offsetX) / scale, y: (event.clientY - bounds.top - offsetY) / scale };
-  };
-  const startCalibrationDrag = (mode: CalibrationDrag['mode']) => (event: ReactPointerEvent<SVGElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const point = pointerToScene(event);
-    dragRef.current = { mode, startX: point.x, startY: point.y, initial: calibration };
-  };
-  const moveCalibration = (event: ReactPointerEvent<SVGElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const point = pointerToScene(event);
-    const dx = point.x - drag.startX;
-    const dy = point.y - drag.startY;
-    setCalibration(drag.mode === 'move'
-      ? { ...drag.initial, x: Math.round(drag.initial.x + dx), y: Math.round(drag.initial.y + dy) }
-      : { ...drag.initial, width: Math.max(40, Math.round(drag.initial.width + dx)), height: Math.max(40, Math.round(drag.initial.height + dy)) });
-  };
-  const stopCalibrationDrag = () => { dragRef.current = null; };
-  const updateCalibrationSize = (field: 'width' | 'height', rawValue: string) => {
-    const next = Number(rawValue);
-    if (Number.isFinite(next)) setCalibration((current) => ({ ...current, [field]: Math.max(40, next) }));
-  };
-  const saveCalibration = () => {
-    localStorage.setItem(WATER_CALIBRATION_KEY, JSON.stringify(calibration));
-    console.log('[FinalJarWaterCalibration:SAVED]', JSON.stringify(calibration));
-  };
 
   return (
     <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
       <style>{keyframes}</style>
       <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <mask id="jar-water-alpha-mask" maskUnits="userSpaceOnUse" x={calibration.x} y={calibration.y} width={calibration.width} height={calibration.height} style={{ maskType: 'alpha' }}>
-            <image href={WATER_CALIBRATION_URL} x={calibration.x} y={calibration.y} width={calibration.width} height={calibration.height} preserveAspectRatio="none" />
+          <mask id="jar-water-alpha-mask" maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} style={{ maskType: 'alpha' }}>
+            <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" />
           </mask>
           <linearGradient id="jar-water-depth" x1="0" y1={WATER_TOP} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#8dc4b8" stopOpacity=".55" />
@@ -138,7 +95,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
           {/* The saved reference PNG is used only as an invisible, pixel-accurate alpha mask. */}
-          {!WATER_CALIBRATION_MODE && <g mask="url(#jar-water-alpha-mask)">
+          <g mask="url(#jar-water-alpha-mask)">
             <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
               <rect x="300" y="0" width="260" height={WATER_BASE} fill="url(#jar-water-depth)" />
               <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
@@ -163,38 +120,18 @@ export default function JarVisual({ progress }: FocusVisualProps) {
                 </g>
               );
             })}
-          </g>}
+          </g>
 
-          {!WATER_CALIBRATION_MODE && <g style={dripVariables}>
+          <g style={dripVariables}>
             {!reducedMotion && [0, .5, 1].map((delay) => (
               <path key={delay} d="M0 0 C-.8 3.5 -6 7.7 -6 12.5 C-6 16.5 -3.3 19 0 19 C3.3 19 6 16.5 6 12.5 C6 7.7 .8 3.5 0 0Z" fill="url(#jar-drop)" style={{ animation: `jar-drip-svg 1.6s ease-in ${delay}s infinite`, transform: `translate(${NOZZLE.x}px,${NOZZLE.y}px)`, opacity: .84 }} />
             ))}
-          </g>}
+          </g>
 
           <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath="url(#tap-crop)" />
 
-          {WATER_CALIBRATION_MODE && <g>
-            <image href={WATER_CALIBRATION_URL} x={calibration.x} y={calibration.y} width={calibration.width} height={calibration.height} opacity=".82" preserveAspectRatio="none" style={{ cursor: 'move' }} onPointerDown={startCalibrationDrag('move')} onPointerMove={moveCalibration} onPointerUp={stopCalibrationDrag} onPointerCancel={stopCalibrationDrag} />
-            <rect x={calibration.x} y={calibration.y} width={calibration.width} height={calibration.height} fill="none" stroke="#d9ff64" strokeWidth="2" strokeDasharray="8 5" pointerEvents="none" />
-            <rect x={calibration.x + calibration.width - 12} y={calibration.y + calibration.height - 12} width="24" height="24" rx="4" fill="#d9ff64" stroke="#17210a" strokeWidth="2" style={{ cursor: 'nwse-resize' }} onPointerDown={startCalibrationDrag('resize')} onPointerMove={moveCalibration} onPointerUp={stopCalibrationDrag} onPointerCancel={stopCalibrationDrag} />
-          </g>}
-
         </g>
       </svg>
-
-      {WATER_CALIBRATION_MODE && <div style={{ position: 'absolute', right: 18, top: 18, zIndex: 20, width: 250, padding: 14, border: '1px solid rgba(217,255,100,.55)', borderRadius: 12, background: 'rgba(12,16,10,.88)', color: '#f5f5f4', fontFamily: 'ui-monospace, monospace', fontSize: 12, boxShadow: '0 14px 40px rgba(0,0,0,.35)' }}>
-        <strong style={{ display: 'block', color: '#d9ff64', marginBottom: 9 }}>Final water calibration</strong>
-        <div style={{ marginBottom: 8 }}>Drag image. Resize with green corner.</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-          <label>Width<input type="number" value={calibration.width} onChange={(event) => updateCalibrationSize('width', event.target.value)} style={{ width: '100%', marginTop: 3, padding: 5, color: '#111', borderRadius: 5 }} /></label>
-          <label>Height<input type="number" value={calibration.height} onChange={(event) => updateCalibrationSize('height', event.target.value)} style={{ width: '100%', marginTop: 3, padding: 5, color: '#111', borderRadius: 5 }} /></label>
-        </div>
-        <div style={{ marginTop: 8, color: '#cbd5c0' }}>x={calibration.x} y={calibration.y} w={calibration.width} h={calibration.height}</div>
-        <div style={{ display: 'flex', gap: 7, marginTop: 10 }}>
-          <button type="button" onClick={saveCalibration} style={{ flex: 1, padding: '7px 9px', borderRadius: 7, background: '#d9ff64', color: '#17210a', fontWeight: 800 }}>Save</button>
-          <button type="button" onClick={() => setCalibration(DEFAULT_CALIBRATION)} style={{ padding: '7px 9px', borderRadius: 7, background: '#343a30', color: '#fff' }}>Reset</button>
-        </div>
-      </div>}
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
