@@ -6,7 +6,7 @@ const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_URL = '/visuals/jar/fish-01.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const BUILD_TAG = 'drop-inside-jar-v1';
+const BUILD_TAG = 'tap-static-drip-cropped-v1';
 
 const JAR_OBJECT_POSITION = '40% 15%';
 
@@ -20,8 +20,10 @@ const JAR_INTERIOR = {
   bottom: 830,
 };
 
-const JAR_MOUTH_CENTER = { x: 420, y: 455 };
+const JAR_MOUTH_CENTER = { x: 420, y: 432 };
 const TAP_BOUNDS = { left: 260, top: 334, width: 416, height: 277 };
+const TAP_STATIC_DRIP_CROP_Y = 134;
+const TAP_ASSET_HEIGHT = 374;
 
 const FISH_COUNT = 4;
 
@@ -288,24 +290,37 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         </div>
       </div>
 
-      {/* Tap image — above the inside-jar layer, so the tap sits "outside/in front" */}
-      <img
-        src={TAP_URL}
-        alt=""
-        draggable={false}
-        className="jar-tap"
+      {/* Crop immediately below the solid nozzle; the raw asset's baked drip
+          starts at y=142 and is intentionally hidden. */}
+      <div
         style={{
           position: 'absolute',
           left: toPctX(TAP_BOUNDS.left),
           top: toPctY(TAP_BOUNDS.top),
           width: toPctX(TAP_BOUNDS.width),
-          height: toPctY(TAP_BOUNDS.height),
-          objectFit: 'contain',
-          objectPosition: 'center top',
+          height: toPctY(TAP_BOUNDS.height * (TAP_STATIC_DRIP_CROP_Y / TAP_ASSET_HEIGHT)),
+          overflow: 'hidden',
           pointerEvents: 'none',
           zIndex: 4,
         }}
-      />
+        aria-hidden="true"
+      >
+        <img
+          src={TAP_URL}
+          alt=""
+          draggable={false}
+          className="jar-tap"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: 'auto',
+            display: 'block',
+            pointerEvents: 'none',
+          }}
+        />
+      </div>
 
       {/* Glass-sheen overlay — subtle gradient above everything to sell "behind glass" depth.
           This is the front glass wall reflection. */}
