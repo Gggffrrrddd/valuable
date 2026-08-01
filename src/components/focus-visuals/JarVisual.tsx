@@ -7,11 +7,13 @@ const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const BUILD_TAG = 'water-rise-fish-swim-v1';
+const BUILD_TAG = 'curved-water-mask-v1';
 const JAR_OBJECT_POSITION = '40% 15%';
 const IMG_W = 1672;
 const IMG_H = 941;
-const JAR_INTERIOR = { left: 340, right: 530, top: 465, bottom: 830 };
+// Measured from the scene at the neck, shoulder, body, and rounded base.
+const JAR_INTERIOR = { left: 315, right: 543, top: 465, bottom: 842 };
+const JAR_INTERIOR_CLIP = 'polygon(24% 0%, 8% 2%, 4% 7%, 0% 15%, 0% 72%, 4% 85%, 12% 95%, 25% 100%, 75% 100%, 90% 95%, 97% 85%, 100% 72%, 100% 15%, 96% 7%, 79% 2%, 68% 0%)';
 const JAR_MOUTH_CENTER = { x: 420, y: 432 };
 const TAP_BOUNDS = { left: 260, top: 334, width: 416, height: 277 };
 const TAP_STATIC_DRIP_CROP_Y = 134;
@@ -95,10 +97,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const interiorClip: CSSProperties = {
     position: 'absolute', left: toPctX(JAR_INTERIOR.left), top: toPctY(JAR_INTERIOR.top),
     width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left), height: toPctY(interiorHeight), overflow: 'hidden',
+    clipPath: JAR_INTERIOR_CLIP,
   };
   const waterStyle: CSSProperties = {
     position: 'absolute', left: 0, right: 0, bottom: 0, height: `${value * 100}%`, overflow: 'visible',
-    background: 'linear-gradient(180deg, rgba(190,239,255,.28) 0%, rgba(81,181,231,.38) 46%, rgba(23,112,181,.58) 100%)',
+    background: 'linear-gradient(180deg, rgba(211,246,255,.22) 0%, rgba(92,190,232,.36) 48%, rgba(24,105,174,.52) 86%, rgba(20,91,154,.34) 100%)',
     transition: reducedMotion ? undefined : 'height 1s linear',
   };
   const dripStyle = {
@@ -114,7 +117,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       {/* Water and fish share this glass-bounded coordinate system. */}
       <div style={{ ...interiorClip, zIndex: 1 }} aria-hidden="true">
         <div style={waterStyle}>
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '-7px', height: '13px', backgroundImage: 'radial-gradient(ellipse at 10% 50%, rgba(244,253,255,.88) 0 13%, transparent 14%), radial-gradient(ellipse at 55% 50%, rgba(219,248,255,.78) 0 15%, transparent 16%)', backgroundSize: '46px 10px, 70px 12px', backgroundRepeat: 'repeat-x', animation: reducedMotion ? undefined : 'jar-surface-flow 3.6s linear infinite', boxShadow: '0 1px 5px rgba(225,251,255,.7)' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '-7px', height: '13px', backgroundImage: 'radial-gradient(ellipse at 10% 50%, rgba(244,253,255,.88) 0 13%, transparent 14%), radial-gradient(ellipse at 55% 50%, rgba(219,248,255,.78) 0 15%, transparent 16%)', backgroundSize: '46px 10px, 70px 12px', backgroundRepeat: 'repeat-x', animation: reducedMotion ? undefined : 'jar-surface-flow 3.6s linear infinite', boxShadow: '0 1px 4px rgba(234,253,255,.75), inset 0 -1px 2px rgba(119,209,240,.35)' }} />
           <div style={{ position: 'absolute', inset: '12% -40% 8%', opacity: .18, overflow: 'hidden' }}>
             <div style={{ width: '58%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(237,251,255,.65), transparent)', animation: reducedMotion ? undefined : 'jar-current 12s ease-in-out infinite alternate' }} />
           </div>
