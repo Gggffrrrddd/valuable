@@ -94,11 +94,13 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         <g transform={sceneTransform}>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
-          {/* All water layers — currents, surface highlight, ripple — are children of the rising layer
-              and clipped to the calibrated mask shape. The base fill is the masked teal gradient. */}
+          {/* All water layers are children of the rising group and clipped to the calibrated mask shape. */}
           <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
             <g mask="url(#jar-water-alpha-mask)">
               <rect x="300" y="0" width="260" height={WATER_BASE} fill="url(#jar-water-depth)" />
+            </g>
+            <g mask="url(#jar-water-alpha-mask)">
+              <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" style={{ filter: 'hue-rotate(140deg) saturate(1.4) brightness(0.55) opacity(0.55)' }} />
             </g>
             <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
               <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
