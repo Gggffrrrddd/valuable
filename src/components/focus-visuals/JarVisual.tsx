@@ -13,9 +13,10 @@ const WATER_TOP = 470;
 const WATER_BASE = 842;
 const NOZZLE = { x: 420, y: 432 };
 
-// Inner-wall samples: neck 330-495, upper 337-508, middle 310-536,
-// lower 312-537, and above-pebbles 325-519.
-const INTERIOR_PATH = 'M330 470 C332 490 334 505 337 520 C326 544 314 568 310 590 C308 620 309 652 312 680 C315 718 320 748 325 770 C331 803 348 830 374 842 L470 842 C494 831 513 803 519 770 C528 739 534 711 537 680 C540 644 539 614 536 590 C532 561 518 539 508 520 C504 502 500 485 495 470 Z';
+// Inner-wall samples: neck 328-497, upper 300-547, middle 290-555,
+// lower 291-553, and above-pebbles 312-530. The path reaches the usable
+// inside edge of the glass instead of leaving a conservative inset gap.
+const INTERIOR_PATH = 'M328 470 C320 489 308 505 300 520 C294 544 291 568 290 590 C288 622 289 652 291 680 C294 718 302 748 312 770 C322 804 344 831 371 842 L473 842 C500 831 521 804 530 770 C541 740 550 711 553 680 C556 645 557 615 555 590 C553 562 550 540 547 520 C538 502 514 486 497 470 Z';
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, swim: 9.5, bob: 3.8, delay: 0 },
@@ -82,12 +83,12 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         <defs>
           <clipPath id="jar-interior-mask" clipPathUnits="userSpaceOnUse"><path d={INTERIOR_PATH} /></clipPath>
           <linearGradient id="jar-water-depth" x1="0" y1={WATER_TOP} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#d8f6ff" stopOpacity=".25" />
-            <stop offset=".52" stopColor="#5cbee8" stopOpacity=".4" />
-            <stop offset=".86" stopColor="#186bae" stopOpacity=".55" />
-            <stop offset="1" stopColor="#145b9a" stopOpacity=".34" />
+            <stop offset="0" stopColor="#8dc4b8" stopOpacity=".55" />
+            <stop offset=".48" stopColor="#6bafa0" stopOpacity=".6" />
+            <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
+            <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          <radialGradient id="jar-drop" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset=".42" stopColor="#bfe8ff" /><stop offset="1" stopColor="#78b9d9" /></radialGradient>
+          <radialGradient id="jar-drop" cx="32%" cy="25%"><stop offset="0" stopColor="#8dc4b8" /><stop offset=".45" stopColor="#6bafa0" /><stop offset="1" stopColor="#4a9b8e" /></radialGradient>
           <clipPath id="tap-crop"><rect x="260" y="334" width="416" height="99.3" /></clipPath>
         </defs>
 
@@ -98,13 +99,13 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           <g clipPath="url(#jar-interior-mask)">
             <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
               <rect x="300" y="0" width="260" height={WATER_BASE} fill="url(#jar-water-depth)" />
-              <g opacity=".16" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
-                <path d="M326 70 C370 46 440 94 525 55" fill="none" stroke="#e9fbff" strokeWidth="9" strokeLinecap="round" />
-                <path d="M320 145 C385 116 445 168 530 130" fill="none" stroke="#d9f7ff" strokeWidth="6" strokeLinecap="round" />
+              <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
+                <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
+                <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke="#b6e7dc" strokeWidth="6" strokeLinecap="round" />
               </g>
               {/* Both strokes are paths, never rectangles, and are clipped by jar-interior-mask. */}
-              <path d="M295 1 Q307 -2 319 1 T343 1 T367 1 T391 1 T415 1 T439 1 T463 1 T487 1 T511 1 T535 1 T559 1" fill="none" stroke="rgba(238,253,255,.88)" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M295 4 Q307 -1 319 4 T343 4 T367 4 T391 4 T415 4 T439 4 T463 4 T487 4 T511 4 T535 4 T559 4" fill="none" stroke="rgba(177,229,247,.68)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
+              <path d="M280 1 Q292 -2 304 1 T328 1 T352 1 T376 1 T400 1 T424 1 T448 1 T472 1 T496 1 T520 1 T544 1 T568 1" fill="none" stroke="rgba(220,249,242,.78)" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke="rgba(157,215,202,.64)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
             </g>
 
             {FISH.map((fish) => {
