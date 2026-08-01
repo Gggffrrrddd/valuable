@@ -55,9 +55,9 @@ const jarKeyframes = `
   @keyframes jar-drip {
     0%   { transform: translate(-50%, -100%) translateY(0); opacity: 0; }
     8%   { opacity: 0.9; }
-    80%  { transform: translate(-50%, -100%) translateY(38vh); opacity: 0.9; }
-    95%  { transform: translate(-50%, -100%) translateY(40vh); opacity: 0.15; }
-    100% { transform: translate(-50%, -100%) translateY(42vh); opacity: 0; }
+    85%  { transform: translate(-50%, -100%) translateY(42vh); opacity: 0.9; }
+    94%  { transform: translate(-50%, -100%) translateY(45vh); opacity: 0.35; }
+    100% { transform: translate(-50%, -100%) translateY(46vh); opacity: 0; }
   }
 `;
 
@@ -125,8 +125,8 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const toPctX = (px: number) => `${(px / IMG_W) * 100}%`;
   const toPctY = (py: number) => `${(py / IMG_H) * 100}%`;
 
-  const mouthPctX = (JAR_MOUTH_CENTER.x / IMG_W) * 100;
   const mouthPctY = (JAR_MOUTH_CENTER.y / IMG_H) * 100;
+  const mouthInsideClipPctX = ((JAR_MOUTH_CENTER.x - JAR_INTERIOR.left) / (JAR_INTERIOR.right - JAR_INTERIOR.left)) * 100;
 
   /* Interior clip bounds — drops/fish/water are all clipped to this */
   const interiorClip: CSSProperties = {
@@ -238,48 +238,54 @@ export default function JarVisual({ progress }: FocusVisualProps) {
         <div
           style={{
             position: 'absolute',
-            left: `${mouthPctX}%`,
+            left: `${mouthInsideClipPctX}%`,
             top: `${mouthPctY}%`,
             width: '14px',
-            height: '18px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 40%, #9B9B94 75%, #62615D 100%)',
-            opacity: 0.9,
-            filter: 'blur(0.3px)',
+            height: '20px',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
+            opacity: 0.82,
           }}
-        />
+        >
+          <svg viewBox="0 0 14 20" width="14" height="20" aria-hidden="true">
+            <defs><radialGradient id="jar-drop-gradient-1" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.42" stopColor="#bfe8ff" stopOpacity="0.88" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.72" /></radialGradient></defs>
+            <path d="M7 0 C6.2 3.5 1 7.7 1 12.5 C1 16.5 3.7 19 7 19 C10.3 19 13 16.5 13 12.5 C13 7.7 7.8 3.5 7 0Z" fill="url(#jar-drop-gradient-1)" />
+          </svg>
+        </div>
         <div
           style={{
             position: 'absolute',
-            left: `${mouthPctX}%`,
+            left: `${mouthInsideClipPctX}%`,
             top: `${mouthPctY}%`,
             width: '12px',
-            height: '16px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 40%, #9B9B94 75%, #62615D 100%)',
-            opacity: 0.85,
-            filter: 'blur(0.3px)',
+            height: '18px',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
+            opacity: 0.78,
           }}
-        />
+        >
+          <svg viewBox="0 0 12 18" width="12" height="18" aria-hidden="true">
+            <defs><radialGradient id="jar-drop-gradient-2" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.42" stopColor="#bfe8ff" stopOpacity="0.86" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.7" /></radialGradient></defs>
+            <path d="M6 0 C5.3 3.2 1 6.8 1 11.2 C1 14.8 3.2 17 6 17 C8.8 17 11 14.8 11 11.2 C11 6.8 6.7 3.2 6 0Z" fill="url(#jar-drop-gradient-2)" />
+          </svg>
+        </div>
         <div
           style={{
             position: 'absolute',
-            left: `${mouthPctX}%`,
+            left: `${mouthInsideClipPctX}%`,
             top: `${mouthPctY}%`,
             width: '10px',
-            height: '14px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 30%, #F5F6F3 0%, #D6D8D3 45%, #9B9B94 80%, #62615D 100%)',
-            opacity: 0.8,
-            filter: 'blur(0.3px)',
+            height: '16px',
             transform: 'translate(-50%, -100%)',
             animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
+            opacity: 0.74,
           }}
-        />
+        >
+          <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">
+            <defs><radialGradient id="jar-drop-gradient-3" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.45" stopColor="#bfe8ff" stopOpacity="0.84" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.68" /></radialGradient></defs>
+            <path d="M5 0 C4.4 2.8 1 6.1 1 9.9 C1 13.1 2.8 15 5 15 C7.2 15 9 13.1 9 9.9 C9 6.1 5.6 2.8 5 0Z" fill="url(#jar-drop-gradient-3)" />
+          </svg>
+        </div>
       </div>
 
       {/* Tap image — above the inside-jar layer, so the tap sits "outside/in front" */}
