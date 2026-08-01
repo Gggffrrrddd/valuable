@@ -1,65 +1,64 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
-const FISH_URL = '/visuals/jar/fish-01.png';
+const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
+const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const TAP_URL = '/visuals/jar/tap-prompt.png';
 
-const BUILD_TAG = 'tap-static-drip-cropped-v1';
-
+const BUILD_TAG = 'water-rise-fish-swim-v1';
 const JAR_OBJECT_POSITION = '40% 15%';
-
 const IMG_W = 1672;
 const IMG_H = 941;
-
-const JAR_INTERIOR = {
-  left: 340,
-  right: 530,
-  top: 465,
-  bottom: 830,
-};
-
+const JAR_INTERIOR = { left: 340, right: 530, top: 465, bottom: 830 };
 const JAR_MOUTH_CENTER = { x: 420, y: 432 };
 const TAP_BOUNDS = { left: 260, top: 334, width: 416, height: 277 };
 const TAP_STATIC_DRIP_CROP_Y = 134;
 const TAP_ASSET_HEIGHT = 374;
 
-const FISH_COUNT = 4;
-
-function seededUnit(seed: number) {
-  const value = Math.sin(seed * 12.9898) * 43758.5453;
-  return value - Math.floor(value);
-}
+const FISH = [
+  { left: 27, top: 78, direction: 'left', scale: 0.92, delay: 0, swim: 9.5, bob: 3.8, hue: 5 },
+  { left: 68, top: 68, direction: 'right', scale: 0.78, delay: -2.1, swim: 11.5, bob: 4.5, hue: 165 },
+  { left: 42, top: 56, direction: 'left', scale: 0.82, delay: -4.4, swim: 10.2, bob: 3.5, hue: -18 },
+  { left: 73, top: 43, direction: 'right', scale: 0.68, delay: -1.4, swim: 12.4, bob: 4.2, hue: 44 },
+  { left: 25, top: 31, direction: 'left', scale: 0.72, delay: -5.3, swim: 9, bob: 3.2, hue: 210 },
+] as const;
 
 function useReducedMotion() {
-  const [r, setR] = useState(false);
+  const [reduced, setReduced] = useState(false);
   useEffect(() => {
-    const q = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const u = () => setR(q.matches);
-    u();
-    q.addEventListener('change', u);
-    return () => q.removeEventListener('change', u);
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
   }, []);
-  return r;
+  return reduced;
 }
 
 const jarKeyframes = `
-  @keyframes jar-fish-bob {
-    from { transform: translateY(0); }
-    to { transform: translateY(-8px); }
+  @keyframes jar-drip {
+    0% { top: var(--jar-drip-start); opacity: 0; }
+    8% { opacity: .88; }
+    88% { top: var(--jar-drip-end); opacity: .88; }
+    100% { top: var(--jar-drip-end); opacity: 0; }
+  }
+  @keyframes jar-surface-flow {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 46px 0, -70px 0; }
+  }
+  @keyframes jar-current {
+    from { transform: translateX(-28%) skewX(-12deg); }
+    to { transform: translateX(42%) skewX(-12deg); }
   }
   @keyframes jar-fish-swim {
-    0%   { transform: translateX(-4px); }
-    50%  { transform: translateX(4px); }
-    100%  { transform: translateX(-4px); }
+    0%, 100% { transform: translateX(-7px) rotate(-2deg); }
+    50% { transform: translateX(8px) rotate(2deg); }
   }
-  @keyframes jar-drip {
-    0%   { transform: translate(-50%, -100%) translateY(0); opacity: 0; }
-    8%   { opacity: 0.9; }
-    85%  { transform: translate(-50%, -100%) translateY(42vh); opacity: 0.9; }
-    94%  { transform: translate(-50%, -100%) translateY(45vh); opacity: 0.35; }
-    100% { transform: translate(-50%, -100%) translateY(46vh); opacity: 0; }
+  @keyframes jar-fish-bob {
+    from { transform: translateY(-3px); }
+    to { transform: translateY(3px); }
   }
 `;
 
@@ -68,290 +67,90 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const complete = value >= 1;
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const fishes = useMemo(() => {
-    const out = [];
-    const interiorWidth = JAR_INTERIOR.right - JAR_INTERIOR.left;
-    const interiorHeight = JAR_INTERIOR.bottom - JAR_INTERIOR.top;
-    for (let i = 0; i < FISH_COUNT; i++) {
-      const u1 = seededUnit(i + 101);
-      const u2 = seededUnit(i + 201);
-      const u3 = seededUnit(i + 301);
-      const fishX = JAR_INTERIOR.left + interiorWidth * (0.2 + u1 * 0.6);
-      const fishY = JAR_INTERIOR.top + interiorHeight * (0.5 + (i - 1.5) * 0.15);
-      out.push({
-        id: i,
-        startX: fishX,
-        startY: fishY,
-        bobDelay: i * 0.5,
-        bobDur: 2.4 + u2 * 1.6,
-        swimDelay: u3 * 3,
-        swimDur: 8 + u1 * 8,
-        hue: [18, -10, 200, 45][i],
-        saturate: [1.5, 1.6, 0.4, 1.4][i],
-        brightness: [1.15, 1.1, 1.05, 1.2][i],
-        scale: [1.0, 0.95, 1.05, 0.9][i],
-        faceLeft: i % 2 === 0,
-        revealY: JAR_INTERIOR.bottom - 60 - u2 * (interiorHeight - 120),
-      });
-    }
-    return out;
-  }, []);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const measure = () => {
-      const r = el.getBoundingClientRect();
-      console.log(
-        `[JarVisual BUILD=${BUILD_TAG}] box=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
-        `viewport=${window.innerWidth}x${window.innerHeight} aspect=${(window.innerWidth / window.innerHeight).toFixed(3)}`,
-      );
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const overlayLayerStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    backgroundImage: `url(${JAR_SCENE_URL})`,
-    backgroundSize: 'cover',
-    backgroundPosition: JAR_OBJECT_POSITION,
-    backgroundRepeat: 'no-repeat',
-    pointerEvents: 'none',
-  };
-
   const toPctX = (px: number) => `${(px / IMG_W) * 100}%`;
   const toPctY = (py: number) => `${(py / IMG_H) * 100}%`;
-
+  const interiorHeight = JAR_INTERIOR.bottom - JAR_INTERIOR.top;
+  const waterSurfaceY = JAR_INTERIOR.bottom - value * interiorHeight;
+  const waterSurfacePct = (waterSurfaceY / IMG_H) * 100;
   const mouthPctY = (JAR_MOUTH_CENTER.y / IMG_H) * 100;
   const mouthInsideClipPctX = ((JAR_MOUTH_CENTER.x - JAR_INTERIOR.left) / (JAR_INTERIOR.right - JAR_INTERIOR.left)) * 100;
 
-  /* Interior clip bounds — drops/fish/water are all clipped to this */
-  const interiorClip: CSSProperties = {
-    position: 'absolute',
-    left: toPctX(JAR_INTERIOR.left),
-    top: toPctY(JAR_INTERIOR.top),
-    width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left),
-    height: toPctY(JAR_INTERIOR.bottom - JAR_INTERIOR.top),
-    overflow: 'hidden',
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const measure = () => {
+      const bounds = element.getBoundingClientRect();
+      console.log(`[JarVisual BUILD=${BUILD_TAG}] box=${Math.round(bounds.width)}x${Math.round(bounds.height)}`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const sceneLayer: CSSProperties = {
+    position: 'absolute', inset: 0, backgroundImage: `url(${JAR_SCENE_URL})`,
+    backgroundSize: 'cover', backgroundPosition: JAR_OBJECT_POSITION, backgroundRepeat: 'no-repeat', pointerEvents: 'none',
   };
+  const interiorClip: CSSProperties = {
+    position: 'absolute', left: toPctX(JAR_INTERIOR.left), top: toPctY(JAR_INTERIOR.top),
+    width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left), height: toPctY(interiorHeight), overflow: 'hidden',
+  };
+  const waterStyle: CSSProperties = {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: `${value * 100}%`, overflow: 'visible',
+    background: 'linear-gradient(180deg, rgba(190,239,255,.28) 0%, rgba(81,181,231,.38) 46%, rgba(23,112,181,.58) 100%)',
+    transition: reducedMotion ? undefined : 'height 1s linear',
+  };
+  const dripStyle = {
+    '--jar-drip-start': `${mouthPctY}%`,
+    '--jar-drip-end': `${waterSurfacePct}%`,
+  } as CSSProperties;
 
   return (
-    <div
-      ref={containerRef}
-      className={`focus-visual ${complete ? 'visual-complete' : ''}`}
-      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
-      role="img"
-      aria-label={`Water jar ${Math.round(value * 100)} percent complete`}
-    >
+    <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
       <style>{jarKeyframes}</style>
+      <div style={{ ...sceneLayer, zIndex: 0 }} aria-hidden="true" />
 
-      {/* Visible jar background */}
-      <div style={{ ...overlayLayerStyle, zIndex: 0 }} aria-hidden="true" />
+      {/* Water and fish share this glass-bounded coordinate system. */}
+      <div style={{ ...interiorClip, zIndex: 1 }} aria-hidden="true">
+        <div style={waterStyle}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '-7px', height: '13px', backgroundImage: 'radial-gradient(ellipse at 10% 50%, rgba(244,253,255,.88) 0 13%, transparent 14%), radial-gradient(ellipse at 55% 50%, rgba(219,248,255,.78) 0 15%, transparent 16%)', backgroundSize: '46px 10px, 70px 12px', backgroundRepeat: 'repeat-x', animation: reducedMotion ? undefined : 'jar-surface-flow 3.6s linear infinite', boxShadow: '0 1px 5px rgba(225,251,255,.7)' }} />
+          <div style={{ position: 'absolute', inset: '12% -40% 8%', opacity: .18, overflow: 'hidden' }}>
+            <div style={{ width: '58%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(237,251,255,.65), transparent)', animation: reducedMotion ? undefined : 'jar-current 12s ease-in-out infinite alternate' }} />
+          </div>
+        </div>
 
-      {/* Inside-the-jar layer: drops, fish, water — all clipped to jar interior */}
-      <div style={{ ...overlayLayerStyle, zIndex: 1, opacity: 0 }} aria-hidden="true">
-        {/* Interior clip wrapper — water/fish live here */}
-        <div style={interiorClip}>
-          {/* Water fill */}
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: `${value * 100}%`,
-              background: 'linear-gradient(180deg, rgba(127,211,255,0.32) 0%, rgba(74,168,224,0.38) 50%, rgba(26,111,191,0.48) 100%)',
-              transition: 'height 0.6s ease-out',
-            }}
-          />
-
-          {/* Fish */}
-          {fishes.map((f) => {
-            const interiorHeight = JAR_INTERIOR.bottom - JAR_INTERIOR.top;
-            const fishProgress = value * interiorHeight;
-            const fishReveal = f.revealY - JAR_INTERIOR.top;
-            const revealed = fishProgress >= fishReveal;
-            return (
-              <div
-                key={f.id}
-                style={{
-                  position: 'absolute',
-                  left: toPctX(f.startX),
-                  top: toPctY(f.startY),
-                  transform: `translate(-50%, -50%) scaleX(${f.faceLeft ? -1 : 1})`,
-                  opacity: revealed ? 1 : 0,
-                  transition: 'opacity 1.2s ease-out',
-                  zIndex: 2,
-                }}
-              >
-                <div
-                  style={{
-                    animation: reducedMotion
-                      ? undefined
-                      : `jar-fish-swim ${f.swimDur}s ease-in-out ${f.swimDelay}s infinite alternate`,
-                  }}
-                >
-                  <div
-                    style={{
-                      animation: reducedMotion
-                        ? undefined
-                        : `jar-fish-bob ${f.bobDur}s ease-in-out ${f.bobDelay}s infinite alternate`,
-                    }}
-                  >
-                    <img
-                      src={FISH_URL}
-                      alt=""
-                      draggable={false}
-                      style={{
-                        width: `${(130 / IMG_W) * 100}%`,
-                        filter: `hue-rotate(${f.hue}deg) saturate(${f.saturate}) brightness(${f.brightness})`,
-                        transform: `scale(${f.scale})`,
-                      }}
-                    />
-                  </div>
+        {FISH.map((fish, index) => {
+          const fishY = JAR_INTERIOR.top + (fish.top / 100) * interiorHeight;
+          // Reveal only after the surface has passed the fish, leaving bobbing headroom.
+          const revealed = waterSurfaceY <= fishY - 12;
+          return (
+            <div key={fish.direction + index} style={{ position: 'absolute', left: `${fish.left}%`, top: `${fish.top}%`, width: '37%', transform: 'translate(-50%, -50%)', opacity: revealed ? 1 : 0, transition: 'opacity 1.25s ease-out', pointerEvents: 'none' }}>
+              <div style={{ animation: reducedMotion ? undefined : `jar-fish-swim ${fish.swim}s ease-in-out ${fish.delay}s infinite` }}>
+                <div style={{ animation: reducedMotion ? undefined : `jar-fish-bob ${fish.bob}s ease-in-out ${fish.delay}s infinite alternate` }}>
+                  <img src={fish.direction === 'left' ? FISH_LEFT_URL : FISH_RIGHT_URL} alt="" draggable={false} style={{ display: 'block', width: '100%', filter: `hue-rotate(${fish.hue}deg) saturate(1.15) brightness(1.08)`, transform: `scale(${fish.scale})` }} />
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Drip drops — clipped horizontally to jar interior width so they stay
-          inside the glass walls, but vertically they can start from the nozzle
-          (above jar interior top) and fall to the pebble bed. */}
-      <div
-        style={{
-          position: 'absolute',
-          left: toPctX(JAR_INTERIOR.left),
-          width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left),
-          top: 0,
-          height: '100%',
-          overflow: 'hidden',
-          zIndex: 2,
-          pointerEvents: 'none',
-        }}
-        aria-hidden="true"
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: `${mouthInsideClipPctX}%`,
-            top: `${mouthPctY}%`,
-            width: '14px',
-            height: '20px',
-            transform: 'translate(-50%, -100%)',
-            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in infinite',
-            opacity: 0.82,
-          }}
-        >
-          <svg viewBox="0 0 14 20" width="14" height="20" aria-hidden="true">
-            <defs><radialGradient id="jar-drop-gradient-1" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.42" stopColor="#bfe8ff" stopOpacity="0.88" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.72" /></radialGradient></defs>
-            <path d="M7 0 C6.2 3.5 1 7.7 1 12.5 C1 16.5 3.7 19 7 19 C10.3 19 13 16.5 13 12.5 C13 7.7 7.8 3.5 7 0Z" fill="url(#jar-drop-gradient-1)" />
-          </svg>
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            left: `${mouthInsideClipPctX}%`,
-            top: `${mouthPctY}%`,
-            width: '12px',
-            height: '18px',
-            transform: 'translate(-50%, -100%)',
-            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 0.5s infinite',
-            opacity: 0.78,
-          }}
-        >
-          <svg viewBox="0 0 12 18" width="12" height="18" aria-hidden="true">
-            <defs><radialGradient id="jar-drop-gradient-2" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.42" stopColor="#bfe8ff" stopOpacity="0.86" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.7" /></radialGradient></defs>
-            <path d="M6 0 C5.3 3.2 1 6.8 1 11.2 C1 14.8 3.2 17 6 17 C8.8 17 11 14.8 11 11.2 C11 6.8 6.7 3.2 6 0Z" fill="url(#jar-drop-gradient-2)" />
-          </svg>
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            left: `${mouthInsideClipPctX}%`,
-            top: `${mouthPctY}%`,
-            width: '10px',
-            height: '16px',
-            transform: 'translate(-50%, -100%)',
-            animation: reducedMotion ? undefined : 'jar-drip 1.6s ease-in 1s infinite',
-            opacity: 0.74,
-          }}
-        >
-          <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">
-            <defs><radialGradient id="jar-drop-gradient-3" cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset="0.45" stopColor="#bfe8ff" stopOpacity="0.84" /><stop offset="1" stopColor="#78b9d9" stopOpacity="0.68" /></radialGradient></defs>
-            <path d="M5 0 C4.4 2.8 1 6.1 1 9.9 C1 13.1 2.8 15 5 15 C7.2 15 9 13.1 9 9.9 C9 6.1 5.6 2.8 5 0Z" fill="url(#jar-drop-gradient-3)" />
-          </svg>
-        </div>
+      {/* Full-height wrapper clips only against the glass walls. The live end position is the water surface. */}
+      <div style={{ position: 'absolute', left: toPctX(JAR_INTERIOR.left), width: toPctX(JAR_INTERIOR.right - JAR_INTERIOR.left), top: 0, height: '100%', overflow: 'hidden', zIndex: 2, pointerEvents: 'none', ...dripStyle }} aria-hidden="true">
+        {[{ size: 14, delay: '0s' }, { size: 12, delay: '.5s' }, { size: 10, delay: '1s' }].map((drop, index) => (
+          <div key={drop.size} style={{ position: 'absolute', left: `${mouthInsideClipPctX}%`, top: `${mouthPctY}%`, width: `${drop.size}px`, height: `${Math.round(drop.size * 1.42)}px`, transform: 'translate(-50%, -100%)', animation: reducedMotion ? undefined : `jar-drip 1.6s ease-in ${drop.delay} infinite`, opacity: reducedMotion ? 0 : .84 }}>
+            <svg viewBox="0 0 14 20" width="100%" height="100%" aria-hidden="true"><defs><radialGradient id={`jar-drop-${index}`} cx="32%" cy="25%"><stop offset="0" stopColor="#f5fbff" /><stop offset=".42" stopColor="#bfe8ff" /><stop offset="1" stopColor="#78b9d9" /></radialGradient></defs><path d="M7 0C6.2 3.5 1 7.7 1 12.5C1 16.5 3.7 19 7 19C10.3 19 13 16.5 13 12.5C13 7.7 7.8 3.5 7 0Z" fill={`url(#jar-drop-${index})`} /></svg>
+          </div>
+        ))}
       </div>
 
-      {/* Crop immediately below the solid nozzle; the raw asset's baked drip
-          starts at y=142 and is intentionally hidden. */}
-      <div
-        style={{
-          position: 'absolute',
-          left: toPctX(TAP_BOUNDS.left),
-          top: toPctY(TAP_BOUNDS.top),
-          width: toPctX(TAP_BOUNDS.width),
-          height: toPctY(TAP_BOUNDS.height * (TAP_STATIC_DRIP_CROP_Y / TAP_ASSET_HEIGHT)),
-          overflow: 'hidden',
-          pointerEvents: 'none',
-          zIndex: 4,
-        }}
-        aria-hidden="true"
-      >
-        <img
-          src={TAP_URL}
-          alt=""
-          draggable={false}
-          className="jar-tap"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: '100%',
-            height: 'auto',
-            display: 'block',
-            pointerEvents: 'none',
-          }}
-        />
+      {/* Crop immediately below the physical nozzle: the source image's baked drip is hidden. */}
+      <div style={{ position: 'absolute', left: toPctX(TAP_BOUNDS.left), top: toPctY(TAP_BOUNDS.top), width: toPctX(TAP_BOUNDS.width), height: toPctY(TAP_BOUNDS.height * (TAP_STATIC_DRIP_CROP_Y / TAP_ASSET_HEIGHT)), overflow: 'hidden', pointerEvents: 'none', zIndex: 4 }} aria-hidden="true">
+        <img src={TAP_URL} alt="" draggable={false} className="jar-tap" style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 'auto', display: 'block', pointerEvents: 'none' }} />
       </div>
-
-      {/* Glass-sheen overlay — subtle gradient above everything to sell "behind glass" depth.
-          This is the front glass wall reflection. */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(255,255,255,0.03) 100%)',
-          pointerEvents: 'none',
-          zIndex: 5,
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Finish glow */}
-      <div
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '60%',
-          height: '20%',
-          borderRadius: '50%',
-          background: 'rgba(197, 255, 84, 0.12)',
-          filter: 'blur(24px)',
-          opacity: complete ? 0.28 : 0.05,
-          pointerEvents: 'none',
-          zIndex: 6,
-        }}
-      />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none', zIndex: 5 }} aria-hidden="true" />
+      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none', zIndex: 6 }} />
     </div>
   );
 }
