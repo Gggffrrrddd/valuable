@@ -4,8 +4,9 @@ import { Box3, Group, Mesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const BLADE_MODEL_URL = 'https://res.cloudinary.com/dcydj6gao/image/upload/v1785679396/white_mesh_1_mf4syn.glb';
-const SLOW_SPEED = 1.25;
-const FAST_SPEED = 7;
+const DEFAULT_SPEED = 9;
+const MIN_SPEED = .5;
+const MAX_SPEED = 20;
 
 function BladeModel({ rotationSpeed }: { rotationSpeed: number }) {
   const modelRef = useRef<Group>(null);
@@ -18,7 +19,7 @@ function BladeModel({ rotationSpeed }: { rotationSpeed: number }) {
     const center = bounds.getCenter(new Vector3());
     const largestDimension = Math.max(size.x, size.y, size.z) || 1;
     model.position.sub(center);
-    model.scale.setScalar(2.7 / largestDimension);
+    model.scale.setScalar(3.25 / largestDimension);
   }, [model]);
 
   useFrame((_state, delta) => {
@@ -58,7 +59,7 @@ function LoadingBlade() {
 }
 
 export default function BladeVisual({ compact = false }: { compact?: boolean }) {
-  const [rotationSpeed, setRotationSpeed] = useState(SLOW_SPEED);
+  const [rotationSpeed, setRotationSpeed] = useState(DEFAULT_SPEED);
   const [fps, setFps] = useState(0);
 
   return (
@@ -78,9 +79,26 @@ export default function BladeVisual({ compact = false }: { compact?: boolean }) 
       </div>
 
       {!compact && (
-        <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2 rounded-2xl border border-white/10 bg-black/50 p-1.5 backdrop-blur-xl">
-          <button type="button" onClick={() => setRotationSpeed(FAST_SPEED)} className={`rounded-xl px-4 py-2 text-xs font-bold transition ${rotationSpeed === FAST_SPEED ? 'bg-lime-300 text-[#10130e]' : 'text-stone-300 hover:bg-white/10'}`}>Fast Spin</button>
-          <button type="button" onClick={() => setRotationSpeed(SLOW_SPEED)} className={`rounded-xl px-4 py-2 text-xs font-bold transition ${rotationSpeed === SLOW_SPEED ? 'bg-lime-300 text-[#10130e]' : 'text-stone-300 hover:bg-white/10'}`}>Slow Spin</button>
+        <div className="absolute bottom-5 left-1/2 w-[min(25rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-xl">
+          <div className="mb-2 flex items-center justify-between text-xs font-bold">
+            <label htmlFor="blade-speed" className="text-stone-300">Spin speed</label>
+            <span className="font-mono text-lime-300">{rotationSpeed.toFixed(2)} rad/s</span>
+          </div>
+          <input
+            id="blade-speed"
+            type="range"
+            min={MIN_SPEED}
+            max={MAX_SPEED}
+            step="0.25"
+            value={rotationSpeed}
+            onChange={(event) => setRotationSpeed(Number(event.target.value))}
+            className="h-2 w-full cursor-pointer accent-lime-300"
+            aria-label="Blade spin speed"
+          />
+          <div className="mt-1 flex justify-between text-[9px] font-semibold uppercase tracking-wider text-stone-500">
+            <span>Slow</span>
+            <span>Fast</span>
+          </div>
         </div>
       )}
     </div>
