@@ -29,6 +29,7 @@ const FISH = [
 type FishConfig = (typeof FISH)[number];
 type MaskRow = { left: number; right: number } | null;
 type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
+type FallingDrop = { id: number; waterY: number };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -177,7 +178,7 @@ const keyframes = `
   }
 `;
 
-export default function JarVisual({ progress }: FocusVisualProps) {
+export default function JarVisual({ progress, running = false }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
   const reducedMotion = useReducedMotion();
@@ -189,7 +190,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
+  const [drops, setDrops] = useState<FallingDrop[]>([]);
+  const nextDropId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
+  const dropWaterYRef = useRef(waterY);
+  dropWaterYRef.current = waterY;
 
   useEffect(() => {
     const element = containerRef.current;
@@ -200,6 +205,24 @@ export default function JarVisual({ progress }: FocusVisualProps) {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setDrops([]);
+      return;
+    }
+    if (!running) return;
+
+    const emitDrop = () => {
+      const id = nextDropId.current;
+      nextDropId.current += 1;
+      setDrops((current) => [...current, { id, waterY: Math.max(NOZZLE.y, dropWaterYRef.current) }]);
+    };
+
+    emitDrop();
+    const emitter = setInterval(emitDrop, 520);
+    return () => clearInterval(emitter);
+  }, [reducedMotion, running]);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,8 +262,6 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const offsetY = (viewport.height - IMG_H * scale) * OBJECT_POSITION.y;
   const sceneTransform = `translate(${offsetX} ${offsetY}) scale(${scale})`;
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
-  const dripVariables = { '--water-y': `${Math.max(NOZZLE.y, waterY)}px` } as CSSProperties;
-
   return (
     <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
       <style>{keyframes}</style>
@@ -283,15 +304,15 @@ export default function JarVisual({ progress }: FocusVisualProps) {
             {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
           </g>
 
-          <g style={dripVariables}>
-            {!reducedMotion && [0, .5, 1].map((delay) => (
-              <path key={delay} d="M0 0 C-.8 3.5 -6 7.7 -6 12.5 C-6 16.5 -3.3 19 0 19 C3.3 19 6 16.5 6 12.5 C6 7.7 .8 3.5 0 0Z" fill={`url(#${dropGradientId})`} style={{ animation: `jar-drip-svg 1.6s ease-in ${delay}s infinite`, transform: `translate(${NOZZLE.x}px,${NOZZLE.y}px)`, opacity: .84 }} />
+          <g>
+            {drops.map((drop) => (
+              <path key={drop.id} d="M0 0 C-.8 3.5 -6 7.7 -6 12.5 C-6 16.5 -3.3 19 0 19 C3.3 19 6 16.5 6 12.5 C6 7.7 .8 3.5 0 0Z" fill={`url(#${dropGradientId})`} style={{ '--water-y': `${drop.waterY}px`, animation: 'jar-drip-svg 1.6s ease-in forwards', transform: `translate(${NOZZLE.x}px,${NOZZLE.y}px)`, opacity: .84 } as CSSProperties} onAnimationEnd={() => setDrops((current) => current.filter((currentDrop) => currentDrop.id !== drop.id))} />
             ))}
           </g>
 
           <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath={`url(#${tapCropId})`} />
-          {!reducedMotion && [0, .5, 1].map((delay) => (
-            <ellipse key={delay} cx="0" cy="0" rx="2.2" ry="3.6" fill={`url(#${dropGradientId})`} style={{ animation: `jar-nozzle-bead 1.6s ease-in ${delay}s infinite`, transformOrigin: 'center' }} />
+          {drops.map((drop) => (
+            <ellipse key={drop.id} cx="0" cy="0" rx="2.2" ry="3.6" fill={`url(#${dropGradientId})`} style={{ animation: 'jar-nozzle-bead 1.6s ease-in forwards', transformOrigin: 'center' }} />
           ))}
         </g>
       </svg>

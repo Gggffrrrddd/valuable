@@ -1,5 +1,6 @@
 export interface FocusVisualProps {
   progress: number;
+  running?: boolean;
 }
 
 export type FocusVisualTheme = 'hourglass' | 'tree' | 'book' | 'jar';

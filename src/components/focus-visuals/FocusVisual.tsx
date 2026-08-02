@@ -4,9 +4,9 @@ import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
 import type { FocusVisualProps, FocusVisualTheme } from './types';
 
-export default function FocusVisual({ theme, progress, duration, running }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number; running?: boolean }) {
+export default function FocusVisual({ theme, progress, duration, running }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} />;
   if (theme === 'book') return <BookVisual progress={progress} />;
-  if (theme === 'jar') return <JarVisual progress={progress} />;
+  if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
   return <HourglassVisual progress={progress} duration={duration ?? 0} running={running ?? false} />;
 }
