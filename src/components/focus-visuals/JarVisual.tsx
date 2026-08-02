@@ -105,13 +105,15 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           </g>
 
           <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
-            <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
-              <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
-              <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke="#b6e7dc" strokeWidth="6" strokeLinecap="round" />
+            <g mask={`url(#${waterMaskId})`}>
+              <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
+                <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
+                <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke="#b6e7dc" strokeWidth="6" strokeLinecap="round" />
+              </g>
+              {/* Surface highlight and ripple use the exact calibrated water mask. */}
+              <path d="M280 1 Q292 -2 304 1 T328 1 T352 1 T376 1 T400 1 T424 1 T448 1 T472 1 T496 1 T520 1 T544 1 T568 1" fill="none" stroke="rgba(220,249,242,.78)" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke="rgba(157,215,202,.64)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
             </g>
-            {/* Surface highlight and ripple sit on the water's top edge, matching the fill's Y. */}
-            <path d="M280 1 Q292 -2 304 1 T328 1 T352 1 T376 1 T400 1 T424 1 T448 1 T472 1 T496 1 T520 1 T544 1 T568 1" fill="none" stroke="rgba(220,249,242,.78)" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke="rgba(157,215,202,.64)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
           </g>
 
           <g mask={`url(#${waterMaskId})`}>
