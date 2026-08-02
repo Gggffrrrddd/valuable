@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
@@ -52,6 +52,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
   const reducedMotion = useReducedMotion();
+  const svgId = useId().replace(/:/g, '');
+  const waterMaskId = `jar-water-alpha-mask-${svgId}`;
+  const waterGradientId = `jar-water-depth-${svgId}`;
+  const dropGradientId = `jar-drop-${svgId}`;
+  const tapCropId = `tap-crop-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
@@ -78,30 +83,28 @@ export default function JarVisual({ progress }: FocusVisualProps) {
       <style>{keyframes}</style>
       <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <mask id="jar-water-alpha-mask" maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} mask-type="alpha">
+          <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} mask-type="alpha">
             <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" />
           </mask>
-          <linearGradient id="jar-water-depth" x1="0" y1={WATER_TOP} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
+          <linearGradient id={waterGradientId} x1="0" y1={WATER_TOP} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#8dc4b8" stopOpacity=".55" />
             <stop offset=".48" stopColor="#6bafa0" stopOpacity=".6" />
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          <radialGradient id="jar-drop" cx="32%" cy="25%"><stop offset="0" stopColor="#8dc4b8" /><stop offset=".45" stopColor="#6bafa0" /><stop offset="1" stopColor="#4a9b8e" /></radialGradient>
-          <clipPath id="tap-crop"><rect x="260" y="334" width="416" height="99.3" /></clipPath>
+          <radialGradient id={dropGradientId} cx="32%" cy="25%"><stop offset="0" stopColor="#8dc4b8" /><stop offset=".45" stopColor="#6bafa0" /><stop offset="1" stopColor="#4a9b8e" /></radialGradient>
+          <clipPath id={tapCropId}><rect x="260" y="334" width="416" height="99.3" /></clipPath>
         </defs>
 
         <g transform={sceneTransform}>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
-          {/* All water layers are children of the rising group and clipped to the calibrated mask shape. */}
+          {/* Fixed calibrated silhouette. Only the reveal rect's top edge rises. */}
+          <g mask={`url(#${waterMaskId})`}>
+            <rect x={WATER_IMAGE.x} y={waterY} width={WATER_IMAGE.width} height={WATER_BASE - waterY} fill={`url(#${waterGradientId})`} style={{ transition: reducedMotion ? undefined : 'y 1s linear, height 1s linear' }} />
+          </g>
+
           <g style={{ transform: `translateY(${waterY}px)`, transition: waterTransition }}>
-            <g mask="url(#jar-water-alpha-mask)">
-              <rect x="300" y="0" width="260" height={WATER_BASE} fill="url(#jar-water-depth)" />
-            </g>
-            <g mask="url(#jar-water-alpha-mask)">
-              <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" style={{ filter: 'hue-rotate(140deg) saturate(1.4) brightness(0.55) opacity(0.55)' }} />
-            </g>
             <g opacity=".12" style={{ animation: reducedMotion ? undefined : 'jar-current 11s ease-in-out infinite alternate' }}>
               <path d="M300 70 C370 46 460 94 550 55" fill="none" stroke="#c6eee5" strokeWidth="9" strokeLinecap="round" />
               <path d="M300 145 C385 116 465 168 550 130" fill="none" stroke="#b6e7dc" strokeWidth="6" strokeLinecap="round" />
@@ -111,7 +114,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
             <path d="M280 4 Q292 -1 304 4 T328 4 T352 4 T376 4 T400 4 T424 4 T448 4 T472 4 T496 4 T520 4 T544 4 T568 4" fill="none" stroke="rgba(157,215,202,.64)" strokeWidth="2" strokeDasharray="18 6" style={{ animation: reducedMotion ? undefined : 'jar-ripple 3.4s linear infinite' }} />
           </g>
 
-          <g mask="url(#jar-water-alpha-mask)">
+          <g mask={`url(#${waterMaskId})`}>
             {FISH.map((fish) => {
               const visible = waterY <= fish.y - 10;
               const height = fish.width * (391 / 638);
@@ -129,11 +132,11 @@ export default function JarVisual({ progress }: FocusVisualProps) {
 
           <g style={dripVariables}>
             {!reducedMotion && [0, .5, 1].map((delay) => (
-              <path key={delay} d="M0 0 C-.8 3.5 -6 7.7 -6 12.5 C-6 16.5 -3.3 19 0 19 C3.3 19 6 16.5 6 12.5 C6 7.7 .8 3.5 0 0Z" fill="url(#jar-drop)" style={{ animation: `jar-drip-svg 1.6s ease-in ${delay}s infinite`, transform: `translate(${NOZZLE.x}px,${NOZZLE.y}px)`, opacity: .84 }} />
+              <path key={delay} d="M0 0 C-.8 3.5 -6 7.7 -6 12.5 C-6 16.5 -3.3 19 0 19 C3.3 19 6 16.5 6 12.5 C6 7.7 .8 3.5 0 0Z" fill={`url(#${dropGradientId})`} style={{ animation: `jar-drip-svg 1.6s ease-in ${delay}s infinite`, transform: `translate(${NOZZLE.x}px,${NOZZLE.y}px)`, opacity: .84 }} />
             ))}
           </g>
 
-          <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath="url(#tap-crop)" />
+          <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath={`url(#${tapCropId})`} />
         </g>
       </svg>
 
