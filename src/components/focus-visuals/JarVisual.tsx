@@ -13,7 +13,7 @@ const OBJECT_POSITION = { x: 0.4, y: 0.15 };
 const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
 const WATER_TOP = 461;
 const WATER_BASE = 843;
-const NOZZLE = { x: 420, y: 432 };
+const NOZZLE = { x: 420, y: 381 };
 const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
@@ -163,10 +163,17 @@ const keyframes = `
   @keyframes jar-current { from { transform: translateX(-28px); opacity: .08; } to { transform: translateX(32px); opacity: .2; } }
   @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
   @keyframes jar-drip-svg {
-    0% { transform: translate(420px,432px); opacity: 0; }
-    8% { opacity: .88; }
+    0% { transform: translate(420px,381px) scale(.18); opacity: 0; }
+    5% { transform: translate(420px,381px) scale(.45); opacity: .5; }
+    10% { transform: translate(420px,384px) scale(1); opacity: .88; }
     88% { transform: translate(420px,var(--water-y)); opacity: .88; }
     100% { transform: translate(420px,var(--water-y)); opacity: 0; }
+  }
+  @keyframes jar-nozzle-bead {
+    0%,100% { transform: translate(420px,381px) scale(.1); opacity: 0; }
+    4% { transform: translate(420px,381px) scale(.45); opacity: .55; }
+    9% { transform: translate(420px,383px) scale(.8); opacity: .82; }
+    13% { transform: translate(420px,385px) scale(.3); opacity: 0; }
   }
 `;
 
@@ -283,6 +290,9 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           </g>
 
           <image href={TAP_URL} x="260" y="334" width="416" height="277" clipPath={`url(#${tapCropId})`} />
+          {!reducedMotion && [0, .5, 1].map((delay) => (
+            <ellipse key={delay} cx="0" cy="0" rx="2.2" ry="3.6" fill={`url(#${dropGradientId})`} style={{ animation: `jar-nozzle-bead 1.6s ease-in ${delay}s infinite`, transformOrigin: 'center' }} />
+          ))}
         </g>
       </svg>
 
