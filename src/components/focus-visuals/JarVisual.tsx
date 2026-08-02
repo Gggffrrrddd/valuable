@@ -14,14 +14,137 @@ const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
 const WATER_TOP = 461;
 const WATER_BASE = 843;
 const NOZZLE = { x: 420, y: 432 };
+const MASK_ALPHA_THRESHOLD = 24;
+const FISH_WALL_PADDING = 12;
+const FISH_SURFACE_PADDING = 14;
 
 const FISH = [
-  { x: 370, y: 760, side: 'left', width: 72, hue: 5, swim: 9.5, bob: 3.8, delay: 0 },
-  { x: 465, y: 718, side: 'right', width: 62, hue: 165, swim: 11.5, bob: 4.5, delay: -2.1 },
-  { x: 405, y: 665, side: 'left', width: 66, hue: -18, swim: 10.2, bob: 3.5, delay: -4.4 },
-  { x: 475, y: 610, side: 'right', width: 56, hue: 44, swim: 12.4, bob: 4.2, delay: -1.4 },
-  { x: 370, y: 548, side: 'left', width: 58, hue: 210, swim: 9, bob: 3.2, delay: -5.3 },
+  { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
+  { x: 465, y: 718, side: 'right', width: 62, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
+  { x: 405, y: 665, side: 'left', width: 66, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
+  { x: 475, y: 610, side: 'right', width: 56, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
+  { x: 370, y: 548, side: 'left', width: 58, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
 ] as const;
+
+type FishConfig = (typeof FISH)[number];
+type MaskRow = { left: number; right: number } | null;
+type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
+
+function randomBetween(min: number, max: number) {
+  return min + Math.random() * (max - min);
+}
+
+function getMaskBounds(maskRows: MaskRow[], y: number, halfHeight: number) {
+  const sampleYs = [y - halfHeight - FISH_WALL_PADDING, y, y + halfHeight + FISH_WALL_PADDING];
+  const rows = sampleYs.map((sampleY) => maskRows[Math.round(sampleY - WATER_IMAGE.y)]).filter((row): row is Exclude<MaskRow, null> => Boolean(row));
+  if (rows.length !== sampleYs.length) return null;
+  return {
+    left: Math.max(...rows.map((row) => row.left)),
+    right: Math.min(...rows.map((row) => row.right)),
+  };
+}
+
+function pickFishTarget(fish: FishConfig, maskRows: MaskRow[], waterY: number, current: FishMotion, dart = false) {
+  const height = fish.width * (391 / 638);
+  const halfWidth = fish.width / 2;
+  const halfHeight = height / 2;
+  const minY = waterY + halfHeight + FISH_SURFACE_PADDING + 5;
+  const maxY = WATER_BASE - halfHeight - FISH_WALL_PADDING;
+
+  for (let attempt = 0; attempt < 40 && minY <= maxY; attempt += 1) {
+    const randomY = dart
+      ? Math.max(minY, Math.min(maxY, current.y + randomBetween(-12, 5)))
+      : randomBetween(minY, maxY);
+    const bounds = getMaskBounds(maskRows, randomY, halfHeight);
+    if (!bounds) continue;
+    const minX = bounds.left + halfWidth + FISH_WALL_PADDING;
+    const maxX = bounds.right - halfWidth - FISH_WALL_PADDING;
+    if (minX >= maxX) continue;
+
+    const targetX = dart
+      ? Math.max(minX, Math.min(maxX, current.x + (Math.random() < .5 ? -1 : 1) * randomBetween(38, 72)))
+      : randomBetween(minX, maxX);
+    const dx = targetX - current.x;
+    return {
+      x: targetX,
+      y: randomY,
+      facing: (Math.abs(dx) < 2 ? current.facing : dx < 0 ? -1 : 1) as -1 | 1,
+      tilt: Math.max(-5, Math.min(5, (randomY - current.y) * .14)),
+    };
+  }
+
+  return { x: current.x, y: current.y, facing: current.facing, tilt: 0 };
+}
+
+function SwimmingFish({ fish, maskRows, waterY, reducedMotion }: { fish: FishConfig; maskRows: MaskRow[]; waterY: number; reducedMotion: boolean }) {
+  const height = fish.width * (391 / 638);
+  const visible = waterY <= fish.y - height / 2 - FISH_SURFACE_PADDING;
+  const initialFacing = (fish.side === 'left' ? -1 : 1) as -1 | 1;
+  const [motion, setMotion] = useState<FishMotion>({ x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 });
+  const motionRef = useRef<FishMotion>({ x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 });
+  const waterYRef = useRef(waterY);
+  waterYRef.current = waterY;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      const staticMotion: FishMotion = { x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 };
+      motionRef.current = staticMotion;
+      setMotion(staticMotion);
+      return;
+    }
+    if (!visible || maskRows.length === 0) return;
+
+    let cancelled = false;
+    let moveTimer: ReturnType<typeof setTimeout>;
+    let dartTimer: ReturnType<typeof setTimeout>;
+
+    const move = (dart = false) => {
+      if (cancelled) return;
+      const current = motionRef.current;
+      const target = pickFishTarget(fish, maskRows, waterYRef.current, current, dart);
+      const distance = Math.hypot(target.x - current.x, target.y - current.y);
+      const duration = dart
+        ? randomBetween(.55, .85)
+        : Math.max(2.8, Math.min(7.2, distance / (20 * fish.speed)));
+      const nextMotion = { ...target, duration };
+      motionRef.current = nextMotion;
+      setMotion(nextMotion);
+      moveTimer = setTimeout(() => move(false), duration * 1000 + (dart ? 180 : randomBetween(250, 900)));
+    };
+
+    const scheduleDart = () => {
+      dartTimer = setTimeout(() => {
+        clearTimeout(moveTimer);
+        move(true);
+        scheduleDart();
+      }, randomBetween(20000, 40000));
+    };
+
+    moveTimer = setTimeout(() => move(false), randomBetween(250, 1100));
+    scheduleDart();
+    return () => {
+      cancelled = true;
+      clearTimeout(moveTimer);
+      clearTimeout(dartTimer);
+    };
+  }, [fish, initialFacing, maskRows, reducedMotion, visible]);
+
+  const imageFacesRight = fish.side === 'right';
+  const flip = (motion.facing === 1) === imageFacesRight ? 1 : -1;
+
+  return (
+    <g
+      opacity={visible ? 1 : 0}
+      style={{ transform: `translate(${motion.x}px, ${motion.y}px)`, transition: reducedMotion ? 'opacity 1.25s ease-out' : `transform ${motion.duration}s cubic-bezier(.35,.05,.3,1), opacity 1.25s ease-out` }}
+    >
+      <g style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `rotate(${motion.tilt}deg) scaleX(${flip})`, transition: reducedMotion ? undefined : 'transform .28s ease-out' }}>
+        <g style={{ animation: reducedMotion ? undefined : `jar-fish-bob ${fish.bob}s ease-in-out ${fish.delay}s infinite alternate` }}>
+          <image href={fish.side === 'left' ? FISH_LEFT_URL : FISH_RIGHT_URL} x={-fish.width / 2} y={-height / 2} width={fish.width} height={height} style={{ filter: `hue-rotate(${fish.hue}deg) saturate(1.15) brightness(1.08)` }} />
+        </g>
+      </g>
+    </g>
+  );
+}
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -38,8 +161,7 @@ function useReducedMotion() {
 const keyframes = `
   @keyframes jar-ripple { to { stroke-dashoffset: -48; } }
   @keyframes jar-current { from { transform: translateX(-28px); opacity: .08; } to { transform: translateX(32px); opacity: .2; } }
-  @keyframes jar-fish-swim { 0%,100% { transform: translateX(-8px) rotate(-2deg); } 50% { transform: translateX(8px) rotate(2deg); } }
-  @keyframes jar-fish-bob { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
+  @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
   @keyframes jar-drip-svg {
     0% { transform: translate(420px,432px); opacity: 0; }
     8% { opacity: .88; }
@@ -59,6 +181,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
   const tapCropId = `tap-crop-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
+  const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
 
   useEffect(() => {
@@ -69,6 +192,39 @@ export default function JarVisual({ progress }: FocusVisualProps) {
     });
     observer.observe(element);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const image = new Image();
+    image.src = WATER_CALIBRATION_URL;
+    image.onload = () => {
+      if (cancelled) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = WATER_IMAGE.width;
+      canvas.height = WATER_IMAGE.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const rows: MaskRow[] = [];
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        let left = -1;
+        let right = -1;
+        for (let x = 0; x < canvas.width; x += 1) {
+          if (pixels[(y * canvas.width + x) * 4 + 3] <= MASK_ALPHA_THRESHOLD) continue;
+          if (left === -1) left = x;
+          right = x;
+        }
+        rows.push(left === -1 ? null : { left: WATER_IMAGE.x + left, right: WATER_IMAGE.x + right });
+      }
+      setMaskRows(rows);
+    };
+    return () => {
+      cancelled = true;
+      image.onload = null;
+    };
   }, []);
 
   const scale = Math.max(viewport.width / IMG_W, viewport.height / IMG_H);
@@ -117,19 +273,7 @@ export default function JarVisual({ progress }: FocusVisualProps) {
           </g>
 
           <g mask={`url(#${waterMaskId})`}>
-            {FISH.map((fish) => {
-              const visible = waterY <= fish.y - 10;
-              const height = fish.width * (391 / 638);
-              return (
-                <g key={`${fish.side}-${fish.y}`} transform={`translate(${fish.x} ${fish.y})`} opacity={visible ? 1 : 0} style={{ transition: 'opacity 1.25s ease-out' }}>
-                  <g style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: reducedMotion ? undefined : `jar-fish-swim ${fish.swim}s ease-in-out ${fish.delay}s infinite` }}>
-                    <g style={{ animation: reducedMotion ? undefined : `jar-fish-bob ${fish.bob}s ease-in-out ${fish.delay}s infinite alternate` }}>
-                      <image href={fish.side === 'left' ? FISH_LEFT_URL : FISH_RIGHT_URL} x={-fish.width / 2} y={-height / 2} width={fish.width} height={height} style={{ filter: `hue-rotate(${fish.hue}deg) saturate(1.15) brightness(1.08)` }} />
-                    </g>
-                  </g>
-                </g>
-              );
-            })}
+            {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
           </g>
 
           <g style={dripVariables}>
