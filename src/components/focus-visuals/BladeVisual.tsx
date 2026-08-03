@@ -32,6 +32,8 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, onC
   const spinRef = useRef(0);
   const elapsedRef = useRef(0);
   const scaleStateRef = useRef({ baseScale: 0, baseLargestDimension: 0 });
+  const onCalibrationRef = useRef(onCalibration);
+  onCalibrationRef.current = onCalibration;
   const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
   const sourceTexture = useLoader(TextureLoader, BLADE_TEXTURE_URL);
   const model = useMemo(() => {
@@ -54,40 +56,41 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, onC
       sheenColor: '#8eb9d7',
     });
 
-    clone.traverse((child) => {
-      if (!(child instanceof Mesh)) return;
-      const geometry = child.geometry.clone();
-      const positions = geometry.attributes.position.clone() as BufferAttribute;
-      for (let index = 0; index < positions.count; index += 1) {
-        const x = positions.getX(index);
-        const y = positions.getY(index);
-        const z = positions.getZ(index);
-        if (y >= DEFECT_BASE_Y) continue;
-        const distance = Math.hypot((x - DEFECT_CENTER.x) / DEFECT_RADIUS.x, (z - DEFECT_CENTER.z) / DEFECT_RADIUS.z);
-        if (distance >= 1) continue;
-        positions.setY(index, y + (DEFECT_BASE_Y - y) * Math.pow(1 - distance, .65));
-      }
-      geometry.setAttribute('position', positions);
-      geometry.computeVertexNormals();
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
-      child.geometry = geometry;
-      child.material = material;
-    });
-    return clone;
-  }, [sourceModel, sourceTexture]);
+      clone.traverse((child) => {
+        if (!(child instanceof Mesh)) return;
+        const geometry = child.geometry.clone();
+        const positions = geometry.attributes.position.clone() as BufferAttribute;
+        for (let index = 0; index < positions.count; index += 1) {
+          const x = positions.getX(index);
+          const y = positions.getY(index);
+          const z = positions.getZ(index);
+          if (y >= DEFECT_BASE_Y) continue;
+          const distance = Math.hypot((x - DEFECT_CENTER.x) / DEFECT_RADIUS.x, (z - DEFECT_CENTER.z) / DEFECT_RADIUS.z);
+          if (distance >= 1) continue;
+          positions.setY(index, y + (DEFECT_BASE_Y - y) * Math.pow(1 - distance, .65));
+        }
+        geometry.setAttribute('position', positions);
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+        child.geometry = geometry;
+        child.material = material;
+      });
+      const rawBounds = new Box3().setFromObject(clone);
+      const rawSize = rawBounds.getSize(new Vector3());
+      const baseLargestDimension = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
+      scaleStateRef.current = { baseScale: 3.25 / baseLargestDimension, baseLargestDimension };
+      return clone;
+    }, [sourceModel, sourceTexture]);
 
   useEffect(() => {
     const bounds = new Box3().setFromObject(model);
-    const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
-    const largestDimension = Math.max(size.x, size.y, size.z) || 1;
-    const baseScale = 3.25 / largestDimension;
+    const { baseScale, baseLargestDimension } = scaleStateRef.current;
     model.position.sub(center);
     model.scale.setScalar(baseScale * scaleMultiplier);
-    scaleStateRef.current = { baseScale, baseLargestDimension: largestDimension };
-    onCalibration?.({ scaleMultiplier, baseScale, effectiveScale: baseScale * scaleMultiplier, baseLargestDimension: largestDimension, effectiveLargestDimension: largestDimension / scaleMultiplier });
-  }, [model, scaleMultiplier, onCalibration]);
+    onCalibrationRef.current?.({ scaleMultiplier, baseScale, effectiveScale: baseScale * scaleMultiplier, baseLargestDimension, effectiveLargestDimension: baseLargestDimension * scaleMultiplier });
+  }, [model, scaleMultiplier]);
 
   useFrame((_state, delta) => {
     if (!modelRef.current) return;
