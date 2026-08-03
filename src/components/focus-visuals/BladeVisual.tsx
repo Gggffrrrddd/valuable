@@ -27,10 +27,11 @@ function useReducedMotion() {
   return reduced;
 }
 
-function BladeModel({ progress, running, reducedMotion }: { progress: number; running: boolean; reducedMotion: boolean }) {
+function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
   const modelRef = useRef<Group>(null);
   const spinRef = useRef(0);
   const elapsedRef = useRef(0);
+  const scaleStateRef = useRef({ baseScale: 0, baseLargestDimension: 0 });
   const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
   const sourceTexture = useLoader(TextureLoader, BLADE_TEXTURE_URL);
   const model = useMemo(() => {
@@ -80,9 +81,13 @@ function BladeModel({ progress, running, reducedMotion }: { progress: number; ru
     const bounds = new Box3().setFromObject(model);
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
+    const largestDimension = Math.max(size.x, size.y, size.z) || 1;
+    const baseScale = 3.25 / largestDimension;
     model.position.sub(center);
-    model.scale.setScalar(3.25 / (Math.max(size.x, size.y, size.z) || 1));
-  }, [model]);
+    model.scale.setScalar(baseScale * scaleMultiplier);
+    scaleStateRef.current = { baseScale, baseLargestDimension: largestDimension };
+    onCalibration?.({ scaleMultiplier, baseScale, effectiveScale: baseScale * scaleMultiplier, baseLargestDimension: largestDimension, effectiveLargestDimension: largestDimension / scaleMultiplier });
+  }, [model, scaleMultiplier, onCalibration]);
 
   useFrame((_state, delta) => {
     if (!modelRef.current) return;
@@ -178,7 +183,7 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-export default function BladeVisual({ progress, running = false }: FocusVisualProps) {
+export default function BladeVisual({ progress, running = false, scaleMultiplier = 1, onCalibration }: FocusVisualProps & { scaleMultiplier?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
   return (
@@ -191,7 +196,7 @@ export default function BladeVisual({ progress, running = false }: FocusVisualPr
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
         <Suspense fallback={<LoadingBlade />}>
           <PremiumArena progress={value} reducedMotion={reducedMotion} />
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={scaleMultiplier} onCalibration={onCalibration} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
