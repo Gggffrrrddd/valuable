@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, type ThreeEvent, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, BufferAttribute, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
@@ -12,6 +12,9 @@ const TILT_STEP = 5;
 const TILT_MIN = -90;
 const TILT_MAX = 90;
 const MARK_SPACING = .045;
+const DEFECT_CENTER = { x: -.008, z: .178 };
+const DEFECT_RADIUS = { x: .092, z: .075 };
+const DEFECT_BASE_Y = -.176;
 
 type DefectMark = {
   id: number;
@@ -51,6 +54,23 @@ function BladeModel({ rotationSpeed, tiltX, tiltY, markMode, marks, onMark }: { 
     });
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return;
+      const geometry = child.geometry.clone();
+      const positions = geometry.attributes.position.clone() as BufferAttribute;
+      for (let index = 0; index < positions.count; index += 1) {
+        const x = positions.getX(index);
+        const y = positions.getY(index);
+        const z = positions.getZ(index);
+        if (y >= DEFECT_BASE_Y) continue;
+        const distance = Math.hypot((x - DEFECT_CENTER.x) / DEFECT_RADIUS.x, (z - DEFECT_CENTER.z) / DEFECT_RADIUS.z);
+        if (distance >= 1) continue;
+        const blend = Math.pow(1 - distance, .65);
+        positions.setY(index, y + (DEFECT_BASE_Y - y) * blend);
+      }
+      geometry.setAttribute('position', positions);
+      geometry.computeVertexNormals();
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      child.geometry = geometry;
       child.material = material;
       child.castShadow = true;
       child.receiveShadow = true;
@@ -209,9 +229,9 @@ export default function BladeVisual({ compact = false }: { compact?: boolean }) 
   return (
     <div className={`flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_38%,#273040_0%,#11151a_42%,#070809_100%)] ${compact ? '' : 'gap-3 p-3 sm:gap-4 sm:p-4'}`}>
       <div className={`relative flex-1 overflow-hidden rounded-2xl ${compact ? '' : 'border border-white/10'}`}>
-        <Canvas shadows camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
+        <Canvas shadows="basic" camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
           <ambientLight intensity={.42} />
-          <spotLight position={[3.5, 5, 3]} angle={.48} penumbra={.75} intensity={3.6} color="#fff0d2" castShadow />
+          <spotLight position={[3.5, 5, 3]} angle={.48} penumbra={.75} intensity={3.6} color="#fff0d2" castShadow shadow-mapSize-width={512} shadow-mapSize-height={512} />
           <spotLight position={[-4, 2, -3]} angle={.6} penumbra={.8} intensity={2.4} color="#6599d3" />
           <pointLight position={[2, .7, -2.5]} intensity={1.8} distance={7} color="#e9b85d" />
           <Suspense fallback={<LoadingBlade />}>
