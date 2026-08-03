@@ -22,7 +22,15 @@ function BladeModel({ rotationSpeed, tiltX, tiltY }: { rotationSpeed: number; ti
     texture.colorSpace = SRGBColorSpace;
     texture.flipY = true;
     texture.needsUpdate = true;
-    const material = new MeshStandardMaterial({ map: texture, roughness: .62, metalness: .08 });
+    const material = new MeshStandardMaterial({
+      map: texture,
+      color: '#ffffff',
+      emissive: '#ffffff',
+      emissiveMap: texture,
+      emissiveIntensity: .16,
+      roughness: .38,
+      metalness: .18,
+    });
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return;
       child.material = material;
@@ -99,10 +107,11 @@ export default function BladeVisual({ compact = false }: { compact?: boolean }) 
   return (
     <div className={`flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_45%,#283128_0%,#111510_52%,#090b09_100%)] ${compact ? '' : 'gap-3 p-3 sm:gap-4 sm:p-4'}`}>
       <div className={`relative flex-1 overflow-hidden rounded-2xl ${compact ? '' : 'border border-white/10'}`}>
-        <Canvas camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance' }}>
-          <ambientLight intensity={1.6} />
-          <directionalLight position={[3, 5, 4]} intensity={3.2} color="#efffd6" />
-          <directionalLight position={[-4, 1, -2]} intensity={1.5} color="#8bbca6" />
+        <Canvas camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.12 }}>
+          <ambientLight intensity={.72} />
+          <directionalLight position={[3, 5, 4]} intensity={2.1} color="#fff4dd" />
+          <directionalLight position={[-4, 1, -2]} intensity={1.15} color="#6f9fd2" />
+          <pointLight position={[0, 1.5, 2]} intensity={1.1} distance={7} color="#ffb36b" />
           <Suspense fallback={<LoadingBlade />}>
             <BladeModel rotationSpeed={rotationSpeed} tiltX={tiltX} tiltY={tiltY} />
           </Suspense>
