@@ -1,9 +1,10 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, Group, Mesh, Vector3 } from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { Box3, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
-const BLADE_MODEL_URL = 'https://res.cloudinary.com/dcydj6gao/image/upload/v1785679396/white_mesh_1_mf4syn.glb';
+const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
+const BLADE_TEXTURE_URL = 'https://res.cloudinary.com/dcydj6gao/image/upload/v1785732544/texture_ptl9gy.jpg';
 const DEFAULT_SPEED = 9;
 const MIN_SPEED = .5;
 const MAX_SPEED = 30;
@@ -13,8 +14,23 @@ const TILT_MAX = 90;
 
 function BladeModel({ rotationSpeed, tiltX, tiltY }: { rotationSpeed: number; tiltX: number; tiltY: number }) {
   const modelRef = useRef<Group>(null);
-  const gltf = useLoader(GLTFLoader, BLADE_MODEL_URL);
-  const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
+  const sourceTexture = useLoader(TextureLoader, BLADE_TEXTURE_URL);
+  const model = useMemo(() => {
+    const clone = sourceModel.clone(true);
+    const texture = sourceTexture.clone();
+    texture.colorSpace = SRGBColorSpace;
+    texture.flipY = true;
+    texture.needsUpdate = true;
+    const material = new MeshStandardMaterial({ map: texture, roughness: .62, metalness: .08 });
+    clone.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      child.material = material;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return clone;
+  }, [sourceModel, sourceTexture]);
   const spinRef = useRef(0);
 
   useEffect(() => {
@@ -160,4 +176,5 @@ export default function BladeVisual({ compact = false }: { compact?: boolean }) 
   );
 }
 
-useLoader.preload(GLTFLoader, BLADE_MODEL_URL);
+useLoader.preload(OBJLoader, BLADE_OBJ_URL);
+useLoader.preload(TextureLoader, BLADE_TEXTURE_URL);
