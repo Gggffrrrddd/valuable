@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
@@ -22,14 +22,19 @@ function BladeModel({ rotationSpeed, tiltX, tiltY }: { rotationSpeed: number; ti
     texture.colorSpace = SRGBColorSpace;
     texture.flipY = true;
     texture.needsUpdate = true;
-    const material = new MeshStandardMaterial({
+    texture.anisotropy = 8;
+    const material = new MeshPhysicalMaterial({
       map: texture,
       color: '#ffffff',
       emissive: '#ffffff',
       emissiveMap: texture,
-      emissiveIntensity: .16,
-      roughness: .38,
-      metalness: .18,
+      emissiveIntensity: .1,
+      roughness: .3,
+      metalness: .24,
+      clearcoat: .72,
+      clearcoatRoughness: .2,
+      sheen: .22,
+      sheenColor: '#8eb9d7',
     });
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return;
@@ -61,7 +66,53 @@ function BladeModel({ rotationSpeed, tiltX, tiltY }: { rotationSpeed: number; ti
     modelRef.current.rotation.y = spinRef.current + (tiltY * Math.PI) / 180;
   });
 
-  return <primitive ref={modelRef} object={model} />;
+  return (
+    <group ref={modelRef}>
+      <primitive object={model} />
+
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[1.48, .055, 12, 96]} />
+        <meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.18} clearcoat={1} clearcoatRoughness={.12} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[1.31, .024, 10, 96]} />
+        <meshPhysicalMaterial color="#b98b42" emissive="#5c3210" emissiveIntensity={.3} metalness={.9} roughness={.22} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <torusGeometry args={[.54, .038, 12, 64]} />
+        <meshPhysicalMaterial color="#171b20" metalness={.92} roughness={.16} clearcoat={1} />
+      </mesh>
+
+      <mesh position={[0, .13, 0]} castShadow>
+        <cylinderGeometry args={[.38, .45, .14, 64]} />
+        <meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.2} clearcoat={1} clearcoatRoughness={.1} />
+      </mesh>
+      <mesh position={[0, .22, 0]} castShadow>
+        <cylinderGeometry args={[.23, .31, .09, 64]} />
+        <meshPhysicalMaterial color="#10141a" metalness={.88} roughness={.14} clearcoat={1} />
+      </mesh>
+      <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[.14, 48]} />
+        <meshPhysicalMaterial color="#d8b56d" emissive="#8a511b" emissiveIntensity={.45} metalness={.9} roughness={.16} />
+      </mesh>
+
+      {Array.from({ length: 8 }, (_, index) => {
+        const angle = (index / 8) * Math.PI * 2;
+        return (
+          <group key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}>
+            <mesh castShadow>
+              <boxGeometry args={[.23, .11, .085]} />
+              <meshPhysicalMaterial color={index % 2 ? '#c5cbd1' : '#b78a43'} metalness={.94} roughness={.17} clearcoat={.85} />
+            </mesh>
+            <mesh position={[0, .065, 0]}>
+              <sphereGeometry args={[.035, 16, 12]} />
+              <meshPhysicalMaterial color="#ecf3f7" emissive="#8eb9d7" emissiveIntensity={.25} metalness={.86} roughness={.12} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
 }
 
 function FpsSampler({ onFps }: { onFps: (fps: number) => void }) {
@@ -105,16 +156,24 @@ export default function BladeVisual({ compact = false }: { compact?: boolean }) 
   };
 
   return (
-    <div className={`flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_45%,#283128_0%,#111510_52%,#090b09_100%)] ${compact ? '' : 'gap-3 p-3 sm:gap-4 sm:p-4'}`}>
+    <div className={`flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_38%,#273040_0%,#11151a_42%,#070809_100%)] ${compact ? '' : 'gap-3 p-3 sm:gap-4 sm:p-4'}`}>
       <div className={`relative flex-1 overflow-hidden rounded-2xl ${compact ? '' : 'border border-white/10'}`}>
-        <Canvas camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.12 }}>
-          <ambientLight intensity={.72} />
-          <directionalLight position={[3, 5, 4]} intensity={2.1} color="#fff4dd" />
-          <directionalLight position={[-4, 1, -2]} intensity={1.15} color="#6f9fd2" />
-          <pointLight position={[0, 1.5, 2]} intensity={1.1} distance={7} color="#ffb36b" />
+        <Canvas shadows camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.75]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
+          <ambientLight intensity={.42} />
+          <spotLight position={[3.5, 5, 3]} angle={.48} penumbra={.75} intensity={3.6} color="#fff0d2" castShadow />
+          <spotLight position={[-4, 2, -3]} angle={.6} penumbra={.8} intensity={2.4} color="#6599d3" />
+          <pointLight position={[2, .7, -2.5]} intensity={1.8} distance={7} color="#e9b85d" />
           <Suspense fallback={<LoadingBlade />}>
             <BladeModel rotationSpeed={rotationSpeed} tiltX={tiltX} tiltY={tiltY} />
           </Suspense>
+          <mesh position={[0, -.62, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <circleGeometry args={[2.15, 96]} />
+            <meshPhysicalMaterial color="#090b0e" metalness={.72} roughness={.3} clearcoat={.65} />
+          </mesh>
+          <mesh position={[0, -.605, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.7, 1.76, 96]} />
+            <meshPhysicalMaterial color="#b88a42" emissive="#593312" emissiveIntensity={.28} metalness={.94} roughness={.2} />
+          </mesh>
           <FpsSampler onFps={setFps} />
         </Canvas>
 
