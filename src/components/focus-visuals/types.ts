@@ -10,5 +10,5 @@ export const FOCUS_VISUAL_THEMES: { id: FocusVisualTheme; label: string; descrip
   { id: 'tree', label: 'Growing Tree', description: 'Let each leaf drift away' },
   { id: 'book', label: "The Reader's Book", description: 'Turn focus into pages' },
   { id: 'jar', label: 'Water Jar', description: 'Fill the vessel slowly' },
-  { id: 'blade', label: 'Spin Blade', description: 'Test the 3D model spin' },
+  { id: 'blade', label: 'Spin Blade', description: 'Let momentum carry the session' },
 ];

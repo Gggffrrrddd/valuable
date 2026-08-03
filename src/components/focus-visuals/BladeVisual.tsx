@@ -1,35 +1,36 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, type ThreeEvent, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, BufferAttribute, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { AdditiveBlending, Box3, BufferAttribute, CanvasTexture, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import type { FocusVisualProps } from './types';
 
 const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
 const BLADE_TEXTURE_URL = '/visuals/blade/texture-vibrant.jpg';
-const DEFAULT_SPEED = 9;
-const MIN_SPEED = .5;
-const MAX_SPEED = 30;
-const TILT_STEP = 5;
-const TILT_MIN = -90;
-const TILT_MAX = 90;
-const MARK_SPACING = .045;
 const DEFECT_CENTER = { x: -.008, z: .178 };
 const DEFECT_RADIUS = { x: .092, z: .075 };
 const DEFECT_BASE_Y = -.176;
 
-type DefectMark = {
-  id: number;
-  mesh: string;
-  faceIndex: number | null;
-  uv: [number, number] | null;
-  local: [number, number, number];
-  world: [number, number, number];
-  normalized: [number, number, number];
-};
+function smoothstep(min: number, max: number, value: number) {
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return t * t * (3 - 2 * t);
+}
 
-function BladeModel({ rotationSpeed, tiltX, tiltY, markMode, marks, onMark }: { rotationSpeed: number; tiltX: number; tiltY: number; markMode: boolean; marks: DefectMark[]; onMark: (mark: Omit<DefectMark, 'id'>) => void }) {
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return reduced;
+}
+
+function BladeModel({ progress, running, reducedMotion }: { progress: number; running: boolean; reducedMotion: boolean }) {
   const modelRef = useRef<Group>(null);
-  const drawingRef = useRef(false);
-  const lastMarkRef = useRef<Vector3 | null>(null);
+  const spinRef = useRef(0);
+  const elapsedRef = useRef(0);
   const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
   const sourceTexture = useLoader(TextureLoader, BLADE_TEXTURE_URL);
   const model = useMemo(() => {
@@ -37,21 +38,21 @@ function BladeModel({ rotationSpeed, tiltX, tiltY, markMode, marks, onMark }: { 
     const texture = sourceTexture.clone();
     texture.colorSpace = SRGBColorSpace;
     texture.flipY = true;
-    texture.needsUpdate = true;
     texture.anisotropy = 8;
+    texture.needsUpdate = true;
     const material = new MeshPhysicalMaterial({
       map: texture,
-      color: '#ffffff',
       emissive: '#ffffff',
       emissiveMap: texture,
-      emissiveIntensity: .1,
-      roughness: .3,
-      metalness: .24,
-      clearcoat: .72,
-      clearcoatRoughness: .2,
+      emissiveIntensity: .09,
+      roughness: .28,
+      metalness: .26,
+      clearcoat: .78,
+      clearcoatRoughness: .17,
       sheen: .22,
       sheenColor: '#8eb9d7',
     });
+
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return;
       const geometry = child.geometry.clone();
@@ -63,8 +64,7 @@ function BladeModel({ rotationSpeed, tiltX, tiltY, markMode, marks, onMark }: { 
         if (y >= DEFECT_BASE_Y) continue;
         const distance = Math.hypot((x - DEFECT_CENTER.x) / DEFECT_RADIUS.x, (z - DEFECT_CENTER.z) / DEFECT_RADIUS.z);
         if (distance >= 1) continue;
-        const blend = Math.pow(1 - distance, .65);
-        positions.setY(index, y + (DEFECT_BASE_Y - y) * blend);
+        positions.setY(index, y + (DEFECT_BASE_Y - y) * Math.pow(1 - distance, .65));
       }
       geometry.setAttribute('position', positions);
       geometry.computeVertexNormals();
@@ -72,262 +72,129 @@ function BladeModel({ rotationSpeed, tiltX, tiltY, markMode, marks, onMark }: { 
       geometry.computeBoundingSphere();
       child.geometry = geometry;
       child.material = material;
-      child.castShadow = true;
-      child.receiveShadow = true;
     });
     return clone;
   }, [sourceModel, sourceTexture]);
-  const spinRef = useRef(0);
 
   useEffect(() => {
     const bounds = new Box3().setFromObject(model);
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
-    const largestDimension = Math.max(size.x, size.y, size.z) || 1;
     model.position.sub(center);
-    model.scale.setScalar(3.25 / largestDimension);
+    model.scale.setScalar(3.25 / (Math.max(size.x, size.y, size.z) || 1));
   }, [model]);
-
-  useEffect(() => {
-    spinRef.current = 0;
-  }, [tiltX, tiltY]);
 
   useFrame((_state, delta) => {
     if (!modelRef.current) return;
-    spinRef.current += delta * rotationSpeed;
-    modelRef.current.rotation.x = (tiltX * Math.PI) / 180;
-    modelRef.current.rotation.y = spinRef.current + (tiltY * Math.PI) / 180;
+    elapsedRef.current += delta;
+    const topple = reducedMotion ? 0 : smoothstep(.94, 1, progress);
+    const wobble = reducedMotion ? 0 : smoothstep(.62, .96, progress) * (1 - topple);
+    const speed = reducedMotion ? 1.15 : .08 + 12 * Math.pow(1 - progress, 2.35);
+    if (running || reducedMotion) spinRef.current += delta * speed;
+    const wobblePhase = elapsedRef.current * (2.4 + speed * .26);
+    modelRef.current.rotation.y = spinRef.current;
+    modelRef.current.rotation.x = topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
+    modelRef.current.rotation.z = topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
+    modelRef.current.position.y = -topple * .34;
+    modelRef.current.position.x = topple * .24;
   });
 
-  const markSurface = (event: ThreeEvent<PointerEvent>) => {
-    if (!markMode || !modelRef.current) return;
-    event.stopPropagation();
-    const localPoint = modelRef.current.worldToLocal(event.point.clone());
-    if (lastMarkRef.current && lastMarkRef.current.distanceTo(localPoint) < MARK_SPACING) return;
-    lastMarkRef.current = localPoint.clone();
-    const round = (value: number) => Number(value.toFixed(5));
-    onMark({
-      mesh: event.object.name || event.object.type,
-      faceIndex: event.faceIndex ?? null,
-      uv: event.uv ? [round(event.uv.x), round(event.uv.y)] : null,
-      local: [round(localPoint.x), round(localPoint.y), round(localPoint.z)],
-      world: [round(event.point.x), round(event.point.y), round(event.point.z)],
-      normalized: [round(localPoint.x / 1.55), round(localPoint.y / 1.55), round(localPoint.z / 1.55)],
-    });
-  };
-
   return (
-    <group
-      ref={modelRef}
-      onPointerDown={(event) => { if (markMode) { drawingRef.current = true; lastMarkRef.current = null; markSurface(event); } }}
-      onPointerMove={(event) => { if (drawingRef.current) markSurface(event); }}
-      onPointerUp={() => { drawingRef.current = false; lastMarkRef.current = null; }}
-      onPointerOut={() => { drawingRef.current = false; lastMarkRef.current = null; }}
-    >
+    <group ref={modelRef}>
       <primitive object={model} />
-
-      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <torusGeometry args={[1.48, .055, 12, 96]} />
-        <meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.18} clearcoat={1} clearcoatRoughness={.12} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <torusGeometry args={[1.31, .024, 10, 96]} />
-        <meshPhysicalMaterial color="#b98b42" emissive="#5c3210" emissiveIntensity={.3} metalness={.9} roughness={.22} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <torusGeometry args={[.54, .038, 12, 64]} />
-        <meshPhysicalMaterial color="#171b20" metalness={.92} roughness={.16} clearcoat={1} />
-      </mesh>
-
-      <mesh position={[0, .13, 0]} castShadow>
-        <cylinderGeometry args={[.38, .45, .14, 64]} />
-        <meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.2} clearcoat={1} clearcoatRoughness={.1} />
-      </mesh>
-      <mesh position={[0, .22, 0]} castShadow>
-        <cylinderGeometry args={[.23, .31, .09, 64]} />
-        <meshPhysicalMaterial color="#10141a" metalness={.88} roughness={.14} clearcoat={1} />
-      </mesh>
-      <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[.14, 48]} />
-        <meshPhysicalMaterial color="#d8b56d" emissive="#8a511b" emissiveIntensity={.45} metalness={.9} roughness={.16} />
-      </mesh>
-
+      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.48, .055, 12, 96]} /><meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.16} clearcoat={1} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.31, .024, 10, 96]} /><meshPhysicalMaterial color="#c79b50" emissive="#6b3b12" emissiveIntensity={.28} metalness={.92} roughness={.2} /></mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.54, .038, 12, 64]} /><meshPhysicalMaterial color="#12171d" metalness={.94} roughness={.14} clearcoat={1} /></mesh>
+      <mesh position={[0, .13, 0]}><cylinderGeometry args={[.38, .45, .14, 64]} /><meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.18} clearcoat={1} /></mesh>
+      <mesh position={[0, .22, 0]}><cylinderGeometry args={[.23, .31, .09, 64]} /><meshPhysicalMaterial color="#10141a" metalness={.9} roughness={.12} clearcoat={1} /></mesh>
+      <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.14, 48]} /><meshPhysicalMaterial color="#e1bd72" emissive="#8a511b" emissiveIntensity={.42} metalness={.9} roughness={.14} /></mesh>
       {Array.from({ length: 8 }, (_, index) => {
-        const angle = (index / 8) * Math.PI * 2;
-        return (
-          <group key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}>
-            <mesh castShadow>
-              <boxGeometry args={[.23, .11, .085]} />
-              <meshPhysicalMaterial color={index % 2 ? '#c5cbd1' : '#b78a43'} metalness={.94} roughness={.17} clearcoat={.85} />
-            </mesh>
-            <mesh position={[0, .065, 0]}>
-              <sphereGeometry args={[.035, 16, 12]} />
-              <meshPhysicalMaterial color="#ecf3f7" emissive="#8eb9d7" emissiveIntensity={.25} metalness={.86} roughness={.12} />
-            </mesh>
-          </group>
-        );
+        const angle = index * Math.PI / 4;
+        return <mesh key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}><boxGeometry args={[.23, .11, .085]} /><meshPhysicalMaterial color={index % 2 ? '#cbd1d6' : '#bd914a'} metalness={.95} roughness={.16} clearcoat={.9} /></mesh>;
       })}
-
-      {marks.map((mark) => (
-        <mesh key={mark.id} position={mark.local} raycast={() => null}>
-          <sphereGeometry args={[.026, 12, 10]} />
-          <meshBasicMaterial color="#ff2f45" depthTest={false} />
-        </mesh>
-      ))}
     </group>
   );
 }
 
-function FpsSampler({ onFps }: { onFps: (fps: number) => void }) {
-  const elapsedRef = useRef(0);
-  const framesRef = useRef(0);
-
-  useFrame((_state, delta) => {
-    elapsedRef.current += delta;
-    framesRef.current += 1;
-    if (elapsedRef.current < .5) return;
-    onFps(Math.round(framesRef.current / elapsedRef.current));
-    elapsedRef.current = 0;
-    framesRef.current = 0;
-  });
-
-  return null;
+function createArenaTexture(size: number, shadow = false) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) return new CanvasTexture(canvas);
+  const center = size / 2;
+  const gradient = context.createRadialGradient(center, center, 0, center, center, center);
+  if (shadow) {
+    gradient.addColorStop(0, 'rgba(0,0,0,.82)');
+    gradient.addColorStop(.42, 'rgba(0,0,0,.46)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  } else {
+    gradient.addColorStop(0, '#151b20');
+    gradient.addColorStop(.34, '#0c1115');
+    gradient.addColorStop(.72, '#070a0d');
+    gradient.addColorStop(.91, '#151d18');
+    gradient.addColorStop(1, '#4f6828');
+  }
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
 }
 
-function LoadingBlade() {
-  const meshRef = useRef<Mesh>(null);
+function PremiumArena({ progress, reducedMotion }: { progress: number; reducedMotion: boolean }) {
+  const energyRef = useRef<Group>(null);
+  const glowMaterialRef = useRef<MeshBasicMaterial>(null);
+  const floorTexture = useMemo(() => createArenaTexture(512), []);
+  const shadowTexture = useMemo(() => createArenaTexture(256, true), []);
+  useEffect(() => () => { floorTexture.dispose(); shadowTexture.dispose(); }, [floorTexture, shadowTexture]);
+
   useFrame((_state, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta;
+    if (energyRef.current && !reducedMotion) energyRef.current.rotation.z -= delta * (.12 + (1 - progress) * .28);
+    if (glowMaterialRef.current) {
+      glowMaterialRef.current.opacity = .28 + smoothstep(.93, 1, progress) * .58;
+      glowMaterialRef.current.color.lerpColors(new Color('#b6e85a'), new Color('#fff1b8'), smoothstep(.94, 1, progress));
+    }
   });
+
   return (
-    <mesh ref={meshRef}>
-      <cylinderGeometry args={[.75, 1, .28, 48]} />
-      <meshStandardMaterial color="#52604b" wireframe />
-    </mesh>
+    <group position={[0, -.59, 0]}>
+      <mesh position={[0, .01, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[2.48, 96]} /><meshBasicMaterial map={floorTexture} /></mesh>
+      <mesh position={[0, .025, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.92, 64]} /><meshBasicMaterial map={shadowTexture} transparent depthWrite={false} /></mesh>
+      <mesh position={[0, .035, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.39, .035, 10, 96]} /><meshBasicMaterial ref={glowMaterialRef} color="#b6e85a" transparent opacity={.32} blending={AdditiveBlending} depthWrite={false} /></mesh>
+      <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.82, 1.84, 96]} /><meshBasicMaterial color="#c69b52" transparent opacity={.48} side={DoubleSide} /></mesh>
+      <mesh position={[0, .028, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.34, 1.355, 96]} /><meshBasicMaterial color="#8ba857" transparent opacity={.28} side={DoubleSide} /></mesh>
+      <group ref={energyRef} position={[0, .04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        {Array.from({ length: 16 }, (_, index) => {
+          const angle = index * Math.PI / 8;
+          return <mesh key={index} position={[Math.cos(angle) * 2.1, Math.sin(angle) * 2.1, 0]} rotation={[0, 0, angle]}><planeGeometry args={[.2, .012]} /><meshBasicMaterial color={index % 2 ? '#b6e85a' : '#d6ad61'} transparent opacity={.58} blending={AdditiveBlending} depthWrite={false} /></mesh>;
+        })}
+      </group>
+    </group>
   );
 }
 
-export default function BladeVisual({ compact = false }: { compact?: boolean }) {
-  const [rotationSpeed, setRotationSpeed] = useState(DEFAULT_SPEED);
-  const [tiltX, setTiltX] = useState(0);
-  const [tiltY, setTiltY] = useState(0);
-  const [fps, setFps] = useState(0);
-  const [markMode, setMarkMode] = useState(false);
-  const [marks, setMarks] = useState<DefectMark[]>([]);
+function LoadingBlade() {
+  return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
+}
 
-  const adjustTilt = (axis: 'x' | 'y', direction: 1 | -1) => {
-    const update = axis === 'x' ? setTiltX : setTiltY;
-    update((value) => Math.max(TILT_MIN, Math.min(TILT_MAX, value + direction * TILT_STEP)));
-  };
-
-  const addMark = (mark: Omit<DefectMark, 'id'>) => {
-    const nextMark = { ...mark, id: Date.now() + Math.random() };
-    setMarks((current) => [...current, nextMark]);
-    console.log('BLADE_DEFECT_MARK', JSON.stringify(nextMark));
-  };
-
+export default function BladeVisual({ progress, running = false }: FocusVisualProps) {
+  const reducedMotion = useReducedMotion();
+  const value = Math.max(0, Math.min(1, progress));
   return (
-    <div className={`flex h-full w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_38%,#273040_0%,#11151a_42%,#070809_100%)] ${compact ? '' : 'gap-3 p-3 sm:gap-4 sm:p-4'}`}>
-      <div className={`relative flex-1 overflow-hidden rounded-2xl ${compact ? '' : 'border border-white/10'}`}>
-        <Canvas shadows="basic" camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
-          <ambientLight intensity={.42} />
-          <spotLight position={[3.5, 5, 3]} angle={.48} penumbra={.75} intensity={3.6} color="#fff0d2" castShadow shadow-mapSize-width={512} shadow-mapSize-height={512} />
-          <spotLight position={[-4, 2, -3]} angle={.6} penumbra={.8} intensity={2.4} color="#6599d3" />
-          <pointLight position={[2, .7, -2.5]} intensity={1.8} distance={7} color="#e9b85d" />
-          <Suspense fallback={<LoadingBlade />}>
-            <BladeModel rotationSpeed={markMode ? 0 : rotationSpeed} tiltX={tiltX} tiltY={tiltY} markMode={markMode} marks={marks} onMark={addMark} />
-          </Suspense>
-          <mesh position={[0, -.62, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <circleGeometry args={[2.15, 96]} />
-            <meshPhysicalMaterial color="#090b0e" metalness={.72} roughness={.3} clearcoat={.65} />
-          </mesh>
-          <mesh position={[0, -.605, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.7, 1.76, 96]} />
-            <meshPhysicalMaterial color="#b88a42" emissive="#593312" emissiveIntensity={.28} metalness={.94} roughness={.2} />
-          </mesh>
-          <FpsSampler onFps={setFps} />
-        </Canvas>
-
-        <div className={`pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/45 font-mono font-bold text-lime-200 backdrop-blur-md ${compact ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-xs'}`}>
-          {fps || '--'} FPS
-        </div>
-        {markMode && <div className="pointer-events-none absolute right-3 top-3 rounded-full border border-red-400/30 bg-red-500/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-200 backdrop-blur-md">Defect pen active</div>}
-      </div>
-
-      {!compact && (
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-xl">
-            <div className="mb-2 flex items-center justify-between text-xs font-bold">
-              <label htmlFor="blade-speed" className="text-stone-300">Spin speed</label>
-              <span className="font-mono text-lime-300">{rotationSpeed.toFixed(2)} rad/s</span>
-            </div>
-            <input
-              id="blade-speed"
-              type="range"
-              min={MIN_SPEED}
-              max={MAX_SPEED}
-              step="0.5"
-              value={rotationSpeed}
-              onChange={(event) => setRotationSpeed(Number(event.target.value))}
-              className="h-2 w-full cursor-pointer accent-lime-300"
-              aria-label="Blade spin speed"
-            />
-            <div className="mt-1 flex justify-between text-[9px] font-semibold uppercase tracking-wider text-stone-500">
-              <span>Slow</span>
-              <span>Fast</span>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-xl">
-            <div className="mb-3 flex items-center justify-between text-xs font-bold">
-              <span className="text-stone-300">Tilt controls</span>
-              <button
-                type="button"
-                onClick={() => { setTiltX(0); setTiltY(0); }}
-                className="rounded-md border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-300 transition hover:bg-white/10 hover:text-white"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col items-center gap-2 rounded-xl bg-black/30 px-3 py-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Top / Down</span>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => adjustTilt('x', -1)} className="h-9 w-9 rounded-lg border border-white/10 bg-white/[.06] font-bold text-stone-100 transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-300" aria-label="Tilt down">−</button>
-                  <span className="min-w-[3.4rem] text-center font-mono text-sm font-bold text-lime-300">{tiltX}°</span>
-                  <button type="button" onClick={() => adjustTilt('x', 1)} className="h-9 w-9 rounded-lg border border-white/10 bg-white/[.06] font-bold text-stone-100 transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-300" aria-label="Tilt up">+</button>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center gap-2 rounded-xl bg-black/30 px-3 py-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">Left / Right</span>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => adjustTilt('y', -1)} className="h-9 w-9 rounded-lg border border-white/10 bg-white/[.06] font-bold text-stone-100 transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-300" aria-label="Rotate left">−</button>
-                  <span className="min-w-[3.4rem] text-center font-mono text-sm font-bold text-lime-300">{tiltY}°</span>
-                  <button type="button" onClick={() => adjustTilt('y', 1)} className="h-9 w-9 rounded-lg border border-white/10 bg-white/[.06] font-bold text-stone-100 transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-300" aria-label="Rotate right">+</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-3 backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-bold text-stone-300">3D defect pen</div>
-                <div className="mt-1 text-[10px] leading-4 text-stone-500">Enable, then click or drag directly over the unwanted part.</div>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setMarkMode((active) => !active)} className={`rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition ${markMode ? 'border-red-400/40 bg-red-500/20 text-red-200' : 'border-white/10 bg-white/[.06] text-stone-300 hover:bg-white/10'}`}>{markMode ? 'Stop pen' : 'Mark defect'}</button>
-                <button type="button" onClick={() => setMarks([])} disabled={marks.length === 0} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-stone-400 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35">Clear</button>
-              </div>
-            </div>
-            <div className="mt-3 rounded-lg bg-black/35 px-3 py-2 font-mono text-[10px] text-stone-400">
-              {marks.length === 0 ? 'No points marked' : `${marks.length} points | Last local XYZ: ${marks[marks.length - 1].local.join(', ')}`}
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="relative aspect-[5/4] w-full overflow-visible">
+      <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
+      <Canvas camera={{ position: [0, 2.35, 4.85], fov: 38 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
+        <ambientLight intensity={.55} />
+        <directionalLight position={[3.8, 5, 3.5]} intensity={3.1} color="#fff1d6" />
+        <directionalLight position={[-4, 1.4, -2.8]} intensity={1.65} color="#79a8da" />
+        <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
+        <Suspense fallback={<LoadingBlade />}>
+          <PremiumArena progress={value} reducedMotion={reducedMotion} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} />
+        </Suspense>
+      </Canvas>
+      <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
     </div>
   );
 }

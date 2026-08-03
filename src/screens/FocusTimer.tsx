@@ -216,7 +216,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''}`}>
 
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
@@ -234,7 +234,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''}`}>
+        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
           <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
             <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">

@@ -222,6 +222,31 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
+.blade-focus-session .focus-grid,
+.blade-focus-session .focus-orbit {
+  opacity: .22;
+}
+
+.blade-focus-session .focus-atmosphere {
+  background:
+    radial-gradient(circle at 31% 55%, rgba(182, 232, 90, .08), transparent 35%),
+    radial-gradient(circle at 73% 42%, rgba(214, 173, 97, .045), transparent 28%);
+}
+
+.blade-focus-layout > div:first-child {
+  flex-basis: 62%;
+  padding-right: clamp(0rem, 1vw, 1rem);
+}
+
+.blade-focus-layout > div:first-child > div {
+  max-width: 48rem;
+}
+
+.blade-focus-layout > div:last-child {
+  flex-basis: 38%;
+  padding-left: clamp(1rem, 2.5vw, 2.5rem);
+}
+
 .jar-tap {
   position: absolute;
   pointer-events: none;
