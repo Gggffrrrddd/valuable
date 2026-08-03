@@ -4,7 +4,7 @@ import { Box3, Group, Mesh, MeshStandardMaterial, SRGBColorSpace, TextureLoader,
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
-const BLADE_TEXTURE_URL = 'https://res.cloudinary.com/dcydj6gao/image/upload/v1785732544/texture_ptl9gy.jpg';
+const BLADE_TEXTURE_URL = '/visuals/blade/texture-vibrant.jpg';
 const DEFAULT_SPEED = 9;
 const MIN_SPEED = .5;
 const MAX_SPEED = 30;
