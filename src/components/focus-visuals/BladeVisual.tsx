@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BufferAttribute, CanvasTexture, DoubleSide, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
@@ -126,35 +126,6 @@ function BladeModel() {
   );
 }
 
-function FpsSampler({ onFps }: { onFps: (fps: number) => void }) {
-  const elapsedRef = useRef(0);
-  const framesRef = useRef(0);
-
-  useFrame((_state, delta) => {
-    elapsedRef.current += delta;
-    framesRef.current += 1;
-    if (elapsedRef.current < .5) return;
-    onFps(Math.round(framesRef.current / elapsedRef.current));
-    elapsedRef.current = 0;
-    framesRef.current = 0;
-  });
-
-  return null;
-}
-
-function LoadingBlade() {
-  const meshRef = useRef<Mesh>(null);
-  useFrame((_state, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta;
-  });
-  return (
-    <mesh ref={meshRef}>
-      <cylinderGeometry args={[.75, 1, .28, 48]} />
-      <meshStandardMaterial color="#52604b" wireframe />
-    </mesh>
-  );
-}
-
 function createArenaTexture(size: number, shadow = false) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -181,6 +152,19 @@ function createArenaTexture(size: number, shadow = false) {
   return texture;
 }
 
+function LoadingBlade() {
+  const meshRef = useRef<Mesh>(null);
+  useFrame((_state, delta) => {
+    if (meshRef.current) meshRef.current.rotation.y += delta;
+  });
+  return (
+    <mesh ref={meshRef}>
+      <cylinderGeometry args={[.75, 1, .28, 48]} />
+      <meshStandardMaterial color="#52604b" wireframe />
+    </mesh>
+  );
+}
+
 function BattleArena() {
   const energyRef = useRef<Group>(null);
   const floorTexture = useMemo(() => createArenaTexture(512), []);
@@ -198,28 +182,28 @@ function BattleArena() {
   return (
     <group position={[0, -.61, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <cylinderGeometry args={[2.25, 2.45, .22, 96, 1, false]} />
-        <meshPhysicalMaterial color="#090d13" metalness={.88} roughness={.24} clearcoat={.85} clearcoatRoughness={.14} />
+        <cylinderGeometry args={[2.85, 3.05, .22, 96, 1, false]} />
+        <meshPhysicalMaterial color="#070b10" metalness={.92} roughness={.2} clearcoat={1} clearcoatRoughness={.1} />
       </mesh>
       <mesh position={[0, .115, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[2.22, 128]} />
+        <circleGeometry args={[2.82, 128]} />
         <meshBasicMaterial map={floorTexture} />
       </mesh>
       <mesh position={[0, .13, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[.88, 64]} />
+        <circleGeometry args={[1.12, 64]} />
         <meshBasicMaterial map={shadowTexture} transparent depthWrite={false} opacity={.82} />
       </mesh>
 
       <mesh position={[0, .15, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.2, .045, 12, 64]} />
-        <meshBasicMaterial color="#c5ff54" transparent opacity={.9} />
+        <torusGeometry args={[2.8, .05, 12, 64]} />
+        <meshBasicMaterial color="#c5ff54" transparent opacity={.92} />
       </mesh>
       <mesh position={[0, .145, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.83, .018, 8, 64]} />
+        <torusGeometry args={[2.32, .022, 8, 64]} />
         <meshBasicMaterial color="#d3aa58" transparent opacity={.9} />
       </mesh>
       <mesh position={[0, .14, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.48, 1.5, 96]} />
+        <ringGeometry args={[1.88, 1.9, 96]} />
         <meshBasicMaterial color="#71873f" transparent opacity={.65} side={DoubleSide} />
       </mesh>
 
@@ -227,7 +211,7 @@ function BattleArena() {
         {Array.from({ length: 12 }, (_, index) => {
           const angle = index * Math.PI / 6;
           return (
-            <mesh key={index} position={[Math.cos(angle) * 1.72, Math.sin(angle) * 1.72, 0]} rotation={[0, 0, angle]}>
+            <mesh key={index} position={[Math.cos(angle) * 2.18, Math.sin(angle) * 2.18, 0]} rotation={[0, 0, angle]}>
               <planeGeometry args={[.32, .025]} />
               <meshBasicMaterial color={index % 2 ? '#c5ff54' : '#ddb563'} transparent opacity={.82} blending={AdditiveBlending} depthWrite={false} />
             </mesh>
@@ -238,7 +222,7 @@ function BattleArena() {
       {Array.from({ length: 8 }, (_, index) => {
         const angle = index * Math.PI / 4;
         return (
-          <group key={index} position={[Math.cos(angle) * 2.38, .02, Math.sin(angle) * 2.38]} rotation={[0, -angle, 0]}>
+          <group key={index} position={[Math.cos(angle) * 3.02, .02, Math.sin(angle) * 3.02]} rotation={[0, -angle, 0]}>
             <mesh>
               <boxGeometry args={[.18, .28, .48]} />
               <meshPhysicalMaterial color="#121922" metalness={.88} roughness={.2} clearcoat={.75} />
@@ -254,26 +238,19 @@ function BattleArena() {
   );
 }
 
-export default function BladeVisual({ compact = false }: { compact?: boolean }) {
-  const [fps, setFps] = useState(0);
-
+export default function BladeVisual() {
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_50%_34%,#2c3748_0%,#10151c_40%,#050607_100%)] ${compact ? '' : 'rounded-2xl border border-white/10'}`}>
-      <Canvas shadows="basic" camera={{ position: [0, 2.2, 4.2], fov: 38 }} dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
+    <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_50%_34%,#2c3748_0%,#10151c_40%,#050607_100%)]">
+      <Canvas shadows="basic" camera={{ position: [0, 2.4, 5.4], fov: 36 }} dpr={[1, 1.5]} gl={{ antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.1 }}>
         <ambientLight intensity={.42} />
         <spotLight position={[3.5, 5, 3]} angle={.48} penumbra={.75} intensity={3.6} color="#fff0d2" castShadow shadow-mapSize-width={512} shadow-mapSize-height={512} />
         <spotLight position={[-4, 2, -3]} angle={.6} penumbra={.8} intensity={2.4} color="#6599d3" />
         <pointLight position={[2, .7, -2.5]} intensity={1.8} distance={7} color="#e9b85d" />
         <Suspense fallback={<LoadingBlade />}>
+          <BattleArena />
           <BladeModel />
         </Suspense>
-        <BattleArena />
-        <FpsSampler onFps={setFps} />
       </Canvas>
-
-      <div className={`pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-black/45 font-mono font-bold text-lime-200 backdrop-blur-md ${compact ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-xs'}`}>
-        {fps || '--'} FPS
-      </div>
     </div>
   );
 }
