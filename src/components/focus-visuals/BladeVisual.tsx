@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, BufferAttribute, CanvasTexture, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { AdditiveBlending, Box3, BufferAttribute, CanvasTexture, Group, Mesh, MeshPhysicalMaterial, PointLight, SpriteMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { FocusVisualProps } from './types';
 
@@ -27,10 +27,12 @@ function useReducedMotion() {
   return reduced;
 }
 
-function BladeModel({ progress, running, reducedMotion, reflection = false }: { progress: number; running: boolean; reducedMotion: boolean; reflection?: boolean }) {
+function BladeModel({ progress, finaleActive, complete, running, reducedMotion, reflection = false }: { progress: number; finaleActive: boolean; complete: boolean; running: boolean; reducedMotion: boolean; reflection?: boolean }) {
   const poseRef = useRef<Group>(null);
   const spinGroupRef = useRef<Group>(null);
   const spinAngleRef = useRef(0);
+  const orbitAngleRef = useRef(0);
+  const finaleClockRef = useRef(0);
   const elapsedRef = useRef(0);
   const scaleStateRef = useRef({ baseScale: 0 });
   const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
@@ -96,17 +98,31 @@ function BladeModel({ progress, running, reducedMotion, reflection = false }: { 
   useFrame((_state, delta) => {
     if (!poseRef.current || !spinGroupRef.current) return;
     elapsedRef.current += delta;
-    const topple = reducedMotion ? 0 : smoothstep(.94, 1, progress);
-    const wobble = reducedMotion ? 0 : smoothstep(.62, .96, progress) * (1 - topple);
+    if (complete) finaleClockRef.current = 1;
+    else if (!finaleActive) finaleClockRef.current = 0;
+    else if (running && !reducedMotion) finaleClockRef.current = Math.min(1, finaleClockRef.current + delta / 5);
+    const finaleMix = reducedMotion ? 0 : finaleClockRef.current;
+    const topple = reducedMotion ? 0 : smoothstep(.94, 1, progress) * (1 - finaleMix);
+    const wobble = reducedMotion ? 0 : smoothstep(.62, .96, progress) * (1 - topple) * (1 - finaleMix);
     const speed = reducedMotion ? 1.15 : .08 + 29.92 * Math.pow(1 - progress, 2.35);
-    if (running || reducedMotion) spinAngleRef.current += delta * speed;
+    const finaleSpin = 18 * (1 - smoothstep(.34, .82, finaleMix));
+    const spinBrake = 1 - smoothstep(.58, .88, finaleMix);
+    const effectiveSpeed = finaleMix > 0 ? Math.max(speed, finaleSpin) * spinBrake : speed;
+    if (running || reducedMotion) spinAngleRef.current += delta * effectiveSpeed;
+    if (running && finaleMix > 0 && finaleMix < .92) orbitAngleRef.current += delta * 16;
     const wobblePhase = elapsedRef.current * (2.4 + speed * .26);
+    const orbitRamp = smoothstep(0, .16, finaleMix);
+    const orbitCollapse = smoothstep(.62, .9, finaleMix);
+    const orbitRadius = .78 * orbitRamp * (1 - orbitCollapse);
+    const rise = smoothstep(.28, .84, finaleMix);
+    const orbitX = Math.cos(orbitAngleRef.current) * orbitRadius;
+    const orbitZ = Math.sin(orbitAngleRef.current) * orbitRadius;
     spinGroupRef.current.rotation.y = spinAngleRef.current;
     poseRef.current.rotation.x = reflection ? 0 : -9 * Math.PI / 180 + topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
     poseRef.current.rotation.z = reflection ? 0 : topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
-    poseRef.current.position.y = reflection ? -.445 : -topple * .34;
-    poseRef.current.position.x = topple * .24;
-    poseRef.current.position.z = 0;
+    poseRef.current.position.y = reflection ? -.445 : rise * 1.05 - topple * .34;
+    poseRef.current.position.x = orbitX + topple * .24;
+    poseRef.current.position.z = orbitZ;
   });
 
   return (
@@ -122,6 +138,54 @@ function BladeModel({ progress, running, reducedMotion, reflection = false }: { 
 
 function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
+}
+
+function createGlowTexture(rgb: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (!context) return new CanvasTexture(canvas);
+  const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gradient.addColorStop(0, `rgba(${rgb},1)`);
+  gradient.addColorStop(.18, `rgba(${rgb},.62)`);
+  gradient.addColorStop(.52, `rgba(${rgb},.16)`);
+  gradient.addColorStop(1, `rgba(${rgb},0)`);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  return new CanvasTexture(canvas);
+}
+
+function CompletionAura({ finaleActive, complete, running }: { finaleActive: boolean; complete: boolean; running: boolean }) {
+  const groupRef = useRef<Group>(null);
+  const warmMaterialRef = useRef<SpriteMaterial>(null);
+  const limeMaterialRef = useRef<SpriteMaterial>(null);
+  const lightRef = useRef<PointLight>(null);
+  const progressRef = useRef(0);
+  const warmTexture = useMemo(() => createGlowTexture('255,220,162'), []);
+  const limeTexture = useMemo(() => createGlowTexture('182,232,90'), []);
+  useEffect(() => () => { warmTexture.dispose(); limeTexture.dispose(); }, [limeTexture, warmTexture]);
+  useFrame((_state, delta) => {
+    if (complete) progressRef.current = 1;
+    else if (!finaleActive) progressRef.current = 0;
+    else if (running) progressRef.current = Math.min(1, progressRef.current + delta / 5);
+    const value = progressRef.current;
+    const glow = smoothstep(.68, 1, value);
+    if (groupRef.current) {
+      groupRef.current.position.y = smoothstep(.28, .84, value) * 1.05;
+      groupRef.current.scale.setScalar(.72 + glow * .42);
+    }
+    if (warmMaterialRef.current) warmMaterialRef.current.opacity = glow * .56;
+    if (limeMaterialRef.current) limeMaterialRef.current.opacity = glow * .22;
+    if (lightRef.current) lightRef.current.intensity = glow * 2.1;
+  });
+  return (
+    <group ref={groupRef}>
+      <sprite scale={[3.1, 3.1, 1]}><spriteMaterial ref={warmMaterialRef} map={warmTexture} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} /></sprite>
+      <sprite scale={[2.1, 2.1, 1]}><spriteMaterial ref={limeMaterialRef} map={limeTexture} transparent opacity={0} blending={AdditiveBlending} depthWrite={false} /></sprite>
+      <pointLight ref={lightRef} intensity={0} distance={4} decay={2} color="#f5d39d" />
+    </group>
+  );
 }
 
 function createPedestalTexture() {
@@ -165,9 +229,12 @@ function GalleryPedestal() {
   );
 }
 
-export default function BladeVisual({ progress, running = false }: FocusVisualProps) {
+export default function BladeVisual({ progress, running = false, duration = 0 }: FocusVisualProps & { duration?: number }) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
+  const finaleStart = duration > 0 ? Math.max(0, 1 - 5 / duration) : .98;
+  const finaleActive = value >= finaleStart;
+  const complete = value >= 1;
   return (
     <div className="relative h-full w-full overflow-visible">
       <div className="blade-gallery-beam" aria-hidden="true" />
@@ -180,8 +247,9 @@ export default function BladeVisual({ progress, running = false }: FocusVisualPr
         <pointLight position={[-2.2, 1.5, 1]} intensity={.42} distance={5} decay={2} color="#d5d9d4" />
         <GalleryPedestal />
         <Suspense fallback={<LoadingBlade />}>
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} reflection />
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} />
+          <BladeModel progress={value} finaleActive={finaleActive} complete={complete} running={running} reducedMotion={reducedMotion} reflection />
+          <BladeModel progress={value} finaleActive={finaleActive} complete={complete} running={running} reducedMotion={reducedMotion} />
+          <CompletionAura finaleActive={finaleActive} complete={complete} running={running} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />

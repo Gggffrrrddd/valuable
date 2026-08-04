@@ -11,6 +11,6 @@ export default function FocusVisual({ theme, progress, duration, running }: Focu
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} />;
   if (theme === 'book') return <BookVisual progress={progress} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
-  if (theme === 'blade') return <Suspense fallback={<div className="h-full w-full animate-pulse rounded-full bg-white/[.03]" />}><BladeVisual progress={progress} running={running} /></Suspense>;
+  if (theme === 'blade') return <Suspense fallback={<div className="h-full w-full animate-pulse rounded-full bg-white/[.03]" />}><BladeVisual progress={progress} running={running} duration={duration} /></Suspense>;
   return <HourglassVisual progress={progress} duration={duration ?? 0} running={running ?? false} />;
 }
