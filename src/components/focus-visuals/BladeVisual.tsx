@@ -2,7 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { AdditiveBlending, Box3, BufferAttribute, CanvasTexture, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import type { BladeCalibration, FocusVisualProps } from './types';
+import type { FocusVisualProps } from './types';
 
 const BLADE_OBJ_URL = 'https://res.cloudinary.com/dcydj6gao/raw/upload/v1785732533/beyblade_poes3s.obj';
 const BLADE_TEXTURE_URL = '/visuals/blade/texture-vibrant.jpg';
@@ -27,11 +27,13 @@ function useReducedMotion() {
   return reduced;
 }
 
-function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationTilt = 0 }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationTilt?: number }) {
+function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationTilt = 0, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationTilt?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
   const modelRef = useRef<Group>(null);
   const spinRef = useRef(0);
   const elapsedRef = useRef(0);
   const scaleStateRef = useRef({ baseScale: 0, baseLargestDimension: 0 });
+  const onCalibrationRef = useRef(onCalibration);
+  onCalibrationRef.current = onCalibration;
   const sourceModel = useLoader(OBJLoader, BLADE_OBJ_URL);
   const sourceTexture = useLoader(TextureLoader, BLADE_TEXTURE_URL);
   const model = useMemo(() => {
@@ -84,9 +86,10 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
   useEffect(() => {
     const bounds = new Box3().setFromObject(model);
     const center = bounds.getCenter(new Vector3());
-    const { baseScale } = scaleStateRef.current;
+    const { baseScale, baseLargestDimension } = scaleStateRef.current;
     model.position.sub(center);
     model.scale.setScalar(baseScale);
+    onCalibrationRef.current?.({ scaleMultiplier, baseScale, effectiveScale: baseScale * scaleMultiplier, baseLargestDimension, effectiveLargestDimension: baseLargestDimension * scaleMultiplier });
   }, [model, scaleMultiplier]);
 
   useFrame((_state, delta) => {
@@ -166,6 +169,7 @@ function PremiumArena({ progress, reducedMotion }: { progress: number; reducedMo
 
   return (
     <group position={[0, -.59, 0]}>
+      <mesh position={[0, -.08, 0]}><cylinderGeometry args={[2.08, 2.14, .12, 128]} /><meshPhysicalMaterial color="#080b0e" metalness={.88} roughness={.2} clearcoat={.75} /></mesh>
       <mesh position={[0, -.005, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[2.01, 96]} /><meshBasicMaterial color="#0a0f13" /></mesh>
       <mesh position={[0, .01, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.95, 96]} /><meshBasicMaterial map={floorTexture} /></mesh>
       <mesh position={[0, .11, 0]}><cylinderGeometry args={[2.08, 1.88, .22, 128, 1, true]} /><meshPhysicalMaterial color="#151d22" metalness={.92} roughness={.22} clearcoat={.9} side={DoubleSide} /></mesh>
@@ -190,15 +194,9 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-export default function BladeVisual({ progress, running = false, bladeCalibration, calibrate = false }: FocusVisualProps & { calibrate?: boolean }) {
-  const [localCalibration, setLocalCalibration] = useState<BladeCalibration>({ scale: 1, x: 0, y: 0, tilt: 0 });
-  const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
-  const calibration = bladeCalibration ?? localCalibration;
+export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, tilt: 0 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
-  useEffect(() => {
-    if (calibrate) console.log('BLADE_TRANSFORM_CALIBRATION', JSON.stringify(calibration));
-  }, [calibrate, calibration]);
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
       <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
@@ -209,22 +207,10 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
         <PremiumArena progress={value} reducedMotion={reducedMotion} />
         <Suspense fallback={<LoadingBlade />}>
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={calibration.scale} calibrationX={calibration.x} calibrationY={calibration.y} calibrationTilt={calibration.tilt} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
-      {calibrate && (
-        <div className="absolute inset-0 z-20 cursor-grab touch-none active:cursor-grabbing" onPointerDown={(event) => { dragRef.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, x: localCalibration.x, y: localCalibration.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const drag = dragRef.current; if (!drag || drag.pointerId !== event.pointerId) return; setLocalCalibration((current) => ({ ...current, x: Math.max(-1.5, Math.min(1.5, drag.x + (event.clientX - drag.clientX) / 180)), y: Math.max(-1, Math.min(1, drag.y - (event.clientY - drag.clientY) / 180)) })); }} onPointerUp={(event) => { dragRef.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { dragRef.current = null; }} aria-label="Drag blade position" />
-      )}
-      {calibrate && (
-        <div className="absolute right-4 top-4 z-30 w-[min(18rem,calc(100%-2rem))] rounded-2xl border border-white/15 bg-[#080b0b]/90 px-4 py-3 text-stone-100 shadow-[0_18px_60px_rgba(0,0,0,.5)] backdrop-blur-xl sm:right-6 sm:top-6">
-          <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em] text-stone-400"><span>Blade calibration</span><button type="button" onClick={() => setLocalCalibration({ scale: 1, x: 0, y: 0, tilt: 0 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button></div>
-          <label className="mb-3 block text-[11px] font-semibold text-stone-300">Zoom <input type="range" min={.4} max={2} step={.05} value={localCalibration.scale} onChange={(event) => setLocalCalibration((current) => ({ ...current, scale: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-          <label className="mb-3 block text-[11px] font-semibold text-stone-300">Up / down <input type="range" min={-1} max={1} step={.05} value={localCalibration.y} onChange={(event) => setLocalCalibration((current) => ({ ...current, y: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-          <label className="block text-[11px] font-semibold text-stone-300">Tilt <input type="range" min={-35} max={35} step={1} value={localCalibration.tilt} onChange={(event) => setLocalCalibration((current) => ({ ...current, tilt: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-          <div className="mt-3 text-[10px] text-stone-500">Drag anywhere for X/Y. Console: <code className="font-mono text-lime-300">BLADE_TRANSFORM_CALIBRATION</code></div>
-        </div>
-      )}
     </div>
   );
 }
