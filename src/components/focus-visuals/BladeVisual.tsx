@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { AdditiveBlending, Box3, BufferAttribute, CanvasTexture, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, BufferAttribute, DoubleSide, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { FocusVisualProps } from './types';
 
@@ -127,66 +127,11 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
   );
 }
 
-function createArenaTexture(size: number, shadow = false) {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d');
-  if (!context) return new CanvasTexture(canvas);
-  const center = size / 2;
-  const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-  if (shadow) {
-    gradient.addColorStop(0, 'rgba(0,0,0,.82)');
-    gradient.addColorStop(.42, 'rgba(0,0,0,.46)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-  } else {
-    gradient.addColorStop(0, '#151b20');
-    gradient.addColorStop(.34, '#0c1115');
-    gradient.addColorStop(.72, '#070a0d');
-    gradient.addColorStop(.91, '#151d18');
-    gradient.addColorStop(1, '#4f6828');
-  }
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, size, size);
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
-}
-
-function PremiumArena({ progress, reducedMotion }: { progress: number; reducedMotion: boolean }) {
-  const energyRef = useRef<Group>(null);
-  const glowMaterialRef = useRef<MeshBasicMaterial>(null);
-  const floorTexture = useMemo(() => createArenaTexture(512), []);
-  const shadowTexture = useMemo(() => createArenaTexture(256, true), []);
-  useEffect(() => () => { floorTexture.dispose(); shadowTexture.dispose(); }, [floorTexture, shadowTexture]);
-
-  useFrame((_state, delta) => {
-    if (energyRef.current && !reducedMotion) energyRef.current.rotation.z -= delta * (.12 + (1 - progress) * .28);
-    if (glowMaterialRef.current) {
-      glowMaterialRef.current.opacity = .28 + smoothstep(.93, 1, progress) * .58;
-      glowMaterialRef.current.color.lerpColors(new Color('#b6e85a'), new Color('#fff1b8'), smoothstep(.94, 1, progress));
-    }
-  });
-
+function PremiumArena() {
   return (
     <group position={[0, -.59, 0]}>
-      <mesh position={[0, -.08, 0]}><cylinderGeometry args={[2.08, 2.14, .12, 128]} /><meshPhysicalMaterial color="#080b0e" metalness={.88} roughness={.2} clearcoat={.75} /></mesh>
-      <mesh position={[0, -.005, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[2.01, 96]} /><meshBasicMaterial color="#0a0f13" /></mesh>
-      <mesh position={[0, .01, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.95, 96]} /><meshBasicMaterial map={floorTexture} /></mesh>
       <mesh position={[0, .11, 0]}><cylinderGeometry args={[2.08, 1.88, .22, 128, 1, true]} /><meshPhysicalMaterial color="#151d22" metalness={.92} roughness={.22} clearcoat={.9} side={DoubleSide} /></mesh>
-      <mesh position={[0, .025, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.72, 64]} /><meshBasicMaterial map={shadowTexture} transparent depthWrite={false} /></mesh>
       <mesh position={[0, .225, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.08, .025, 10, 128]} /><meshPhysicalMaterial color="#36434c" metalness={.98} roughness={.14} clearcoat={1} /></mesh>
-      <mesh position={[0, .045, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.88, .028, 10, 96]} /><meshBasicMaterial ref={glowMaterialRef} color="#b6e85a" transparent opacity={.32} blending={AdditiveBlending} depthWrite={false} /></mesh>
-      <mesh position={[0, .04, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.72, .012, 8, 128]} /><meshBasicMaterial color="#d7ad61" transparent opacity={.42} /></mesh>
-      <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.43, 1.45, 96]} /><meshBasicMaterial color="#c69b52" transparent opacity={.48} side={DoubleSide} /></mesh>
-      <mesh position={[0, .028, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.05, 1.06, 96]} /><meshBasicMaterial color="#8ba857" transparent opacity={.28} side={DoubleSide} /></mesh>
-      <mesh position={[0, .036, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[.76, .77, 96]} /><meshBasicMaterial color="#e2b96e" transparent opacity={.25} side={DoubleSide} /></mesh>
-      <group ref={energyRef} position={[0, .04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        {Array.from({ length: 16 }, (_, index) => {
-          const angle = index * Math.PI / 8;
-          return <mesh key={index} position={[Math.cos(angle) * 1.65, Math.sin(angle) * 1.65, 0]} rotation={[0, 0, angle]}><planeGeometry args={[.16, .01]} /><meshBasicMaterial color={index % 2 ? '#b6e85a' : '#d6ad61'} transparent opacity={.58} blending={AdditiveBlending} depthWrite={false} /></mesh>;
-        })}
-      </group>
     </group>
   );
 }
@@ -206,7 +151,7 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
         <directionalLight position={[3.8, 5, 3.5]} intensity={3.1} color="#fff1d6" />
         <directionalLight position={[-4, 1.4, -2.8]} intensity={1.65} color="#79a8da" />
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
-        <PremiumArena progress={value} reducedMotion={reducedMotion} />
+        <PremiumArena />
         <Suspense fallback={<LoadingBlade />}>
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
