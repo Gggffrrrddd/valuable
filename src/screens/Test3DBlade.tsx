@@ -12,7 +12,7 @@ export default function Test3DBlade() {
       </header>
       <section className="relative min-h-[70vh] flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_30px_100px_rgba(0,0,0,.45)]">
         <div className="absolute inset-0">
-          <BladeVisual progress={.4} running={true} />
+          <BladeVisual progress={.4} running={true} calibrate />
         </div>
       </section>
     </main>
