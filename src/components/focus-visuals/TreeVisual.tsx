@@ -5,6 +5,7 @@ import type { FocusVisualProps } from './types';
 interface TreeVisualProps extends FocusVisualProps {
   duration: number;
   running?: boolean;
+  leafAsset?: string;
 }
 
 interface PlacedLeaf {
@@ -79,7 +80,8 @@ function useReducedMotion() {
   return r;
 }
 
-export default function TreeVisual({ progress, duration }: TreeVisualProps) {
+export default function TreeVisual({ progress, duration, leafAsset }: TreeVisualProps) {
+  const assetUrl = leafAsset ?? LEAF_URL;
   const activeSession = duration > 0;
   const complete = progress >= 1;
   const reducedMotion = useReducedMotion();
@@ -182,7 +184,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
           style={ls.style}
           aria-hidden="true"
         >
-          <img src={LEAF_URL} alt="" draggable={false} />
+          <img src={assetUrl} alt="" draggable={false} />
         </span>
       ))}
     </div>
