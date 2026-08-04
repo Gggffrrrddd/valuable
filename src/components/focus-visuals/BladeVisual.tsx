@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, BufferAttribute, CanvasTexture, DoubleSide, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, BufferAttribute, CanvasTexture, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { FocusVisualProps } from './types';
 
@@ -27,7 +27,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationZ = 0, calibrationTilt = 0, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationZ?: number; calibrationTilt?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
+function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationZ = 0, calibrationTilt = 0, reflection = false, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationZ?: number; calibrationTilt?: number; reflection?: boolean; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
   const modelRef = useRef<Group>(null);
   const spinRef = useRef(0);
   const elapsedRef = useRef(0);
@@ -45,15 +45,18 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
     texture.needsUpdate = true;
     const material = new MeshPhysicalMaterial({
       map: texture,
-      emissive: '#ffffff',
+      emissive: reflection ? '#9d8e7a' : '#ffffff',
       emissiveMap: texture,
-      emissiveIntensity: .05,
-      roughness: .24,
-      metalness: .26,
+      emissiveIntensity: reflection ? .04 : .065,
+      roughness: reflection ? .5 : .21,
+      metalness: reflection ? .06 : .31,
       clearcoat: .78,
       clearcoatRoughness: .17,
       sheen: .22,
       sheenColor: '#d8c0a0',
+      transparent: reflection,
+      opacity: reflection ? .13 : 1,
+      depthWrite: !reflection,
     });
 
       clone.traverse((child) => {
@@ -81,7 +84,7 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
       const baseLargestDimension = Math.max(rawSize.x, rawSize.y, rawSize.z) || 1;
       scaleStateRef.current = { baseScale: 3.25 / baseLargestDimension, baseLargestDimension };
       return clone;
-    }, [sourceModel, sourceTexture]);
+    }, [reflection, sourceModel, sourceTexture]);
 
   useEffect(() => {
     const bounds = new Box3().setFromObject(model);
@@ -101,17 +104,18 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
     if (running || reducedMotion) spinRef.current += delta * speed;
     const wobblePhase = elapsedRef.current * (2.4 + speed * .26);
     modelRef.current.rotation.y = spinRef.current;
-    modelRef.current.rotation.x = calibrationTilt * Math.PI / 180 + topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
-    modelRef.current.rotation.z = topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
-    modelRef.current.position.y = calibrationY - topple * .34;
+    modelRef.current.rotation.x = reflection ? 0 : calibrationTilt * Math.PI / 180 + topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
+    modelRef.current.rotation.z = reflection ? 0 : topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
+    modelRef.current.position.y = reflection ? -1.475 : calibrationY - topple * .34;
     modelRef.current.position.x = calibrationX + topple * .24;
     modelRef.current.position.z = calibrationZ;
   });
 
   return (
     <group ref={modelRef}>
-      <group scale={scaleMultiplier}>
+      <group scale={reflection ? [scaleMultiplier, scaleMultiplier * .055, scaleMultiplier] : scaleMultiplier}>
         <primitive object={model} />
+        {!reflection && <>
         <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.48, .055, 12, 96]} /><meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.16} clearcoat={1} /></mesh>
         <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.31, .024, 10, 96]} /><meshPhysicalMaterial color="#c79b50" emissive="#6b3b12" emissiveIntensity={.28} metalness={.92} roughness={.2} /></mesh>
         <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.54, .038, 12, 64]} /><meshPhysicalMaterial color="#12171d" metalness={.94} roughness={.14} clearcoat={1} /></mesh>
@@ -122,6 +126,7 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
           const angle = index * Math.PI / 4;
           return <mesh key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}><boxGeometry args={[.23, .11, .085]} /><meshPhysicalMaterial color={index % 2 ? '#cbd1d6' : '#bd914a'} metalness={.95} roughness={.16} clearcoat={.9} /></mesh>;
         })}
+        </>}
       </group>
     </group>
   );
@@ -131,64 +136,62 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-function createReflectionTexture() {
+function createPedestalTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const context = canvas.getContext('2d');
   if (!context) return new CanvasTexture(canvas);
-  const gradient = context.createRadialGradient(256, 256, 18, 256, 256, 220);
-  gradient.addColorStop(0, 'rgba(220,190,145,.34)');
-  gradient.addColorStop(.22, 'rgba(178,188,185,.18)');
-  gradient.addColorStop(.5, 'rgba(76,82,78,.08)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  const gradient = context.createRadialGradient(220, 205, 20, 256, 256, 250);
+  gradient.addColorStop(0, 'rgba(69,61,52,.98)');
+  gradient.addColorStop(.36, 'rgba(43,38,33,.96)');
+  gradient.addColorStop(.68, 'rgba(24,21,19,.78)');
+  gradient.addColorStop(.86, 'rgba(13,12,11,.3)');
+  gradient.addColorStop(1, 'rgba(8,8,7,0)');
   context.fillStyle = gradient;
-  context.save();
-  context.translate(256, 256);
-  context.scale(1, .32);
-  context.translate(-256, -256);
   context.fillRect(0, 0, 512, 512);
-  context.restore();
+  context.strokeStyle = 'rgba(196,169,130,.16)';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(256, 256, 208, 0, Math.PI * 2);
+  context.stroke();
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
 }
 
 function GalleryPedestal() {
-  const reflectionTexture = useMemo(() => createReflectionTexture(), []);
-  useEffect(() => () => reflectionTexture.dispose(), [reflectionTexture]);
+  const pedestalTexture = useMemo(() => createPedestalTexture(), []);
+  useEffect(() => () => pedestalTexture.dispose(), [pedestalTexture]);
   return (
     <group>
-      <mesh position={[0, -.65, 0]}><cylinderGeometry args={[1.94, 1.98, .12, 128]} /><meshPhysicalMaterial color="#15120f" roughness={.19} metalness={.48} clearcoat={.86} clearcoatRoughness={.2} /></mesh>
-      <mesh position={[0, -.584, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.91, 128]} /><meshPhysicalMaterial color="#201b17" roughness={.12} metalness={.62} clearcoat={1} clearcoatRoughness={.13} /></mesh>
-      <mesh position={[0, -.575, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.69, .008, 8, 160]} /><meshPhysicalMaterial color="#4a4035" roughness={.28} metalness={.72} /></mesh>
-      <mesh position={[0, -.568, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.25, 96]} /><meshBasicMaterial map={reflectionTexture} transparent opacity={.34} depthWrite={false} /></mesh>
+      <mesh position={[0, -1.535, -.8]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.05, 1.05, 1]}>
+        <planeGeometry args={[4.7, 4.7]} />
+        <meshBasicMaterial map={pedestalTexture} transparent opacity={.3} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, -1.5, -.8]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[4.7, 4.7]} />
+        <meshPhysicalMaterial map={pedestalTexture} transparent roughness={.17} metalness={.44} clearcoat={1} clearcoatRoughness={.16} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
 
-function GalleryBeam() {
-  return (
-    <mesh position={[.35, 1.48, .15]} rotation={[0, 0, -.08]}>
-      <cylinderGeometry args={[.18, 1.42, 4.1, 64, 1, true]} />
-      <meshBasicMaterial color="#f2d9ae" transparent opacity={.026} depthWrite={false} side={DoubleSide} />
-    </mesh>
-  );
-}
-
-export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, z: 0, tilt: 0 } }: FocusVisualProps) {
+export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: .45, x: 0, y: -.75, z: -.8, tilt: -9 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
-      <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
+      <div className="blade-gallery-beam" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-[-30%] bg-[radial-gradient(ellipse_at_43%_8%,rgba(255,228,184,.17)_0%,rgba(214,180,128,.07)_26%,transparent_67%)] blur-[60px]" />
       <Canvas camera={{ position: [0, 2.6, 6.2], fov: 36 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }} style={{ position: 'absolute', inset: 0 }}>
-        <ambientLight intensity={.34} color="#d7d1c7" />
-        <spotLight position={[2.4, 4.8, 3.1]} intensity={5.2} color="#ffe4b7" angle={.42} penumbra={.9} distance={10} decay={1.7} />
-        <pointLight position={[-2.4, -.15, -2.5]} intensity={.42} distance={5.5} decay={2} color="#b6e85a" />
-        <GalleryBeam />
+        <ambientLight intensity={.42} color="#d8d2c8" />
+        <spotLight position={[1.25, 4.7, 3.8]} intensity={7.4} color="#ffe1ae" angle={.5} penumbra={1} distance={11} decay={1.65} />
+        <pointLight position={[-1.6, -.35, -2.8]} intensity={1.05} distance={5.2} decay={2} color="#b6e85a" />
+        <pointLight position={[2.8, .8, 1]} intensity={.65} distance={6} decay={2} color="#f0c98e" />
         <GalleryPedestal />
         <Suspense fallback={<LoadingBlade />}>
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} reflection />
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
       </Canvas>

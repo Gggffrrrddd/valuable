@@ -234,6 +234,20 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
     linear-gradient(112deg, #090a09 0%, #0d0c0a 43%, #080909 100%);
 }
 
+.blade-gallery-beam {
+  position: absolute;
+  inset: -42% -32% -28%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .72;
+  filter: blur(58px);
+  background:
+    conic-gradient(from 163deg at 45% -9%, transparent 0deg, rgba(255, 229, 187, .12) 13deg, rgba(255, 218, 162, .2) 21deg, rgba(255, 229, 187, .08) 30deg, transparent 43deg),
+    radial-gradient(ellipse at 45% 12%, rgba(255, 232, 196, .13), transparent 58%);
+  mask-image: radial-gradient(ellipse at 45% 34%, black 0%, rgba(0,0,0,.72) 38%, transparent 74%);
+  -webkit-mask-image: radial-gradient(ellipse at 45% 34%, black 0%, rgba(0,0,0,.72) 38%, transparent 74%);
+}
+
 .blade-focus-layout > div:first-child {
   flex-basis: 62%;
   padding-right: clamp(0rem, 1vw, 1rem);
