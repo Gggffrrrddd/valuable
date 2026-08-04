@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, BufferAttribute, DoubleSide, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, BufferAttribute, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { FocusVisualProps } from './types';
 
@@ -127,15 +127,6 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
   );
 }
 
-function PremiumArena() {
-  return (
-    <group position={[0, -.59, 0]}>
-      <mesh position={[0, .11, 0]}><cylinderGeometry args={[2.08, 1.88, .22, 128, 1, true]} /><meshPhysicalMaterial color="#151d22" metalness={.92} roughness={.22} clearcoat={.9} side={DoubleSide} /></mesh>
-      <mesh position={[0, .225, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.08, .025, 10, 128]} /><meshPhysicalMaterial color="#36434c" metalness={.98} roughness={.14} clearcoat={1} /></mesh>
-    </group>
-  );
-}
-
 function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
@@ -151,7 +142,6 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
         <directionalLight position={[3.8, 5, 3.5]} intensity={3.1} color="#fff1d6" />
         <directionalLight position={[-4, 1.4, -2.8]} intensity={1.65} color="#79a8da" />
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
-        <PremiumArena />
         <Suspense fallback={<LoadingBlade />}>
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
