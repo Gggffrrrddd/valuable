@@ -20,7 +20,9 @@ export default function Test3DBlade() {
         <a href="/" className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-stone-300 transition hover:bg-white/5 hover:text-white">Back to app</a>
       </header>
       <section className="relative min-h-[70vh] flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 bg-black shadow-[0_30px_100px_rgba(0,0,0,.45)]">
-        <BladeVisual progress={.4} running={true} scaleMultiplier={scale} onCalibration={handleCalibration} />
+        <div className="absolute inset-0">
+          <BladeVisual progress={.4} running={true} scaleMultiplier={scale} onCalibration={handleCalibration} />
+        </div>
         <div className="pointer-events-auto absolute inset-x-0 bottom-4 mx-auto w-[min(22rem,calc(100%-2rem))] rounded-2xl border border-white/15 bg-black/65 px-4 py-3 backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between text-[11px] font-bold">
             <span className="text-stone-300">Model size</span>

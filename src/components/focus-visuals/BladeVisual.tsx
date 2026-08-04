@@ -167,11 +167,16 @@ function PremiumArena({ progress, reducedMotion }: { progress: number; reducedMo
 
   return (
     <group position={[0, -.59, 0]}>
+      <mesh position={[0, -.09, 0]}><cylinderGeometry args={[2.02, 2.12, .16, 96]} /><meshPhysicalMaterial color="#080b0e" metalness={.88} roughness={.2} clearcoat={.75} /></mesh>
+      <mesh position={[0, -.005, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[2.01, 96]} /><meshBasicMaterial color="#0a0f13" /></mesh>
       <mesh position={[0, .01, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.95, 96]} /><meshBasicMaterial map={floorTexture} /></mesh>
       <mesh position={[0, .025, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.72, 64]} /><meshBasicMaterial map={shadowTexture} transparent depthWrite={false} /></mesh>
-      <mesh position={[0, .035, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.88, .028, 10, 96]} /><meshBasicMaterial ref={glowMaterialRef} color="#b6e85a" transparent opacity={.32} blending={AdditiveBlending} depthWrite={false} /></mesh>
+      <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.03, .055, 12, 128]} /><meshPhysicalMaterial color="#263039" metalness={.98} roughness={.16} clearcoat={1} /></mesh>
+      <mesh position={[0, .045, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.88, .028, 10, 96]} /><meshBasicMaterial ref={glowMaterialRef} color="#b6e85a" transparent opacity={.32} blending={AdditiveBlending} depthWrite={false} /></mesh>
+      <mesh position={[0, .04, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.72, .012, 8, 128]} /><meshBasicMaterial color="#d7ad61" transparent opacity={.42} /></mesh>
       <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.43, 1.45, 96]} /><meshBasicMaterial color="#c69b52" transparent opacity={.48} side={DoubleSide} /></mesh>
       <mesh position={[0, .028, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.05, 1.06, 96]} /><meshBasicMaterial color="#8ba857" transparent opacity={.28} side={DoubleSide} /></mesh>
+      <mesh position={[0, .036, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[.76, .77, 96]} /><meshBasicMaterial color="#e2b96e" transparent opacity={.25} side={DoubleSide} /></mesh>
       <group ref={energyRef} position={[0, .04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         {Array.from({ length: 16 }, (_, index) => {
           const angle = index * Math.PI / 8;
@@ -192,13 +197,13 @@ export default function BladeVisual({ progress, running = false, scaleMultiplier
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
       <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
-      <Canvas camera={{ position: [0, 2.6, 6.2], fov: 36 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }}>
+      <Canvas camera={{ position: [0, 2.6, 6.2], fov: 36 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }} style={{ position: 'absolute', inset: 0 }}>
         <ambientLight intensity={.55} />
         <directionalLight position={[3.8, 5, 3.5]} intensity={3.1} color="#fff1d6" />
         <directionalLight position={[-4, 1.4, -2.8]} intensity={1.65} color="#79a8da" />
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
+        <PremiumArena progress={value} reducedMotion={reducedMotion} />
         <Suspense fallback={<LoadingBlade />}>
-          <PremiumArena progress={value} reducedMotion={reducedMotion} />
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={scaleMultiplier} onCalibration={onCalibration} />
         </Suspense>
       </Canvas>
