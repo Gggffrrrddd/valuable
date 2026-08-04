@@ -115,18 +115,6 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
     <group ref={modelRef}>
       <group scale={reflection ? [scaleMultiplier, scaleMultiplier * .055, scaleMultiplier] : scaleMultiplier}>
         <primitive object={model} />
-        {!reflection && <>
-        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.48, .055, 12, 96]} /><meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.16} clearcoat={1} /></mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.31, .024, 10, 96]} /><meshPhysicalMaterial color="#c79b50" emissive="#6b3b12" emissiveIntensity={.28} metalness={.92} roughness={.2} /></mesh>
-        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.54, .038, 12, 64]} /><meshPhysicalMaterial color="#12171d" metalness={.94} roughness={.14} clearcoat={1} /></mesh>
-        <mesh position={[0, .13, 0]}><cylinderGeometry args={[.38, .45, .14, 64]} /><meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.18} clearcoat={1} /></mesh>
-        <mesh position={[0, .22, 0]}><cylinderGeometry args={[.23, .31, .09, 64]} /><meshPhysicalMaterial color="#10141a" metalness={.9} roughness={.12} clearcoat={1} /></mesh>
-        <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.14, 48]} /><meshPhysicalMaterial color="#e1bd72" emissive="#8a511b" emissiveIntensity={.42} metalness={.9} roughness={.14} /></mesh>
-        {Array.from({ length: 8 }, (_, index) => {
-          const angle = index * Math.PI / 4;
-          return <mesh key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}><boxGeometry args={[.23, .11, .085]} /><meshPhysicalMaterial color={index % 2 ? '#cbd1d6' : '#bd914a'} metalness={.95} roughness={.16} clearcoat={.9} /></mesh>;
-        })}
-        </>}
       </group>
     </group>
   );
