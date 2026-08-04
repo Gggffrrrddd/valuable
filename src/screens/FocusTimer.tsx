@@ -3,7 +3,7 @@ import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import FlipClock from '@/components/FlipClock';
-import { FOCUS_VISUAL_THEMES, type BladeCalibration, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 
 interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number) => void;
@@ -91,7 +91,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return s ? s.durationMs / 1000 : 0;
   });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [bladeCalibration, setBladeCalibration] = useState<BladeCalibration>({ scale: .45, x: 0, y: 0, z: 0, tilt: -9 });
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
@@ -215,10 +214,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  useEffect(() => {
-    if (visualTheme === 'blade') console.log('BLADE_TRANSFORM_CALIBRATION', JSON.stringify(bladeCalibration));
-  }, [bladeCalibration, visualTheme]);
-
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''}`}>
@@ -243,29 +238,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           {/* Left / center zone: hourglass visual */}
           <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
             <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
-              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} bladeCalibration={bladeCalibration} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} />
             </div>
           </div>
 
           {/* Right zone: flip-clock timer */}
           <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
-            <div className="flex w-full max-w-sm flex-col items-center gap-5 lg:items-start">
-              <FlipClock secondsLeft={secondsLeft} />
-              {visualTheme === 'blade' && (
-                <div className="hidden w-full rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-xl" aria-hidden="true">
-                  <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em] text-stone-400">
-                    <span>Blade calibration</span>
-                    <button type="button" onClick={() => setBladeCalibration({ scale: .45, x: 0, y: 0, z: 0, tilt: -9 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>
-                  </div>
-                  <label className="mb-3 block text-[11px] font-semibold text-stone-300">Zoom <input type="range" min={0.4} max={2} step={0.05} value={bladeCalibration.scale} onChange={(event) => setBladeCalibration((current) => ({ ...current, scale: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-                  <label className="mb-3 block text-[11px] font-semibold text-stone-300">Drag left / right <input type="range" min={-1.5} max={1.5} step={0.05} value={bladeCalibration.x} onChange={(event) => setBladeCalibration((current) => ({ ...current, x: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-                  <label className="mb-3 block text-[11px] font-semibold text-stone-300">Up / down <input type="range" min={-1} max={1} step={0.05} value={bladeCalibration.y} onChange={(event) => setBladeCalibration((current) => ({ ...current, y: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-                  <label className="mb-3 block text-[11px] font-semibold text-stone-300">Forward / backward <input type="range" min={-1.5} max={1.5} step={0.05} value={bladeCalibration.z} onChange={(event) => setBladeCalibration((current) => ({ ...current, z: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-                  <label className="block text-[11px] font-semibold text-stone-300">Tilt <input type="range" min={-35} max={35} step={1} value={bladeCalibration.tilt} onChange={(event) => setBladeCalibration((current) => ({ ...current, tilt: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
-                  <div className="mt-3 text-[10px] text-stone-500">Values log as <code className="font-mono text-lime-300">BLADE_TRANSFORM_CALIBRATION</code></div>
-                </div>
-              )}
-            </div>
+            <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
 

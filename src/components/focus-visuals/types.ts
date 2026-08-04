@@ -1,15 +1,6 @@
 export interface FocusVisualProps {
   progress: number;
   running?: boolean;
-  bladeCalibration?: BladeCalibration;
-}
-
-export interface BladeCalibration {
-  scale: number;
-  x: number;
-  y: number;
-  z: number;
-  tilt: number;
 }
 
 export type FocusVisualTheme = 'hourglass' | 'tree' | 'book' | 'jar' | 'blade';

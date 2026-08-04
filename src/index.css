@@ -229,10 +229,10 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .blade-focus-session .focus-atmosphere {
   background:
-    radial-gradient(ellipse at 30% 43%, rgba(236, 198, 142, .075) 0%, rgba(111, 84, 54, .025) 31%, transparent 62%),
-    radial-gradient(ellipse at 18% 66%, rgba(182, 232, 90, .025) 0%, transparent 42%),
-    radial-gradient(ellipse at 72% 52%, rgba(83, 94, 88, .035) 0%, transparent 48%),
-    linear-gradient(118deg, #070808 0%, #100e0c 38%, #0b0c0b 68%, #060707 100%);
+    radial-gradient(ellipse at 50% 42%, rgba(225, 177, 111, .12) 0%, rgba(121, 71, 52, .05) 32%, transparent 62%),
+    radial-gradient(ellipse at 22% 78%, rgba(121, 139, 89, .035) 0%, transparent 44%),
+    radial-gradient(ellipse at 82% 16%, rgba(113, 89, 132, .08) 0%, transparent 42%),
+    linear-gradient(145deg, #100d14 0%, #171018 34%, #110d12 68%, #090a0c 100%);
 }
 
 .blade-gallery-beam {
@@ -250,17 +250,39 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 }
 
 .blade-focus-layout > div:first-child {
-  flex-basis: 62%;
-  padding-right: clamp(0rem, 1vw, 1rem);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
 }
 
 .blade-focus-layout > div:first-child > div {
-  max-width: 48rem;
+  width: min(92vw, 74rem);
+  height: min(82vh, 62rem);
+  max-width: none;
+  max-height: none;
 }
 
 .blade-focus-layout > div:last-child {
-  flex-basis: 38%;
-  padding-left: clamp(1rem, 2.5vw, 2.5rem);
+  position: absolute;
+  top: clamp(5rem, 10vh, 8rem);
+  left: 50%;
+  z-index: 30;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 22px 45px rgba(0,0,0,.38));
+}
+
+.blade-focus-session .focus-vignette {
+  background: radial-gradient(ellipse at 50% 48%, transparent 22%, rgba(3, 2, 5, .2) 62%, rgba(3, 2, 5, .78) 100%);
+}
+
+@media (max-width: 767px) {
+  .blade-focus-layout > div:first-child > div { width: 110vw; height: 72vh; }
+  .blade-focus-layout > div:last-child { top: 5.25rem; transform: translateX(-50%) scale(.82); }
 }
 
 .jar-tap {
