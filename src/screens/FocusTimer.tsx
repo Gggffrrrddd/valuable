@@ -252,7 +252,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             <div className="flex w-full max-w-sm flex-col items-center gap-5 lg:items-start">
               <FlipClock secondsLeft={secondsLeft} />
               {visualTheme === 'blade' && (
-                <div className="w-full rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-xl">
+                <div className="hidden w-full rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-xl" aria-hidden="true">
                   <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em] text-stone-400">
                     <span>Blade calibration</span>
                     <button type="button" onClick={() => setBladeCalibration({ scale: 1, x: 0, y: 0, z: 0, tilt: 0 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>

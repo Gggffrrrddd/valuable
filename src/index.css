@@ -224,13 +224,14 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .blade-focus-session .focus-grid,
 .blade-focus-session .focus-orbit {
-  opacity: .22;
+  display: none;
 }
 
 .blade-focus-session .focus-atmosphere {
   background:
-    radial-gradient(circle at 31% 55%, rgba(182, 232, 90, .08), transparent 35%),
-    radial-gradient(circle at 73% 42%, rgba(214, 173, 97, .045), transparent 28%);
+    radial-gradient(circle at 31% 48%, rgba(224, 188, 132, .06), transparent 32%),
+    radial-gradient(circle at 23% 72%, rgba(182, 232, 90, .018), transparent 24%),
+    linear-gradient(112deg, #090a09 0%, #0d0c0a 43%, #080909 100%);
 }
 
 .blade-focus-layout > div:first-child {

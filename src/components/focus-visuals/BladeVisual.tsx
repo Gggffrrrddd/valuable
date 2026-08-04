@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, BufferAttribute, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, BufferAttribute, CanvasTexture, DoubleSide, Group, Mesh, MeshPhysicalMaterial, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { FocusVisualProps } from './types';
 
@@ -47,13 +47,13 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
       map: texture,
       emissive: '#ffffff',
       emissiveMap: texture,
-      emissiveIntensity: .09,
-      roughness: .28,
+      emissiveIntensity: .05,
+      roughness: .24,
       metalness: .26,
       clearcoat: .78,
       clearcoatRoughness: .17,
       sheen: .22,
-      sheenColor: '#8eb9d7',
+      sheenColor: '#d8c0a0',
     });
 
       clone.traverse((child) => {
@@ -131,6 +131,51 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
+function createReflectionTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext('2d');
+  if (!context) return new CanvasTexture(canvas);
+  const gradient = context.createRadialGradient(256, 256, 18, 256, 256, 220);
+  gradient.addColorStop(0, 'rgba(220,190,145,.34)');
+  gradient.addColorStop(.22, 'rgba(178,188,185,.18)');
+  gradient.addColorStop(.5, 'rgba(76,82,78,.08)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = gradient;
+  context.save();
+  context.translate(256, 256);
+  context.scale(1, .32);
+  context.translate(-256, -256);
+  context.fillRect(0, 0, 512, 512);
+  context.restore();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+function GalleryPedestal() {
+  const reflectionTexture = useMemo(() => createReflectionTexture(), []);
+  useEffect(() => () => reflectionTexture.dispose(), [reflectionTexture]);
+  return (
+    <group>
+      <mesh position={[0, -.65, 0]}><cylinderGeometry args={[1.94, 1.98, .12, 128]} /><meshPhysicalMaterial color="#15120f" roughness={.19} metalness={.48} clearcoat={.86} clearcoatRoughness={.2} /></mesh>
+      <mesh position={[0, -.584, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.91, 128]} /><meshPhysicalMaterial color="#201b17" roughness={.12} metalness={.62} clearcoat={1} clearcoatRoughness={.13} /></mesh>
+      <mesh position={[0, -.575, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.69, .008, 8, 160]} /><meshPhysicalMaterial color="#4a4035" roughness={.28} metalness={.72} /></mesh>
+      <mesh position={[0, -.568, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.25, 96]} /><meshBasicMaterial map={reflectionTexture} transparent opacity={.34} depthWrite={false} /></mesh>
+    </group>
+  );
+}
+
+function GalleryBeam() {
+  return (
+    <mesh position={[.35, 1.48, .15]} rotation={[0, 0, -.08]}>
+      <cylinderGeometry args={[.18, 1.42, 4.1, 64, 1, true]} />
+      <meshBasicMaterial color="#f2d9ae" transparent opacity={.026} depthWrite={false} side={DoubleSide} />
+    </mesh>
+  );
+}
+
 export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, z: 0, tilt: 0 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
@@ -138,10 +183,11 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
     <div className="relative aspect-[5/4] w-full overflow-visible">
       <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
       <Canvas camera={{ position: [0, 2.6, 6.2], fov: 36 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }} style={{ position: 'absolute', inset: 0 }}>
-        <ambientLight intensity={.55} />
-        <directionalLight position={[3.8, 5, 3.5]} intensity={3.1} color="#fff1d6" />
-        <directionalLight position={[-4, 1.4, -2.8]} intensity={1.65} color="#79a8da" />
-        <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
+        <ambientLight intensity={.34} color="#d7d1c7" />
+        <spotLight position={[2.4, 4.8, 3.1]} intensity={5.2} color="#ffe4b7" angle={.42} penumbra={.9} distance={10} decay={1.7} />
+        <pointLight position={[-2.4, -.15, -2.5]} intensity={.42} distance={5.5} decay={2} color="#b6e85a" />
+        <GalleryBeam />
+        <GalleryPedestal />
         <Suspense fallback={<LoadingBlade />}>
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
