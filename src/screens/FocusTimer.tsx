@@ -244,7 +244,9 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
           {/* Right zone: flip-clock timer */}
           <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
-            <FlipClock secondsLeft={secondsLeft} />
+            <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+              <FlipClock secondsLeft={secondsLeft} />
+            </div>
           </div>
         </div>
 
