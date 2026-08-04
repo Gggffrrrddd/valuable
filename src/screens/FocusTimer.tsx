@@ -91,7 +91,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return s ? s.durationMs / 1000 : 0;
   });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [bladeCalibration, setBladeCalibration] = useState<BladeCalibration>({ scale: 1, x: 0, y: 0, tilt: 0 });
+  const [bladeCalibration, setBladeCalibration] = useState<BladeCalibration>({ scale: 1, x: 0, y: 0, z: 0, tilt: 0 });
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
@@ -255,11 +255,12 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
                 <div className="w-full rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-xl">
                   <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em] text-stone-400">
                     <span>Blade calibration</span>
-                    <button type="button" onClick={() => setBladeCalibration({ scale: 1, x: 0, y: 0, tilt: 0 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>
+                    <button type="button" onClick={() => setBladeCalibration({ scale: 1, x: 0, y: 0, z: 0, tilt: 0 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>
                   </div>
                   <label className="mb-3 block text-[11px] font-semibold text-stone-300">Zoom <input type="range" min={0.4} max={2} step={0.05} value={bladeCalibration.scale} onChange={(event) => setBladeCalibration((current) => ({ ...current, scale: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
                   <label className="mb-3 block text-[11px] font-semibold text-stone-300">Drag left / right <input type="range" min={-1.5} max={1.5} step={0.05} value={bladeCalibration.x} onChange={(event) => setBladeCalibration((current) => ({ ...current, x: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
                   <label className="mb-3 block text-[11px] font-semibold text-stone-300">Up / down <input type="range" min={-1} max={1} step={0.05} value={bladeCalibration.y} onChange={(event) => setBladeCalibration((current) => ({ ...current, y: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
+                  <label className="mb-3 block text-[11px] font-semibold text-stone-300">Forward / backward <input type="range" min={-1.5} max={1.5} step={0.05} value={bladeCalibration.z} onChange={(event) => setBladeCalibration((current) => ({ ...current, z: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
                   <label className="block text-[11px] font-semibold text-stone-300">Tilt <input type="range" min={-35} max={35} step={1} value={bladeCalibration.tilt} onChange={(event) => setBladeCalibration((current) => ({ ...current, tilt: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
                   <div className="mt-3 text-[10px] text-stone-500">Values log as <code className="font-mono text-lime-300">BLADE_TRANSFORM_CALIBRATION</code></div>
                 </div>

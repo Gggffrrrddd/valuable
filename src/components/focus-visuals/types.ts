@@ -8,6 +8,7 @@ export interface BladeCalibration {
   scale: number;
   x: number;
   y: number;
+  z: number;
   tilt: number;
 }
 

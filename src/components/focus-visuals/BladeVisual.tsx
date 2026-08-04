@@ -27,7 +27,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationTilt = 0, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationTilt?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
+function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationZ = 0, calibrationTilt = 0, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationZ?: number; calibrationTilt?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
   const modelRef = useRef<Group>(null);
   const spinRef = useRef(0);
   const elapsedRef = useRef(0);
@@ -105,6 +105,7 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
     modelRef.current.rotation.z = topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
     modelRef.current.position.y = calibrationY - topple * .34;
     modelRef.current.position.x = calibrationX + topple * .24;
+    modelRef.current.position.z = calibrationZ;
   });
 
   return (
@@ -194,7 +195,7 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, tilt: 0 } }: FocusVisualProps) {
+export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, z: 0, tilt: 0 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
   return (
@@ -207,7 +208,7 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
         <PremiumArena progress={value} reducedMotion={reducedMotion} />
         <Suspense fallback={<LoadingBlade />}>
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationTilt={bladeCalibration.tilt} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
