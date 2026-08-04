@@ -194,25 +194,9 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-export default function BladeVisual({ progress, running = false, scaleMultiplier: controlledScale, onCalibration, calibrate = false }: FocusVisualProps & { scaleMultiplier?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void; calibrate?: boolean }) {
-  const [calibrationScale, setCalibrationScale] = useState(1);
-  const [calibrationTilt, setCalibrationTilt] = useState(0);
-  const [calibrationPosition, setCalibrationPosition] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
-  const lastCalibrationLogRef = useRef(0);
+export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: 1, x: 0, y: 0, tilt: 0 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
-  const scaleMultiplier = controlledScale ?? (calibrate ? calibrationScale : 1);
-  const calibrationHandler = onCalibration ?? (calibrate ? (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => {
-    const now = performance.now();
-    if (now - lastCalibrationLogRef.current < 250) return;
-    lastCalibrationLogRef.current = now;
-    console.log('BLADE_SIZE_CALIBRATION', JSON.stringify(snapshot));
-  } : undefined);
-  useEffect(() => {
-    if (!calibrate) return;
-    console.log('BLADE_TRANSFORM_CALIBRATION', JSON.stringify({ scaleMultiplier, x: calibrationPosition.x, y: calibrationPosition.y, tiltDegrees: calibrationTilt }));
-  }, [calibrate, calibrationPosition, calibrationTilt, scaleMultiplier]);
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
       <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
@@ -223,49 +207,10 @@ export default function BladeVisual({ progress, running = false, scaleMultiplier
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
         <PremiumArena progress={value} reducedMotion={reducedMotion} />
         <Suspense fallback={<LoadingBlade />}>
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={scaleMultiplier} calibrationX={calibrationPosition.x} calibrationY={calibrationPosition.y} calibrationTilt={calibrationTilt} onCalibration={calibrationHandler} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationTilt={bladeCalibration.tilt} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
-      {calibrate && (
-        <div
-          className="absolute inset-0 z-20 cursor-grab touch-none active:cursor-grabbing"
-          onPointerDown={(event) => {
-            dragRef.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, ...calibrationPosition };
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const drag = dragRef.current;
-            if (!drag || drag.pointerId !== event.pointerId) return;
-            setCalibrationPosition({
-              x: Math.max(-1.5, Math.min(1.5, drag.x + (event.clientX - drag.clientX) / 180)),
-              y: Math.max(-1, Math.min(1, drag.y - (event.clientY - drag.clientY) / 180)),
-            });
-          }}
-          onPointerUp={(event) => {
-            if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }}
-          onPointerCancel={() => { dragRef.current = null; }}
-          aria-label="Drag blade position"
-        />
-      )}
-      {calibrate && (
-        <div className="absolute right-4 top-4 z-30 w-[min(18rem,calc(100%-2rem))] rounded-2xl border border-white/15 bg-[#080b0b]/90 px-4 py-3 text-stone-100 shadow-[0_18px_60px_rgba(0,0,0,.5)] backdrop-blur-xl sm:right-6 sm:top-6">
-          <div className="mb-2 flex items-center justify-between text-[11px] font-bold">
-            <span className="text-stone-300">Model size</span>
-            <span className="font-mono text-lime-300">x{scaleMultiplier.toFixed(2)}</span>
-          </div>
-          <input type="range" min={0.4} max={2} step={0.05} value={scaleMultiplier} onChange={(event) => setCalibrationScale(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-lime-300" aria-label="Model size" />
-          <div className="mt-1 flex justify-between text-[9px] font-semibold uppercase tracking-wider text-stone-500"><span>Smaller</span><span>Larger</span></div>
-          <div className="mt-3 flex items-center justify-between text-[11px] font-bold"><span className="text-stone-300">Up / down</span><span className="font-mono text-lime-300">{calibrationPosition.y.toFixed(2)}</span></div>
-          <input type="range" min={-1} max={1} step={0.05} value={calibrationPosition.y} onChange={(event) => setCalibrationPosition((position) => ({ ...position, y: Number(event.target.value) }))} className="h-2 w-full cursor-pointer accent-lime-300" aria-label="Blade vertical position" />
-          <div className="mt-3 flex items-center justify-between text-[11px] font-bold"><span className="text-stone-300">Tilt</span><span className="font-mono text-lime-300">{calibrationTilt.toFixed(0)} deg</span></div>
-          <input type="range" min={-35} max={35} step={1} value={calibrationTilt} onChange={(event) => setCalibrationTilt(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-lime-300" aria-label="Blade tilt" />
-          <div className="mt-3 flex items-center justify-between text-[10px] text-stone-500"><span>Drag anywhere to move</span><button type="button" onClick={() => { setCalibrationScale(1); setCalibrationPosition({ x: 0, y: 0 }); setCalibrationTilt(0); }} className="rounded-md border border-white/10 px-2 py-1 font-bold text-stone-300 hover:bg-white/10">Reset</button></div>
-          <div className="mt-2 text-[10px] text-stone-500">Console: <code className="font-mono text-lime-300">BLADE_TRANSFORM_CALIBRATION</code></div>
-        </div>
-      )}
     </div>
   );
 }
