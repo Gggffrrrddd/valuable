@@ -88,7 +88,7 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, onC
     const center = bounds.getCenter(new Vector3());
     const { baseScale, baseLargestDimension } = scaleStateRef.current;
     model.position.sub(center);
-    model.scale.setScalar(baseScale * scaleMultiplier);
+    model.scale.setScalar(baseScale);
     onCalibrationRef.current?.({ scaleMultiplier, baseScale, effectiveScale: baseScale * scaleMultiplier, baseLargestDimension, effectiveLargestDimension: baseLargestDimension * scaleMultiplier });
   }, [model, scaleMultiplier]);
 
@@ -109,17 +109,19 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, onC
 
   return (
     <group ref={modelRef}>
-      <primitive object={model} />
-      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.48, .055, 12, 96]} /><meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.16} clearcoat={1} /></mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.31, .024, 10, 96]} /><meshPhysicalMaterial color="#c79b50" emissive="#6b3b12" emissiveIntensity={.28} metalness={.92} roughness={.2} /></mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.54, .038, 12, 64]} /><meshPhysicalMaterial color="#12171d" metalness={.94} roughness={.14} clearcoat={1} /></mesh>
-      <mesh position={[0, .13, 0]}><cylinderGeometry args={[.38, .45, .14, 64]} /><meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.18} clearcoat={1} /></mesh>
-      <mesh position={[0, .22, 0]}><cylinderGeometry args={[.23, .31, .09, 64]} /><meshPhysicalMaterial color="#10141a" metalness={.9} roughness={.12} clearcoat={1} /></mesh>
-      <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.14, 48]} /><meshPhysicalMaterial color="#e1bd72" emissive="#8a511b" emissiveIntensity={.42} metalness={.9} roughness={.14} /></mesh>
-      {Array.from({ length: 8 }, (_, index) => {
-        const angle = index * Math.PI / 4;
-        return <mesh key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}><boxGeometry args={[.23, .11, .085]} /><meshPhysicalMaterial color={index % 2 ? '#cbd1d6' : '#bd914a'} metalness={.95} roughness={.16} clearcoat={.9} /></mesh>;
-      })}
+      <group scale={scaleMultiplier}>
+        <primitive object={model} />
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.48, .055, 12, 96]} /><meshPhysicalMaterial color="#d8dde2" metalness={.96} roughness={.16} clearcoat={1} /></mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.31, .024, 10, 96]} /><meshPhysicalMaterial color="#c79b50" emissive="#6b3b12" emissiveIntensity={.28} metalness={.92} roughness={.2} /></mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.54, .038, 12, 64]} /><meshPhysicalMaterial color="#12171d" metalness={.94} roughness={.14} clearcoat={1} /></mesh>
+        <mesh position={[0, .13, 0]}><cylinderGeometry args={[.38, .45, .14, 64]} /><meshPhysicalMaterial color="#d6b36a" metalness={.92} roughness={.18} clearcoat={1} /></mesh>
+        <mesh position={[0, .22, 0]}><cylinderGeometry args={[.23, .31, .09, 64]} /><meshPhysicalMaterial color="#10141a" metalness={.9} roughness={.12} clearcoat={1} /></mesh>
+        <mesh position={[0, .275, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.14, 48]} /><meshPhysicalMaterial color="#e1bd72" emissive="#8a511b" emissiveIntensity={.42} metalness={.9} roughness={.14} /></mesh>
+        {Array.from({ length: 8 }, (_, index) => {
+          const angle = index * Math.PI / 4;
+          return <mesh key={index} position={[Math.cos(angle) * 1.18, .1, Math.sin(angle) * 1.18]} rotation={[0, -angle, 0]}><boxGeometry args={[.23, .11, .085]} /><meshPhysicalMaterial color={index % 2 ? '#cbd1d6' : '#bd914a'} metalness={.95} roughness={.16} clearcoat={.9} /></mesh>;
+        })}
+      </group>
     </group>
   );
 }
@@ -167,11 +169,12 @@ function PremiumArena({ progress, reducedMotion }: { progress: number; reducedMo
 
   return (
     <group position={[0, -.59, 0]}>
-      <mesh position={[0, -.09, 0]}><cylinderGeometry args={[2.02, 2.12, .16, 96]} /><meshPhysicalMaterial color="#080b0e" metalness={.88} roughness={.2} clearcoat={.75} /></mesh>
+      <mesh position={[0, -.08, 0]}><cylinderGeometry args={[2.08, 2.14, .12, 128]} /><meshPhysicalMaterial color="#080b0e" metalness={.88} roughness={.2} clearcoat={.75} /></mesh>
       <mesh position={[0, -.005, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[2.01, 96]} /><meshBasicMaterial color="#0a0f13" /></mesh>
       <mesh position={[0, .01, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.95, 96]} /><meshBasicMaterial map={floorTexture} /></mesh>
+      <mesh position={[0, .11, 0]}><cylinderGeometry args={[2.08, 1.88, .22, 128, 1, true]} /><meshPhysicalMaterial color="#151d22" metalness={.92} roughness={.22} clearcoat={.9} side={DoubleSide} /></mesh>
       <mesh position={[0, .025, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.72, 64]} /><meshBasicMaterial map={shadowTexture} transparent depthWrite={false} /></mesh>
-      <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.03, .055, 12, 128]} /><meshPhysicalMaterial color="#263039" metalness={.98} roughness={.16} clearcoat={1} /></mesh>
+      <mesh position={[0, .225, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[2.08, .025, 10, 128]} /><meshPhysicalMaterial color="#36434c" metalness={.98} roughness={.14} clearcoat={1} /></mesh>
       <mesh position={[0, .045, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.88, .028, 10, 96]} /><meshBasicMaterial ref={glowMaterialRef} color="#b6e85a" transparent opacity={.32} blending={AdditiveBlending} depthWrite={false} /></mesh>
       <mesh position={[0, .04, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.72, .012, 8, 128]} /><meshBasicMaterial color="#d7ad61" transparent opacity={.42} /></mesh>
       <mesh position={[0, .03, 0]} rotation={[Math.PI / 2, 0, 0]}><ringGeometry args={[1.43, 1.45, 96]} /><meshBasicMaterial color="#c69b52" transparent opacity={.48} side={DoubleSide} /></mesh>
@@ -191,9 +194,18 @@ function LoadingBlade() {
   return <mesh><cylinderGeometry args={[.72, .96, .2, 48]} /><meshStandardMaterial color="#52604b" wireframe /></mesh>;
 }
 
-export default function BladeVisual({ progress, running = false, scaleMultiplier = 1, onCalibration }: FocusVisualProps & { scaleMultiplier?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
+export default function BladeVisual({ progress, running = false, scaleMultiplier: controlledScale, onCalibration, calibrate = false }: FocusVisualProps & { scaleMultiplier?: number; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void; calibrate?: boolean }) {
+  const [calibrationScale, setCalibrationScale] = useState(1);
+  const lastCalibrationLogRef = useRef(0);
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
+  const scaleMultiplier = controlledScale ?? (calibrate ? calibrationScale : 1);
+  const calibrationHandler = onCalibration ?? (calibrate ? (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => {
+    const now = performance.now();
+    if (now - lastCalibrationLogRef.current < 250) return;
+    lastCalibrationLogRef.current = now;
+    console.log('BLADE_SIZE_CALIBRATION', JSON.stringify(snapshot));
+  } : undefined);
   return (
     <div className="relative aspect-[5/4] w-full overflow-visible">
       <div className="pointer-events-none absolute inset-[-18%] bg-[radial-gradient(ellipse_at_50%_57%,rgba(182,232,90,.11),rgba(9,11,10,0)_58%)] blur-2xl" />
@@ -204,10 +216,21 @@ export default function BladeVisual({ progress, running = false, scaleMultiplier
         <pointLight position={[2, .9, -2]} intensity={1.5} distance={7} color="#d7ad61" />
         <PremiumArena progress={value} reducedMotion={reducedMotion} />
         <Suspense fallback={<LoadingBlade />}>
-          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={scaleMultiplier} onCalibration={onCalibration} />
+          <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={scaleMultiplier} onCalibration={calibrationHandler} />
         </Suspense>
       </Canvas>
       <div className="pointer-events-none absolute inset-[-2%] bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(9,11,10,.16)_70%,rgba(9,11,10,.66)_100%)]" />
+      {calibrate && (
+        <div className="absolute right-4 top-4 z-30 w-[min(18rem,calc(100%-2rem))] rounded-2xl border border-white/15 bg-[#080b0b]/90 px-4 py-3 text-stone-100 shadow-[0_18px_60px_rgba(0,0,0,.5)] backdrop-blur-xl sm:right-6 sm:top-6">
+          <div className="mb-2 flex items-center justify-between text-[11px] font-bold">
+            <span className="text-stone-300">Model size</span>
+            <span className="font-mono text-lime-300">x{scaleMultiplier.toFixed(2)}</span>
+          </div>
+          <input type="range" min={0.4} max={2} step={0.05} value={scaleMultiplier} onChange={(event) => setCalibrationScale(Number(event.target.value))} className="h-2 w-full cursor-pointer accent-lime-300" aria-label="Model size" />
+          <div className="mt-1 flex justify-between text-[9px] font-semibold uppercase tracking-wider text-stone-500"><span>Smaller</span><span>Larger</span></div>
+          <div className="mt-2 text-[10px] text-stone-500">Console: <code className="font-mono text-lime-300">BLADE_SIZE_CALIBRATION</code></div>
+        </div>
+      )}
     </div>
   );
 }
