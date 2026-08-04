@@ -28,8 +28,9 @@ function useReducedMotion() {
 }
 
 function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, calibrationX = 0, calibrationY = 0, calibrationZ = 0, calibrationTilt = 0, reflection = false, onCalibration }: { progress: number; running: boolean; reducedMotion: boolean; scaleMultiplier?: number; calibrationX?: number; calibrationY?: number; calibrationZ?: number; calibrationTilt?: number; reflection?: boolean; onCalibration?: (snapshot: { scaleMultiplier: number; baseScale: number; effectiveScale: number; baseLargestDimension: number; effectiveLargestDimension: number }) => void }) {
-  const modelRef = useRef<Group>(null);
-  const spinRef = useRef(0);
+  const poseRef = useRef<Group>(null);
+  const spinGroupRef = useRef<Group>(null);
+  const spinAngleRef = useRef(0);
   const elapsedRef = useRef(0);
   const scaleStateRef = useRef({ baseScale: 0, baseLargestDimension: 0 });
   const onCalibrationRef = useRef(onCalibration);
@@ -96,25 +97,27 @@ function BladeModel({ progress, running, reducedMotion, scaleMultiplier = 1, cal
   }, [model, scaleMultiplier]);
 
   useFrame((_state, delta) => {
-    if (!modelRef.current) return;
+    if (!poseRef.current || !spinGroupRef.current) return;
     elapsedRef.current += delta;
     const topple = reducedMotion ? 0 : smoothstep(.94, 1, progress);
     const wobble = reducedMotion ? 0 : smoothstep(.62, .96, progress) * (1 - topple);
     const speed = reducedMotion ? 1.15 : .08 + 12 * Math.pow(1 - progress, 2.35);
-    if (running || reducedMotion) spinRef.current += delta * speed;
+    if (running || reducedMotion) spinAngleRef.current += delta * speed;
     const wobblePhase = elapsedRef.current * (2.4 + speed * .26);
-    modelRef.current.rotation.y = spinRef.current;
-    modelRef.current.rotation.x = reflection ? 0 : calibrationTilt * Math.PI / 180 + topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
-    modelRef.current.rotation.z = reflection ? 0 : topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
-    modelRef.current.position.y = reflection ? -1.475 : calibrationY - topple * .34;
-    modelRef.current.position.x = calibrationX + topple * .24;
-    modelRef.current.position.z = calibrationZ;
+    spinGroupRef.current.rotation.y = spinAngleRef.current;
+    poseRef.current.rotation.x = reflection ? 0 : calibrationTilt * Math.PI / 180 + topple * 1.35 + Math.sin(wobblePhase) * wobble * .22;
+    poseRef.current.rotation.z = reflection ? 0 : topple * .26 + Math.cos(wobblePhase * .87) * wobble * .17;
+    poseRef.current.position.y = reflection ? -.445 : calibrationY - topple * .34;
+    poseRef.current.position.x = calibrationX + topple * .24;
+    poseRef.current.position.z = calibrationZ;
   });
 
   return (
-    <group ref={modelRef}>
-      <group scale={reflection ? [scaleMultiplier, scaleMultiplier * .055, scaleMultiplier] : scaleMultiplier}>
-        <primitive object={model} />
+    <group ref={poseRef}>
+      <group ref={spinGroupRef}>
+        <group scale={reflection ? [scaleMultiplier, scaleMultiplier * .045, scaleMultiplier] : scaleMultiplier}>
+          <primitive object={model} />
+        </group>
       </group>
     </group>
   );
@@ -153,11 +156,11 @@ function GalleryPedestal() {
   useEffect(() => () => pedestalTexture.dispose(), [pedestalTexture]);
   return (
     <group>
-      <mesh position={[0, -1.535, -.8]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.05, 1.05, 1]}>
+      <mesh position={[0, -.5, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.06, 1.06, 1]}>
         <planeGeometry args={[4.7, 4.7]} />
         <meshBasicMaterial map={pedestalTexture} transparent opacity={.3} depthWrite={false} />
       </mesh>
-      <mesh position={[0, -1.5, -.8]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, -.465, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[4.7, 4.7]} />
         <meshPhysicalMaterial map={pedestalTexture} transparent roughness={.17} metalness={.44} clearcoat={1} clearcoatRoughness={.16} depthWrite={false} />
       </mesh>
@@ -165,7 +168,7 @@ function GalleryPedestal() {
   );
 }
 
-export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: .45, x: 0, y: -.75, z: -.8, tilt: -9 } }: FocusVisualProps) {
+export default function BladeVisual({ progress, running = false, bladeCalibration = { scale: .45, x: 0, y: 0, z: 0, tilt: -9 } }: FocusVisualProps) {
   const reducedMotion = useReducedMotion();
   const value = Math.max(0, Math.min(1, progress));
   return (
@@ -173,10 +176,11 @@ export default function BladeVisual({ progress, running = false, bladeCalibratio
       <div className="blade-gallery-beam" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-[-30%] bg-[radial-gradient(ellipse_at_43%_8%,rgba(255,228,184,.17)_0%,rgba(214,180,128,.07)_26%,transparent_67%)] blur-[60px]" />
       <Canvas camera={{ position: [0, 2.6, 6.2], fov: 36 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.08 }} style={{ position: 'absolute', inset: 0 }}>
-        <ambientLight intensity={.42} color="#d8d2c8" />
-        <spotLight position={[1.25, 4.7, 3.8]} intensity={7.4} color="#ffe1ae" angle={.5} penumbra={1} distance={11} decay={1.65} />
-        <pointLight position={[-1.6, -.35, -2.8]} intensity={1.05} distance={5.2} decay={2} color="#b6e85a" />
-        <pointLight position={[2.8, .8, 1]} intensity={.65} distance={6} decay={2} color="#f0c98e" />
+        <ambientLight intensity={.3} color="#d8d1c7" />
+        <spotLight position={[1.1, 4.8, 3.5]} intensity={8.6} color="#ffe0ac" angle={.48} penumbra={1} distance={11} decay={1.65} />
+        <pointLight position={[-1.8, -.1, -2.4]} intensity={1.25} distance={5.4} decay={2} color="#b6e85a" />
+        <pointLight position={[2.6, 1.15, 1.6]} intensity={.85} distance={6} decay={2} color="#f4cea0" />
+        <pointLight position={[-2.2, 1.5, 1]} intensity={.42} distance={5} decay={2} color="#d5d9d4" />
         <GalleryPedestal />
         <Suspense fallback={<LoadingBlade />}>
           <BladeModel progress={value} running={running} reducedMotion={reducedMotion} scaleMultiplier={bladeCalibration.scale} calibrationX={bladeCalibration.x} calibrationY={bladeCalibration.y} calibrationZ={bladeCalibration.z} calibrationTilt={bladeCalibration.tilt} reflection />

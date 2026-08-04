@@ -229,9 +229,10 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .blade-focus-session .focus-atmosphere {
   background:
-    radial-gradient(circle at 31% 48%, rgba(224, 188, 132, .06), transparent 32%),
-    radial-gradient(circle at 23% 72%, rgba(182, 232, 90, .018), transparent 24%),
-    linear-gradient(112deg, #090a09 0%, #0d0c0a 43%, #080909 100%);
+    radial-gradient(ellipse at 30% 43%, rgba(236, 198, 142, .075) 0%, rgba(111, 84, 54, .025) 31%, transparent 62%),
+    radial-gradient(ellipse at 18% 66%, rgba(182, 232, 90, .025) 0%, transparent 42%),
+    radial-gradient(ellipse at 72% 52%, rgba(83, 94, 88, .035) 0%, transparent 48%),
+    linear-gradient(118deg, #070808 0%, #100e0c 38%, #0b0c0b 68%, #060707 100%);
 }
 
 .blade-gallery-beam {
@@ -239,13 +240,13 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   inset: -42% -32% -28%;
   z-index: 0;
   pointer-events: none;
-  opacity: .72;
-  filter: blur(58px);
+  opacity: .62;
+  filter: blur(68px);
   background:
-    conic-gradient(from 163deg at 45% -9%, transparent 0deg, rgba(255, 229, 187, .12) 13deg, rgba(255, 218, 162, .2) 21deg, rgba(255, 229, 187, .08) 30deg, transparent 43deg),
-    radial-gradient(ellipse at 45% 12%, rgba(255, 232, 196, .13), transparent 58%);
-  mask-image: radial-gradient(ellipse at 45% 34%, black 0%, rgba(0,0,0,.72) 38%, transparent 74%);
-  -webkit-mask-image: radial-gradient(ellipse at 45% 34%, black 0%, rgba(0,0,0,.72) 38%, transparent 74%);
+    conic-gradient(from 164deg at 48% -12%, transparent 0deg, rgba(255, 233, 196, .09) 12deg, rgba(255, 220, 169, .17) 21deg, rgba(255, 232, 193, .065) 31deg, transparent 45deg),
+    radial-gradient(ellipse at 48% 15%, rgba(255, 235, 204, .1), transparent 64%);
+  mask-image: radial-gradient(ellipse at 48% 34%, black 0%, rgba(0,0,0,.67) 42%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at 48% 34%, black 0%, rgba(0,0,0,.67) 42%, transparent 78%);
 }
 
 .blade-focus-layout > div:first-child {

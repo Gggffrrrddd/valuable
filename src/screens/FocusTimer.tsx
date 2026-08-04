@@ -91,7 +91,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return s ? s.durationMs / 1000 : 0;
   });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [bladeCalibration, setBladeCalibration] = useState<BladeCalibration>({ scale: .45, x: 0, y: -.75, z: -.8, tilt: -9 });
+  const [bladeCalibration, setBladeCalibration] = useState<BladeCalibration>({ scale: .45, x: 0, y: 0, z: 0, tilt: -9 });
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
@@ -255,7 +255,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
                 <div className="hidden w-full rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_18px_60px_rgba(0,0,0,.35)] backdrop-blur-xl" aria-hidden="true">
                   <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em] text-stone-400">
                     <span>Blade calibration</span>
-                    <button type="button" onClick={() => setBladeCalibration({ scale: .45, x: 0, y: -.75, z: -.8, tilt: -9 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>
+                    <button type="button" onClick={() => setBladeCalibration({ scale: .45, x: 0, y: 0, z: 0, tilt: -9 })} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-stone-300 hover:bg-white/10">Reset</button>
                   </div>
                   <label className="mb-3 block text-[11px] font-semibold text-stone-300">Zoom <input type="range" min={0.4} max={2} step={0.05} value={bladeCalibration.scale} onChange={(event) => setBladeCalibration((current) => ({ ...current, scale: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
                   <label className="mb-3 block text-[11px] font-semibold text-stone-300">Drag left / right <input type="range" min={-1.5} max={1.5} step={0.05} value={bladeCalibration.x} onChange={(event) => setBladeCalibration((current) => ({ ...current, x: Number(event.target.value) }))} className="mt-1 h-2 w-full accent-lime-300" /></label>
