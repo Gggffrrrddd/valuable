@@ -423,18 +423,6 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   }
 }
 
-@keyframes pageFlip {
-  0% { transform: perspective(300px) rotateY(0deg); opacity: .95; }
-  65% { transform: perspective(300px) rotateY(-145deg) translateX(-8px); opacity: .8; }
-  100% { transform: perspective(300px) rotateY(-180deg) translateX(-12px); opacity: 0; }
-}
-.book-page-flip { animation: pageFlip 1.15s cubic-bezier(.4,0,.2,1) forwards; }
-
-@keyframes closeBook {
-  to { transform: scaleY(.28) translateY(38px); }
-}
-.book-complete .book-object { animation: closeBook .85s .15s cubic-bezier(.4,0,.2,1) forwards; }
-
 @keyframes drip {
   0% { transform: translateY(-8px); opacity: 0; }
   20% { opacity: 1; }
@@ -805,4 +793,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .jar-drop { display: none; }
   .tree-leaf-shed { opacity: 0; }
+  .butterfly-mosaic__dust,
+  .butterfly-banker,
+  .butterfly-wing { animation: none !important; }
 }

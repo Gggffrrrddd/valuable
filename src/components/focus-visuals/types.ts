@@ -4,12 +4,12 @@ export interface FocusVisualProps {
   leafAsset?: string;
 }
 
-export type FocusVisualTheme = 'hourglass' | 'tree' | 'book' | 'jar' | 'blade';
+export type FocusVisualTheme = 'hourglass' | 'tree' | 'butterfly' | 'jar' | 'blade';
 
 export const FOCUS_VISUAL_THEMES: { id: FocusVisualTheme; label: string; description: string }[] = [
   { id: 'hourglass', label: 'Hourglass', description: 'Watch the moment settle' },
   { id: 'tree', label: 'Growing Tree', description: 'Let each leaf drift away' },
-  { id: 'book', label: "The Reader's Book", description: 'Turn focus into pages' },
+  { id: 'butterfly', label: 'Butterfly Mosaic', description: 'Reveal a living sculpture' },
   { id: 'jar', label: 'Water Jar', description: 'Fill the vessel slowly' },
   { id: 'blade', label: 'Spin Blade', description: 'Let momentum carry the session' },
 ];
