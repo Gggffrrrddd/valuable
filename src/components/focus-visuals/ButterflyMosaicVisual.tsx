@@ -1,58 +1,43 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { Box3, DoubleSide, InstancedMesh, Matrix4, Mesh, MeshPhysicalMaterial, Quaternion, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
+import { Box3, DoubleSide, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { sampleLionSurface } from './butterfly/sampling';
 import type { FocusVisualProps } from './types';
 
 const LION_MODEL_URL = '/visuals/butterfly-mosaic/models/lion.obj';
-const LION_TEXTURE_URL = '/visuals/butterfly-mosaic/lion-texture.png';
-const BUTTERFLY_COUNT = 520;
+const BUTTERFLY_COUNT = 1200;
 const MODEL_SCALE = 2.85;
 const SAMPLE_SCALE = MODEL_SCALE / 1.82;
 
-function LionSculpture() {
+function LionDepthShell() {
   const source = useLoader(OBJLoader, LION_MODEL_URL);
-  const textureSource = useLoader(TextureLoader, LION_TEXTURE_URL);
   const lion = useMemo(() => {
     const clone = source.clone(true);
-    const texture = textureSource.clone();
-    texture.colorSpace = SRGBColorSpace;
-    texture.anisotropy = 8;
-    texture.needsUpdate = true;
     const bounds = new Box3().setFromObject(clone);
     const size = bounds.getSize(new Vector3());
     const center = bounds.getCenter(new Vector3());
     const scale = MODEL_SCALE / Math.max(size.x, size.y);
-    const material = new MeshPhysicalMaterial({
-      map: texture,
-      color: '#ffffff',
-      roughness: .58,
-      metalness: .03,
-      clearcoat: .22,
-      clearcoatRoughness: .5,
-      sheen: .18,
-      sheenColor: '#f1d8b5',
-      specularIntensity: .55,
-      transparent: true,
-      opacity: .58,
+    const material = new MeshBasicMaterial({
+      colorWrite: false,
+      depthWrite: true,
+      depthTest: true,
     });
     clone.traverse((child) => {
       if (!(child instanceof Mesh)) return;
       child.geometry = child.geometry.clone();
       child.geometry.computeVertexNormals();
       child.material = material;
-      child.castShadow = true;
-      child.receiveShadow = true;
+      child.castShadow = false;
+      child.receiveShadow = false;
     });
     clone.position.set(-center.x * scale, -center.y * scale - .05, -center.z * scale);
     clone.scale.setScalar(scale);
-    return { object: clone, material, texture };
-  }, [source, textureSource]);
+    return { object: clone, material };
+  }, [source]);
 
   useEffect(() => () => {
     lion.material.dispose();
-    lion.texture.dispose();
   }, [lion]);
   return <primitive object={lion.object} />;
 }
@@ -87,21 +72,21 @@ function SurfaceButterflies() {
       const identity = new Quaternion();
 
       points.forEach((point, index) => {
-        position.copy(point.position).multiplyScalar(SAMPLE_SCALE).addScaledVector(point.normal, .018);
+        position.copy(point.position).multiplyScalar(SAMPLE_SCALE).addScaledVector(point.normal, .042);
         position.y -= .08;
         normalRotation.setFromUnitVectors(zAxis, point.normal);
         twistRotation.setFromAxisAngle(zAxis, ((index * 137.5) % 360) * Math.PI / 180);
         orientation.copy(normalRotation).multiply(twistRotation);
-        const instanceScale = .62 + (index % 9) * .018;
+        const instanceScale = .58 + (index % 9) * .016;
         scale.setScalar(instanceScale);
         parentMatrix.compose(position, orientation, scale);
 
-        localPosition.set(-.035, 0, 0);
+        localPosition.set(-.024, 0, 0);
         localMatrix.compose(localPosition, identity, localScale);
         finalMatrix.multiplyMatrices(parentMatrix, localMatrix);
         leftRef.current!.setMatrixAt(index, finalMatrix);
 
-        localPosition.set(.035, 0, 0);
+        localPosition.set(.024, 0, 0);
         localMatrix.compose(localPosition, identity, localScale);
         finalMatrix.multiplyMatrices(parentMatrix, localMatrix);
         rightRef.current!.setMatrixAt(index, finalMatrix);
@@ -125,15 +110,15 @@ function SurfaceButterflies() {
   return (
     <group visible={ready}>
       <instancedMesh ref={leftRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={3}>
-        <planeGeometry args={[.12, .085]} />
+        <planeGeometry args={[.074, .052]} />
         <meshBasicMaterial map={leftTexture} transparent alphaTest={.035} depthWrite side={DoubleSide} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={rightRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={3}>
-        <planeGeometry args={[.12, .085]} />
+        <planeGeometry args={[.074, .052]} />
         <meshBasicMaterial map={rightTexture} transparent alphaTest={.035} depthWrite side={DoubleSide} toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={bodyRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={4}>
-        <planeGeometry args={[.034, .095]} />
+        <planeGeometry args={[.022, .062]} />
         <meshBasicMaterial map={bodyTexture} transparent alphaTest={.04} depthWrite side={DoubleSide} toneMapped={false} />
       </instancedMesh>
     </group>
@@ -143,7 +128,7 @@ function SurfaceButterflies() {
 function LionFormation({ rotation }: { rotation: number }) {
   return (
     <group rotation={[0, rotation, 0]}>
-      <LionSculpture />
+      <LionDepthShell />
       <SurfaceButterflies />
     </group>
   );
