@@ -804,14 +804,87 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 
 .butterfly-focus-session .focus-atmosphere {
   background:
-    radial-gradient(ellipse at 28% 42%, rgba(216,184,129,.085), transparent 39%),
-    radial-gradient(ellipse at 14% 76%, rgba(137,153,118,.035), transparent 34%),
-    linear-gradient(124deg, #08090a 0%, #11110f 48%, #090a0b 100%);
+    radial-gradient(ellipse at 30% 38%, rgba(220,173,105,.12), transparent 34%),
+    radial-gradient(ellipse at 8% 82%, rgba(112,132,100,.055), transparent 34%),
+    linear-gradient(124deg, #090807 0%, #15110e 45%, #090a0a 100%);
+}
+
+.butterfly-focus-session .focus-vignette {
+  background: radial-gradient(ellipse at 31% 48%, transparent 18%, rgba(3,3,3,.28) 64%, rgba(1,1,1,.76) 100%);
 }
 
 .butterfly-focus-layout > div:first-child { flex-basis: 63%; padding-right: clamp(.5rem,2vw,2rem); }
 .butterfly-focus-layout > div:first-child > div { width: min(60vw,48rem); height: min(72vh,48rem); max-width: none; max-height: none; }
 .butterfly-focus-layout > div:last-child { flex-basis: 37%; padding-left: clamp(1rem,2vw,2rem); }
+
+.premium-lion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.65rem;
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(205,155,92,.115), transparent 39%),
+    radial-gradient(ellipse at 50% 92%, rgba(84,67,48,.16), transparent 42%),
+    linear-gradient(148deg, rgba(23,19,16,.96), rgba(8,9,9,.97));
+  box-shadow:
+    inset 0 0 100px rgba(0,0,0,.42),
+    0 34px 90px rgba(0,0,0,.36);
+}
+
+button .premium-lion {
+  min-height: 5.5rem;
+  border-radius: .8rem;
+}
+
+.premium-lion__architecture {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .64;
+  background:
+    linear-gradient(90deg, transparent 11%, rgba(226,196,150,.06) 11.15%, transparent 11.5%, transparent 88.5%, rgba(226,196,150,.06) 88.85%, transparent 89%),
+    linear-gradient(180deg, rgba(255,255,255,.03), transparent 18%),
+    radial-gradient(ellipse at center bottom, rgba(206,164,103,.07), transparent 58%);
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.9), rgba(0,0,0,.4) 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.9), rgba(0,0,0,.4) 72%, transparent 100%);
+}
+
+.premium-lion__beam {
+  position: absolute;
+  left: 50%;
+  top: -22%;
+  z-index: 0;
+  width: 72%;
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: .48;
+  filter: blur(58px);
+  background: conic-gradient(from 168deg at 50% 0%, transparent 0 13deg, rgba(255,219,165,.12) 20deg, rgba(255,229,187,.06) 28deg, transparent 39deg);
+  mask-image: radial-gradient(ellipse at 50% 22%, black, transparent 76%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 22%, black, transparent 76%);
+}
+
+.premium-lion__glow {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 0;
+  width: min(70%,27rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+  opacity: 0;
+  background: radial-gradient(circle, rgba(239,196,125,.18), rgba(136,151,112,.06) 43%, transparent 71%);
+  filter: blur(22px);
+}
+
+button .premium-lion__architecture,
+button .premium-lion__beam { opacity: .22; }
 
 .butterfly-mosaic {
   position: relative;
