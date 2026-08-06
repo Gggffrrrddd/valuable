@@ -797,3 +797,76 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   .butterfly-banker,
   .butterfly-wing { animation: none !important; }
 }
+
+/* Butterfly Mosaic */
+.butterfly-focus-session .focus-grid,
+.butterfly-focus-session .focus-orbit { display: none; }
+
+.butterfly-focus-session .focus-atmosphere {
+  background:
+    radial-gradient(ellipse at 28% 42%, rgba(216,184,129,.085), transparent 39%),
+    radial-gradient(ellipse at 14% 76%, rgba(137,153,118,.035), transparent 34%),
+    linear-gradient(124deg, #08090a 0%, #11110f 48%, #090a0b 100%);
+}
+
+.butterfly-focus-layout > div:first-child { flex-basis: 63%; padding-right: clamp(.5rem,2vw,2rem); }
+.butterfly-focus-layout > div:first-child > div { width: min(60vw,48rem); height: min(72vh,48rem); max-width: none; max-height: none; }
+.butterfly-focus-layout > div:last-child { flex-basis: 37%; padding-left: clamp(1rem,2vw,2rem); }
+
+.butterfly-mosaic {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at 43% 42%, rgba(228,202,160,.075), transparent 45%), linear-gradient(148deg, rgba(18,19,18,.72), rgba(8,9,10,.22));
+  box-shadow: inset 0 0 80px rgba(0,0,0,.32);
+}
+
+button .butterfly-mosaic { width: 100%; height: 100%; min-height: 5.5rem; border-radius: .8rem; }
+.butterfly-mosaic__scene { position: absolute; inset: 0; z-index: 3; overflow: hidden; }
+.butterfly-mosaic__light { position: absolute; inset: -18%; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at 25% 12%, rgba(255,228,181,.13), rgba(180,143,91,.025) 34%, transparent 63%); filter: blur(30px); }
+.butterfly-mosaic__dust { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .42; background-image: radial-gradient(circle at 13% 22%,rgba(255,245,223,.55) 0 1px,transparent 1.5px),radial-gradient(circle at 72% 31%,rgba(255,225,178,.42) 0 1px,transparent 1.5px),radial-gradient(circle at 42% 76%,rgba(210,225,190,.32) 0 1px,transparent 1.5px); background-size: 13rem 11rem,17rem 14rem,19rem 16rem; animation: butterflyDust 28s linear infinite; }
+.butterfly-mosaic__halo { position: absolute; left: 50%; top: 50%; z-index: 2; width: min(72%,28rem); aspect-ratio: 1; border-radius: 50%; transform: translate(-50%,-50%); opacity: 0; background: radial-gradient(circle,rgba(225,255,186,.14),rgba(221,187,130,.06) 38%,transparent 70%); filter: blur(24px); }
+.butterfly-mosaic__loading { position: absolute; left: 50%; top: 50%; width: 9rem; height: 1px; transform: translate(-50%,-50%); background: linear-gradient(90deg,transparent,rgba(225,203,165,.55),transparent); animation: butterflyLoading 1.8s ease-in-out infinite; }
+
+.butterfly-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--butterfly-size,28px) !important;
+  height: var(--butterfly-size,28px) !important;
+  max-width: none !important;
+  max-height: none !important;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform,opacity;
+}
+
+button .butterfly-slot { --butterfly-size: 14px !important; }
+.butterfly-flight,.butterfly-banker { position: absolute; inset: 0; display: block; transform-origin: center; will-change: transform; }
+.butterfly-flight { opacity: 0; }
+.butterfly-flight--active .butterfly-banker { animation: butterflyAirBank 2.7s ease-in-out infinite; }
+.butterfly-flight--landed { opacity: 1 !important; transform: translate3d(0,0,0) scale(1) !important; }
+.butterfly-wing,.butterfly-body { position: absolute; inset: 0; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; object-fit: contain; user-select: none; pointer-events: none; }
+.butterfly-wing { transform-style: preserve-3d; opacity: .94; filter: drop-shadow(0 0 2px rgba(247,223,181,.26)); }
+.butterfly-wing--left { transform-origin: 96% 53%; animation: butterflyWingLeft var(--butterfly-flap-speed) cubic-bezier(.42,.02,.55,.98) infinite alternate; }
+.butterfly-wing--right { transform-origin: 4% 53%; animation: butterflyWingRight var(--butterfly-flap-speed) cubic-bezier(.42,.02,.55,.98) infinite alternate; }
+.butterfly-body { z-index: 3; opacity: .98; filter: brightness(.7) drop-shadow(0 1.5px 1.5px rgba(0,0,0,.45)); }
+.butterfly-flight--landed .butterfly-wing { animation-duration: calc(var(--butterfly-flap-speed) * 2.2); opacity: .9; }
+.butterfly-slot--back .butterfly-banker { filter: brightness(.68) saturate(.82); }
+
+@keyframes butterflyWingLeft { from { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * -.18)) rotateZ(-2deg); } to { transform: perspective(6rem) rotateY(var(--butterfly-flap-angle)) rotateZ(1deg); } }
+@keyframes butterflyWingRight { from { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * .18)) rotateZ(2deg); } to { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * -1)) rotateZ(-1deg); } }
+@keyframes butterflyAirBank { 0%,100% { transform: rotateZ(-2.5deg) translateY(0); } 50% { transform: rotateZ(3deg) translateY(-3px); } }
+@keyframes butterflyDust { to { transform: translate3d(1rem,-1.5rem,0); } }
+@keyframes butterflyLoading { 0%,100% { opacity: .2; transform: translate(-50%,-50%) scaleX(.65); } 50% { opacity: .75; transform: translate(-50%,-50%) scaleX(1); } }
+
+@media (max-width: 1023px) {
+  .butterfly-focus-layout > div:first-child { width: 100%; flex: 1; padding: 0; }
+  .butterfly-focus-layout > div:first-child > div { width: min(94vw,38rem); height: min(49vh,32rem); }
+  .butterfly-focus-layout > div:last-child { flex: none; padding: 0; }
+}

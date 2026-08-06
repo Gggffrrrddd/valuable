@@ -9,8 +9,8 @@ interface ButterflyMosaicProps extends FocusVisualProps {
   duration: number;
 }
 
-const DESKTOP_COUNT = 260;
-const MOBILE_COUNT = 190;
+const DESKTOP_COUNT = 220;
+const MOBILE_COUNT = 160;
 const PREVIEW_COUNT = 72;
 const MAX_FLYING = 8;
 
@@ -37,6 +37,7 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
   const [points, setPoints] = useState<ButterflyPoint[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   const nodesRef = useRef<ButterflyNode[]>([]);
   const sessionSeedRef = useRef(Math.floor(Math.random() * 2_147_483_647));
   const progressRef = useRef(progress);
@@ -51,7 +52,6 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
     const count = activeSession ? (window.innerWidth < 700 ? MOBILE_COUNT : DESKTOP_COUNT) : PREVIEW_COUNT;
     sampleLionSurface(count, sessionSeedRef.current).then((sampled) => {
       if (!cancelled) {
-        nodesRef.current = sampled.map((point) => ({ slot: null, flight: null, point, startedAt: 0 }));
         setPoints(sampled);
       }
     }).catch(() => {
@@ -62,7 +62,12 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || points.length === 0) return;
+    const scene = sceneRef.current;
+    if (!root || !scene || points.length === 0) return;
+    nodesRef.current = points.map((point, index) => {
+      const slot = scene.children.item(index) as HTMLSpanElement | null;
+      return { slot, flight: slot?.querySelector('.butterfly-flight') as HTMLSpanElement | null, point, startedAt: 0 };
+    });
     let frame = 0;
     let previous = performance.now();
     let sceneAngle = -.18;
@@ -92,7 +97,7 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
         const projected = projectPoint(point.position, point.normal, reducedMotion ? -.18 : sceneAngle);
         point.depth = projected.depth;
         point.frontFacing = projected.frontFacing;
-        const depthScale = point.scale * projected.scale;
+        const depthScale = point.scale * projected.scale * .58;
         const screenX = projected.x * width / 100;
         const screenY = projected.y * height / 100;
         slot.style.transform = `translate3d(${screenX.toFixed(2)}px,${screenY.toFixed(2)}px,0) translate(-50%,-50%) rotate(${(projected.rotation + point.rotation * .2).toFixed(2)}deg) scale3d(${depthScale.toFixed(3)},${depthScale.toFixed(3)},1)`;
@@ -146,14 +151,9 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
       <div className="butterfly-mosaic__dust" aria-hidden="true" />
       <div className="butterfly-mosaic__halo visual-finish-glow" aria-hidden="true" />
       {points.length === 0 && <div className="butterfly-mosaic__loading" aria-hidden="true" />}
-      <div className="butterfly-mosaic__scene">
-        {points.map((point, index) => (
-          <ButterflySprite
-            key={point.id}
-            point={point}
-            slotRef={(element) => { if (nodesRef.current[index]) nodesRef.current[index].slot = element; }}
-            flightRef={(element) => { if (nodesRef.current[index]) nodesRef.current[index].flight = element; }}
-          />
+      <div ref={sceneRef} className="butterfly-mosaic__scene">
+        {points.map((point) => (
+          <ButterflySprite key={point.id} point={point} />
         ))}
       </div>
     </div>
