@@ -1,192 +1,188 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
-import { Box3, DoubleSide, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Quaternion, SRGBColorSpace, TextureLoader, Vector3 } from 'three';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import { sampleLionSurface } from './butterfly/sampling';
+import { useEffect, useRef, useState } from 'react';
+import { sampleLionConstellation, type LionConstellationPoint } from './constellation/sampling';
 import type { FocusVisualProps } from './types';
 
-const LION_MODEL_URL = '/visuals/butterfly-mosaic/models/lion.obj';
-const BUTTERFLY_COUNT = 1200;
-const MODEL_SCALE = 2.85;
-const SAMPLE_SCALE = MODEL_SCALE / 1.82;
-
-function LionDepthShell() {
-  const source = useLoader(OBJLoader, LION_MODEL_URL);
-  const lion = useMemo(() => {
-    const clone = source.clone(true);
-    const bounds = new Box3().setFromObject(clone);
-    const size = bounds.getSize(new Vector3());
-    const center = bounds.getCenter(new Vector3());
-    const scale = MODEL_SCALE / Math.max(size.x, size.y);
-    const material = new MeshBasicMaterial({
-      colorWrite: false,
-      depthWrite: true,
-      depthTest: true,
-    });
-    clone.traverse((child) => {
-      if (!(child instanceof Mesh)) return;
-      child.geometry = child.geometry.clone();
-      child.geometry.computeVertexNormals();
-      child.material = material;
-      child.castShadow = false;
-      child.receiveShadow = false;
-    });
-    clone.position.set(-center.x * scale, -center.y * scale - .05, -center.z * scale);
-    clone.scale.setScalar(scale);
-    return { object: clone, material };
-  }, [source]);
-
-  useEffect(() => () => {
-    lion.material.dispose();
-  }, [lion]);
-  return <primitive object={lion.object} />;
+interface ButterflyMosaicProps extends FocusVisualProps {
+  duration: number;
 }
 
-function SurfaceButterflies() {
-  const [ready, setReady] = useState(false);
-  const leftRef = useRef<InstancedMesh>(null);
-  const rightRef = useRef<InstancedMesh>(null);
-  const bodyRef = useRef<InstancedMesh>(null);
-  const leftTexture = useLoader(TextureLoader, '/visuals/butterfly-mosaic/wing-left.png');
-  const rightTexture = useLoader(TextureLoader, '/visuals/butterfly-mosaic/wing-right.png');
-  const bodyTexture = useLoader(TextureLoader, '/visuals/butterfly-mosaic/body.png');
+const DESKTOP_POINTS = 360;
+const MOBILE_POINTS = 300;
+const PREVIEW_POINTS = 96;
+const ARRIVAL_MS = 520;
+const ROTATION_SECONDS = 90;
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return reduced;
+}
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function backOut(value: number) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(value - 1, 3) + c1 * Math.pow(value - 1, 2);
+}
+
+function createGlowStamp(size: number, center: string, edge: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) return canvas;
+  const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, center);
+  gradient.addColorStop(.18, center);
+  gradient.addColorStop(.48, edge);
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  return canvas;
+}
+
+function project(point: LionConstellationPoint, angle: number, width: number, height: number) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const x = point.position.x * cos + point.position.z * sin;
+  const z = -point.position.x * sin + point.position.z * cos;
+  const perspective = 1 / (2.65 - z * .45);
+  const sceneScale = Math.min(width * .94, height * 1.12);
+  return {
+    x: width * .47 + x * perspective * sceneScale,
+    y: height * .5 - point.position.y * perspective * sceneScale,
+    z,
+    scale: .76 + perspective * 1.05,
+  };
+}
+
+export default function ButterflyMosaicVisual({ progress, duration }: ButterflyMosaicProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const progressRef = useRef(clamp01(progress));
+  const reducedMotion = useReducedMotion();
+  const complete = progress >= 1;
+
+  progressRef.current = clamp01(progress);
 
   useEffect(() => {
-    leftTexture.colorSpace = SRGBColorSpace;
-    rightTexture.colorSpace = SRGBColorSpace;
-    bodyTexture.colorSpace = SRGBColorSpace;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) return;
+
     let cancelled = false;
-    sampleLionSurface(BUTTERFLY_COUNT, 9137).then((points) => {
-      if (cancelled || !leftRef.current || !rightRef.current || !bodyRef.current) return;
-      const zAxis = new Vector3(0, 0, 1);
-      const normalRotation = new Quaternion();
-      const twistRotation = new Quaternion();
-      const orientation = new Quaternion();
-      const parentMatrix = new Matrix4();
-      const localMatrix = new Matrix4();
-      const finalMatrix = new Matrix4();
-      const scale = new Vector3();
-      const position = new Vector3();
-      const localPosition = new Vector3();
-      const localScale = new Vector3(1, 1, 1);
-      const identity = new Quaternion();
+    let frame = 0;
+    let points: LionConstellationPoint[] = [];
+    let revealedAt = new Float64Array(0);
+    let width = 1;
+    let height = 1;
+    let dpr = 1;
+    let startTime = performance.now();
+    let lastFrame = 0;
+    const activeSession = duration > 0;
+    const pointCount = activeSession ? (window.innerWidth < 700 ? MOBILE_POINTS : DESKTOP_POINTS) : PREVIEW_POINTS;
+    const warmStamp = createGlowStamp(64, 'rgba(255,245,220,1)', 'rgba(230,178,102,.28)');
+    const limeStamp = createGlowStamp(64, 'rgba(239,255,205,1)', 'rgba(176,226,91,.24)');
 
-      points.forEach((point, index) => {
-        position.copy(point.position).multiplyScalar(SAMPLE_SCALE).addScaledVector(point.normal, .042);
-        position.y -= .08;
-        normalRotation.setFromUnitVectors(zAxis, point.normal);
-        twistRotation.setFromAxisAngle(zAxis, ((index * 137.5) % 360) * Math.PI / 180);
-        orientation.copy(normalRotation).multiply(twistRotation);
-        const instanceScale = .58 + (index % 9) * .016;
-        scale.setScalar(instanceScale);
-        parentMatrix.compose(position, orientation, scale);
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+    resize();
 
-        localPosition.set(-.024, 0, 0);
-        localMatrix.compose(localPosition, identity, localScale);
-        finalMatrix.multiplyMatrices(parentMatrix, localMatrix);
-        leftRef.current!.setMatrixAt(index, finalMatrix);
-
-        localPosition.set(.024, 0, 0);
-        localMatrix.compose(localPosition, identity, localScale);
-        finalMatrix.multiplyMatrices(parentMatrix, localMatrix);
-        rightRef.current!.setMatrixAt(index, finalMatrix);
-
-        localPosition.set(0, 0, .004);
-        localMatrix.compose(localPosition, identity, localScale);
-        finalMatrix.multiplyMatrices(parentMatrix, localMatrix);
-        bodyRef.current!.setMatrixAt(index, finalMatrix);
-      });
-      leftRef.current.instanceMatrix.needsUpdate = true;
-      rightRef.current.instanceMatrix.needsUpdate = true;
-      bodyRef.current.instanceMatrix.needsUpdate = true;
-      leftRef.current.computeBoundingSphere();
-      rightRef.current.computeBoundingSphere();
-      bodyRef.current.computeBoundingSphere();
-      setReady(true);
+    sampleLionConstellation(pointCount, activeSession ? 9137 : 4289).then((sampled) => {
+      if (cancelled) return;
+      points = sampled;
+      revealedAt = new Float64Array(pointCount);
+      revealedAt.fill(-1);
+      startTime = performance.now();
     });
-    return () => { cancelled = true; };
-  }, [bodyTexture, leftTexture, rightTexture]);
+
+    const draw = (now: number) => {
+      frame = requestAnimationFrame(draw);
+      if (points.length === 0) return;
+      if (now - lastFrame < 1000 / 45) return;
+      lastFrame = now;
+
+      const value = progressRef.current;
+      const expected = value >= 1 ? points.length : Math.floor(value * points.length);
+      for (const point of points) {
+        if (point.revealRank < expected && revealedAt[point.id] < 0) {
+          revealedAt[point.id] = value >= 1 ? now - ARRIVAL_MS : now;
+        }
+      }
+
+      context.clearRect(0, 0, width, height);
+      const angle = reducedMotion ? -.08 : -.08 + (now - startTime) / 1000 * Math.PI * 2 / ROTATION_SECONDS;
+      const projected = points
+        .filter((point) => revealedAt[point.id] >= 0)
+        .map((point) => ({ point, ...project(point, angle, width, height) }))
+        .sort((a, b) => a.z - b.z);
+
+      for (const item of projected) {
+        const age = now - revealedAt[item.point.id];
+        const arrival = reducedMotion ? clamp01(age / 260) : clamp01(age / ARRIVAL_MS);
+        const settled = age >= ARRIVAL_MS;
+        const pop = reducedMotion ? arrival : backOut(arrival);
+        const twinkle = reducedMotion ? 0 : Math.sin(now * item.point.twinkleSpeed + item.point.twinklePhase) * .045;
+        const depth = clamp01((item.z + 1) / 2);
+        const radius = (1.25 + depth * 1.35) * item.scale * pop;
+        const alpha = (reducedMotion ? arrival : .66 + depth * .22 + twinkle) * Math.min(1, pop);
+        const ignition = settled || reducedMotion ? 0 : 1 - arrival;
+        const stamp = item.point.accent > .72 ? limeStamp : warmStamp;
+        const glowSize = radius * (settled ? 6.8 : 8.5 + ignition * 4.5);
+
+        context.globalAlpha = Math.max(0, Math.min(1, alpha + ignition * .25));
+        context.drawImage(stamp, item.x - glowSize / 2, item.y - glowSize / 2, glowSize, glowSize);
+        context.globalAlpha = Math.max(0, Math.min(1, alpha));
+        context.beginPath();
+        context.arc(item.x, item.y, Math.max(.35, radius), 0, Math.PI * 2);
+        context.fillStyle = item.point.accent > .72 ? '#efffcf' : '#ffe9c4';
+        context.fill();
+
+        if (!reducedMotion && !settled) {
+          const rippleRadius = radius * (1 + arrival * 3.2);
+          context.globalAlpha = (1 - arrival) * .34;
+          context.beginPath();
+          context.arc(item.x, item.y, rippleRadius, 0, Math.PI * 2);
+          context.strokeStyle = item.point.accent > .72 ? '#caff69' : '#f4ca89';
+          context.lineWidth = Math.max(.45, 1.1 - arrival * .55);
+          context.stroke();
+        }
+      }
+      context.globalAlpha = 1;
+    };
+    frame = requestAnimationFrame(draw);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
+  }, [duration, reducedMotion]);
 
   return (
-    <group visible={ready}>
-      <instancedMesh ref={leftRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={3}>
-        <planeGeometry args={[.074, .052]} />
-        <meshBasicMaterial map={leftTexture} transparent alphaTest={.035} depthWrite side={DoubleSide} toneMapped={false} />
-      </instancedMesh>
-      <instancedMesh ref={rightRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={3}>
-        <planeGeometry args={[.074, .052]} />
-        <meshBasicMaterial map={rightTexture} transparent alphaTest={.035} depthWrite side={DoubleSide} toneMapped={false} />
-      </instancedMesh>
-      <instancedMesh ref={bodyRef} args={[undefined, undefined, BUTTERFLY_COUNT]} renderOrder={4}>
-        <planeGeometry args={[.022, .062]} />
-        <meshBasicMaterial map={bodyTexture} transparent alphaTest={.04} depthWrite side={DoubleSide} toneMapped={false} />
-      </instancedMesh>
-    </group>
-  );
-}
-
-function LionFormation({ rotation }: { rotation: number }) {
-  return (
-    <group rotation={[0, rotation, 0]}>
-      <LionDepthShell />
-      <SurfaceButterflies />
-    </group>
-  );
-}
-
-function GalleryStage() {
-  return (
-    <>
-      <mesh position={[0, -1.17, -.04]} receiveShadow>
-        <cylinderGeometry args={[1.72, 1.88, .18, 96]} />
-        <meshPhysicalMaterial color="#111518" metalness={.58} roughness={.24} clearcoat={.82} clearcoatRoughness={.22} />
-      </mesh>
-      <mesh position={[0, -1.07, -.04]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[1.7, 96]} />
-        <meshPhysicalMaterial color="#20272a" metalness={.42} roughness={.21} clearcoat={1} clearcoatRoughness={.16} />
-      </mesh>
-      <mesh position={[0, -1.055, -.04]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.48, .008, 8, 128]} />
-        <meshPhysicalMaterial color="#899482" metalness={.74} roughness={.25} />
-      </mesh>
-    </>
-  );
-}
-
-function LoadingLion() {
-  return <mesh><icosahedronGeometry args={[.72, 2]} /><meshStandardMaterial color="#8c765c" wireframe /></mesh>;
-}
-
-export default function ButterflyMosaicVisual({ progress, duration = 0 }: FocusVisualProps & { duration?: number }) {
-  const [rotationDegrees, setRotationDegrees] = useState(0);
-  const complete = progress >= 1;
-  return (
-    <div className={`premium-lion focus-visual ${complete ? 'visual-complete' : ''}`} role="img" aria-label="Premium butterfly lion sculpture">
-      <div className="premium-lion__architecture" aria-hidden="true" />
-      <div className="premium-lion__beam" aria-hidden="true" />
-      <div className="premium-lion__glow visual-finish-glow" aria-hidden="true" />
-      <Canvas
-        frameloop="demand"
-        camera={{ position: [0, .08, 4.25], fov: 35 }}
-        dpr={[1, 1.65]}
-        shadows
-        gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMappingExposure: 1.18 }}
-        style={{ position: 'absolute', inset: 0 }}
-      >
-        <ambientLight intensity={.62} color="#e2ddd4" />
-        <spotLight position={[-2.4, 4.8, 4.1]} intensity={6.8} color="#fff0d5" angle={.45} penumbra={1} distance={12} decay={1.7} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-        <directionalLight position={[3.8, 1.9, 2.7]} intensity={2.2} color="#e7d7bd" />
-        <pointLight position={[-2.9, .45, -1.9]} intensity={1.8} distance={6} decay={2} color="#9fb18e" />
-        <pointLight position={[0, -1.4, 2.3]} intensity={.65} distance={4} decay={2} color="#d8c7ae" />
-        <GalleryStage />
-        <Suspense fallback={<LoadingLion />}>
-          <LionFormation rotation={rotationDegrees * Math.PI / 180} />
-        </Suspense>
-      </Canvas>
-      {duration > 0 && <div className="premium-lion__controls">
-        <div className="premium-lion__controls-row"><span>3D view</span><output>{rotationDegrees}°</output></div>
-        <input type="range" min={-180} max={180} step={1} value={rotationDegrees} onChange={(event) => setRotationDegrees(Number(event.target.value))} aria-label="Rotate lion in 3D" />
-      </div>}
+    <div className={`lion-constellation focus-visual ${complete ? 'visual-complete' : ''}`} role="img" aria-label={`Lion constellation ${Math.round(progress * 100)} percent complete`}>
+      <div className="lion-constellation__architecture" aria-hidden="true" />
+      <div className="lion-constellation__beam" aria-hidden="true" />
+      <canvas ref={canvasRef} className="lion-constellation__canvas" aria-hidden="true" />
+      <div className="lion-constellation__completion visual-finish-glow" aria-hidden="true" />
     </div>
   );
 }
