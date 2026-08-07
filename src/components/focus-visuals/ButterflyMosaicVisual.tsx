@@ -14,9 +14,17 @@ const ROTATION_SECONDS = 90;
 const ADAPTIVE_TUNE_IN_FRAMES = 90;
 const ADAPTIVE_FPS_THRESHOLD = 40;
 const POINT_RADIUS = .55;
-const TINT = '#9fd6ff';
-const TINT_RGBA = 'rgba(159,214,255,1)';
-const TINT_EDGE = 'rgba(70,140,210,.28)';
+
+const PALETTE: Array<{ r: number; g: number; b: number }> = [
+  { r: 0x08, g: 0x11, b: 0x1f },
+  { r: 0x0a, g: 0x1f, b: 0x45 },
+  { r: 0x0d, g: 0x3f, b: 0x8f },
+  { r: 0x14, g: 0x6b, b: 0xff },
+  { r: 0x2f, g: 0x8c, b: 0xff },
+  { r: 0x59, g: 0xb5, b: 0xff },
+  { r: 0x8a, g: 0xd7, b: 0xff },
+  { r: 0xc8, g: 0xf1, b: 0xff },
+];
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -40,40 +48,71 @@ function backOut(value: number) {
   return 1 + c3 * Math.pow(value - 1, 3) + c1 * Math.pow(value - 1, 2);
 }
 
-function createGlowStamp(size: number) {
+function samplePalette(t: number) {
+  const clamped = clamp01(t) * (PALETTE.length - 1);
+  const lower = Math.floor(clamped);
+  const upper = Math.min(PALETTE.length - 1, lower + 1);
+  const mix = clamped - lower;
+  const a = PALETTE[lower];
+  const b = PALETTE[upper];
+  return {
+    r: Math.round(a.r + (b.r - a.r) * mix),
+    g: Math.round(a.g + (b.g - a.g) * mix),
+    b: Math.round(a.b + (b.b - a.b) * mix),
+  };
+}
+
+function rgbToRgba(color: { r: number; g: number; b: number }, alpha: number) {
+  return `rgba(${color.r},${color.g},${color.b},${alpha.toFixed(3)})`;
+}
+
+function sampleColorRgba(t: number, alpha: number) {
+  return rgbToRgba(samplePalette(t), alpha);
+}
+
+function sampleEdgeColorRgba(t: number, alpha: number) {
+  const c = samplePalette(t);
+  return rgbToRgba({ r: Math.round(c.r * .34), g: Math.round(c.g * .52), b: Math.round(c.b * .78) }, alpha);
+}
+
+function createGlowStamp(size: number, t: number) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext('2d');
   if (!context) return canvas;
   const half = size / 2;
+  const center = sampleColorRgba(t, 1);
+  const edge = sampleEdgeColorRgba(t, .42);
   const gradient = context.createRadialGradient(half, half, 0, half, half, half);
-  gradient.addColorStop(0, TINT_RGBA);
-  gradient.addColorStop(.18, TINT_RGBA);
-  gradient.addColorStop(.48, TINT_EDGE);
+  gradient.addColorStop(0, center);
+  gradient.addColorStop(.22, center);
+  gradient.addColorStop(.55, edge);
   gradient.addColorStop(1, 'rgba(0,0,0,0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, size, size);
   return canvas;
 }
 
-function createStarStamp(size: number) {
+function createStarStamp(size: number, t: number) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext('2d');
   if (!context) return canvas;
   const half = size / 2;
-  const base = context.createRadialGradient(half, half, 0, half, half, half * .42);
-  base.addColorStop(0, 'rgba(255,255,255,.95)');
-  base.addColorStop(.45, TINT_RGBA);
-  base.addColorStop(1, 'rgba(126,200,255,0)');
-  context.fillStyle = base;
+  const inner = sampleColorRgba(Math.min(1, t + .08), 1);
+  const flareColor = sampleColorRgba(t, .82);
+  const gradient = context.createRadialGradient(half, half, 0, half, half, half * .42);
+  gradient.addColorStop(0, 'rgba(255,255,255,.95)');
+  gradient.addColorStop(.45, inner);
+  gradient.addColorStop(1, 'rgba(126,200,255,0)');
+  context.fillStyle = gradient;
   context.beginPath();
   context.arc(half, half, half * .42, 0, Math.PI * 2);
   context.fill();
   context.globalCompositeOperation = 'lighter';
-  context.strokeStyle = TINT_RGBA;
+  context.strokeStyle = flareColor;
   context.lineWidth = Math.max(.6, size * .012);
   context.lineCap = 'round';
   const flare = half * 1.4;
@@ -92,6 +131,24 @@ function createStarStamp(size: number) {
 
 function pickStyle(): 'stars' | 'fireflies' {
   return Math.random() < .5 ? 'stars' : 'fireflies';
+}
+
+function pointShade(point: LionConstellationPoint, projectedDepth: number, angle: number) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const frontAxis = Math.max(0, -point.position.x * cos + point.position.z * sin);
+  const topAxis = clamp01((point.position.y + 1.5) / 3);
+  const sideRim = clamp01(1 - Math.abs(point.position.x) / 1.05);
+  const depthAxis = clamp01((projectedDepth + 1) / 2);
+  const baseShade = clamp01(
+    frontAxis * .42 +
+    topAxis * .3 +
+    sideRim * .18 +
+    (1 - depthAxis) * .1 +
+    .18,
+  );
+  const jitter = (point.id * 9301 + 49297) % 233280 / 233280 - .5;
+  return clamp01(baseShade + jitter * .1);
 }
 
 export default function ButterflyMosaicVisual({ progress, duration }: ButterflyMosaicProps) {
@@ -121,7 +178,8 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
     const isMobile = window.innerWidth < 700;
     const baseTarget = activeSession ? (isMobile ? TARGET_POINTS_MOBILE : TARGET_POINTS_DESKTOP) : TARGET_POINTS_PREVIEW;
     const style = pickStyle();
-    const stamp = style === 'stars' ? createStarStamp(40) : createGlowStamp(48);
+    const paletteStamp = (shade: number) =>
+      style === 'stars' ? createStarStamp(40, shade) : createGlowStamp(48, shade);
     let drawStride = 1;
     let strideLocked = false;
     const frameTimings: number[] = [];
@@ -191,6 +249,7 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
         if (stride > 1 && (index++ % stride !== 0)) continue;
 
         const projected = projectPoint(point, angle);
+        const shade = pointShade(point, projected.z, angle);
         const age = now - revealedAt[point.id];
         const arrival = reducedMotion ? clamp01(age / 260) : clamp01(age / ARRIVAL_MS);
         const settled = age >= ARRIVAL_MS || reducedMotion;
@@ -199,28 +258,45 @@ export default function ButterflyMosaicVisual({ progress, duration }: ButterflyM
         const twinkleFactor = sliceBucket === twinkleSlice ? 1 : .15;
         const twinkle = reducedMotion
           ? 0
-          : Math.sin(now * point.twinkleSpeed + point.twinklePhase) * .045 * twinkleFactor;
+          : Math.sin(now * point.twinkleSpeed + point.twinklePhase) * .04 * twinkleFactor;
         const depth = clamp01((projected.z + 1) / 2);
         const radius = POINT_RADIUS * (1 + depth * .55) * projected.scale * pop;
-        const baseAlpha = reducedMotion ? arrival : .72 + depth * .2 + twinkle;
+        const baseAlpha = reducedMotion ? arrival : .74 + depth * .18 + twinkle;
         const alpha = baseAlpha * Math.min(1, pop);
         const ignition = settled ? 0 : 1 - arrival;
-        const stampScale = radius * (settled ? 6 : 7.5 + ignition * 4);
+        const core = sampleColorRgba(shade, 1);
+        const edge = sampleEdgeColorRgba(shade, .36);
+        const halo = sampleColorRgba(shade, .5);
+        const radiusBoost = 1 + depth * .55 + (shade - .5) * .35;
+        const stampScale = radius * radiusBoost * (settled ? 5.4 : 6.8 + ignition * 4);
+        const stampAlpha = Math.max(0, Math.min(1, alpha * (.55 + ignition * .28)));
 
-        context.globalAlpha = Math.max(0, Math.min(1, alpha + ignition * .22));
-        context.drawImage(stamp, projected.x - stampScale / 2, projected.y - stampScale / 2, stampScale, stampScale);
+        context.globalAlpha = stampAlpha;
+        context.drawImage(paletteStamp(shade), projected.x - stampScale / 2, projected.y - stampScale / 2, stampScale, stampScale);
+
         if (!reducedMotion) {
-          context.globalAlpha = Math.max(0, Math.min(1, alpha));
+          context.globalAlpha = Math.max(0, Math.min(1, alpha * (.85 + shade * .15)));
           context.beginPath();
-          context.arc(projected.x, projected.y, Math.max(.3, radius), 0, Math.PI * 2);
-          context.fillStyle = TINT;
+          context.arc(projected.x, projected.y, Math.max(.3, radius * (.9 + shade * .15)), 0, Math.PI * 2);
+          context.fillStyle = core;
           context.fill();
+          if (shade > .62) {
+            context.globalAlpha = Math.max(0, Math.min(1, alpha * .18 * (shade - .6)));
+            const glow = radius * (3.6 + shade * 2.6);
+            const haloGradient = context.createRadialGradient(projected.x, projected.y, 0, projected.x, projected.y, glow);
+            haloGradient.addColorStop(0, halo);
+            haloGradient.addColorStop(1, edge);
+            context.fillStyle = haloGradient;
+            context.beginPath();
+            context.arc(projected.x, projected.y, glow, 0, Math.PI * 2);
+            context.fill();
+          }
           if (!settled) {
             const ripple = radius * (1 + arrival * 3.4);
-            context.globalAlpha = (1 - arrival) * .32;
+            context.globalAlpha = (1 - arrival) * .3 * (.6 + shade);
             context.beginPath();
             context.arc(projected.x, projected.y, ripple, 0, Math.PI * 2);
-            context.strokeStyle = 'rgba(180,225,255,.85)';
+            context.strokeStyle = sampleColorRgba(Math.min(1, shade + .15), .85);
             context.lineWidth = Math.max(.35, .9 - arrival * .5);
             context.stroke();
           }
