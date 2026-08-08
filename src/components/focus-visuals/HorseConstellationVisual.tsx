@@ -25,6 +25,7 @@ const DESKTOP_BLUE_POINTS = 5200;
 const MOBILE_BLUE_POINTS = 2600;
 
 const vertexShaderSource = `
+  precision mediump float;
   attribute vec3 aPosition;
   attribute vec2 aUv;
   attribute float aRank;
