@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { sampleModelSurface, type SurfaceSample } from './constellation/sampling';
 import type { FocusVisualProps } from './types';
 
 interface HorseConstellationProps extends FocusVisualProps {
@@ -18,9 +19,10 @@ interface HorsePoints {
 }
 
 const MODEL_URL = '/visuals/horse/horse.obj';
+const MATERIAL_URL = '/visuals/horse/horse.mtl';
 const TEXTURE_URL = '/visuals/horse/horse-texture-web.jpg';
-const DESKTOP_POINTS = 6200;
-const MOBILE_POINTS = 3200;
+const DESKTOP_BLUE_POINTS = 5200;
+const MOBILE_BLUE_POINTS = 2600;
 
 const vertexShaderSource = `
   attribute vec3 aPosition;
@@ -152,57 +154,39 @@ function parseObj(source: string): HorseGeometry {
   };
 }
 
-function createTexturePoints(geometry: HorseGeometry, image: HTMLImageElement, target: number): HorsePoints {
-  const canvas = document.createElement('canvas');
-  const sampleScale = Math.min(1, 768 / Math.max(image.naturalWidth, image.naturalHeight));
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * sampleScale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * sampleScale));
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  context?.drawImage(image, 0, 0);
-  let pixels: Uint8ClampedArray | undefined;
-  try {
-    pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
-  } catch {
-    // Point placement can fall back to geometry when pixel reads are unavailable.
-  }
-  const blueCandidates: number[] = [];
-  const allCandidates: number[] = [];
-  const seen = new Set<string>();
-
-  for (let vertexIndex = 0; vertexIndex < geometry.positions.length / 3; vertexIndex += 1) {
-    const positionOffset = vertexIndex * 3;
-    const key = `${geometry.positions[positionOffset].toFixed(4)}:${geometry.positions[positionOffset + 1].toFixed(4)}:${geometry.positions[positionOffset + 2].toFixed(4)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    allCandidates.push(vertexIndex);
-    if (!pixels) continue;
-
-    const uvOffset = vertexIndex * 2;
-    const x = Math.min(canvas.width - 1, Math.max(0, Math.round(geometry.textureCoordinates[uvOffset] * (canvas.width - 1))));
-    const y = Math.min(canvas.height - 1, Math.max(0, Math.round((1 - geometry.textureCoordinates[uvOffset + 1]) * (canvas.height - 1))));
-    const pixelOffset = (y * canvas.width + x) * 4;
-    const red = pixels[pixelOffset];
-    const green = pixels[pixelOffset + 1];
-    const blue = pixels[pixelOffset + 2];
-    if (blue > 72 && blue > red * 1.12 && blue > green * .9) blueCandidates.push(vertexIndex);
-  }
-
-  const candidates = blueCandidates.length >= 240 ? blueCandidates : allCandidates;
-  const count = Math.min(target, candidates.length);
+function createSurfacePoints(samples: SurfaceSample[]): HorsePoints {
+  const count = samples.length;
   const pointPositions = new Float32Array(count * 3);
   const pointRanks = new Float32Array(count);
-  const step = candidates.length / count;
-  const minY = geometry.center[1] - geometry.radius;
-  const heightRange = geometry.radius * 2;
   for (let index = 0; index < count; index += 1) {
-    const sourceIndex = candidates[Math.min(candidates.length - 1, Math.floor(index * step))];
-    const sourceOffset = sourceIndex * 3;
-    pointPositions.set(geometry.positions.subarray(sourceOffset, sourceOffset + 3), index * 3);
-    const height = clamp01((geometry.positions[sourceOffset + 1] - minY) / Math.max(.0001, heightRange));
-    const seededNoise = ((sourceIndex * 16807) % 2147483647) / 2147483647;
-    pointRanks[index] = clamp01((1 - height) * .7 + seededNoise * .3);
+    pointPositions[index * 3] = samples[index].position.x;
+    pointPositions[index * 3 + 1] = samples[index].position.y;
+    pointPositions[index * 3 + 2] = samples[index].position.z;
+    pointRanks[index] = samples[index].revealRank / Math.max(1, count - 1);
   }
   return { positions: pointPositions, ranks: pointRanks };
+}
+
+function createBlueTexturePredicate(image: HTMLImageElement) {
+  const canvas = document.createElement('canvas');
+  const scale = Math.min(1, 1024 / Math.max(image.naturalWidth, image.naturalHeight));
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Unable to inspect horse texture');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+
+  return ({ uv }: Pick<SurfaceSample, 'uv'>) => {
+    const x = Math.min(canvas.width - 1, Math.max(0, Math.round(uv.x * (canvas.width - 1))));
+    const y = Math.min(canvas.height - 1, Math.max(0, Math.round((1 - uv.y) * (canvas.height - 1))));
+    const offset = (y * canvas.width + x) * 4;
+    const red = pixels[offset];
+    const green = pixels[offset + 1];
+    const blue = pixels[offset + 2];
+    const saturation = blue - Math.min(red, green);
+    return blue >= 72 && blue > red * 1.08 && blue >= green * 0.92 && saturation >= 12;
+  };
 }
 
 function multiply(a: Float32Array, b: Float32Array) {
@@ -279,10 +263,21 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         image.onerror = () => reject(new Error('Unable to load horse texture'));
         image.src = TEXTURE_URL;
       }),
-    ]).then(([objSource, image]) => {
+    ]).then(async ([objSource, image]) => {
       if (cancelled) return;
       const geometry = parseObj(objSource);
-      const points = createTexturePoints(geometry, image, window.innerWidth < 700 ? MOBILE_POINTS : DESKTOP_POINTS);
+      const pointTarget = window.innerWidth < 700 ? MOBILE_BLUE_POINTS : DESKTOP_BLUE_POINTS;
+      const samples = await sampleModelSurface(MODEL_URL, {
+        count: pointTarget,
+        maxAttempts: pointTarget * 30,
+        seed: duration > 0 ? 9137 : 4289,
+        materialPath: MATERIAL_URL,
+        normalize: false,
+        acceptSample: createBlueTexturePredicate(image),
+      });
+      if (samples.length < 180) throw new Error('Horse texture contains too few blue surface samples');
+      if (cancelled) return;
+      const points = createSurfacePoints(samples);
       const program = createProgram(gl);
       const positionLocation = gl.getAttribLocation(program, 'aPosition');
       const uvLocation = gl.getAttribLocation(program, 'aUv');
