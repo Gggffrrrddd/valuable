@@ -18,7 +18,7 @@ interface HorsePoints {
 }
 
 const MODEL_URL = '/visuals/horse/horse.obj';
-const TEXTURE_URL = '/visuals/horse/horse-texture.png';
+const TEXTURE_URL = '/visuals/horse/horse-texture-web.jpg';
 const DESKTOP_POINTS = 6200;
 const MOBILE_POINTS = 3200;
 
@@ -154,11 +154,17 @@ function parseObj(source: string): HorseGeometry {
 
 function createTexturePoints(geometry: HorseGeometry, image: HTMLImageElement, target: number): HorsePoints {
   const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth;
-  canvas.height = image.naturalHeight;
+  const sampleScale = Math.min(1, 768 / Math.max(image.naturalWidth, image.naturalHeight));
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * sampleScale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * sampleScale));
   const context = canvas.getContext('2d', { willReadFrequently: true });
   context?.drawImage(image, 0, 0);
-  const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+  let pixels: Uint8ClampedArray | undefined;
+  try {
+    pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+  } catch {
+    // Point placement can fall back to geometry when pixel reads are unavailable.
+  }
   const blueCandidates: number[] = [];
   const allCandidates: number[] = [];
   const seen = new Set<string>();
@@ -294,6 +300,7 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
       const pointRankBuffer = createBuffer(gl, points.ranks);
 
       const texture = gl.createTexture();
+      if (!texture) throw new Error('Unable to create horse texture');
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -301,6 +308,9 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      if (gl.getError() !== gl.NO_ERROR) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([14, 30, 62, 255]));
+      }
 
       const resize = () => {
         const rect = canvas.getBoundingClientRect();
@@ -356,7 +366,8 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       };
       frame = requestAnimationFrame(draw);
-    }).catch(() => {
+    }).catch((error) => {
+      console.error('Horse constellation failed to initialize', error);
       if (!cancelled) setLoadState('error');
     });
 
