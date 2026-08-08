@@ -338,7 +338,7 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         const preview = duration <= 0;
-        const angle = preview ? -0.42 : -0.42 + Math.sin((now - startedAt) / 11000) * 0.13;
+        const angle = preview ? -0.42 : ((now - startedAt) / 24000) * Math.PI * 2;
         const matrix = createMatrix(geometry.center, geometry.radius, angle, canvas.width / Math.max(1, canvas.height));
         gl.uniformMatrix4fv(matrixLocation, false, matrix);
         gl.uniform1f(progressLocation, progressRef.current);
