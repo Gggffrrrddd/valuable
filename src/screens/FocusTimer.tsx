@@ -3,6 +3,8 @@ import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import FlipClock from '@/components/FlipClock';
+import LeafPicker from '@/components/LeafPicker';
+import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 
 interface FocusTimerProps {
@@ -28,6 +30,17 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
   });
+  const [selectedLeaf, setSelectedLeaf] = useState<string>(() => {
+    const saved = localStorage.getItem(LEAF_STORAGE_KEY);
+    return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
+  });
+  const [showLeafPicker, setShowLeafPicker] = useState(false);
+
+  function selectLeaf(asset: string) {
+    setSelectedLeaf(asset);
+    localStorage.setItem(LEAF_STORAGE_KEY, asset);
+    setShowLeafPicker(false);
+  }
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,7 +125,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'horse' ? 'horse-focus-session' : ''}`}>
         <div style={{position:'fixed',bottom:100,left:10,background:'rgba(0,0,0,0.85)',color:'#0f0',fontFamily:'monospace',fontSize:11,padding:'6px 10px',zIndex:9999,lineHeight:1.5,border:'1px solid #0f0',borderRadius:4,pointerEvents:'none'}}>
           progress: <b>{progress.toFixed(6)}</b><br/>
           shed: <b>{actualShedCount}</b> / {TOTAL_LEAVES}<br/>
@@ -136,11 +149,11 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''}`}>
+        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'horse' ? 'horse-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
           <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
             <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
-              <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
             </div>
           </div>
 
@@ -259,13 +272,21 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           <div><div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">Choose your focus visual</div><p className="mt-1 text-xs text-stone-600">Your visual unfolds as the session progresses.</p></div>
           <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">Saved automatically</span>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          {FOCUS_VISUAL_THEMES.map((theme, index) => (
-            <button key={theme.id} type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-              <div className="flex h-24 items-center justify-center rounded-xl bg-black/20 sm:h-28"><FocusVisual theme={theme.id} progress={[.35, .3, .5, .42][index]} /></div>
-              <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
-            </button>
-          ))}
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+          {FOCUS_VISUAL_THEMES.map((theme, index) => {
+            const isActiveTree = theme.id === 'tree' && visualTheme === 'tree';
+            return (
+              <div key={theme.id} className="relative">
+                <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
+                  <div className="flex h-24 items-center justify-center rounded-xl bg-black/20 sm:h-28"><FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} /></div>
+                  <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
+                </button>
+                {isActiveTree && (
+                  <button type="button" onClick={() => setShowLeafPicker(true)} className="absolute right-3 top-3 z-10 rounded-full border border-lime-300/40 bg-lime-300/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[.16em] text-lime-200 transition hover:bg-lime-300/25">Edit leaf</button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -340,6 +361,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-lime-300/60" /> Progress saved</span>
       </div>
       </div>
+      {showLeafPicker && (
+        <LeafPicker
+          selectedAsset={selectedLeaf}
+          onSelect={selectLeaf}
+          onClose={() => setShowLeafPicker(false)}
+        />
+      )}
     </div>
   );
 }

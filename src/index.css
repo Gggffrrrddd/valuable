@@ -4,6 +4,40 @@
 @tailwind components;
 @tailwind utilities;
 
+.leaf-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(4, 6, 7, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: leaf-fade-in 180ms ease-out;
+}
+
+.leaf-picker {
+  width: min(28rem, 100%);
+  background: linear-gradient(160deg, rgba(18, 22, 24, 0.96) 0%, rgba(9, 11, 12, 0.96) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  animation: leaf-rise-in 220ms ease-out;
+}
+
+@keyframes leaf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes leaf-rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 :root {
   font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
   color: #f5f3eb;
@@ -250,6 +284,10 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   touch-action: none;
   transform-origin: center;
   user-select: none;
+}
+
+.tree-placed-leaf--react-positioned {
+  transition: left 2.5s ease-out, top 2.5s ease-out, transform 2.5s ease-out;
 }
 
 .tree-placed-leaf--falling {
@@ -678,4 +716,389 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .jar-drop { display: none; }
   .tree-leaf-shed { opacity: 0; }
+  .butterfly-mosaic__dust,
+  .butterfly-banker,
+  .butterfly-wing,
+  .butterfly-mosaic__halo { animation: none !important; }
+}
+
+.butterfly-focus-session .focus-grid,
+.butterfly-focus-session .focus-orbit {
+  display: none;
+}
+
+.butterfly-focus-session .focus-atmosphere {
+  background:
+    radial-gradient(ellipse at 28% 42%, rgba(216, 184, 129, .085), transparent 39%),
+    radial-gradient(ellipse at 14% 76%, rgba(137, 153, 118, .035), transparent 34%),
+    linear-gradient(124deg, #08090a 0%, #11110f 48%, #090a0b 100%);
+}
+
+.butterfly-focus-layout > div:first-child {
+  flex-basis: 63%;
+  padding-right: clamp(.5rem, 2vw, 2rem);
+}
+
+.butterfly-focus-layout > div:first-child > div {
+  width: min(60vw, 48rem);
+  height: min(72vh, 48rem);
+  max-width: none;
+  max-height: none;
+}
+
+.butterfly-focus-layout > div:last-child {
+  flex-basis: 37%;
+  padding-left: clamp(1rem, 2vw, 2rem);
+}
+
+.butterfly-mosaic {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(ellipse at 43% 42%, rgba(228, 202, 160, .075), transparent 45%),
+    linear-gradient(148deg, rgba(18, 19, 18, .72), rgba(8, 9, 10, .22));
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, .32);
+}
+
+button .butterfly-mosaic {
+  min-height: 5.5rem;
+  border-radius: .8rem;
+}
+
+.butterfly-mosaic__scene {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.butterfly-mosaic__light {
+  position: absolute;
+  inset: -18%;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 25% 12%, rgba(255, 228, 181, .13), rgba(180, 143, 91, .025) 34%, transparent 63%);
+  filter: blur(30px);
+}
+
+.butterfly-mosaic__dust {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: .42;
+  background-image:
+    radial-gradient(circle at 13% 22%, rgba(255,245,223,.55) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 31%, rgba(255,225,178,.42) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 42% 76%, rgba(210,225,190,.32) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 84% 68%, rgba(255,242,218,.4) 0 .8px, transparent 1.4px);
+  background-size: 13rem 11rem, 17rem 14rem, 19rem 16rem, 23rem 18rem;
+  animation: butterflyDust 28s linear infinite;
+}
+
+.butterfly-mosaic__halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(72%, 28rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  background: radial-gradient(circle, rgba(225, 255, 186, .14), rgba(221, 187, 130, .06) 38%, transparent 70%);
+  filter: blur(24px);
+}
+
+.butterfly-mosaic__loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9rem;
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, rgba(225, 203, 165, .55), transparent);
+  animation: butterflyLoading 1.8s ease-in-out infinite;
+}
+
+.butterfly-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--butterfly-size, 28px);
+  height: var(--butterfly-size, 28px);
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+button .butterfly-slot { --butterfly-size: 14px !important; }
+
+.butterfly-flight,
+.butterfly-banker {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.butterfly-flight {
+  opacity: 0;
+}
+
+.butterfly-flight--active .butterfly-banker {
+  animation: butterflyAirBank 2.7s ease-in-out infinite;
+}
+
+.butterfly-flight--landed {
+  opacity: 1 !important;
+  transform: translate3d(0,0,0) scale(1) !important;
+}
+
+.butterfly-wing,
+.butterfly-body {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.butterfly-wing {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  opacity: .94;
+  filter: drop-shadow(0 0 2px rgba(247, 223, 181, .26));
+}
+
+.butterfly-wing--left {
+  transform-origin: 96% 53%;
+  animation: butterflyWingLeft var(--butterfly-flap-speed) cubic-bezier(.42,.02,.55,.98) infinite alternate;
+}
+
+.butterfly-wing--right {
+  transform-origin: 4% 53%;
+  animation: butterflyWingRight var(--butterfly-flap-speed) cubic-bezier(.42,.02,.55,.98) infinite alternate;
+}
+
+.butterfly-body {
+  z-index: 3;
+  opacity: .98;
+  filter: brightness(.7) drop-shadow(0 1.5px 1.5px rgba(0,0,0,.45));
+}
+
+.butterfly-flight--landed .butterfly-wing {
+  animation-duration: calc(var(--butterfly-flap-speed) * 2.2);
+  opacity: .9;
+}
+
+.butterfly-slot--back .butterfly-banker {
+  filter: brightness(.68) saturate(.82);
+}
+
+.butterfly-mosaic--error::after {
+  content: '';
+  position: absolute;
+  inset: 35%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(221,194,151,.09), transparent 70%);
+}
+
+@keyframes butterflyWingLeft {
+  from { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * -.18)) rotateZ(-2deg); }
+  to { transform: perspective(6rem) rotateY(var(--butterfly-flap-angle)) rotateZ(1deg); }
+}
+
+@keyframes butterflyWingRight {
+  from { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * .18)) rotateZ(2deg); }
+  to { transform: perspective(6rem) rotateY(calc(var(--butterfly-flap-angle) * -1)) rotateZ(-1deg); }
+}
+
+@keyframes butterflyAirBank {
+  0%, 100% { transform: rotateZ(-2.5deg) translateY(0); }
+  50% { transform: rotateZ(3deg) translateY(-3px); }
+}
+
+@keyframes butterflyDust {
+  to { transform: translate3d(1rem, -1.5rem, 0); }
+}
+
+@keyframes butterflyLoading {
+  0%, 100% { opacity: .2; transform: translate(-50%, -50%) scaleX(.65); }
+  50% { opacity: .75; transform: translate(-50%, -50%) scaleX(1); }
+}
+
+@media (max-width: 1023px) {
+  .butterfly-focus-layout > div:first-child {
+    width: 100%;
+    flex: 1;
+    padding: 0;
+  }
+  .butterfly-focus-layout > div:first-child > div {
+    width: min(94vw, 38rem);
+    height: min(49vh, 32rem);
+  }
+  .butterfly-focus-layout > div:last-child {
+    flex: none;
+    padding: 0;
+  }
+  .butterfly-slot { --butterfly-size: clamp(20px, 4.8vw, 30px); }
+}
+
+.butterfly-mosaic--error::before {
+  content: 'Visual unavailable';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(225, 203, 165, .5);
+}
+
+.horse-focus-session .focus-grid,
+.horse-focus-session .focus-orbit {
+  opacity: .14;
+}
+
+.horse-focus-session .focus-atmosphere {
+  background:
+    radial-gradient(ellipse at 34% 48%, rgba(26, 103, 255, .12), transparent 38%),
+    radial-gradient(ellipse at 20% 80%, rgba(31, 220, 255, .055), transparent 33%),
+    linear-gradient(132deg, #020611 0%, #07101e 46%, #03050b 100%);
+}
+
+.horse-focus-layout > div:first-child > div {
+  width: min(61vw, 49rem);
+  height: min(75vh, 49rem);
+  max-width: none;
+  max-height: none;
+}
+
+.horse-constellation {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(ellipse at 48% 46%, rgba(26, 117, 255, .09), transparent 48%),
+    linear-gradient(148deg, rgba(4, 13, 29, .74), rgba(1, 4, 12, .28));
+  box-shadow:
+    inset 0 0 90px rgba(0, 0, 0, .46),
+    inset 0 0 0 1px rgba(115, 186, 255, .045);
+}
+
+button .horse-constellation {
+  min-height: 5.5rem;
+  border-radius: .8rem;
+}
+
+.horse-constellation__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  filter: drop-shadow(0 0 12px rgba(38, 126, 255, .2));
+  transition: opacity .55s ease;
+}
+
+.horse-constellation--ready .horse-constellation__canvas {
+  opacity: 1;
+}
+
+.horse-constellation__aura {
+  position: absolute;
+  left: 49%;
+  top: 48%;
+  z-index: 1;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(39, 126, 255, .17), rgba(16, 74, 164, .055) 42%, transparent 70%);
+  filter: blur(22px);
+  animation: horseAura 5.4s ease-in-out infinite;
+}
+
+.horse-constellation__floor {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 10%;
+  z-index: 2;
+  height: 12%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(38, 128, 255, .17), rgba(25, 95, 212, .045) 45%, transparent 72%);
+  filter: blur(12px);
+  transform: perspective(14rem) rotateX(62deg);
+}
+
+.horse-constellation--loading::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  width: 8rem;
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, rgba(103, 194, 255, .86), transparent);
+  box-shadow: 0 0 14px rgba(55, 145, 255, .7);
+  animation: horseLoading 1.35s ease-in-out infinite;
+}
+
+.horse-constellation--error::after {
+  content: 'Horse model unavailable';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: rgba(124, 190, 255, .55);
+}
+
+.horse-constellation.visual-complete .horse-constellation__aura {
+  background: radial-gradient(circle, rgba(86, 181, 255, .28), rgba(24, 100, 230, .08) 44%, transparent 72%);
+}
+
+@keyframes horseAura {
+  0%, 100% { opacity: .7; transform: translate(-50%, -50%) scale(.96); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+}
+
+@keyframes horseLoading {
+  0%, 100% { opacity: .25; transform: translate(-50%, -50%) scaleX(.6); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scaleX(1); }
+}
+
+@media (max-width: 1023px) {
+  .horse-focus-layout > div:first-child > div {
+    width: min(94vw, 39rem);
+    height: min(50vh, 33rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .horse-constellation__aura,
+  .horse-constellation--loading::after {
+    animation: none;
+  }
 }
