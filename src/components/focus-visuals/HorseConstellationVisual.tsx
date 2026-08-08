@@ -33,12 +33,18 @@ const vertexShaderSource = `
   uniform float uProgress;
   uniform float uTime;
   uniform float uPointPass;
+  uniform float uTailMin;
+  uniform float uTailSpan;
   varying vec2 vUv;
   varying float vVisible;
   varying float vPulse;
 
   void main() {
-    gl_Position = uMatrix * vec4(aPosition, 1.0);
+    vec3 position = aPosition;
+    float tailWeight = 1.0 - smoothstep(uTailMin, uTailMin + uTailSpan, position.z);
+    position.y -= tailWeight * tailWeight * 0.075;
+    position.x += tailWeight * tailWeight * 0.045 * sin(uTime * 1.15 + position.y * 12.0);
+    gl_Position = uMatrix * vec4(position, 1.0);
     vUv = aUv;
     vVisible = step(aRank, uProgress);
     vPulse = 0.82 + 0.18 * sin(uTime * 1.7 + aRank * 93.0);
@@ -49,6 +55,7 @@ const vertexShaderSource = `
 const fragmentShaderSource = `
   precision mediump float;
   uniform sampler2D uTexture;
+  uniform float uProgress;
   uniform float uPointPass;
   varying vec2 vUv;
   varying float vVisible;
@@ -68,9 +75,10 @@ const fragmentShaderSource = `
 
     vec4 textureColor = texture2D(uTexture, vec2(vUv.x, 1.0 - vUv.y));
     float luminance = dot(textureColor.rgb, vec3(0.299, 0.587, 0.114));
+    float blueMask = smoothstep(0.03, 0.18, textureColor.b - min(textureColor.r, textureColor.g));
     vec3 premiumBase = mix(vec3(0.018, 0.025, 0.045), textureColor.rgb, 0.82);
     premiumBase += vec3(0.01, 0.055, 0.12) * luminance;
-    gl_FragColor = vec4(premiumBase, textureColor.a);
+    gl_FragColor = vec4(premiumBase, textureColor.a * blueMask * smoothstep(0.82, 1.0, uProgress) * 0.7);
   }
 `;
 
@@ -217,9 +225,12 @@ function createMatrix(center: [number, number, number], radius: number, angle: n
     center[0] * sin * scale - center[2] * cos * scale,
     1,
   ]);
+  const roll = -0.075;
+  const rollCos = Math.cos(roll);
+  const rollSin = Math.sin(roll);
   const projection = new Float32Array([
-    1 / Math.max(aspect, 1), 0, 0, 0,
-    0, 1, 0, 0,
+    rollCos / Math.max(aspect, 1), rollSin, 0, 0,
+    -rollSin / Math.max(aspect, 1), rollCos, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1,
   ]);
@@ -287,6 +298,8 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
       const progressLocation = gl.getUniformLocation(program, 'uProgress');
       const timeLocation = gl.getUniformLocation(program, 'uTime');
       const pointPassLocation = gl.getUniformLocation(program, 'uPointPass');
+      const tailMinLocation = gl.getUniformLocation(program, 'uTailMin');
+      const tailSpanLocation = gl.getUniformLocation(program, 'uTailSpan');
 
       const trianglePositionBuffer = createBuffer(gl, geometry.positions);
       const triangleUvBuffer = createBuffer(gl, geometry.textureCoordinates);
@@ -343,6 +356,8 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         gl.uniformMatrix4fv(matrixLocation, false, matrix);
         gl.uniform1f(progressLocation, progressRef.current);
         gl.uniform1f(timeLocation, now / 1000);
+        gl.uniform1f(tailMinLocation, geometry.center[2] - geometry.radius);
+        gl.uniform1f(tailSpanLocation, geometry.radius * 0.42);
 
         bindAttribute(positionLocation, trianglePositionBuffer, 3);
         bindAttribute(uvLocation, triangleUvBuffer, 2);
