@@ -243,7 +243,7 @@ function createBuffer(gl: WebGLRenderingContext, data: BufferSource) {
   return buffer;
 }
 
-export default function ButterflyMosaicVisual({ progress, duration }: HorseConstellationProps) {
+export default function HorseConstellationVisual({ progress, duration }: HorseConstellationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef(clamp01(progress));
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');

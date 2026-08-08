@@ -14,6 +14,62 @@ interface FocusTimerProps {
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
 
 const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
+const SESSION_START_KEY = 'valuable-session-start';
+const SESSION_DURATION_KEY = 'valuable-session-duration';
+const SESSION_PAUSED_AT_KEY = 'valuable-session-paused-at';
+const SESSION_PAUSED_TOTAL_KEY = 'valuable-session-paused-total';
+const SESSION_SUBJECT_KEY = 'valuable-session-subject';
+const SESSION_BREAK_KEY = 'valuable-session-break';
+
+interface StoredSession {
+  startMs: number;
+  durationMs: number;
+  pausedAtMs: number | null;
+  pausedTotalMs: number;
+  subjectTag: string | null;
+  breakMinutes: number;
+  paused: boolean;
+  remainingMs: number;
+  elapsedMs: number;
+}
+
+function readStoredSession(): StoredSession | null {
+  const startRaw = sessionStorage.getItem(SESSION_START_KEY);
+  if (!startRaw) return null;
+  const startMs = Number(startRaw);
+  const durationMs = Number(sessionStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
+  if (!Number.isFinite(startMs) || !Number.isFinite(durationMs) || durationMs <= 0) {
+    return null;
+  }
+  const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
+  const pausedAtMs = pausedAtRaw ? Number(pausedAtRaw) : null;
+  const pausedTotalMs = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+  const now = Date.now();
+  const pausedNowMs = pausedAtMs !== null ? Math.max(0, now - pausedAtMs) : 0;
+  const pausedMs = pausedTotalMs + pausedNowMs;
+  const elapsedMs = Math.max(0, now - startMs - pausedMs);
+  const remainingMs = Math.max(0, durationMs - elapsedMs);
+  return {
+    startMs,
+    durationMs,
+    pausedAtMs,
+    pausedTotalMs,
+    subjectTag: sessionStorage.getItem(SESSION_SUBJECT_KEY) || null,
+    breakMinutes: Number(sessionStorage.getItem(SESSION_BREAK_KEY) ?? 5) || 5,
+    paused: pausedAtMs !== null,
+    remainingMs,
+    elapsedMs,
+  };
+}
+
+function clearSessionStorage() {
+  sessionStorage.removeItem(SESSION_START_KEY);
+  sessionStorage.removeItem(SESSION_DURATION_KEY);
+  sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+  sessionStorage.removeItem(SESSION_PAUSED_TOTAL_KEY);
+  sessionStorage.removeItem(SESSION_SUBJECT_KEY);
+  sessionStorage.removeItem(SESSION_BREAK_KEY);
+}
 
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
@@ -23,8 +79,19 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [subjectTag, setSubjectTag] = useState<string>('');
   const [showSubjects, setShowSubjects] = useState(false);
 
-  const [phase, setPhase] = useState<Phase>('config');
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [phase, setPhase] = useState<Phase>(() => {
+    const s = readStoredSession();
+    if (!s) return 'config';
+    return s.remainingMs <= 0 ? 'completing' : s.paused ? 'paused' : 'focus';
+  });
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const s = readStoredSession();
+    return s ? Math.ceil(s.remainingMs / 1000) : 25 * 60;
+  });
+  const [activeDurationSeconds, setActiveDurationSeconds] = useState(() => {
+    const s = readStoredSession();
+    return s ? s.durationMs / 1000 : 0;
+  });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
@@ -44,38 +111,60 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionSubjectRef = useRef<string | null>(null);
+  const sessionBreakRef = useRef(5);
+  const bootHandledRef = useRef(false);
 
   const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
 
-  useEffect(() => {
-    if (phase === 'focus' || phase === 'paused' || phase === 'completing') return;
-    setSecondsLeft(totalFocusSeconds);
-  }, [totalFocusSeconds, phase]);
+  const completeSession = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setPhase('completing');
+    completionRef.current = setTimeout(() => {
+      const s = readStoredSession();
+      const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
+      clearSessionStorage();
+      onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current);
+    }, 1300);
+  }, [onComplete, totalFocusSeconds]);
 
-  const tick = useCallback(() => {
-    setSecondsLeft((s) => {
-      if (s <= 1) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        setPhase('completing');
-        completionRef.current = setTimeout(() => {
-          onComplete(totalFocusSeconds, subjectTag || null, true, breakMinutes);
-        }, 1300);
-        return 0;
-      }
-      return s - 1;
-    });
-  }, [breakMinutes, onComplete, subjectTag, totalFocusSeconds]);
+  useEffect(() => {
+    if (bootHandledRef.current) return;
+    bootHandledRef.current = true;
+    const s = readStoredSession();
+    if (!s) return;
+    sessionSubjectRef.current = s.subjectTag;
+    sessionBreakRef.current = s.breakMinutes;
+    setActiveDurationSeconds(s.durationMs / 1000);
+    if (s.remainingMs <= 0) {
+      completeSession();
+    }
+  }, [completeSession]);
+
+  useEffect(() => {
+    if (phase === 'config') setSecondsLeft(totalFocusSeconds);
+  }, [totalFocusSeconds, phase]);
 
   useEffect(() => {
     if (phase === 'focus') {
-      intervalRef.current = setInterval(tick, 1000);
+      intervalRef.current = setInterval(() => {
+        const s = readStoredSession();
+        if (!s) return;
+        setSecondsLeft(Math.ceil(s.remainingMs / 1000));
+        if (s.remainingMs <= 0) {
+          completeSession();
+        }
+      }, 1000);
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
     }
-  }, [phase, tick]);
+  }, [phase, completeSession]);
 
   useEffect(() => () => {
     if (completionRef.current) clearTimeout(completionRef.current);
@@ -87,21 +176,38 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   }
 
   function handleStart() {
+    sessionSubjectRef.current = subjectTag || null;
+    sessionBreakRef.current = breakMinutes;
+    sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_DURATION_KEY, String(totalFocusSeconds));
+    sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
+    sessionStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
+    sessionStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
+    setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
   }
 
   function handlePause() {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
   }
 
   function handleResume() {
+    const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
+    if (pausedAtRaw) {
+      const prevTotal = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+      sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
+      sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+    }
     setPhase('focus');
   }
 
   function handleQuitRequest() {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     setPhase('paused');
     setShowQuitConfirm(true);
   }
@@ -109,30 +215,21 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   function handleQuitConfirm(yes: boolean) {
     setShowQuitConfirm(false);
     if (yes) {
-      const totalElapsed = totalFocusSeconds - secondsLeft;
+      const s = readStoredSession();
+      const elapsedSeconds = s ? Math.max(0, Math.round(s.elapsedMs / 1000)) : Math.max(0, totalFocusSeconds - secondsLeft);
+      clearSessionStorage();
       setPhase('config');
-      onComplete(totalElapsed, subjectTag || null, false, breakMinutes);
+      onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
     } else {
-      setPhase('focus');
+      handleResume();
     }
   }
 
-  const progress = totalFocusSeconds > 0 ? 1 - secondsLeft / totalFocusSeconds : 0;
-
-  const TOTAL_LEAVES = 213;
-  const expectedShedCount = Math.floor(progress * TOTAL_LEAVES);
-  const actualShedCount = progress >= 0.98 ? TOTAL_LEAVES : expectedShedCount;
+  const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'horse' ? 'horse-focus-session' : ''}`}>
-        <div style={{position:'fixed',bottom:100,left:10,background:'rgba(0,0,0,0.85)',color:'#0f0',fontFamily:'monospace',fontSize:11,padding:'6px 10px',zIndex:9999,lineHeight:1.5,border:'1px solid #0f0',borderRadius:4,pointerEvents:'none'}}>
-          progress: <b>{progress.toFixed(6)}</b><br/>
-          shed: <b>{actualShedCount}</b> / {TOTAL_LEAVES}<br/>
-          secsLeft: <b>{secondsLeft}</b><br/>
-          focusMin: <b>{focusMinutes}</b><br/>
-          phase: <b>{phase}</b>
-        </div>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'horse' ? 'horse-focus-session' : ''}`}>
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
@@ -149,17 +246,19 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'horse' ? 'horse-focus-layout' : ''}`}>
+        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'horse' ? 'horse-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
           <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
             <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
-              <FocusVisual theme={visualTheme} progress={progress} duration={totalFocusSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
             </div>
           </div>
 
           {/* Right zone: flip-clock timer */}
           <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
-            <FlipClock secondsLeft={secondsLeft} />
+            <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+              <FlipClock secondsLeft={secondsLeft} />
+            </div>
           </div>
         </div>
 
@@ -278,7 +377,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             return (
               <div key={theme.id} className="relative">
                 <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center rounded-xl bg-black/20 sm:h-28"><FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} /></div>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28"><FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} /></div>
                   <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
                 </button>
                 {isActiveTree && (

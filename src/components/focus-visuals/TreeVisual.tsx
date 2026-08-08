@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 interface TreeVisualProps extends FocusVisualProps {
   duration: number;
-  running: boolean;
+  running?: boolean;
+  leafAsset?: string;
 }
 
 interface PlacedLeaf {
@@ -27,44 +28,20 @@ function seededUnit(seed: number) {
   return value - Math.floor(value);
 }
 
-interface LeafAnim {
-  startX: number; startY: number;
-  landX: number; landY: number;
-  startRotation: number; landRotation: number;
-  duration: number;
-  wobbleFreq1: number; wobbleFreq2: number; wobbleAmp: number;
-  swayFreq: number; swayAmp: number;
-  phase1: number; phase2: number; phase3: number;
-  scale: number; zIndex: number;
-}
-
-const LEAF_ANIMS = new Map<number, LeafAnim>(
+const LAND_DATA = new Map<number, { landX: number; landY: number; landRotation: number; zIndex: number; scale: number }>(
   LEAVES.map((leaf) => {
     const u1 = seededUnit(leaf.id + 101), u2 = seededUnit(leaf.id + 211);
     const u3 = seededUnit(leaf.id + 311), u4 = seededUnit(leaf.id + 411);
-    const u5 = seededUnit(leaf.id + 511), u6 = seededUnit(leaf.id + 611);
-    const u7 = seededUnit(leaf.id + 711), u8 = seededUnit(leaf.id + 811);
-    const u9 = seededUnit(leaf.id + 911), u10 = seededUnit(leaf.id + 1011);
+    const u5 = seededUnit(leaf.id + 511), u7 = seededUnit(leaf.id + 711);
     const tri = (u1 + u2) / 2;
     const rotDir = u4 < 0.5 ? -1 : 1;
     return [leaf.id, {
-      startX: leaf.x, startY: leaf.y,
       landX: 0.05 + tri * 0.9,
       landY: 0.76 + u3 * 0.18,
-      startRotation: leaf.rotation,
       landRotation: leaf.rotation + rotDir * (8 + u5 * 22),
-      duration: 2000 + u6 * 1500,
-      wobbleFreq1: 5 + u7 * 8,
-      wobbleFreq2: 8 + u8 * 12,
-      wobbleAmp: 18 + u9 * 32,
-      swayFreq: 2 + u10 * 4,
-      swayAmp: 0.015 + u1 * 0.025,
-      phase1: u2 * Math.PI * 2,
-      phase2: u3 * Math.PI * 2,
-      phase3: u5 * Math.PI * 2,
-      scale: leaf.scale,
       zIndex: 3 + Math.floor(u7 * 3),
-    }] as [number, LeafAnim];
+      scale: leaf.scale,
+    }];
   })
 );
 
@@ -73,9 +50,25 @@ const SHED_ORDER: number[] = LEAVES
   .sort((a, b) => a.order - b.order)
   .map((x) => x.id);
 
-const MAX_FALLING = 4;
-const SETTLE_MS = 350;
+const SHED_RANK = new Map<number, number>(
+  SHED_ORDER.map((id, idx) => [id, idx])
+);
+
 const TOTAL_LEAVES = LEAVES.length;
+
+const SESSION_COLORS = [
+  { hue: 15, saturate: 1.5, brightness: 1.25, dropGlow: '#ff6a13', label: 'warm-orange' },
+  { hue: 30, saturate: 1.55, brightness: 1.3, dropGlow: '#ffb800', label: 'amber-gold' },
+  { hue: -15, saturate: 1.6, brightness: 1.2, dropGlow: '#e0113f', label: 'crimson-red' },
+  { hue: 8, saturate: 1.45, brightness: 1.15, dropGlow: '#c94a10', label: 'deep-rust' },
+  { hue: 50, saturate: 1.55, brightness: 1.35, dropGlow: '#ffd700', label: 'golden-yellow' },
+  { hue: 90, saturate: 1.5, brightness: 1.25, dropGlow: '#50c878', label: 'emerald-green' },
+  { hue: 170, saturate: 1.55, brightness: 1.3, dropGlow: '#00d4aa', label: 'teal-cyan' },
+  { hue: 210, saturate: 1.6, brightness: 1.3, dropGlow: '#0ea5ff', label: 'electric-blue' },
+  { hue: 270, saturate: 1.55, brightness: 1.25, dropGlow: '#b44dff', label: 'violet-purple' },
+  { hue: 315, saturate: 1.6, brightness: 1.25, dropGlow: '#ff44cc', label: 'hot-pink' },
+];
+
 function useReducedMotion() {
   const [r, setR] = useState(false);
   useEffect(() => {
@@ -87,40 +80,19 @@ function useReducedMotion() {
   return r;
 }
 
-export default function TreeVisual({ progress, duration, running }: TreeVisualProps) {
+export default function TreeVisual({ progress, duration, leafAsset }: TreeVisualProps) {
+  const assetUrl = leafAsset ?? LEAF_URL;
   const activeSession = duration > 0;
   const complete = progress >= 1;
   const reducedMotion = useReducedMotion();
-  const [leafState, setLeafState] = useState<Record<number, 'falling' | 'landed'>>({});
-  const queueRef = useRef<number[]>([]);
-  const scheduledRef = useRef(0);
-  const fallingRef = useRef(0);
-  const leafRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
-  const animsRef = useRef<Map<number, { t0: number; anim: LeafAnim }>>(new Map());
-  const pauseRef = useRef<number | null>(null);
-  const lastRunningRef = useRef(running);
-  const boundaryRef = useRef(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const boundaryRef = useRef(1);
+  const [sessionColor, setSessionColor] = useState<(typeof SESSION_COLORS)[number]>(SESSION_COLORS[0]);
 
-  const clampX = useCallback((rawX: number) => Math.min(rawX, boundaryRef.current - 0.008), []);
-
-  const startQueued = useCallback(() => {
-    const slots = MAX_FALLING - fallingRef.current;
-    if (slots <= 0 || queueRef.current.length === 0) return;
-    const start = queueRef.current.splice(0, slots);
-    const now = performance.now();
-    const pauseGap = pauseRef.current !== null ? now - pauseRef.current : 0;
-    start.forEach((id) => {
-      const anim = LEAF_ANIMS.get(id)!;
-      animsRef.current.set(id, { t0: now - pauseGap, anim });
-      fallingRef.current++;
-    });
-    setLeafState((cur) => {
-      const next = { ...cur };
-      start.forEach((id) => { next[id] = 'falling'; });
-      return next;
-    });
-  }, []);
+  useEffect(() => {
+    if (!activeSession) return;
+    setSessionColor(SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
+  }, [activeSession]);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -133,101 +105,67 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
     }
   }, [activeSession]);
 
-  useEffect(() => {
-    if (!activeSession || progress <= 0) {
-      queueRef.current = []; scheduledRef.current = 0;
-      fallingRef.current = 0; animsRef.current.clear();
-      setLeafState({}); return;
-    }
-    if (complete || progress >= 0.95) {
-      queueRef.current = []; scheduledRef.current = TOTAL_LEAVES;
-      fallingRef.current = 0; animsRef.current.clear();
-      setLeafState(Object.fromEntries(LEAVES.map((l) => [l.id, 'landed' as const])));
-      return;
-    }
-    const target = Math.min(TOTAL_LEAVES, Math.floor(progress * TOTAL_LEAVES));
-    if (target <= scheduledRef.current) return;
-    const newly = SHED_ORDER.slice(scheduledRef.current, target);
-    scheduledRef.current = target;
-    if (reducedMotion) {
-      setLeafState((cur) => {
-        const next = { ...cur };
-        newly.forEach((id) => { next[id] = 'landed'; });
-        return next;
-      });
-      return;
-    }
-    queueRef.current.push(...newly);
-    startQueued();
-  }, [activeSession, complete, progress, reducedMotion, startQueued]);
+  const shedCount = useMemo(() => {
+    if (!activeSession || progress <= 0) return 0;
+    if (complete || progress >= 0.95) return TOTAL_LEAVES;
+    return Math.min(TOTAL_LEAVES, Math.floor(progress * TOTAL_LEAVES));
+  }, [activeSession, complete, progress]);
 
-  useEffect(() => {
-    const was = lastRunningRef.current;
-    lastRunningRef.current = running;
-    if (was && !running) {
-      pauseRef.current = performance.now();
-    } else if (!was && running && pauseRef.current !== null) {
-      const dur = performance.now() - pauseRef.current;
-      animsRef.current.forEach((e) => { e.t0 += dur; });
-      pauseRef.current = null;
-    }
-  }, [running]);
+  const leafStyles = useMemo(() => {
+    const clampX = (rawX: number) => Math.min(rawX, boundaryRef.current - 0.008);
+    return LEAVES.map((leaf) => {
+      const rank = SHED_RANK.get(leaf.id) ?? Infinity;
+      const hasShed = activeSession && rank < shedCount;
+      const land = LAND_DATA.get(leaf.id);
 
-  useEffect(() => {
-    if (!activeSession) return;
-    if (complete || progress >= 0.95) return;
-    let raf: number, canceled = false;
-    const tick = () => {
-      if (canceled) return;
-      const now = performance.now();
-      const done: number[] = [];
-      animsRef.current.forEach((e, id) => {
-        const a = e.anim;
-        const elapsed = now - e.t0;
-        const mT = Math.min(elapsed / a.duration, 1);
-        const sT = elapsed > a.duration ? Math.min((elapsed - a.duration) / SETTLE_MS, 1) : 0;
-        const oT = Math.min(elapsed / (a.duration + SETTLE_MS), 1);
-
-        const swayDec = 1 - mT * 0.55;
-        const sway = Math.sin(mT * a.swayFreq + a.phase1) * a.swayAmp * swayDec;
-        const drift = a.startX + (a.landX - a.startX) * mT;
-        const x = clampX(drift + sway);
-        const easeY = 1 - Math.pow(1 - mT, 2.6);
-        let y = a.startY + (a.landY - a.startY) * easeY;
-        if (sT > 0) y -= Math.sin(sT * Math.PI) * (1 - sT) * 0.006;
-
-        const tumDec = 1 - mT * 0.65;
-        const t1 = Math.sin(mT * a.wobbleFreq1 + a.phase2) * a.wobbleAmp;
-        const t2 = Math.sin(mT * a.wobbleFreq2 + a.phase3) * a.wobbleAmp * 0.5;
-        const tum = (t1 + t2) * tumDec;
-        let rot = a.startRotation + (a.landRotation - a.startRotation) * mT + tum;
-        if (sT > 0) rot += Math.sin(sT * Math.PI * 2) * 4 * (1 - sT);
-
-        if (running) {
-          const el = leafRefs.current.get(id);
-          if (el) {
-            el.style.left = `${x * 100}%`;
-            el.style.top = `${y * 100}%`;
-            el.style.transform = `translate(-50%,-50%) rotate(${rot}deg) scale(${a.scale})`;
-          }
-        }
-        if (oT >= 1 && running) done.push(id);
-      });
-      if (done.length > 0) {
-        done.forEach((id) => animsRef.current.delete(id));
-        fallingRef.current = Math.max(0, fallingRef.current - done.length);
-        setLeafState((cur) => {
-          const next = { ...cur };
-          done.forEach((id) => { next[id] = 'landed'; });
-          return next;
-        });
-        startQueued();
+      let x: number, y: number, rot: number, zIdx: number | undefined;
+      if (hasShed && land) {
+        x = clampX(land.landX);
+        y = land.landY;
+        rot = land.landRotation;
+        zIdx = land.zIndex;
+      } else {
+        x = clampX(leaf.x);
+        y = leaf.y;
+        rot = leaf.rotation;
+        zIdx = undefined;
       }
-      raf = requestAnimationFrame(tick);
+
+      const cx = activeSession ? x * 100 : leaf.x * 100;
+      const cy = activeSession ? y * 100 : leaf.y * 100;
+
+      const style: CSSProperties = {
+        left: `${cx}%`,
+        top: `${cy}%`,
+        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
+        filter: `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness})`,
+        zIndex: zIdx,
+      };
+      const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
+        + (reducedMotion ? ' tree-placed-leaf--instant' : '');
+      return { id: leaf.id, style, cls };
+    });
+  }, [activeSession, shedCount, reducedMotion, sessionColor]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      console.log(
+        `[TreeVisual] box=${Math.round(r.width)}x${Math.round(r.height)} aspect=${(r.width / r.height).toFixed(3)}`,
+        `viewport=${vw}x${vh} aspect=${(vw / vh).toFixed(3)}`,
+        `fillsScreen=${r.width >= vw - 1 && r.height >= vh - 1}`,
+        `activeSession=${activeSession}`,
+      );
     };
-    tick();
-    return () => { canceled = true; cancelAnimationFrame(raf); };
-  }, [activeSession, complete, progress, running, startQueued, clampX]);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeSession]);
 
   return (
     <div
@@ -239,39 +177,16 @@ export default function TreeVisual({ progress, duration, running }: TreeVisualPr
       {!activeSession && <img className="tree-leaf-editor__preview-bg" src={TREE_SCENE_URL} alt="" aria-hidden="true" />}
       <div className="tree-scene__completion-glow visual-finish-glow" aria-hidden="true" />
 
-      {LEAVES.map((leaf) => {
-        const forceLand = activeSession && (complete || progress >= 0.95);
-        const rawState = leafState[leaf.id];
-        const state = activeSession ? (rawState === 'landed' || forceLand ? 'landed' : rawState) : undefined;
-        const a = LEAF_ANIMS.get(leaf.id)!;
-        const cx = (rawX: number) => activeSession ? clampX(rawX) * 100 : rawX * 100;
-        let lPct: number, tPct: number, rDeg: number, zIdx: number | undefined;
-        if (state === 'landed') {
-          lPct = cx(a.landX); tPct = a.landY * 100; rDeg = a.landRotation; zIdx = a.zIndex;
-        } else {
-          lPct = cx(a.startX); tPct = a.startY * 100; rDeg = a.startRotation; zIdx = undefined;
-        }
-        const style: CSSProperties = {
-          left: `${lPct}%`, top: `${tPct}%`,
-          transform: `translate(-50%,-50%) rotate(${rDeg}deg) scale(${a.scale})`,
-          filter: `hue-rotate(${leaf.hue}deg) brightness(${leaf.brightness})`,
-          zIndex: zIdx,
-        };
-        return (
-          <span
-            className={`tree-placed-leaf${state ? ` tree-placed-leaf--${state}` : ''}`}
-            style={style}
-            key={leaf.id}
-            aria-hidden="true"
-            ref={(el) => {
-              if (el) leafRefs.current.set(leaf.id, el);
-              else leafRefs.current.delete(leaf.id);
-            }}
-          >
-            <img src={LEAF_URL} alt="" draggable={false} />
-          </span>
-        );
-      })}
+      {leafStyles.map((ls) => (
+        <span
+          key={ls.id}
+          className={ls.cls}
+          style={ls.style}
+          aria-hidden="true"
+        >
+          <img src={assetUrl} alt="" draggable={false} />
+        </span>
+      ))}
     </div>
   );
 }

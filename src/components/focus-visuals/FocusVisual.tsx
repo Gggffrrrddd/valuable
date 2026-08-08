@@ -1,14 +1,16 @@
-import BookVisual from './BookVisual';
+import { lazy, Suspense } from 'react';
 import HourglassVisual from './HourglassVisual';
 import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
-import ButterflyMosaicVisual from './ButterflyMosaicVisual';
 import type { FocusVisualProps, FocusVisualTheme } from './types';
 
-export default function FocusVisual({ theme, progress, duration, running }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number; running?: boolean; leafAsset?: string }) {
-  if (theme === 'tree') return <TreeVisual progress={progress} />;
-  if (theme === 'book') return <BookVisual progress={progress} />;
-  if (theme === 'jar') return <JarVisual progress={progress} />;
-  if (theme === 'horse') return <ButterflyMosaicVisual progress={progress} duration={duration ?? 0} />;
+const BladeVisual = lazy(() => import('./BladeVisual'));
+const HorseConstellationVisual = lazy(() => import('./HorseConstellationVisual'));
+
+export default function FocusVisual({ theme, progress, duration, running, leafAsset }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
+  if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
+  if (theme === 'horse') return <Suspense fallback={<div className="h-full w-full animate-pulse rounded-full bg-white/[.03]" />}><HorseConstellationVisual progress={progress} duration={duration ?? 0} /></Suspense>;
+  if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
+  if (theme === 'blade') return <Suspense fallback={<div className="h-full w-full animate-pulse rounded-full bg-white/[.03]" />}><BladeVisual progress={progress} running={running} duration={duration} /></Suspense>;
   return <HourglassVisual progress={progress} duration={duration ?? 0} running={running ?? false} />;
 }

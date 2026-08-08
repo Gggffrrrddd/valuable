@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import AuthScreen from '@/screens/AuthScreen';
@@ -12,11 +12,31 @@ import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, C
 type Tab = 'home' | 'stats' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium';
 
+const SCREEN_STORAGE_KEY = 'valuable-app-screen';
+const TAB_STORAGE_KEY = 'valuable-app-tab';
+
+const VALID_TABS: Tab[] = ['home', 'stats', 'friends'];
+const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium'];
+
 function AppContent() {
   const { session, profile, loading, signOut } = useAuth();
-  const [tab, setTab] = useState<Tab>('home');
-  const [screen, setScreen] = useState<Screen>('tab');
+  const [tab, setTab] = useState<Tab>(() => {
+    const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+    return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : 'home';
+  });
+  const [screen, setScreen] = useState<Screen>(() => {
+    const saved = sessionStorage.getItem(SCREEN_STORAGE_KEY);
+    return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : 'tab';
+  });
   const [breakMinutes, setBreakMinutes] = useState(5);
+
+  useEffect(() => {
+    sessionStorage.setItem(TAB_STORAGE_KEY, tab);
+  }, [tab]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
+  }, [screen]);
 
   if (loading) {
     return (
