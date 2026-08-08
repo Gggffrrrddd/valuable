@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { sampleModelSurface, type SurfaceSample } from './constellation/sampling';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { FocusVisualProps } from './types';
 
 interface HorseConstellationProps extends FocusVisualProps {
@@ -13,42 +12,28 @@ interface HorseGeometry {
   radius: number;
 }
 
-interface HorsePoints {
-  positions: Float32Array;
-  ranks: Float32Array;
+interface CalibrationPoint {
+  x: number;
+  y: number;
 }
 
 const MODEL_URL = '/visuals/horse/horse.obj';
-const MATERIAL_URL = '/visuals/horse/horse.mtl';
 const TEXTURE_URL = '/visuals/horse/horse-texture-web.jpg';
-const DESKTOP_BLUE_POINTS = 5200;
-const MOBILE_BLUE_POINTS = 2600;
 
 const vertexShaderSource = `
   precision mediump float;
   attribute vec3 aPosition;
   attribute vec2 aUv;
-  attribute float aRank;
   uniform mat4 uMatrix;
   uniform float uProgress;
   uniform float uTime;
-  uniform float uPointPass;
-  uniform float uTailMin;
-  uniform float uTailSpan;
   varying vec2 vUv;
-  varying float vVisible;
-  varying float vPulse;
+  varying vec4 vClipPosition;
 
   void main() {
-    vec3 position = aPosition;
-    float tailWeight = 1.0 - smoothstep(uTailMin, uTailMin + uTailSpan, position.z);
-    position.y -= tailWeight * tailWeight * 0.075;
-    position.x += tailWeight * tailWeight * 0.045 * sin(uTime * 1.15 + position.y * 12.0);
-    gl_Position = uMatrix * vec4(position, 1.0);
+    gl_Position = uMatrix * vec4(aPosition, 1.0);
+    vClipPosition = gl_Position;
     vUv = aUv;
-    vVisible = step(aRank, uProgress);
-    vPulse = 0.82 + 0.18 * sin(uTime * 1.7 + aRank * 93.0);
-    gl_PointSize = mix(1.0, 4.4, uPointPass) * vPulse;
   }
 `;
 
@@ -56,29 +41,37 @@ const fragmentShaderSource = `
   precision mediump float;
   uniform sampler2D uTexture;
   uniform float uProgress;
-  uniform float uPointPass;
+  uniform float uTime;
+  uniform float uCutEnabled;
+  uniform vec2 uCutStart;
+  uniform vec2 uCutEnd;
+  uniform float uCutSide;
   varying vec2 vUv;
-  varying float vVisible;
-  varying float vPulse;
+  varying vec4 vClipPosition;
+
+  float hash(vec2 value) {
+    return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453);
+  }
 
   void main() {
-    if (uPointPass > 0.5) {
-      if (vVisible < 0.5) discard;
-      vec2 point = gl_PointCoord - vec2(0.5);
-      float distanceFromCenter = length(point);
-      if (distanceFromCenter > 0.5) discard;
-      float core = smoothstep(0.5, 0.05, distanceFromCenter);
-      vec3 blue = mix(vec3(0.05, 0.36, 1.0), vec3(0.72, 0.94, 1.0), core);
-      gl_FragColor = vec4(blue, (0.24 + core * 0.76) * vPulse);
-      return;
+    vec2 screenPosition = vClipPosition.xy / vClipPosition.w * 0.5 + 0.5;
+    vec2 cutDirection = uCutEnd - uCutStart;
+    float cutDistance = cutDirection.x * (screenPosition.y - uCutStart.y) - cutDirection.y * (screenPosition.x - uCutStart.x);
+    if (uCutEnabled > 0.5 && cutDistance * uCutSide > 0.0) {
+      discard;
     }
 
     vec4 textureColor = texture2D(uTexture, vec2(vUv.x, 1.0 - vUv.y));
-    float luminance = dot(textureColor.rgb, vec3(0.299, 0.587, 0.114));
-    float blueMask = smoothstep(0.03, 0.18, textureColor.b - min(textureColor.r, textureColor.g));
-    vec3 premiumBase = mix(vec3(0.018, 0.025, 0.045), textureColor.rgb, 0.82);
-    premiumBase += vec3(0.01, 0.055, 0.12) * luminance;
-    gl_FragColor = vec4(premiumBase, textureColor.a * blueMask * smoothstep(0.82, 1.0, uProgress) * 0.7);
+    float blueStrength = textureColor.b - min(textureColor.r, textureColor.g);
+    float blueMask = smoothstep(0.025, 0.14, blueStrength) * smoothstep(0.08, 0.3, textureColor.b);
+    float revealOrder = clamp(vUv.y * 0.72 + hash(floor(vUv * 210.0)) * 0.28, 0.0, 1.0);
+    float revealed = smoothstep(revealOrder - 0.025, revealOrder + 0.018, uProgress);
+    float revealAge = max(0.0, uProgress - revealOrder);
+    float ignition = revealed * (1.0 - smoothstep(0.0, 0.11, revealAge));
+    float shimmer = 0.92 + 0.08 * sin(uTime * 2.1 + revealOrder * 71.0);
+    vec3 glowColor = mix(textureColor.rgb, vec3(0.62, 0.9, 1.0), 0.82);
+    vec3 finalColor = mix(textureColor.rgb, glowColor * shimmer, ignition);
+    gl_FragColor = vec4(finalColor, textureColor.a * blueMask * revealed);
   }
 `;
 
@@ -163,41 +156,6 @@ function parseObj(source: string): HorseGeometry {
   };
 }
 
-function createSurfacePoints(samples: SurfaceSample[]): HorsePoints {
-  const count = samples.length;
-  const pointPositions = new Float32Array(count * 3);
-  const pointRanks = new Float32Array(count);
-  for (let index = 0; index < count; index += 1) {
-    pointPositions[index * 3] = samples[index].position.x;
-    pointPositions[index * 3 + 1] = samples[index].position.y;
-    pointPositions[index * 3 + 2] = samples[index].position.z;
-    pointRanks[index] = samples[index].revealRank / Math.max(1, count - 1);
-  }
-  return { positions: pointPositions, ranks: pointRanks };
-}
-
-function createBlueTexturePredicate(image: HTMLImageElement) {
-  const canvas = document.createElement('canvas');
-  const scale = Math.min(1, 1024 / Math.max(image.naturalWidth, image.naturalHeight));
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Unable to inspect horse texture');
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-
-  return ({ uv }: Pick<SurfaceSample, 'uv'>) => {
-    const x = Math.min(canvas.width - 1, Math.max(0, Math.round(uv.x * (canvas.width - 1))));
-    const y = Math.min(canvas.height - 1, Math.max(0, Math.round((1 - uv.y) * (canvas.height - 1))));
-    const offset = (y * canvas.width + x) * 4;
-    const red = pixels[offset];
-    const green = pixels[offset + 1];
-    const blue = pixels[offset + 2];
-    const saturation = blue - Math.min(red, green);
-    return blue >= 72 && blue > red * 1.08 && blue >= green * 0.92 && saturation >= 12;
-  };
-}
-
 function multiply(a: Float32Array, b: Float32Array) {
   const result = new Float32Array(16);
   for (let column = 0; column < 4; column += 1) {
@@ -212,7 +170,7 @@ function multiply(a: Float32Array, b: Float32Array) {
   return result;
 }
 
-function createMatrix(center: [number, number, number], radius: number, angle: number, aspect: number) {
+function createMatrix(center: [number, number, number], radius: number, angle: number, aspect: number, tiltDegrees: number) {
   const scale = 0.88 / Math.max(radius, 0.0001);
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
@@ -225,7 +183,7 @@ function createMatrix(center: [number, number, number], radius: number, angle: n
     center[0] * sin * scale - center[2] * cos * scale,
     1,
   ]);
-  const roll = -0.075;
+  const roll = tiltDegrees * Math.PI / 180;
   const rollCos = Math.cos(roll);
   const rollSin = Math.sin(roll);
   const projection = new Float32Array([
@@ -248,8 +206,50 @@ function createBuffer(gl: WebGLRenderingContext, data: BufferSource) {
 export default function HorseConstellationVisual({ progress, duration }: HorseConstellationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef(clamp01(progress));
+  const tiltRef = useRef(-4.3);
+  const calibrationOpenRef = useRef(duration > 0);
+  const cutStartRef = useRef<CalibrationPoint | null>(null);
+  const cutEndRef = useRef<CalibrationPoint | null>(null);
+  const cutSideRef = useRef(1);
+  const [tiltDegrees, setTiltDegrees] = useState(-4.3);
+  const [calibrationOpen, setCalibrationOpen] = useState(duration > 0);
+  const [cutStart, setCutStart] = useState<CalibrationPoint | null>(null);
+  const [cutEnd, setCutEnd] = useState<CalibrationPoint | null>(null);
+  const [cutSide, setCutSide] = useState(1);
+  const [drawingCut, setDrawingCut] = useState(false);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   progressRef.current = clamp01(progress);
+  tiltRef.current = tiltDegrees;
+  calibrationOpenRef.current = calibrationOpen;
+  cutStartRef.current = cutStart;
+  cutEndRef.current = cutEnd;
+  cutSideRef.current = cutSide;
+
+  function pointerPosition(event: ReactPointerEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: clamp01((event.clientX - rect.left) / rect.width),
+      y: clamp01((event.clientY - rect.top) / rect.height),
+    };
+  }
+
+  function startCut(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!calibrationOpen) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = pointerPosition(event);
+    setCutStart(point);
+    setCutEnd(point);
+    setDrawingCut(true);
+  }
+
+  function moveCut(event: ReactPointerEvent<HTMLDivElement>) {
+    if (drawingCut) setCutEnd(pointerPosition(event));
+  }
+
+  function saveCalibration() {
+    const calibration = { tiltDegrees, cutStart, cutEnd, cutSide };
+    console.info('[HorseCalibration]', JSON.stringify(calibration));
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -278,35 +278,19 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
     ]).then(async ([objSource, image]) => {
       if (cancelled) return;
       const geometry = parseObj(objSource);
-      const pointTarget = window.innerWidth < 700 ? MOBILE_BLUE_POINTS : DESKTOP_BLUE_POINTS;
-      const samples = await sampleModelSurface(MODEL_URL, {
-        count: pointTarget,
-        maxAttempts: pointTarget * 30,
-        seed: duration > 0 ? 9137 : 4289,
-        materialPath: MATERIAL_URL,
-        normalize: false,
-        acceptSample: createBlueTexturePredicate(image),
-      });
-      if (samples.length < 180) throw new Error('Horse texture contains too few blue surface samples');
-      if (cancelled) return;
-      const points = createSurfacePoints(samples);
       const program = createProgram(gl);
       const positionLocation = gl.getAttribLocation(program, 'aPosition');
       const uvLocation = gl.getAttribLocation(program, 'aUv');
-      const rankLocation = gl.getAttribLocation(program, 'aRank');
       const matrixLocation = gl.getUniformLocation(program, 'uMatrix');
       const progressLocation = gl.getUniformLocation(program, 'uProgress');
       const timeLocation = gl.getUniformLocation(program, 'uTime');
-      const pointPassLocation = gl.getUniformLocation(program, 'uPointPass');
-      const tailMinLocation = gl.getUniformLocation(program, 'uTailMin');
-      const tailSpanLocation = gl.getUniformLocation(program, 'uTailSpan');
+      const cutEnabledLocation = gl.getUniformLocation(program, 'uCutEnabled');
+      const cutStartLocation = gl.getUniformLocation(program, 'uCutStart');
+      const cutEndLocation = gl.getUniformLocation(program, 'uCutEnd');
+      const cutSideLocation = gl.getUniformLocation(program, 'uCutSide');
 
       const trianglePositionBuffer = createBuffer(gl, geometry.positions);
       const triangleUvBuffer = createBuffer(gl, geometry.textureCoordinates);
-      const triangleRanks = createBuffer(gl, new Float32Array(geometry.positions.length / 3));
-      const pointPositionBuffer = createBuffer(gl, points.positions);
-      const pointUvBuffer = createBuffer(gl, new Float32Array(points.ranks.length * 2));
-      const pointRankBuffer = createBuffer(gl, points.ranks);
 
       const texture = gl.createTexture();
       if (!texture) throw new Error('Unable to create horse texture');
@@ -351,30 +335,22 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         const preview = duration <= 0;
-        const angle = preview ? -0.42 : ((now - startedAt) / 24000) * Math.PI * 2;
-        const matrix = createMatrix(geometry.center, geometry.radius, angle, canvas.width / Math.max(1, canvas.height));
+        const angle = preview || calibrationOpenRef.current ? -0.42 : ((now - startedAt) / 24000) * Math.PI * 2;
+        const matrix = createMatrix(geometry.center, geometry.radius, angle, canvas.width / Math.max(1, canvas.height), tiltRef.current);
         gl.uniformMatrix4fv(matrixLocation, false, matrix);
         gl.uniform1f(progressLocation, progressRef.current);
         gl.uniform1f(timeLocation, now / 1000);
-        gl.uniform1f(tailMinLocation, geometry.center[2] - geometry.radius);
-        gl.uniform1f(tailSpanLocation, geometry.radius * 0.42);
+        const start = cutStartRef.current;
+        const end = cutEndRef.current;
+        gl.uniform1f(cutEnabledLocation, start && end ? 1 : 0);
+        gl.uniform2f(cutStartLocation, start?.x ?? 0, 1 - (start?.y ?? 0));
+        gl.uniform2f(cutEndLocation, end?.x ?? 0, 1 - (end?.y ?? 0));
+        gl.uniform1f(cutSideLocation, cutSideRef.current);
 
         bindAttribute(positionLocation, trianglePositionBuffer, 3);
         bindAttribute(uvLocation, triangleUvBuffer, 2);
-        bindAttribute(rankLocation, triangleRanks, 1);
-        gl.uniform1f(pointPassLocation, 0);
         gl.depthMask(true);
         gl.drawArrays(gl.TRIANGLES, 0, geometry.positions.length / 3);
-
-        bindAttribute(positionLocation, pointPositionBuffer, 3);
-        bindAttribute(uvLocation, pointUvBuffer, 2);
-        bindAttribute(rankLocation, pointRankBuffer, 1);
-        gl.uniform1f(pointPassLocation, 1);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-        gl.depthMask(false);
-        gl.drawArrays(gl.POINTS, 0, points.ranks.length);
-        gl.depthMask(true);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       };
       frame = requestAnimationFrame(draw);
     }).catch((error) => {
@@ -395,6 +371,26 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
       <div className="horse-constellation__aura" aria-hidden="true" />
       <div className="horse-constellation__floor" aria-hidden="true" />
       <canvas ref={canvasRef} className="horse-constellation__canvas" aria-hidden="true" />
+      {duration > 0 && (
+        <div className={`horse-calibration-layer ${calibrationOpen ? 'horse-calibration-layer--open' : ''}`} onPointerDown={startCut} onPointerMove={moveCut} onPointerUp={() => setDrawingCut(false)}>
+          {cutStart && cutEnd && (
+            <svg className="horse-calibration-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <line x1={cutStart.x * 100} y1={cutStart.y * 100} x2={cutEnd.x * 100} y2={cutEnd.y * 100} />
+            </svg>
+          )}
+          {calibrationOpen && <div className="horse-calibration-panel" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="horse-calibration-title">Horse calibration</div>
+            <label>tilt {tiltDegrees.toFixed(1)}deg<input type="range" min="-18" max="18" step="0.1" value={tiltDegrees} onChange={(event) => setTiltDegrees(Number(event.target.value))} /></label>
+            <div className="horse-calibration-actions">
+              <button type="button" onClick={() => setCutSide((side) => -side)}>Flip cut side</button>
+              <button type="button" onClick={() => { setCutStart(null); setCutEnd(null); }}>Clear line</button>
+              <button type="button" onClick={saveCalibration}>Save to console</button>
+            </div>
+            <div className="horse-calibration-hint">Drag over the horse to draw the tail cut line.</div>
+          </div>}
+          {!calibrationOpen && <button type="button" className="horse-calibration-open" onClick={(event) => { event.stopPropagation(); setCalibrationOpen(true); }}>Calibrate</button>}
+        </div>
+      )}
       <div className="horse-constellation__completion visual-finish-glow" aria-hidden="true" />
     </div>
   );
