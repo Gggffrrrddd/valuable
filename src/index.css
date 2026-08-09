@@ -1041,3 +1041,172 @@ button .horse-constellation {
   }
 }
 
+.leaf-stem-calibrator {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 1rem;
+  min-height: 100vh;
+  padding: 1.25rem;
+  background: #0a0d12;
+  color: #d9e3ee;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.leaf-stem-calibrator__header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.leaf-stem-calibrator__header h1 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #79c9ff;
+}
+
+.leaf-stem-calibrator__header p {
+  margin: 0;
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: rgba(217, 227, 238, .55);
+}
+
+.leaf-stem-calibrator__actions button {
+  padding: .42rem .8rem;
+  border: 1px solid rgba(104, 191, 255, .25);
+  border-radius: 999px;
+  background: rgba(63, 139, 240, .1);
+  color: #a9dbff;
+  font-size: .62rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.leaf-stem-calibrator__list {
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+
+.leaf-stem-calibrator__item {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .42rem;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: .65rem;
+  background: rgba(255, 255, 255, .02);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leaf-stem-calibrator__item.is-active {
+  border-color: rgba(120, 198, 255, .55);
+  background: rgba(63, 139, 240, .08);
+}
+
+.leaf-stem-calibrator__thumb {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: .4rem;
+  background: rgba(255, 255, 255, .04);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.leaf-stem-calibrator__thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.leaf-stem-calibrator__meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.leaf-stem-calibrator__title {
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.leaf-stem-calibrator__anchor {
+  font-size: .58rem;
+  color: rgba(217, 227, 238, .55);
+}
+
+.leaf-stem-calibrator__clear {
+  font-size: .58rem;
+  color: #ff8888;
+  cursor: pointer;
+}
+
+.leaf-stem-calibrator__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, .02);
+}
+
+.leaf-stem-calibrator__canvas {
+  position: relative;
+  width: min(58rem, 100%);
+  height: min(58rem, 60vh);
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .03);
+  border: 1px dashed rgba(120, 198, 255, .25);
+  border-radius: .75rem;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.leaf-stem-calibrator__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.leaf-stem-calibrator__marker {
+  position: absolute;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: rgba(255, 90, 90, .9);
+  border: 2px solid #fff;
+  box-shadow: 0 0 16px rgba(255, 60, 60, .8);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.leaf-stem-calibrator__status {
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(217, 227, 238, .65);
+}
+
+@media (max-width: 720px) {
+  .leaf-stem-calibrator {
+    grid-template-columns: 1fr;
+  }
+}
+
