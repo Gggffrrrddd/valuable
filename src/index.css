@@ -395,7 +395,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   position: absolute;
   z-index: 5;
   display: grid;
-  width: clamp(1.1rem, 3vw, 3rem);
+  width: clamp(1.5rem, 4vw, 4rem);
   aspect-ratio: 3 / 2;
   place-items: center;
   padding: 0;
