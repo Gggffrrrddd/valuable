@@ -97,12 +97,11 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef(1);
-  const [leafPermutation, setLeafPermutation] = useState<number[]>(() => LEAVES.map((_, i) => i % LEAF_ASSETS.length));
+  const [sessionLeafIndex, setSessionLeafIndex] = useState<number>(0);
 
   useEffect(() => {
     if (!activeSession) return;
-    const seed = Math.floor(Math.random() * 1_000_000);
-    setLeafPermutation(LEAVES.map((_, i) => (seededUnit(seed + i * 17) * 0.9999 + i) % LEAF_ASSETS.length | 0));
+    setSessionLeafIndex(Math.floor(Math.random() * LEAF_ASSETS.length));
   }, [activeSession]);
 
   useEffect(() => {
@@ -124,7 +123,8 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
 
   const leafStyles = useMemo(() => {
     const clampX = (rawX: number) => Math.min(rawX, boundaryRef.current - 0.008);
-    return LEAVES.map((leaf, idx) => {
+    const sessionLeafSrc = LEAF_ASSETS[sessionLeafIndex] ?? LEAF_URL;
+    return LEAVES.map((leaf) => {
       const rank = SHED_RANK.get(leaf.id) ?? Infinity;
       const hasShed = activeSession && rank < shedCount;
       const land = LAND_DATA.get(leaf.id);
@@ -153,10 +153,9 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
         + (reducedMotion ? ' tree-placed-leaf--instant' : '');
-      const leafSrc = LEAF_ASSETS[leafPermutation[idx % LEAF_ASSETS.length]] ?? LEAF_URL;
-      return { id: leaf.id, style, cls, leafSrc };
+      return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc };
     });
-  }, [activeSession, shedCount, reducedMotion, leafPermutation]);
+  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex]);
 
   useEffect(() => {
     const el = containerRef.current;
