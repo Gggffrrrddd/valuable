@@ -148,7 +148,7 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
       const style: CSSProperties = {
         left: `${cx}%`,
         top: `${cy}%`,
-        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
+        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale * 1.35})`,
         zIndex: zIdx,
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
