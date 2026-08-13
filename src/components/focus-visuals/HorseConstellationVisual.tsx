@@ -334,7 +334,6 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
         <div className="horse-calibration-layer">
           <div className="horse-calibration-panel">
             <div className="horse-calibration-title">Horse calibration</div>
-            <label>tilt {tiltDegrees.toFixed(1)}deg<input type="range" min="-18" max="18" step="0.1" value={tiltDegrees} onChange={(event) => setTiltDegrees(Number(event.target.value))} /></label>
             <div className="horse-calibration-actions">
               <button type="button" onClick={saveCalibration}>Save to console</button>
             </div>
