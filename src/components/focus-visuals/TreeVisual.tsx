@@ -91,6 +91,7 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
   const containerRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef(1);
   const [sessionLeafIndex, setSessionLeafIndex] = useState<number>(0);
+  const [sessionColor] = useState(() => SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -143,12 +144,17 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
         zIndex: zIdx,
+        filter: activeSession 
+          ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness})`
+          : undefined,
+        dropShadow: activeSession ? `0 0 12px ${sessionColor.dropGlow}` : undefined,
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
-        + (reducedMotion ? ' tree-placed-leaf--instant' : '');
+        + (reducedMotion ? ' tree-placed-leaf--instant' : '')
+        + (activeSession ? ' tree-placed-leaf--glowing' : '');
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc };
     });
-  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex]);
+  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor]);
 
   useEffect(() => {
     const el = containerRef.current;
