@@ -147,11 +147,9 @@ export default function TreeVisual({ progress, duration, leafAsset }: TreeVisual
         filter: activeSession 
           ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness})`
           : undefined,
-        dropShadow: activeSession ? `0 0 12px ${sessionColor.dropGlow}` : undefined,
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
-        + (reducedMotion ? ' tree-placed-leaf--instant' : '')
-        + (activeSession ? ' tree-placed-leaf--glowing' : '');
+        + (reducedMotion ? ' tree-placed-leaf--instant' : '');
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc };
     });
   }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor]);
