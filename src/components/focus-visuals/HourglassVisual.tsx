@@ -17,10 +17,15 @@ const MASK_ALIGNMENT = {
 
 const SESSION_COLOR_TINTS = [
   { hue: 0, saturate: 1.2, label: 'amber-orange' },
+  { hue: 30, saturate: 1.25, label: 'gold-topaz' },
   { hue: 200, saturate: 1.3, label: 'blue-sapphire' },
   { hue: 280, saturate: 1.25, label: 'purple-violet' },
   { hue: 340, saturate: 1.3, label: 'red-ruby' },
   { hue: 120, saturate: 1.2, label: 'green-emerald' },
+  { hue: 170, saturate: 1.25, label: 'teal-aquamarine' },
+  { hue: 300, saturate: 1.3, label: 'magenta-amethyst' },
+  { hue: 50, saturate: 1.2, label: 'yellow-citrine' },
+  { hue: 260, saturate: 1.25, label: 'indigo-lapis' },
 ];
 
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
