@@ -104,7 +104,7 @@ function BladeModel({ progress, finaleActive, complete, running, reducedMotion, 
     const finaleMix = reducedMotion ? 0 : finaleClockRef.current;
     const topple = reducedMotion ? 0 : smoothstep(.94, 1, progress) * (1 - finaleMix);
     const wobble = reducedMotion ? 0 : smoothstep(.62, .96, progress) * (1 - topple) * (1 - finaleMix);
-    const speed = reducedMotion ? 1.15 : .08 + 29.92 * Math.pow(1 - progress, 2.35);
+    const speed = reducedMotion ? 1.15 : 25; // Consistent 25 rad/s throughout session
     const finaleSpin = 18 * (1 - smoothstep(.34, .82, finaleMix));
     const spinBrake = 1 - smoothstep(.58, .88, finaleMix);
     const effectiveSpeed = finaleMix > 0 ? Math.max(speed, finaleSpin) * spinBrake : speed;
