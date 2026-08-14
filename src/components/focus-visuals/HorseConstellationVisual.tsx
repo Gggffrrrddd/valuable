@@ -211,11 +211,6 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
   progressRef.current = clamp01(progress);
   tiltRef.current = tiltDegrees;
 
-  function saveCalibration() {
-    const calibration = { tiltDegrees };
-    console.info('[HorseCalibration]', JSON.stringify(calibration));
-  }
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -330,17 +325,6 @@ export default function HorseConstellationVisual({ progress, duration }: HorseCo
       <div className="horse-constellation__aura" aria-hidden="true" />
       <div className="horse-constellation__floor" aria-hidden="true" />
       <canvas ref={canvasRef} className="horse-constellation__canvas" aria-hidden="true" />
-      {duration > 0 && (
-        <div className="horse-calibration-layer">
-          <div className="horse-calibration-panel">
-            <div className="horse-calibration-title">Horse calibration</div>
-            <div className="horse-calibration-actions">
-              <button type="button" onClick={saveCalibration}>Save to console</button>
-            </div>
-            <div className="horse-calibration-hint">Adjust the backward tilt, then save the value from the console.</div>
-          </div>
-        </div>
-      )}
       <div className="horse-constellation__completion visual-finish-glow" aria-hidden="true" />
     </div>
   );
