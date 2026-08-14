@@ -15,6 +15,14 @@ const MASK_ALIGNMENT = {
   scale: 1.35,
 };
 
+const SESSION_COLOR_TINTS = [
+  { hue: 0, saturate: 1.2, label: 'amber-orange' },
+  { hue: 200, saturate: 1.3, label: 'blue-sapphire' },
+  { hue: 280, saturate: 1.25, label: 'purple-violet' },
+  { hue: 340, saturate: 1.3, label: 'red-ruby' },
+  { hue: 120, saturate: 1.2, label: 'green-emerald' },
+];
+
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,6 +30,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const [loaded, setLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
+  const [sessionColor] = useState(() => SESSION_COLOR_TINTS[Math.floor(Math.random() * SESSION_COLOR_TINTS.length)]);
   const complete = progress >= 1;
   const playbackRate = VIDEO_DURATION / duration;
   const videoStyle: CSSProperties = {
@@ -34,6 +43,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     WebkitMaskSize: '100% 100%',
     maskPosition: '0 0',
     WebkitMaskPosition: '0 0',
+    filter: duration > 0 ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate})` : undefined,
   };
 
   const handleEnded = () => {
@@ -116,7 +126,12 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       role="img"
       aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}
     >
-      <div className="hourglass-ambient" />
+      <div 
+        className="hourglass-ambient" 
+        style={{ 
+          filter: duration > 0 ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate})` : undefined 
+        }} 
+      />
       {!loaded && <div className="hourglass-loading" />}
       <video
         ref={videoRef}
