@@ -6,9 +6,10 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import { consumeQuickStart, setQuickStart } from '@/lib/stats';
 
 interface FocusTimerProps {
-  onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number) => void;
+  onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, visualTheme: FocusVisualTheme) => void;
 }
 
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
@@ -129,15 +130,49 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
       const s = readStoredSession();
       const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
       clearSessionStorage();
-      onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current);
+      onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current, visualTheme);
     }, 1300);
-  }, [onComplete, totalFocusSeconds]);
+  }, [onComplete, totalFocusSeconds, visualTheme]);
 
   useEffect(() => {
     if (bootHandledRef.current) return;
     bootHandledRef.current = true;
     const s = readStoredSession();
-    if (!s) return;
+    if (!s) {
+      const qs = consumeQuickStart();
+      if (qs) {
+        const preset = TIMER_PRESETS.find((p) => p.focusMinutes === qs.focusMinutes && p.breakMinutes === qs.breakMinutes);
+        if (preset) {
+          setPreset(preset);
+          setIsCustom(false);
+        } else {
+          setCustomFocus(qs.focusMinutes);
+          setCustomBreak(qs.breakMinutes);
+          setIsCustom(true);
+        }
+        setSubjectTag(qs.subjectTag);
+        if (qs.visualTheme && FOCUS_VISUAL_THEMES.some((t) => t.id === qs.visualTheme)) {
+          setVisualTheme(qs.visualTheme as FocusVisualTheme);
+        }
+        setTimeout(() => {
+          const focusMins = qs.focusMinutes;
+          const breakMins = qs.breakMinutes;
+          const totalSec = focusMins * 60;
+          sessionSubjectRef.current = qs.subjectTag || null;
+          sessionBreakRef.current = breakMins;
+          sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
+          sessionStorage.setItem(SESSION_DURATION_KEY, String(totalSec));
+          sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+          sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
+          sessionStorage.setItem(SESSION_SUBJECT_KEY, qs.subjectTag || '');
+          sessionStorage.setItem(SESSION_BREAK_KEY, String(breakMins));
+          setActiveDurationSeconds(totalSec);
+          setSecondsLeft(totalSec);
+          setPhase('focus');
+        }, 0);
+      }
+      return;
+    }
     sessionSubjectRef.current = s.subjectTag;
     sessionBreakRef.current = s.breakMinutes;
     setActiveDurationSeconds(s.durationMs / 1000);
@@ -187,6 +222,12 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
+    setQuickStart({
+      focusMinutes,
+      breakMinutes,
+      visualTheme,
+      subjectTag: subjectTag || '',
+    });
   }
 
   function handlePause() {
@@ -219,7 +260,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
       const elapsedSeconds = s ? Math.max(0, Math.round(s.elapsedMs / 1000)) : Math.max(0, totalFocusSeconds - secondsLeft);
       clearSessionStorage();
       setPhase('config');
-      onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
+      onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current, visualTheme);
     } else {
       handleResume();
     }

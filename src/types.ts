@@ -15,7 +15,15 @@ export interface FocusSession {
   ended_at: string | null;
   duration_seconds: number;
   completed_fully: boolean;
+  visual_theme: string;
   created_at: string;
+}
+
+export interface QuickStartConfig {
+  focusMinutes: number;
+  breakMinutes: number;
+  visualTheme: string;
+  subjectTag: string;
 }
 
 export type ContentCategory =
