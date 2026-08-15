@@ -1,8 +1,5 @@
 import { supabase } from './supabase';
-import type { FocusSession, QuickStartConfig } from '../types';
-import type { FocusVisualTheme } from '../components/focus-visuals/types';
-
-export type { QuickStartConfig } from '../types';
+import type { FocusSession } from '../types';
 
 export interface Stats {
   todayMinutes: number;
@@ -161,68 +158,4 @@ export async function fetchFriendStat(friendId: string): Promise<FriendStat> {
     todayMinutes: Math.round(todayMinutes),
     currentStreak,
   };
-}
-
-export async function fetchRecentSessions(userId: string, limit: number = 6): Promise<FocusSession[]> {
-  const { data, error } = await supabase
-    .from('focus_sessions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('started_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  return (data || []) as FocusSession[];
-}
-
-export async function fetchAcceptedFriends(userId: string): Promise<FriendStat[]> {
-  const { data: friendships, error: fErr } = await supabase
-    .from('friendships')
-    .select('id, user_id, friend_id, status')
-    .eq('status', 'accepted')
-    .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
-
-  if (fErr) throw fErr;
-
-  const friendIds = (friendships || []).map((f) =>
-    f.user_id === userId ? f.friend_id : f.user_id
-  );
-
-  const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
-  const stats = await Promise.all(statsPromises);
-  return stats.filter((s): s is FriendStat => s !== null);
-}
-
-export function getLastQuickStart(): QuickStartConfig | null {
-  const raw = localStorage.getItem('valuable-last-session');
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as QuickStartConfig;
-  } catch {
-    return null;
-  }
-}
-
-export function setQuickStart(config: QuickStartConfig): void {
-  localStorage.setItem('valuable-last-session', JSON.stringify(config));
-}
-
-export function consumeQuickStart(): QuickStartConfig | null {
-  const raw = sessionStorage.getItem('valuable-quick-start');
-  if (!raw) return null;
-  try {
-    const config = JSON.parse(raw) as QuickStartConfig;
-    sessionStorage.removeItem('valuable-quick-start');
-    return config;
-  } catch {
-    return null;
-  }
-}
-
-export function requestQuickStart(config: QuickStartConfig): void {
-  sessionStorage.setItem('valuable-quick-start', JSON.stringify(config));
-}
-
-export function isValidVisualTheme(theme: string): theme is FocusVisualTheme {
-  return ['hourglass', 'tree', 'jar', 'blade', 'horse'].includes(theme);
 }

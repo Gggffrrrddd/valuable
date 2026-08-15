@@ -7,24 +7,22 @@ import StatsScreen from '@/screens/StatsScreen';
 import BreakScreen from '@/screens/BreakScreen';
 import PremiumScreen from '@/screens/PremiumScreen';
 import FriendsScreen from '@/screens/FriendsScreen';
-import DashboardScreen from '@/screens/dashboard/DashboardScreen';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, LayoutDashboard } from 'lucide-react';
-import type { FocusVisualTheme } from '@/components/focus-visuals/types';
+import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command } from 'lucide-react';
 
-type Tab = 'dashboard' | 'home' | 'stats' | 'friends';
+type Tab = 'home' | 'stats' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium';
 
 const SCREEN_STORAGE_KEY = 'valuable-app-screen';
 const TAB_STORAGE_KEY = 'valuable-app-tab';
 
-const VALID_TABS: Tab[] = ['dashboard', 'home', 'stats', 'friends'];
+const VALID_TABS: Tab[] = ['home', 'stats', 'friends'];
 const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium'];
 
 function AppContent() {
   const { session, profile, loading, signOut } = useAuth();
   const [tab, setTab] = useState<Tab>(() => {
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
-    return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : 'dashboard';
+    return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : 'home';
   });
   const [screen, setScreen] = useState<Screen>(() => {
     const saved = sessionStorage.getItem(SCREEN_STORAGE_KEY);
@@ -55,7 +53,7 @@ function AppContent() {
     return <AuthScreen />;
   }
 
-  async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number, visualTheme: FocusVisualTheme) {
+  async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number) {
     if (!session || durationSeconds < 10) {
       setScreen('tab');
       return;
@@ -68,7 +66,6 @@ function AppContent() {
         ended_at: new Date().toISOString(),
         duration_seconds: durationSeconds,
         completed_fully: completedFully,
-        visual_theme: visualTheme,
       });
     } catch (e) {
       console.error('Session log error:', e);
@@ -105,7 +102,6 @@ function AppContent() {
 
           <div className="mt-10 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">Workspace</div>
           <nav className="mt-3 space-y-1.5">
-            <SideNavButton active={tab === 'dashboard' && screen === 'tab'} onClick={() => { setTab('dashboard'); setScreen('tab'); }} icon={<LayoutDashboard className="h-[18px] w-[18px]" />} label="Overview" />
             <SideNavButton active={tab === 'home' && screen === 'tab'} onClick={() => { setTab('home'); setScreen('tab'); }} icon={<Home className="h-[18px] w-[18px]" />} label="Focus space" />
             <SideNavButton active={tab === 'stats' && screen === 'tab'} onClick={() => { setTab('stats'); setScreen('tab'); }} icon={<BarChart3 className="h-[18px] w-[18px]" />} label="Performance" />
             <SideNavButton active={tab === 'friends' && screen === 'tab'} onClick={() => { setTab('friends'); setScreen('tab'); }} icon={<Users className="h-[18px] w-[18px]" />} label="Circle" />
@@ -145,12 +141,6 @@ function AppContent() {
         </header>
 
         <main className="app-main lg:px-10 lg:pb-12 xl:px-16">
-          {tab === 'dashboard' && (
-            <DashboardScreen
-              onStartTimer={() => setScreen('timer')}
-              onGoToFriends={() => { setTab('friends'); setScreen('tab'); }}
-            />
-          )}
           {tab === 'home' && (
             <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
               <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
@@ -182,12 +172,6 @@ function AppContent() {
         </main>
 
         <nav className="safe-bottom fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden">
-          <NavButton
-            active={tab === 'dashboard'}
-            onClick={() => { setTab('dashboard'); setScreen('tab'); }}
-            icon={<LayoutDashboard className="w-5 h-5" />}
-            label="Overview"
-          />
           <NavButton
             active={tab === 'home'}
             onClick={() => setTab('home')}
