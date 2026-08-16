@@ -131,7 +131,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   }, [self.status, friendIdsKey, statuses]);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#1A0E2E]">
       <TableScene self={self} friends={seatedFriends} />
 
       {/* Chrome floats over the full-bleed scene */}
@@ -174,7 +174,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
       {friends !== null && friends.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4 sm:bottom-5">
           <div className="flex items-center gap-4 rounded-full border border-white/[.06] bg-black/30 px-5 py-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500 backdrop-blur-xl">
-            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(197,255,84,.7)]" /> Open book — focusing</span>
+            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(212,175,127,.7)]" /> Open book — focusing</span>
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-stone-600" /> Closed — resting</span>
           </div>
         </div>

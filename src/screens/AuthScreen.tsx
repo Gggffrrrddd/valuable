@@ -25,13 +25,13 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#090b0a] p-3 sm:p-5">
-      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/[.07] bg-[#11130f] shadow-2xl sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[1.1fr_.9fr]">
+    <div className="min-h-screen bg-[#1A0E2E] p-3 sm:p-5">
+      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/[.07] bg-[#221335] shadow-2xl sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[1.1fr_.9fr]">
         <section className="relative hidden overflow-hidden border-r border-white/[.06] p-12 lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(197,255,84,.18),transparent_34%),radial-gradient(circle_at_70%_85%,rgba(197,255,84,.08),transparent_35%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(139,104,214,.20),transparent_34%),radial-gradient(circle_at_70%_85%,rgba(212,175,127,.10),transparent_35%)]" />
           <div className="absolute -right-20 top-1/3 h-80 w-80 rounded-full border border-lime-300/10" />
           <div className="absolute -right-5 top-[38%] h-56 w-56 rounded-full border border-lime-300/10" />
-          <div className="relative flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-300 text-[#11130f]"><Timer className="h-5 w-5" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div>
+          <div className="relative flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-300 text-[#241536]"><Timer className="h-5 w-5" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div>
           <div className="relative max-w-lg">
             <div className="mb-5 inline-flex rounded-full border border-lime-300/20 bg-lime-300/[.07] px-3 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-lime-300">Attention is your edge</div>
             <h1 className="text-6xl font-extrabold leading-[1.02]">Less noise.<br /><span className="text-stone-500">More meaningful work.</span></h1>
@@ -41,7 +41,7 @@ export default function AuthScreen() {
         </section>
         <section className="flex items-center justify-center px-6 py-10 sm:px-12">
           <div className="w-full max-w-sm">
-            <div className="mb-10 lg:hidden"><div className="mb-7 flex items-center gap-2"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f]"><Timer className="h-4 w-4" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div></div>
+            <div className="mb-10 lg:hidden"><div className="mb-7 flex items-center gap-2"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#241536]"><Timer className="h-4 w-4" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div></div>
             <div className="mb-8">
               <div className="page-kicker">Welcome {mode === 'signin' ? 'back' : 'in'}</div>
               <h2 className="text-3xl font-extrabold text-stone-50">{mode === 'signin' ? 'Continue your practice.' : 'Build your focus ritual.'}</h2>

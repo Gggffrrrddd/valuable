@@ -9,12 +9,12 @@ interface StatsScreenProps {
 }
 
 function plantStage(totalMinutes: number): { label: string; color: string } {
-  if (totalMinutes < 30) return { label: 'Seed', color: '#c5ff54' };
-  if (totalMinutes < 120) return { label: 'Sprout', color: '#b6f248' };
-  if (totalMinutes < 300) return { label: 'Sapling', color: '#9bdd3e' };
-  if (totalMinutes < 600) return { label: 'Young Tree', color: '#83c432' };
-  if (totalMinutes < 1200) return { label: 'Growing Tree', color: '#70ad2c' };
-  return { label: 'Mighty Tree', color: '#c5ff54' };
+  if (totalMinutes < 30) return { label: 'Seed', color: '#E8D5AE' };
+  if (totalMinutes < 120) return { label: 'Sprout', color: '#DFC08C' };
+  if (totalMinutes < 300) return { label: 'Sapling', color: '#D4AF7F' };
+  if (totalMinutes < 600) return { label: 'Young Tree', color: '#C29A64' };
+  if (totalMinutes < 1200) return { label: 'Growing Tree', color: '#AE8551' };
+  return { label: 'Mighty Tree', color: '#D4AF7F' };
 }
 
 export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProps) {
@@ -80,7 +80,7 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
       <div className="grid gap-6 lg:grid-cols-[.85fr_1.5fr]">
       <div className="surface p-6">
         <div className="flex items-center justify-center mb-4">
-          <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-lime-300/15 bg-lime-300/[.045] shadow-[inset_0_0_50px_rgba(197,255,84,.04)]">
+          <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-lime-300/15 bg-lime-300/[.045] shadow-[inset_0_0_50px_rgba(212,175,127,.05)]">
             <div className="absolute inset-3 rounded-full border border-dashed border-lime-300/10" />
             <Sprout className="h-12 w-12 text-lime-300" strokeWidth={1.5} />
           </div>
@@ -172,7 +172,7 @@ function StatCard({
         {icon}
         {label}
       </div>
-      <div className={`mt-3 font-display text-2xl font-extrabold ${locked ? 'text-slate-600' : 'text-white'}`}>{value}</div>
+      <div className={`mt-3 font-display text-2xl font-extrabold ${locked ? 'text-slate-600' : accent ? 'gold-text' : 'text-white'}`}>{value}</div>
     </div>
   );
 }

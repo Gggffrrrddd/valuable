@@ -2,7 +2,7 @@ import BladeVisual from '@/components/focus-visuals/BladeVisual';
 
 export default function Test3DBlade() {
   return (
-    <main className="flex min-h-screen flex-col bg-[#090b09] p-4 text-stone-100 sm:p-7">
+    <main className="flex min-h-screen flex-col bg-[#1A0E2E] p-4 text-stone-100 sm:p-7">
       <header className="mb-4 flex items-end justify-between gap-4">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[.22em] text-lime-300">Spin Blade preview</div>

@@ -273,7 +273,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                   {f.todayMinutes}m
                 </div>
                 <div className="flex items-center gap-1 text-slate-300">
-                  <Flame className="w-3.5 h-3.5 text-orange-400" />
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
                   {f.currentStreak}d
                 </div>
               </div>

@@ -122,7 +122,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
         modal: {
           ondismiss: () => setLoading(false),
         },
-        theme: { color: '#c5ff54' },
+        theme: { color: '#D4AF7F' },
       });
 
       rzp.on('payment.failed', () => {
@@ -193,7 +193,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
       </div>
 
       <div className="text-center mb-6">
-        <div className="font-display text-5xl font-extrabold text-white">₹49<span className="text-base text-slate-400 font-normal"> / month</span></div>
+        <div className="font-display gold-text text-5xl font-extrabold">₹49<span className="text-base text-slate-400 font-normal"> / month</span></div>
         <p className="text-xs text-slate-500 mt-1">UPI only · Test mode — no real charge</p>
       </div>
 
