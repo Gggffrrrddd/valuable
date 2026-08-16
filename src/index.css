@@ -56,9 +56,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background:
     radial-gradient(circle at 14% -6%, rgba(139, 104, 214, 0.14), transparent 32rem),
-    radial-gradient(circle at 88% 28%, rgba(212, 175, 127, 0.05), transparent 26rem),
-    radial-gradient(circle at 50% 112%, rgba(110, 78, 182, 0.09), transparent 36rem),
-    #1A0E2E;
+    radial-gradient(circle at 88% 24%, rgba(212, 175, 127, 0.05), transparent 26rem),
+    linear-gradient(180deg, #120921 0%, #1A0E2E 42%, #241536 78%, #2A1840 100%);
+  background-attachment: fixed;
   color: #F0EAE0;
   overscroll-behavior: none;
 }
@@ -73,7 +73,7 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
 }
 
-/* Slow aurora — violet and faint gold light drifting behind everything. */
+/* Slow aurora — violet above, a warm gold horizon below. */
 body::after {
   position: fixed;
   inset: -22%;
@@ -81,9 +81,9 @@ body::after {
   pointer-events: none;
   content: '';
   background:
-    radial-gradient(38% 34% at 18% 12%, rgba(126, 86, 214, 0.17), transparent 70%),
-    radial-gradient(30% 26% at 84% 66%, rgba(212, 175, 127, 0.075), transparent 70%),
-    radial-gradient(44% 40% at 58% 102%, rgba(96, 56, 186, 0.14), transparent 72%);
+    radial-gradient(38% 34% at 18% 10%, rgba(126, 86, 214, 0.17), transparent 70%),
+    radial-gradient(52% 44% at 50% 116%, rgba(212, 175, 127, 0.1), transparent 72%),
+    radial-gradient(44% 40% at 88% 60%, rgba(96, 56, 186, 0.13), transparent 72%);
   filter: blur(46px);
   animation: auroraDrift 52s ease-in-out infinite alternate;
 }
@@ -108,6 +108,76 @@ h1, h2, h3, .font-display {
   font-optical-sizing: auto;
   font-weight: 600;
   letter-spacing: -0.015em;
+}
+
+/* Display-scale hero headline for photo banners. */
+.hero-title {
+  font-family: 'Fraunces', 'Manrope', Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(2.6rem, 5.4vw, 4.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+}
+
+/* Oversized emotional number (streak, price). */
+.stat-hero {
+  font-family: 'Fraunces', 'Manrope', Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(3.75rem, 8vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+/* Photography card: the scene image IS the card (reference pattern). */
+.photo-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.75rem;
+  border: 1px solid rgba(240, 234, 224, 0.1);
+  box-shadow:
+    0 30px 90px rgba(10, 5, 20, 0.5),
+    inset 0 1px 0 rgba(240, 234, 224, 0.08);
+}
+.photo-card > img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.photo-card:hover > img { transform: scale(1.035); }
+.photo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(18, 9, 33, 0.3) 0%, rgba(18, 9, 33, 0.48) 42%, rgba(18, 9, 33, 0.94) 100%);
+}
+
+/* Floating glass chip for photo cards. */
+.hue-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 234, 224, 0.14);
+  background: rgba(18, 9, 33, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #E8E2D6;
 }
 
 ::selection { background: #D4AF7F; color: #241536; }
@@ -856,7 +926,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   .app-main { @apply flex-1 overflow-y-auto px-4 pb-28 sm:px-6 lg:px-8; }
   .page-wrap { @apply mx-auto w-full max-w-4xl animate-fade-in py-6 sm:py-10; }
   .page-title {
-    @apply text-3xl font-semibold text-stone-50 sm:text-4xl;
+    @apply text-[2.5rem] font-semibold text-stone-50 sm:text-5xl;
     font-family: 'Fraunces', 'Manrope', Georgia, serif;
     font-optical-sizing: auto;
     letter-spacing: -0.015em;

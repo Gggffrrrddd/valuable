@@ -14,13 +14,22 @@ export default {
           base: '#1A0E2E',      // deepest violet-black — app background
           surface: '#241536',   // card / surface violet
           elevated: '#2C1B42',  // raised surfaces, hovers
-          ink: '#170D26',       // near-black violet (text on gold)
+          ink: '#120921',       // near-navy ink — gradient floor
           gold: '#D4AF7F',      // primary accent — muted warm gold
           goldSoft: '#EAD7B8',  // lighter gold (hovers, highlights)
           goldDeep: '#C89F6A',  // deeper gold-bronze
           rose: '#C99BA8',      // rare grace-note accent
           mist: '#9B8FAE',      // muted lavender-grey — secondary text
           ivory: '#F0EAE0',     // primary text — warm cream
+        },
+        // Per-visual signature hues — the app's multi-color accent system.
+        visual: {
+          gold: '#D4AF7F',   // hourglass
+          green: '#8FBC7F',  // tree
+          teal: '#6FB5A8',   // jar
+          blue: '#7C9FE8',   // horse
+          amber: '#C98B5E',  // blade
+          violet: '#A78BFA', // study table
         },
         // Primary accent ramp (was neon lime) → muted gold.
         lime: {

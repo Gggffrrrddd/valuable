@@ -9,7 +9,7 @@ import BreakScreen from '@/screens/BreakScreen';
 import PremiumScreen from '@/screens/PremiumScreen';
 import FriendsScreen from '@/screens/FriendsScreen';
 import StudyTableScreen from '@/screens/StudyTableScreen';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command } from 'lucide-react';
+import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight } from 'lucide-react';
 
 type Tab = 'home' | 'stats' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
@@ -157,18 +157,20 @@ function AppContent() {
         <main className="app-main lg:px-10 lg:pb-12 xl:px-16">
           {tab === 'home' && (
             <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
-              <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
-                <div>
+              <div className="photo-card mb-8">
+                <img src="/visuals/jar/jar-scene.png" alt="" aria-hidden="true" draggable={false} />
+                <div className="relative flex min-h-[300px] flex-col justify-end p-6 sm:min-h-[380px] sm:p-10">
+                  <span className="hue-chip absolute right-6 top-6 sm:right-10 sm:top-10">
+                    <span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(212,175,127,.8)]" />
+                    Ready
+                  </span>
                   <div className="page-kicker">Your focus space</div>
-                  <h1 className="font-editorial text-4xl font-semibold leading-[1.06] text-stone-50 sm:text-6xl xl:text-7xl">
+                  <h1 className="hero-title max-w-2xl text-stone-50">
                     Make this hour <span className="gold-text italic">count.</span>
                   </h1>
-                  <p className="mt-5 max-w-xl text-sm leading-6 text-stone-400 sm:text-base">Welcome back, {profile.display_name}. Remove the noise and give one meaningful thing your complete attention.</p>
-                </div>
-                <div className="hidden rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-4 lg:block">
-                  <div className="flex items-center justify-between text-xs text-stone-500"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(212,175,127,.6)]" /> Ready</span><Command className="h-3.5 w-3.5" /></div>
-                  <div className="mt-4 font-display text-sm font-bold text-stone-200">One task. Full presence.</div>
-                  <div className="mt-1 text-xs leading-5 text-stone-600">Your session will be quietly logged when you finish.</div>
+                  <p className="mt-4 max-w-xl text-sm leading-6 text-stone-300 sm:text-base">
+                    Welcome back, {profile.display_name}. Remove the noise and give one meaningful thing your complete attention — your session will be quietly logged.
+                  </p>
                 </div>
               </div>
               <FocusTimer onComplete={handleSessionComplete} />
