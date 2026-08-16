@@ -2,9 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
-import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw } from 'lucide-react';
+import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
 
-export default function FriendsScreen() {
+interface FriendsScreenProps {
+  onOpenStudyTable?: () => void;
+}
+
+export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
   const { profile, session } = useAuth();
   const [codeInput, setCodeInput] = useState('');
   const [friends, setFriends] = useState<FriendStat[]>([]);
@@ -155,6 +159,24 @@ export default function FriendsScreen() {
       <div className="page-kicker">Accountability circle</div>
       <h2 className="page-title">Focus together</h2>
       <p className="page-copy mb-7">Quiet accountability with the people you trust. No feeds and no performance theatre.</p>
+
+      {onOpenStudyTable && (
+        <button
+          onClick={onOpenStudyTable}
+          className="group mb-8 flex w-full items-center justify-between rounded-[1.4rem] border border-lime-300/15 bg-lime-300/[.05] p-5 text-left transition hover:border-lime-300/35 hover:bg-lime-300/[.08] sm:p-6"
+        >
+          <span className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime-300/10 text-lime-300">
+              <BookOpen className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="font-display block text-sm font-bold text-stone-100">The study table</span>
+              <span className="mt-0.5 block text-xs leading-5 text-stone-500">See who's at the table right now — books open when a session runs.</span>
+            </span>
+          </span>
+          <ArrowUpRight className="h-4 w-4 shrink-0 text-lime-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </button>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
       <div className="surface mb-2 p-5 sm:p-6 lg:mb-8">

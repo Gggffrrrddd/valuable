@@ -6,6 +6,14 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import {
+  SESSION_START_KEY,
+  SESSION_DURATION_KEY,
+  SESSION_PAUSED_AT_KEY,
+  SESSION_PAUSED_TOTAL_KEY,
+  SESSION_SUBJECT_KEY,
+  SESSION_BREAK_KEY,
+} from '@/lib/localSession';
 
 interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number) => void;
@@ -14,12 +22,6 @@ interface FocusTimerProps {
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
 
 const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
-const SESSION_START_KEY = 'valuable-session-start';
-const SESSION_DURATION_KEY = 'valuable-session-duration';
-const SESSION_PAUSED_AT_KEY = 'valuable-session-paused-at';
-const SESSION_PAUSED_TOTAL_KEY = 'valuable-session-paused-total';
-const SESSION_SUBJECT_KEY = 'valuable-session-subject';
-const SESSION_BREAK_KEY = 'valuable-session-break';
 
 interface StoredSession {
   startMs: number;

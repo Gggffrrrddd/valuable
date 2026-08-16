@@ -3,6 +3,7 @@ import App from './App.tsx';
 
 const Test3DBlade = lazy(() => import('./screens/Test3DBlade.tsx'));
 const LeafStemCalibration = lazy(() => import('./screens/LeafStemCalibration.tsx'));
+const StudyTablePreview = lazy(() => import('./screens/StudyTablePreview.tsx'));
 
 export default function RootRoute() {
   const path = window.location.pathname.replace(/\/$/, '');
@@ -11,6 +12,9 @@ export default function RootRoute() {
   }
   if (path === '/leaf-stem-calibration') {
     return <Suspense fallback={<div className="min-h-screen bg-[#090b09]" />}><LeafStemCalibration /></Suspense>;
+  }
+  if (path === '/study-table-preview') {
+    return <Suspense fallback={<div className="min-h-screen bg-[#090b0a]" />}><StudyTablePreview /></Suspense>;
   }
   return <App />;
 }

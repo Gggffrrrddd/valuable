@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { startPresenceHeartbeat } from '@/lib/presence';
 import AuthScreen from '@/screens/AuthScreen';
 import FocusTimer from '@/screens/FocusTimer';
 import StatsScreen from '@/screens/StatsScreen';
 import BreakScreen from '@/screens/BreakScreen';
 import PremiumScreen from '@/screens/PremiumScreen';
 import FriendsScreen from '@/screens/FriendsScreen';
+import StudyTableScreen from '@/screens/StudyTableScreen';
 import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command } from 'lucide-react';
 
 type Tab = 'home' | 'stats' | 'friends';
-type Screen = 'tab' | 'timer' | 'break' | 'premium';
+type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
 
 const SCREEN_STORAGE_KEY = 'valuable-app-screen';
 const TAB_STORAGE_KEY = 'valuable-app-tab';
 
 const VALID_TABS: Tab[] = ['home', 'stats', 'friends'];
-const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium'];
+const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium', 'table'];
 
 function AppContent() {
   const { session, profile, loading, signOut } = useAuth();
@@ -37,6 +39,14 @@ function AppContent() {
   useEffect(() => {
     sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
   }, [screen]);
+
+  // Publish this user's presence while the app is foregrounded, so friends'
+  // study tables can see them. Skips beats while the tab is hidden.
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (!userId) return;
+    return startPresenceHeartbeat(userId);
+  }, [userId]);
 
   if (loading) {
     return (
@@ -89,6 +99,10 @@ function AppContent() {
 
   if (screen === 'premium') {
     return <PremiumScreen onBack={() => setScreen('tab')} />;
+  }
+
+  if (screen === 'table') {
+    return <StudyTableScreen onBack={() => setScreen('tab')} />;
   }
 
   return (
@@ -167,7 +181,7 @@ function AppContent() {
             />
           )}
           {tab === 'friends' && (
-            <FriendsScreen />
+            <FriendsScreen onOpenStudyTable={() => setScreen('table')} />
           )}
         </main>
 
