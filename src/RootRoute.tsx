@@ -8,13 +8,13 @@ const StudyTablePreview = lazy(() => import('./screens/StudyTablePreview.tsx'));
 export default function RootRoute() {
   const path = window.location.pathname.replace(/\/$/, '');
   if (path === '/test-3d-blade') {
-    return <Suspense fallback={<div className="min-h-screen bg-[#1A0E2E]" />}><Test3DBlade /></Suspense>;
+    return <Suspense fallback={<div className="min-h-screen bg-[#090b09]" />}><Test3DBlade /></Suspense>;
   }
   if (path === '/leaf-stem-calibration') {
-    return <Suspense fallback={<div className="min-h-screen bg-[#1A0E2E]" />}><LeafStemCalibration /></Suspense>;
+    return <Suspense fallback={<div className="min-h-screen bg-[#090b09]" />}><LeafStemCalibration /></Suspense>;
   }
   if (path === '/study-table-preview') {
-    return <Suspense fallback={<div className="min-h-screen bg-[#1A0E2E]" />}><StudyTablePreview /></Suspense>;
+    return <Suspense fallback={<div className="min-h-screen bg-[#090b0a]" />}><StudyTablePreview /></Suspense>;
   }
   return <App />;
 }

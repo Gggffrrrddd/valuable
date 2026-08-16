@@ -82,11 +82,11 @@ export default function BreakScreen({ breakMinutes, onDone }: BreakScreenProps) 
   const ss = secondsLeft % 60;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,127,.12),transparent_30rem),#1A0E2E] px-5 py-6 pb-24 animate-fade-in sm:px-8 lg:px-12">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,rgba(251,191,36,.1),transparent_30rem),#090b0a] px-5 py-6 pb-24 animate-fade-in sm:px-8 lg:px-12">
       <div className="mx-auto max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="font-editorial gold-text text-2xl font-semibold italic">Break time</h2>
+          <h2 className="text-2xl font-bold text-amber-200">Break time</h2>
           <p className="text-amber-100/50 text-sm">Something useful, not mindless.</p>
         </div>
         <div className={`px-3 py-1.5 rounded-full text-sm font-medium tabular-nums ${

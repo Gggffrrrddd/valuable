@@ -52,7 +52,7 @@ export default function StudyTablePreview() {
   }));
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#1A0E2E]">
+    <div className="fixed inset-0 overflow-hidden bg-[#090b0a]">
       <TableScene self={self} friends={friends} showAnchors={showAnchors} />
 
       <div className="table-preview-panel">

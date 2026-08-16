@@ -9,12 +9,12 @@ interface StatsScreenProps {
 }
 
 function plantStage(totalMinutes: number): { label: string; color: string } {
-  if (totalMinutes < 30) return { label: 'Seed', color: '#E8D5AE' };
-  if (totalMinutes < 120) return { label: 'Sprout', color: '#DFC08C' };
-  if (totalMinutes < 300) return { label: 'Sapling', color: '#D4AF7F' };
-  if (totalMinutes < 600) return { label: 'Young Tree', color: '#C29A64' };
-  if (totalMinutes < 1200) return { label: 'Growing Tree', color: '#AE8551' };
-  return { label: 'Mighty Tree', color: '#D4AF7F' };
+  if (totalMinutes < 30) return { label: 'Seed', color: '#c5ff54' };
+  if (totalMinutes < 120) return { label: 'Sprout', color: '#b6f248' };
+  if (totalMinutes < 300) return { label: 'Sapling', color: '#9bdd3e' };
+  if (totalMinutes < 600) return { label: 'Young Tree', color: '#83c432' };
+  if (totalMinutes < 1200) return { label: 'Growing Tree', color: '#70ad2c' };
+  return { label: 'Mighty Tree', color: '#c5ff54' };
 }
 
 export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProps) {
@@ -51,24 +51,6 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
       <h2 className="page-title">Your progress</h2>
       <p className="page-copy mb-7">A clear view of the practice you're building, one focused minute at a time.</p>
 
-      <div className="photo-card mb-6">
-        <img src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" draggable={false} />
-        <div className="relative flex min-h-[240px] flex-col justify-end p-6 sm:min-h-[280px] sm:p-8">
-          <span className="hue-chip absolute right-6 top-6 sm:right-8 sm:top-8">
-            <Flame className="h-3.5 w-3.5 text-lime-300" />
-            {stats.todayMinutes}m today
-          </span>
-          <div className="page-kicker">Current streak</div>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className="stat-hero gold-text">{stats.currentStreak}</span>
-            <span className="font-editorial text-2xl italic text-stone-300">days in a row</span>
-          </div>
-          <p className="mt-3 max-w-md text-xs leading-5 text-stone-400 sm:text-sm">
-            {stats.currentStreak > 0 ? 'Consistency is compounding — protect the chain.' : 'Start today; tomorrow you\'ll have a chain of one.'}
-          </p>
-        </div>
-      </div>
-
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard icon={<Calendar className="w-4 h-4" />} label="Today" value={`${stats.todayMinutes}m`} />
         <StatCard icon={<TrendingUp className="w-4 h-4" />} label="This Week" value={`${stats.weekMinutes}m`} />
@@ -83,31 +65,28 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
       <div className="mb-6 grid grid-cols-2 gap-3">
         <StatCard
           icon={<Flame className="w-4 h-4" />}
+          label="Current Streak"
+          value={`${stats.currentStreak} day${stats.currentStreak !== 1 ? 's' : ''}`}
+          accent
+        />
+        <StatCard
+          icon={<Flame className="w-4 h-4" />}
           label="Longest Streak"
           value={isPremium ? `${stats.longestStreak} days` : '🔒'}
-          accent
           locked={!isPremium}
         />
-        <StatCard icon={<TrendingUp className="w-4 h-4" />} label="All Time" value={`${stats.totalMinutes}m`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[.85fr_1.5fr]">
       <div className="surface p-6">
         <div className="flex items-center justify-center mb-4">
-          <div
-            className="relative flex h-32 w-32 items-center justify-center rounded-full"
-            style={{
-              border: '1px solid rgba(143, 188, 127, 0.28)',
-              background: 'rgba(143, 188, 127, 0.07)',
-              boxShadow: 'inset 0 0 50px rgba(143, 188, 127, 0.08)',
-            }}
-          >
-            <div className="absolute inset-3 rounded-full border border-dashed" style={{ borderColor: 'rgba(143, 188, 127, 0.16)' }} />
-            <Sprout className="h-12 w-12" strokeWidth={1.5} style={{ color: '#8FBC7F' }} />
+          <div className="relative flex h-32 w-32 items-center justify-center rounded-full border border-lime-300/15 bg-lime-300/[.045] shadow-[inset_0_0_50px_rgba(197,255,84,.04)]">
+            <div className="absolute inset-3 rounded-full border border-dashed border-lime-300/10" />
+            <Sprout className="h-12 w-12 text-lime-300" strokeWidth={1.5} />
           </div>
         </div>
         <div className="text-center">
-          <div className="font-editorial text-2xl font-semibold text-white">{plant.label}</div>
+          <div className="text-lg font-semibold text-white">{plant.label}</div>
           <div className="text-sm text-slate-400 mt-1">
             {stats.totalMinutes} total focus minutes
           </div>
@@ -116,8 +95,7 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
               className="h-full rounded-full transition-all duration-700"
               style={{
                 width: `${Math.min(100, (stats.totalMinutes / 1200) * 100)}%`,
-                background: 'linear-gradient(90deg, #6FA35C, #8FBC7F, #A9CE9B)',
-                boxShadow: '0 0 12px rgba(143, 188, 127, 0.4)',
+                backgroundColor: plant.color,
               }}
             />
           </div>
@@ -130,7 +108,7 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
 
       <div className="surface p-6 sm:p-7">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-editorial text-xl font-semibold text-white">
+          <h3 className="font-semibold text-white">
             {isPremium ? 'Last 30 days' : 'Last 7 days'}
           </h3>
           {!isPremium && (
@@ -144,12 +122,8 @@ export default function StatsScreen({ onStartTimer, onUpgrade }: StatsScreenProp
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group">
               <div className="w-full flex-1 flex items-end">
                 <div
-                  className="w-full rounded-t transition-colors min-h-[2px]"
-                  style={{
-                    height: `${(d.minutes / maxMinutes) * 100}%`,
-                    background: 'linear-gradient(180deg, #EAD7B8 0%, #D4AF7F 45%, #B08A50 100%)',
-                    boxShadow: '0 0 14px rgba(212, 175, 127, 0.22)',
-                  }}
+                  className="w-full rounded-t bg-emerald-500/70 hover:bg-emerald-400 transition-colors min-h-[2px]"
+                  style={{ height: `${(d.minutes / maxMinutes) * 100}%` }}
                   title={`${d.date}: ${d.minutes}m`}
                 />
               </div>
@@ -198,7 +172,7 @@ function StatCard({
         {icon}
         {label}
       </div>
-      <div className={`mt-3 font-editorial text-3xl font-semibold ${locked ? 'text-slate-600' : accent ? 'gold-text' : 'text-white'}`}>{value}</div>
+      <div className={`mt-3 font-display text-2xl font-extrabold ${locked ? 'text-slate-600' : 'text-white'}`}>{value}</div>
     </div>
   );
 }

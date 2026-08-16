@@ -231,7 +231,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#1A0E2E] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'horse' ? 'horse-focus-session' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'horse' ? 'horse-focus-session' : ''}`}>
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
@@ -283,7 +283,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             ) : (
               <button
                 onClick={handleResume}
-                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#241536] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
+                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#11130f] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
                 aria-label="Resume"
               >
                 <Play className="h-7 w-7 ml-0.5 transition group-hover:scale-105" strokeWidth={1.8} />
@@ -300,7 +300,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         )}
 
         {showQuitConfirm && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#1A0E2E]/90 px-6 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
             <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full border border-slate-800 animate-grow-in">
               <h3 className="text-lg font-semibold text-white mb-2">End this session?</h3>
               <p className="text-slate-400 text-sm mb-6">
@@ -343,11 +343,11 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             onClick={() => { setPreset(p); setIsCustom(false); }}
             className={`group flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3.5 text-left transition-all sm:min-h-28 sm:p-4 ${
               !isCustom && preset.label === p.label
-                ? 'border-lime-300/40 bg-lime-300/[.08] text-stone-50 shadow-[inset_0_0_30px_rgba(212,175,127,.045),0_8px_30px_rgba(0,0,0,.15)]'
+                ? 'border-lime-300/40 bg-lime-300/[.08] text-stone-50 shadow-[inset_0_0_30px_rgba(197,255,84,.03),0_8px_30px_rgba(0,0,0,.15)]'
                 : 'border-white/[.07] bg-white/[.025] text-stone-400 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[.045]'
             }`}
           >
-            <span className="font-editorial text-[1.9rem] font-semibold tabular-nums">{p.focusMinutes}<span className="ml-0.5 text-xs font-semibold text-stone-500">min</span></span>
+            <span className="font-display text-2xl font-extrabold tabular-nums">{p.focusMinutes}<span className="ml-0.5 text-xs font-semibold text-stone-500">min</span></span>
             <span className="text-xs font-semibold leading-tight">{p.label}</span>
           </button>
         ))}
@@ -374,37 +374,12 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">Saved automatically</span>
         </div>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-          {FOCUS_VISUAL_THEMES.map((theme) => {
+          {FOCUS_VISUAL_THEMES.map((theme, index) => {
             return (
               <div key={theme.id} className="relative">
-                <button
-                  type="button"
-                  onClick={() => selectVisual(theme.id)}
-                  aria-pressed={visualTheme === theme.id}
-                  className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all hover:-translate-y-0.5 ${
-                    visualTheme === theme.id ? 'bg-white/[.05]' : 'border-white/[.07] bg-white/[.02] hover:border-white/15'
-                  }`}
-                  style={visualTheme === theme.id ? {
-                    borderColor: `${theme.hue}70`,
-                    boxShadow: `inset 0 0 34px ${theme.hue}1A, 0 6px 26px ${theme.hue}26`,
-                  } : undefined}
-                >
-                  <div className="relative flex h-28 items-center justify-center overflow-hidden rounded-xl bg-black/25 sm:h-32">
-                    <img
-                      src={theme.preview}
-                      alt={theme.label}
-                      className="h-[92%] w-[92%] object-contain transition-all duration-500 group-hover:scale-[1.07]"
-                      draggable={false}
-                    />
-                    <span
-                      className="absolute bottom-2 left-2 h-1.5 w-1.5 rounded-full transition-all"
-                      style={{ background: theme.hue, boxShadow: visualTheme === theme.id ? `0 0 10px ${theme.hue}` : undefined, opacity: visualTheme === theme.id ? 1 : 0.55 }}
-                    />
-                  </div>
-                  <div className="px-1 pb-1 pt-2.5">
-                    <div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-stone-50' : 'text-stone-300'}`}>{theme.label}</div>
-                    <div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div>
-                  </div>
+                <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'horse' ? <img src="/visuals/horse/real-horse.png" alt={theme.label} className="h-full w-full object-contain" draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
+                  <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
                 </button>
               </div>
             );

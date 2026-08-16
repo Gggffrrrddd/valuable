@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
-import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
@@ -161,22 +161,20 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       <p className="page-copy mb-7">Quiet accountability with the people you trust. No feeds and no performance theatre.</p>
 
       {onOpenStudyTable && (
-        <button onClick={onOpenStudyTable} className="photo-card group mb-8 block w-full text-left">
-          <img src="/visuals/table/table-scene.png" alt="" aria-hidden="true" draggable={false} />
-          <span className="hue-chip absolute right-5 top-5">
-            <span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(212,175,127,.8)]" />
-            Live
-          </span>
-          <span className="relative flex min-h-[210px] items-end justify-between gap-4 p-5 sm:min-h-[240px] sm:p-7">
-            <span className="block">
-              <span className="page-kicker">Live presence</span>
-              <span className="font-editorial block text-3xl font-semibold text-stone-50 sm:text-4xl">The study table</span>
-              <span className="mt-2 block max-w-md text-xs leading-5 text-stone-300 sm:text-sm">
-                See who's at the table right now — books open when a session runs, close when someone steps away.
-              </span>
+        <button
+          onClick={onOpenStudyTable}
+          className="group mb-8 flex w-full items-center justify-between rounded-[1.4rem] border border-lime-300/15 bg-lime-300/[.05] p-5 text-left transition hover:border-lime-300/35 hover:bg-lime-300/[.08] sm:p-6"
+        >
+          <span className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime-300/10 text-lime-300">
+              <BookOpen className="h-5 w-5" />
             </span>
-            <ArrowUpRight className="hidden h-5 w-5 shrink-0 text-lime-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 sm:block" />
+            <span>
+              <span className="font-display block text-sm font-bold text-stone-100">The study table</span>
+              <span className="mt-0.5 block text-xs leading-5 text-stone-500">See who's at the table right now — books open when a session runs.</span>
+            </span>
           </span>
+          <ArrowUpRight className="h-4 w-4 shrink-0 text-lime-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </button>
       )}
 
@@ -275,7 +273,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                   {f.todayMinutes}m
                 </div>
                 <div className="flex items-center gap-1 text-slate-300">
-                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  <Flame className="w-3.5 h-3.5 text-orange-400" />
                   {f.currentStreak}d
                 </div>
               </div>

@@ -25,27 +25,26 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1A0E2E] p-3 sm:p-5">
-      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/[.07] bg-[#221335] shadow-2xl sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[1.1fr_.9fr]">
+    <div className="min-h-screen bg-[#090b0a] p-3 sm:p-5">
+      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/[.07] bg-[#11130f] shadow-2xl sm:min-h-[calc(100vh-2.5rem)] lg:grid-cols-[1.1fr_.9fr]">
         <section className="relative hidden overflow-hidden border-r border-white/[.06] p-12 lg:flex lg:flex-col lg:justify-between">
-          <img src="/visuals/hourglass/hourglass-shell.png" alt="" aria-hidden="true" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(18,9,33,.42)_0%,rgba(18,9,33,.58)_45%,rgba(18,9,33,.96)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(197,255,84,.18),transparent_34%),radial-gradient(circle_at_70%_85%,rgba(197,255,84,.08),transparent_35%)]" />
           <div className="absolute -right-20 top-1/3 h-80 w-80 rounded-full border border-lime-300/10" />
           <div className="absolute -right-5 top-[38%] h-56 w-56 rounded-full border border-lime-300/10" />
-          <div className="relative flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-300 text-[#241536]"><Timer className="h-5 w-5" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div>
+          <div className="relative flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-300 text-[#11130f]"><Timer className="h-5 w-5" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div>
           <div className="relative max-w-lg">
-            <div className="mb-5 inline-flex rounded-full border border-lime-300/20 bg-[rgba(18,9,33,.5)] px-3 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-lime-300 backdrop-blur-md">Attention is your edge</div>
-            <h1 className="font-editorial text-6xl font-semibold leading-[1.04]">Less noise.<br /><span className="italic text-stone-300">More meaningful work.</span></h1>
-            <p className="mt-6 max-w-md text-base leading-7 text-stone-300">A calm place to focus deeply, measure consistency, and build a practice that lasts.</p>
+            <div className="mb-5 inline-flex rounded-full border border-lime-300/20 bg-lime-300/[.07] px-3 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-lime-300">Attention is your edge</div>
+            <h1 className="text-6xl font-extrabold leading-[1.02]">Less noise.<br /><span className="text-stone-500">More meaningful work.</span></h1>
+            <p className="mt-6 max-w-md text-base leading-7 text-stone-400">A calm place to focus deeply, measure consistency, and build a practice that lasts.</p>
           </div>
-          <div className="relative flex gap-6 text-sm text-stone-400"><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No feeds</span><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No distractions</span></div>
+          <div className="relative flex gap-6 text-sm text-stone-500"><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No feeds</span><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No distractions</span></div>
         </section>
         <section className="flex items-center justify-center px-6 py-10 sm:px-12">
           <div className="w-full max-w-sm">
-            <div className="mb-10 lg:hidden"><div className="mb-7 flex items-center gap-2"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#241536]"><Timer className="h-4 w-4" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div></div>
+            <div className="mb-10 lg:hidden"><div className="mb-7 flex items-center gap-2"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f]"><Timer className="h-4 w-4" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div></div>
             <div className="mb-8">
               <div className="page-kicker">Welcome {mode === 'signin' ? 'back' : 'in'}</div>
-              <h2 className="font-editorial text-[2.25rem] font-semibold leading-tight text-stone-50">{mode === 'signin' ? 'Continue your practice.' : 'Build your focus ritual.'}</h2>
+              <h2 className="text-3xl font-extrabold text-stone-50">{mode === 'signin' ? 'Continue your practice.' : 'Build your focus ritual.'}</h2>
               <p className="mt-2 text-sm text-stone-500">{mode === 'signin' ? 'Sign in to return to your focus space.' : 'A calmer, more intentional workday starts here.'}</p>
             </div>
 

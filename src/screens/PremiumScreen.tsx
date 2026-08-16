@@ -122,7 +122,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
         modal: {
           ondismiss: () => setLoading(false),
         },
-        theme: { color: '#D4AF7F' },
+        theme: { color: '#c5ff54' },
       });
 
       rzp.on('payment.failed', () => {
@@ -162,17 +162,14 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
 
   return (
     <div className="page-wrap relative pb-24">
-      <div className="photo-card mb-8">
-        <img src="/visuals/blade/blade-preview.png" alt="" aria-hidden="true" draggable={false} />
-        <div className="relative flex min-h-[280px] flex-col items-center justify-center p-8 text-center sm:min-h-[340px]">
-          <span className="hue-chip absolute right-6 top-6">
-            <Sparkles className="h-3.5 w-3.5 text-lime-300" />
-            Premium
-          </span>
-          <div className="page-kicker">The complete practice</div>
-          <h2 className="font-editorial text-4xl font-semibold text-white sm:text-5xl">Invest in your <span className="gold-text italic">attention</span>.</h2>
-          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-stone-300">Deeper insights, unlimited break content, and every tool we build next.</p>
+      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-80 w-80 -translate-x-1/2 rounded-full bg-lime-300/[.07] blur-[100px]" />
+      <div className="mb-8 text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4">
+          <Sparkles className="w-8 h-8 text-emerald-400" />
         </div>
+        <div className="page-kicker">The complete practice</div>
+        <h2 className="text-4xl font-extrabold text-white sm:text-5xl">Invest in your attention.</h2>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Deeper insights, unlimited break content, and every tool we build next.</p>
       </div>
 
       <div className="surface relative mx-auto mb-7 max-w-xl overflow-hidden p-6 sm:p-8">
@@ -196,8 +193,8 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
       </div>
 
       <div className="text-center mb-6">
-        <div className="font-editorial gold-text text-6xl font-semibold">₹49<span className="font-editorial text-base font-normal italic text-stone-400"> / month</span></div>
-        <p className="text-xs text-slate-500 mt-2">UPI only · Test mode — no real charge</p>
+        <div className="font-display text-5xl font-extrabold text-white">₹49<span className="text-base text-slate-400 font-normal"> / month</span></div>
+        <p className="text-xs text-slate-500 mt-1">UPI only · Test mode — no real charge</p>
       </div>
 
       {error && (
