@@ -168,7 +168,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
           <Sparkles className="w-8 h-8 text-emerald-400" />
         </div>
         <div className="page-kicker">The complete practice</div>
-        <h2 className="text-4xl font-extrabold text-white sm:text-5xl">Invest in your attention.</h2>
+        <h2 className="font-editorial text-4xl font-semibold text-white sm:text-5xl">Invest in your <span className="gold-text italic">attention</span>.</h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">Deeper insights, unlimited break content, and every tool we build next.</p>
       </div>
 

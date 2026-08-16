@@ -34,7 +34,7 @@ export default function AuthScreen() {
           <div className="relative flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-lime-300 text-[#241536]"><Timer className="h-5 w-5" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div>
           <div className="relative max-w-lg">
             <div className="mb-5 inline-flex rounded-full border border-lime-300/20 bg-lime-300/[.07] px-3 py-1.5 text-xs font-bold uppercase tracking-[.18em] text-lime-300">Attention is your edge</div>
-            <h1 className="text-6xl font-extrabold leading-[1.02]">Less noise.<br /><span className="text-stone-500">More meaningful work.</span></h1>
+            <h1 className="font-editorial text-6xl font-semibold leading-[1.04]">Less noise.<br /><span className="italic text-stone-500">More meaningful work.</span></h1>
             <p className="mt-6 max-w-md text-base leading-7 text-stone-400">A calm place to focus deeply, measure consistency, and build a practice that lasts.</p>
           </div>
           <div className="relative flex gap-6 text-sm text-stone-500"><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No feeds</span><span className="flex items-center gap-2"><Check className="h-4 w-4 text-lime-300" /> No distractions</span></div>

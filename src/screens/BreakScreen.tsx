@@ -86,7 +86,7 @@ export default function BreakScreen({ breakMinutes, onDone }: BreakScreenProps) 
       <div className="mx-auto max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="gold-text text-2xl font-bold">Break time</h2>
+          <h2 className="font-editorial gold-text text-2xl font-semibold italic">Break time</h2>
           <p className="text-amber-100/50 text-sm">Something useful, not mindless.</p>
         </div>
         <div className={`px-3 py-1.5 rounded-full text-sm font-medium tabular-nums ${

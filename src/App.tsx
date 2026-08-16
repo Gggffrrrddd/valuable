@@ -160,8 +160,8 @@ function AppContent() {
               <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
                 <div>
                   <div className="page-kicker">Your focus space</div>
-                  <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-6xl xl:text-7xl">
-                    Make this hour <span className="gold-text">count.</span>
+                  <h1 className="font-editorial text-4xl font-semibold leading-[1.06] text-stone-50 sm:text-6xl xl:text-7xl">
+                    Make this hour <span className="gold-text italic">count.</span>
                   </h1>
                   <p className="mt-5 max-w-xl text-sm leading-6 text-stone-400 sm:text-base">Welcome back, {profile.display_name}. Remove the noise and give one meaningful thing your complete attention.</p>
                 </div>
