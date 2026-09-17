@@ -3,7 +3,12 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
+import TableScene3D, {
+  DEFAULT_TABLE_TRANSFORM,
+  type SeatOccupant,
+  type TableTransform,
+} from '@/components/circle-table/TableScene3D';
+import TableTuner from '@/components/circle-table/TableTuner';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 
 /** Friend-status poll cadence while this screen is open in the foreground. */
@@ -51,6 +56,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
+  const [transform, setTransform] = useState<TableTransform>(DEFAULT_TABLE_TRANSFORM);
 
   useEffect(() => {
     if (!session) return;
@@ -132,7 +138,27 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-      <TableScene3D self={self} friends={seatedFriends} />
+      <div
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        onPointerMove={(event) => {
+          if (!(event.buttons & 1)) return;
+          setTransform((prev) => ({
+            ...prev,
+            positionX: prev.positionX + event.movementX * 0.006,
+            positionY: prev.positionY - event.movementY * 0.006,
+          }));
+        }}
+      >
+        <TableScene3D self={self} friends={seatedFriends} transform={transform} />
+      </div>
+
+      {import.meta.env.DEV && (
+        <TableTuner
+          transform={transform}
+          onTransformChange={setTransform}
+          onDrag={() => undefined}
+        />
+      )}
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
