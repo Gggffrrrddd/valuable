@@ -18,7 +18,41 @@ export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
 
-function TableModel({ model, texture, reduced }: { model: Group; texture: Texture; reduced: boolean }) {
+export interface TableTransform {
+  scale: number;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  rotationX: number;
+  rotationY: number;
+  rotationZ: number;
+  cameraDistance: number;
+  cameraHeight: number;
+}
+
+export const DEFAULT_TABLE_TRANSFORM: TableTransform = {
+  scale: 1,
+  positionX: 0,
+  positionY: 0.757,
+  positionZ: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+  cameraDistance: 5.4,
+  cameraHeight: 3.4,
+};
+
+function TableModel({
+  model,
+  texture,
+  reduced,
+  transform,
+}: {
+  model: Group;
+  texture: Texture;
+  reduced: boolean;
+  transform: TableTransform;
+}) {
   const groupRef = useRef<Group>(null);
 
   const staged = useMemo(() => {
@@ -34,7 +68,7 @@ function TableModel({ model, texture, reduced }: { model: Group; texture: Textur
     clone.traverse((child) => {
       if (child instanceof Mesh) child.material = material;
     });
-    // Model spans ~1.1 units; normalize to a 3.2-unit table, then lay it flat.
+    // Model spans ~1.1 units; normalize to a 3.2-unit table.
     normalizeModel(clone, 3.2);
     return clone;
   }, [model, texture]);
@@ -44,10 +78,13 @@ function TableModel({ model, texture, reduced }: { model: Group; texture: Textur
     groupRef.current.rotation.y += delta * 0.05;
   });
 
-  // The model's thin axis is already Y, so the tabletop lies flat natively —
-  // no X rotation. Normalized Y span is ~1.515, so rest its base on the floor.
   return (
-    <group ref={groupRef} position={[0, 0.757, 0]}>
+    <group
+      ref={groupRef}
+      position={[transform.positionX, transform.positionY, transform.positionZ]}
+      rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
+      scale={transform.scale}
+    >
       <primitive object={staged} />
     </group>
   );
@@ -56,10 +93,12 @@ function TableModel({ model, texture, reduced }: { model: Group; texture: Textur
 export default function TableScene3D({
   self,
   friends,
+  transform = DEFAULT_TABLE_TRANSFORM,
 }: {
   self: SeatOccupant;
   friends: SeatOccupant[];
   showAnchors?: boolean;
+  transform?: TableTransform;
 }) {
   const reduced = useReducedMotion();
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
@@ -82,7 +121,7 @@ export default function TableScene3D({
   return (
     <div className="absolute inset-0">
       <Canvas
-        camera={{ position: [0, 3.4, 5.4], fov: 38 }}
+        camera={{ position: [0, transform.cameraHeight, transform.cameraDistance], fov: 38 }}
         dpr={[1, 1.5]}
         shadows
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
@@ -103,7 +142,7 @@ export default function TableScene3D({
         <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color="#b6e85a" />
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
-        <TableModel model={model} texture={texture} reduced={reduced} />
+        <TableModel model={model} texture={texture} reduced={reduced} transform={transform} />
 
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[5.4, 64]} />
