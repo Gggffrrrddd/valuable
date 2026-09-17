@@ -44,8 +44,10 @@ function TableModel({ model, texture, reduced }: { model: Group; texture: Textur
     groupRef.current.rotation.y += delta * 0.05;
   });
 
+  // The model's thin axis is already Y, so the tabletop lies flat natively —
+  // no X rotation. Normalized Y span is ~1.515, so rest its base on the floor.
   return (
-    <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.35, 0]}>
+    <group ref={groupRef} position={[0, 0.757, 0]}>
       <primitive object={staged} />
     </group>
   );
@@ -103,7 +105,7 @@ export default function TableScene3D({
 
         <TableModel model={model} texture={texture} reduced={reduced} />
 
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.42, 0]} receiveShadow>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[5.4, 64]} />
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
         </mesh>
