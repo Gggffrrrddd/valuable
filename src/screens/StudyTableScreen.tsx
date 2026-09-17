@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene, { type SeatOccupant } from '@/components/circle-table/TableScene';
+import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 
 /** Friend-status poll cadence while this screen is open in the foreground. */
@@ -132,7 +132,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-      <TableScene self={self} friends={seatedFriends} />
+      <TableScene3D self={self} friends={seatedFriends} />
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
