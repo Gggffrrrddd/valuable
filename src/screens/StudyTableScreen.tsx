@@ -11,6 +11,7 @@ import TableScene3D, {
 import TableTuner from '@/components/circle-table/TableTuner';
 import {
   DEFAULT_CHAIR_TRANSFORM,
+  replicateChairs,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
@@ -61,11 +62,11 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const [tableTransform, setTableTransform] = useState<TableTransform>(DEFAULT_TABLE_TRANSFORM);
-  const [chairs, setChairs] = useState<ObjectTransform[]>([{ ...DEFAULT_CHAIR_TRANSFORM }]);
+  const [chair, setChair] = useState<ObjectTransform>(DEFAULT_CHAIR_TRANSFORM);
   const [spin, setSpin] = useState(false);
 
-  /** Which object a scene-drag moves: 'table' or the chair index. */
-  const dragTarget = useRef<'table' | number>('table');
+  /** Which object a scene-drag moves: 'table' or 'chair'. */
+  const dragTarget = useRef<'table' | 'chair'>('chair');
 
   useEffect(() => {
     if (!session) return;
@@ -145,6 +146,13 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [self.status, friendIdsKey, statuses]);
 
+  // The six chairs around the table are built from the single reference chair,
+  // replicated in 60° steps around the table center.
+  const chairs = useMemo(
+    () => replicateChairs(chair, { x: tableTransform.positionX, z: tableTransform.positionZ }),
+    [chair, tableTransform.positionX, tableTransform.positionZ],
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
       <div
@@ -161,13 +169,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
               positionY: prev.positionY - dy,
             }));
           } else {
-            setChairs((prev) =>
-              prev.map((chair, i) =>
-                i === target
-                  ? { ...chair, positionX: chair.positionX + dx, positionY: chair.positionY - dy }
-                  : chair
-              )
-            );
+            setChair((prev) => ({ ...prev, positionX: prev.positionX + dx, positionY: prev.positionY - dy }));
           }
         }}
       >
@@ -183,11 +185,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
       <TableTuner
         tableTransform={tableTransform}
         onTableTransformChange={setTableTransform}
-        chairs={chairs}
-        onChairsChange={(next) => {
-          setChairs(next);
-          dragTarget.current = next.length === 0 ? 'table' : dragTarget.current;
-        }}
+        chair={chair}
+        onChairChange={setChair}
         spin={spin}
         onSpinChange={setSpin}
         onSelect={(target) => {

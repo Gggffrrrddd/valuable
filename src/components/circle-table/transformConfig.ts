@@ -24,13 +24,109 @@ export const DEFAULT_TABLE_TRANSFORM: TableTransform = {
 
 export const DEFAULT_CHAIR_TRANSFORM: ObjectTransform = {
   scale: 1,
-  positionX: 0,
-  positionY: 0,
-  positionZ: 1.15,
+  positionX: 1.15,
+  positionY: 0.86,
+  positionZ: 0.94,
   rotationX: 0,
-  rotationY: 0,
+  rotationY: -1.87,
   rotationZ: 0,
 };
+
+/**
+ * Six chairs around the round table. Chair 0 is the hand-tuned reference chair;
+ * the other five are replicas of it, rotated 60° steps around the table center
+ * so one chair seats every section of the table.
+ */
+export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
+  {
+    scale: 1,
+    positionX: 1.15,
+    positionY: 0.86,
+    positionZ: 0.94,
+    rotationX: 0,
+    rotationY: -1.87,
+    rotationZ: 0,
+  },
+  {
+    scale: 1,
+    positionX: 0.792,
+    positionY: 0.86,
+    positionZ: -0.239,
+    rotationX: 0,
+    rotationY: -0.823,
+    rotationZ: 0,
+  },
+  {
+    scale: 1,
+    positionX: -0.408,
+    positionY: 0.86,
+    positionZ: -0.519,
+    rotationX: 0,
+    rotationY: 0.224,
+    rotationZ: 0,
+  },
+  {
+    scale: 1,
+    positionX: -1.25,
+    positionY: 0.86,
+    positionZ: 0.38,
+    rotationX: 0,
+    rotationY: 1.272,
+    rotationZ: 0,
+  },
+  {
+    scale: 1,
+    positionX: -0.892,
+    positionY: 0.86,
+    positionZ: 1.559,
+    rotationX: 0,
+    rotationY: 2.319,
+    rotationZ: 0,
+  },
+  {
+    scale: 1,
+    positionX: 0.308,
+    positionY: 0.86,
+    positionZ: 1.839,
+    rotationX: 0,
+    rotationY: 3.366,
+    rotationZ: 0,
+  },
+];
+
+/**
+ * Replicate one reference chair into six around the table center.
+ *
+ * Chair 0 is the reference, placed as-is. Chairs 1-5 are rotated copies: the
+ * chair's offset from the table center is rotated 60° per step (Three.js Y
+ * rotation), and its facing turns by the same angle so every chair faces the
+ * table. Scale, height and tilt are carried over unchanged.
+ */
+export function replicateChairs(
+  reference: ObjectTransform,
+  tableCenter: { x: number; z: number },
+  count = 6,
+): ObjectTransform[] {
+  const offsetX = reference.positionX - tableCenter.x;
+  const offsetZ = reference.positionZ - tableCenter.z;
+
+  return Array.from({ length: count }, (_, index) => {
+    const angle = (index / count) * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const positionX = tableCenter.x + offsetX * cos + offsetZ * sin;
+    const positionZ = tableCenter.z - offsetX * sin + offsetZ * cos;
+    return {
+      scale: reference.scale,
+      positionX,
+      positionY: reference.positionY,
+      positionZ,
+      rotationX: reference.rotationX,
+      rotationY: reference.rotationY + angle,
+      rotationZ: reference.rotationZ,
+    };
+  });
+}
 
 export function roundTransform(t: ObjectTransform): ObjectTransform {
   return {

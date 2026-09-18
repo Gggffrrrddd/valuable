@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { TableTransform } from './TableScene3D';
 import {
   DEFAULT_CHAIR_TRANSFORM,
+  DEFAULT_TABLE_TRANSFORM,
+  replicateChairs,
   roundTransform,
   SLIDER_ROWS,
   type ObjectTransform,
@@ -10,80 +12,60 @@ import {
 interface ChairTunerProps {
   tableTransform: TableTransform;
   onTableTransformChange: (next: TableTransform) => void;
-  chairs: ObjectTransform[];
-  onChairsChange: (next: ObjectTransform[]) => void;
+  /** Reference chair; the scene replicates it into six. */
+  chair: ObjectTransform;
+  onChairChange: (next: ObjectTransform) => void;
   spin: boolean;
   onSpinChange: (next: boolean) => void;
-  /** Reports the currently selected object so scene drags move the right one. */
-  onSelect?: (target: 'table' | number) => void;
+  /** Reports the selected object so scene drags move the right one. */
+  onSelect?: (target: 'table' | 'chair') => void;
 }
 
 /**
- * Tuner for placing the 3D table and its chairs on the live site.
- *
- * - "Add chair" drops in another chair (up to six, the table's seat count).
- * - Every chair gets its own sliders: size, move X/Y/Z, tilt X/Y/Z.
- * - Dragging the scene moves whichever object is selected (table or chair).
- * - "Rotate" toggles the master rotation: table spins and the chairs orbit
- *   along with it.
- * - "Save" prints everything to the console between markers, for pasting back
- *   into the defaults.
+ * Chair placement tuner: position ONE reference chair by the table, press
+ * Save, and the scene builds all six chairs from it (rotated 60° steps around
+ * the table center, same scale/height/tilt, always facing the table).
  */
 export default function TableTuner({
   tableTransform,
   onTableTransformChange,
-  chairs,
-  onChairsChange,
+  chair,
+  onChairChange,
   spin,
   onSpinChange,
   onSelect,
 }: ChairTunerProps) {
   const [open, setOpen] = useState(true);
-  const [selected, setSelected] = useState<'table' | number>('table');
+  const [selected, setSelected] = useState<'table' | 'chair'>('chair');
 
   useEffect(() => {
     onSelect?.(selected);
   }, [onSelect, selected]);
 
-  const selectedTransform: ObjectTransform =
-    selected === 'table' ? tableTransform : chairs[selected] ?? DEFAULT_CHAIR_TRANSFORM;
+  function handleSave() {
+    const tableCenter = { x: tableTransform.positionX, z: tableTransform.positionZ };
+    const replicated = replicateChairs(chair, tableCenter);
+    const rounded = replicated.map(roundTransform);
 
-  function setSelectedTransform(next: ObjectTransform) {
+    console.log('TABLE_AND_CHAIRS_START');
+    console.log('table:', JSON.stringify(roundTransform(tableTransform), null, 2));
+    console.log(`chairs (${rounded.length}):`);
+    rounded.forEach((entry, i) => console.log(`  chair[${i}]:`, JSON.stringify(entry)));
+    console.log('TABLE_AND_CHAIRS_END');
+    console.log(
+      'Paste into DEFAULT_TABLE_TRANSFORM, DEFAULT_CHAIR_TRANSFORM and DEFAULT_CHAIR_TRANSFORMS (transformConfig.ts).',
+    );
+  }
+
+  const editingTransform: ObjectTransform = selected === 'table' ? tableTransform : chair;
+
+  function setEditingTransform(next: ObjectTransform) {
     if (selected === 'table') {
       onTableTransformChange({ ...tableTransform, ...next });
     } else {
-      onChairsChange(chairs.map((chair, i) => (i === selected ? next : chair)));
+      onChairChange(next);
     }
   }
-
-  function handleAddChair() {
-    if (chairs.length >= 6) return;
-    onChairsChange([...chairs, { ...DEFAULT_CHAIR_TRANSFORM }]);
-    setSelected(chairs.length);
-  }
-
-  function handleRemoveChair() {
-    if (chairs.length === 0) return;
-    const next = chairs.slice(0, -1);
-    onChairsChange(next);
-    setSelected((current) => (current === 'table' ? 'table' : Math.min(current, next.length - 1)));
-    if (next.length === 0) setSelected('table');
-  }
-
-  function handleSave() {
-    const roundedTable = roundTransform(tableTransform);
-    const roundedChairs = chairs.map(roundTransform);
-
-    console.log('TABLE_AND_CHAIRS_START');
-    console.log('table:', JSON.stringify(roundedTable, null, 2));
-    console.log(`chairs (${roundedChairs.length}):`);
-    roundedChairs.forEach((chair, i) => console.log(`  chair[${i}]:`, JSON.stringify(chair)));
-    console.log('TABLE_AND_CHAIRS_END');
-    console.log('Paste table into DEFAULT_TABLE_TRANSFORM and chairs into DEFAULT_CHAIR_TRANSFORMS (transformConfig.ts).');
-  }
-
-  const label =
-    selected === 'table' ? 'Table' : `Chair ${selected + 1}`;
 
   return (
     <div
@@ -95,22 +77,16 @@ export default function TableTuner({
         className="table-preview-title"
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
       >
-        {open ? '▾ Table & chairs' : '▸ Table & chairs'}
+        {open ? '▾ Table & chair' : '▸ Table & chair'}
       </button>
 
       {open && (
         <>
           <div className="text-[10px] text-stone-600">
-            Select an object, drag the scene to move it, or use the sliders. Save logs to console.
+            Position the chair, then Save — all six chairs build from it. Drag the scene to move the selected object.
           </div>
 
           <div className="table-preview-actions" style={{ marginTop: '0.35rem' }}>
-            <button onClick={handleAddChair} disabled={chairs.length >= 6}>
-              + Add chair ({chairs.length}/6)
-            </button>
-            <button onClick={handleRemoveChair} disabled={chairs.length === 0}>
-              Remove
-            </button>
             <button onClick={() => onSpinChange(!spin)} style={spin ? { background: 'rgb(197,255,84)', color: '#11130f' } : undefined}>
               {spin ? 'Rotate: on' : 'Rotate: off'}
             </button>
@@ -119,11 +95,8 @@ export default function TableTuner({
           <div className="table-preview-row" style={{ marginTop: '0.35rem' }}>
             <span className="table-preview-label">Editing</span>
             <select
-              value={selected === 'table' ? 'table' : String(selected)}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelected(value === 'table' ? 'table' : Number(value));
-              }}
+              value={selected}
+              onChange={(e) => setSelected(e.target.value === 'table' ? 'table' : 'chair')}
               style={{
                 background: 'rgba(9,11,10,0.9)',
                 color: '#d8ffa1',
@@ -131,20 +104,15 @@ export default function TableTuner({
                 borderRadius: '999px',
                 padding: '0.18rem 0.4rem',
                 fontSize: '0.6rem',
-                maxWidth: '7.5rem',
               }}
             >
               <option value="table">Table</option>
-              {chairs.map((_, i) => (
-                <option key={i} value={String(i)}>
-                  Chair {i + 1}
-                </option>
-              ))}
+              <option value="chair">Chair (reference)</option>
             </select>
           </div>
 
           <div className="text-[10px] text-lime-300" style={{ marginTop: '0.35rem', fontWeight: 700 }}>
-            {label}
+            {selected === 'table' ? 'Table' : 'Reference chair'}
           </div>
 
           {SLIDER_ROWS.map((row) => (
@@ -157,12 +125,12 @@ export default function TableTuner({
                 min={row.min}
                 max={row.max}
                 step={row.step}
-                value={selectedTransform[row.key]}
-                onChange={(e) => setSelectedTransform({ ...selectedTransform, [row.key]: Number(e.target.value) })}
+                value={editingTransform[row.key]}
+                onChange={(e) => setEditingTransform({ ...editingTransform, [row.key]: Number(e.target.value) })}
                 style={{ flex: 1, accentColor: 'rgb(197,255,84)' }}
               />
               <span style={{ width: '2.8rem', textAlign: 'right', fontSize: '0.6rem', color: 'rgba(245,243,235,.75)' }}>
-                {selectedTransform[row.key].toFixed(2)}
+                {editingTransform[row.key].toFixed(2)}
               </span>
             </div>
           ))}
@@ -207,11 +175,8 @@ export default function TableTuner({
             </button>
             <button
               onClick={() => {
-                if (selected === 'table') {
-                  onTableTransformChange(DEFAULT_TABLE_TRANSFORM_PRESERVE_CAMERA(tableTransform));
-                } else {
-                  setSelectedTransform({ ...DEFAULT_CHAIR_TRANSFORM });
-                }
+                if (selected === 'table') onTableTransformChange(DEFAULT_TABLE_TRANSFORM);
+                else onChairChange(DEFAULT_CHAIR_TRANSFORM);
               }}
             >
               Reset
@@ -221,18 +186,4 @@ export default function TableTuner({
       )}
     </div>
   );
-}
-
-function DEFAULT_TABLE_TRANSFORM_PRESERVE_CAMERA(current: TableTransform): TableTransform {
-  return {
-    scale: 0.74,
-    positionX: -0.05,
-    positionY: 0.64,
-    positionZ: 0.66,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-    cameraDistance: current.cameraDistance,
-    cameraHeight: current.cameraHeight,
-  };
 }
