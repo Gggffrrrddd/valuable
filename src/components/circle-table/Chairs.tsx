@@ -58,8 +58,10 @@ function Chair({
 
 export default function Chairs({
   transforms,
+  origin = [0, 0],
 }: {
   transforms: ObjectTransform[];
+  origin?: [number, number];
 }) {
   const { model, error: modelError } = useModelLoader(CHAIR_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(CHAIR_TEXTURE_URL);
@@ -74,7 +76,16 @@ export default function Chairs({
   return (
     <group>
       {transforms.map((transform, i) => (
-        <Chair key={i} model={model} texture={texture} transform={transform} />
+        <Chair
+          key={i}
+          model={model}
+          texture={texture}
+          transform={{
+            ...transform,
+            positionX: transform.positionX - origin[0],
+            positionZ: transform.positionZ - origin[1],
+          }}
+        />
       ))}
     </group>
   );

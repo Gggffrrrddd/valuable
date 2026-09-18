@@ -46,10 +46,12 @@ function TableModel({
   model,
   texture,
   transform,
+  spin,
 }: {
   model: Group;
   texture: Texture;
   transform: TableTransform;
+  spin: boolean;
 }) {
   const staged = useMemo(() => {
     const clone = model.clone(true);
@@ -69,15 +71,15 @@ function TableModel({
     return clone;
   }, [model, texture]);
 
-  // Table is pinned in place — no idle spin while chairs are being positioned.
-
   return (
     <group
       position={[transform.positionX, transform.positionY, transform.positionZ]}
       rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
       scale={transform.scale}
     >
-      <primitive object={staged} />
+      <TableSpin enabled={spin}>
+        <primitive object={staged} />
+      </TableSpin>
     </group>
   );
 }
@@ -137,20 +139,20 @@ export default function TableScene3D({
         <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color="#b6e85a" />
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
-        <RotatingSet enabled={spin && !reduced}>
-          <TableModel model={model} texture={texture} transform={transform} />
-          <Chairs transforms={chairs} />
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-            <circleGeometry args={[5.4, 64]} />
-            <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
-          </mesh>
-        </RotatingSet>
+        <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
+        <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
+          <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
+        </ChairOrbit>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+          <circleGeometry args={[5.4, 64]} />
+          <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
+        </mesh>
       </Canvas>
     </div>
   );
 }
 
-const RotatingSet = ({
+const TableSpin = ({
   children,
   enabled,
 }: {
@@ -162,4 +164,20 @@ const RotatingSet = ({
     if (enabled && ref.current) ref.current.rotation.y += delta * 0.05;
   });
   return <group ref={ref}>{children}</group>;
+};
+
+const ChairOrbit = ({
+  children,
+  enabled,
+  center,
+}: {
+  children: ReactNode;
+  enabled: boolean;
+  center: [number, number];
+}) => {
+  const ref = useRef<Group>(null);
+  useFrame((_state, delta) => {
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.05;
+  });
+  return <group ref={ref} position={[center[0], 0, center[1]]}>{children}</group>;
 };
