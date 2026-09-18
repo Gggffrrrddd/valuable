@@ -152,13 +152,11 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <TableScene3D self={self} friends={seatedFriends} transform={transform} />
       </div>
 
-      {import.meta.env.DEV && (
-        <TableTuner
-          transform={transform}
-          onTransformChange={setTransform}
-          onDrag={() => undefined}
-        />
-      )}
+      <TableTuner
+        transform={transform}
+        onTransformChange={setTransform}
+        onDrag={() => undefined}
+      />
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
