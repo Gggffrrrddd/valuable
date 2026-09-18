@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { Group, Mesh, Texture } from 'three';
 import {
@@ -9,6 +9,8 @@ import {
   useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
+import Chairs from './Chairs';
+import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
 
 export type { SeatOccupant };
@@ -42,7 +44,6 @@ export const DEFAULT_TABLE_TRANSFORM: TableTransform = {
 function TableModel({
   model,
   texture,
-  reduced,
   transform,
 }: {
   model: Group;
@@ -70,10 +71,7 @@ function TableModel({
     return clone;
   }, [model, texture]);
 
-  useFrame((_state, delta) => {
-    if (!groupRef.current || reduced) return;
-    groupRef.current.rotation.y += delta * 0.05;
-  });
+  // Table is pinned in place — no idle spin while chairs are being positioned.
 
   return (
     <group
@@ -89,11 +87,17 @@ function TableModel({
 
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
+  chairs = [],
+  spin = false,
 }: {
   self?: SeatOccupant;
   friends?: SeatOccupant[];
   showAnchors?: boolean;
   transform?: TableTransform;
+  /** Per-chair transforms; one chair renders per entry. */
+  chairs?: ObjectTransform[];
+  /** Master rotation: spins the table and orbits the chairs with it. */
+  spin?: boolean;
 }) {
   const reduced = useReducedMotion();
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
@@ -137,6 +141,8 @@ export default function TableScene3D({
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
         <TableModel model={model} texture={texture} reduced={reduced} transform={transform} />
+
+        <Chairs transforms={chairs} spin={spin && !reduced} />
 
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[5.4, 64]} />

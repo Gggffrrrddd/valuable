@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
+import TableScene3D, {
+  DEFAULT_TABLE_TRANSFORM,
+  type SeatOccupant,
+  type TableTransform,
+} from '@/components/circle-table/TableScene3D';
+import TableTuner from '@/components/circle-table/TableTuner';
+import {
+  DEFAULT_CHAIR_TRANSFORM,
+  type ObjectTransform,
+} from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
 
 /** Friend-status poll cadence while this screen is open in the foreground. */
@@ -51,6 +60,12 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
+  const [tableTransform, setTableTransform] = useState<TableTransform>(DEFAULT_TABLE_TRANSFORM);
+  const [chairs, setChairs] = useState<ObjectTransform[]>([{ ...DEFAULT_CHAIR_TRANSFORM }]);
+  const [spin, setSpin] = useState(false);
+
+  /** Which object a scene-drag moves: 'table' or the chair index. */
+  const dragTarget = useRef<'table' | number>('table');
 
   useEffect(() => {
     if (!session) return;
@@ -132,9 +147,53 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-      <div className="absolute inset-0">
-        <TableScene3D self={self} friends={seatedFriends} />
+      <div
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        onPointerMove={(event) => {
+          if (!(event.buttons & 1)) return;
+          const target = dragTarget.current;
+          const dx = event.movementX * 0.006;
+          const dy = event.movementY * 0.006;
+          if (target === 'table') {
+            setTableTransform((prev) => ({
+              ...prev,
+              positionX: prev.positionX + dx,
+              positionY: prev.positionY - dy,
+            }));
+          } else {
+            setChairs((prev) =>
+              prev.map((chair, i) =>
+                i === target
+                  ? { ...chair, positionX: chair.positionX + dx, positionY: chair.positionY - dy }
+                  : chair
+              )
+            );
+          }
+        }}
+      >
+        <TableScene3D
+          self={self}
+          friends={seatedFriends}
+          transform={tableTransform}
+          chairs={chairs}
+          spin={spin}
+        />
       </div>
+
+      <TableTuner
+        tableTransform={tableTransform}
+        onTableTransformChange={setTableTransform}
+        chairs={chairs}
+        onChairsChange={(next) => {
+          setChairs(next);
+          dragTarget.current = next.length === 0 ? 'table' : dragTarget.current;
+        }}
+        spin={spin}
+        onSpinChange={setSpin}
+        onSelect={(target) => {
+          dragTarget.current = target;
+        }}
+      />
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
