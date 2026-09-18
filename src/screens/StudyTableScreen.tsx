@@ -3,12 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, {
-  DEFAULT_TABLE_TRANSFORM,
-  type SeatOccupant,
-  type TableTransform,
-} from '@/components/circle-table/TableScene3D';
-import TableTuner from '@/components/circle-table/TableTuner';
+import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 
 /** Friend-status poll cadence while this screen is open in the foreground. */
@@ -56,7 +51,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [transform, setTransform] = useState<TableTransform>(DEFAULT_TABLE_TRANSFORM);
 
   useEffect(() => {
     if (!session) return;
@@ -138,25 +132,9 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-      <div
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
-        onPointerMove={(event) => {
-          if (!(event.buttons & 1)) return;
-          setTransform((prev) => ({
-            ...prev,
-            positionX: prev.positionX + event.movementX * 0.006,
-            positionY: prev.positionY - event.movementY * 0.006,
-          }));
-        }}
-      >
-        <TableScene3D self={self} friends={[]} transform={transform} />
+      <div className="absolute inset-0">
+        <TableScene3D self={self} friends={seatedFriends} />
       </div>
-
-      <TableTuner
-        transform={transform}
-        onTransformChange={setTransform}
-        onDrag={() => undefined}
-      />
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
@@ -185,7 +163,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
       {/* TEMPORARY (table tuning session): the empty-table message block and
           the seat figure sprites are hidden so the table can be positioned
           without visual clutter. Restore once the transform values are set. */}
-      {(false as boolean) && (friends?.length ?? 0) === 0 && (
+      {friends !== null && friends.length === 0 && (
         <div className="absolute bottom-8 left-1/2 z-20 w-[min(26rem,calc(100%-2rem))] -translate-x-1/2">
           <div className="surface-soft p-4 text-center backdrop-blur-xl">
             <div className="flex items-center justify-center gap-2 text-xs font-bold text-stone-200">
@@ -198,7 +176,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       )}
 
-      {(false as boolean) && (friends?.length ?? 0) > 0 && (
+      {friends !== null && friends.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4 sm:bottom-5">
           <div className="flex items-center gap-4 rounded-full border border-white/[.06] bg-black/30 px-5 py-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500 backdrop-blur-xl">
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(197,255,84,.7)]" /> Open book — focusing</span>

@@ -31,10 +31,10 @@ export interface TableTransform {
 }
 
 export const DEFAULT_TABLE_TRANSFORM: TableTransform = {
-  scale: 1,
-  positionX: 0,
-  positionY: 0.757,
-  positionZ: 0,
+  scale: 0.74,
+  positionX: -0.05,
+  positionY: 0.64,
+  positionZ: 0.66,
   rotationX: 0,
   rotationY: 0,
   rotationZ: 0,
@@ -149,19 +149,15 @@ export default function TableScene3D({
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
         </mesh>
 
-        {/* TEMPORARY (table tuning session): seat sprites are hidden so the
-            table can be positioned without visual clutter. Restore once the
-            final transform values are captured. */}
-        {(false as boolean) && <SeatBillboard seat={SEAT_POSITIONS_3D[0]} occupant={self} seatIndex={0} />}
-        {(false as boolean) &&
-          seated.map((friend, index) => (
-            <SeatBillboard
-              key={friend.id}
-              seat={SEAT_POSITIONS_3D[index + 1]}
-              occupant={friend}
-              seatIndex={index + 1}
-            />
-          ))}
+        <SeatBillboard seat={SEAT_POSITIONS_3D[0]} occupant={self} seatIndex={0} />
+        {seated.map((friend, index) => (
+          <SeatBillboard
+            key={friend.id}
+            seat={SEAT_POSITIONS_3D[index + 1]}
+            occupant={friend}
+            seatIndex={index + 1}
+          />
+        ))}
       </Canvas>
     </div>
   );
