@@ -1,12 +1,10 @@
-import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { Group, Texture } from 'three';
 import { Mesh } from 'three';
 import {
   createWrapTextureMaterial,
   normalizeModel,
   useModelLoader,
-  useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
 import type { ObjectTransform } from './transformConfig';
@@ -24,15 +22,11 @@ function Chair({
   model,
   texture,
   transform,
-  spin,
 }: {
   model: Group;
   texture: Texture;
   transform: ObjectTransform;
-  spin: boolean;
 }) {
-  const ref = useRef<Group>(null);
-
   const staged = useMemo(() => {
     const clone = model.clone(true);
     const material = createWrapTextureMaterial([texture], {
@@ -51,16 +45,8 @@ function Chair({
     return clone;
   }, [model, texture]);
 
-  useFrame((_state, delta) => {
-    if (!ref.current) return;
-    // Orbit the table when the master rotation is on; the chair keeps facing
-    // the table by turning in place with the orbit angle.
-    if (spin) ref.current.rotation.y += delta * 0.05;
-  });
-
   return (
     <group
-      ref={ref}
       position={[transform.positionX, transform.positionY, transform.positionZ]}
       rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
       scale={transform.scale}
@@ -72,12 +58,9 @@ function Chair({
 
 export default function Chairs({
   transforms,
-  spin,
 }: {
   transforms: ObjectTransform[];
-  spin: boolean;
 }) {
-  const reduced = useReducedMotion();
   const { model, error: modelError } = useModelLoader(CHAIR_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(CHAIR_TEXTURE_URL);
 
@@ -88,20 +71,10 @@ export default function Chairs({
   }, [modelError, textureError]);
 
   if (!model || !texture) return null;
-  if (reduced) {
-    return (
-      <group>
-        {transforms.map((transform, i) => (
-          <Chair key={i} model={model} texture={texture} transform={transform} spin={false} />
-        ))}
-      </group>
-    );
-  }
-
   return (
     <group>
       {transforms.map((transform, i) => (
-        <Chair key={i} model={model} texture={texture} transform={transform} spin={spin} />
+        <Chair key={i} model={model} texture={texture} transform={transform} />
       ))}
     </group>
   );

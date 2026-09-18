@@ -1,5 +1,6 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { Group, Mesh, Texture } from 'three';
 import {
   ModelVisualFallback,
@@ -48,11 +49,8 @@ function TableModel({
 }: {
   model: Group;
   texture: Texture;
-  reduced: boolean;
   transform: TableTransform;
 }) {
-  const groupRef = useRef<Group>(null);
-
   const staged = useMemo(() => {
     const clone = model.clone(true);
     const material = createWrapTextureMaterial([texture], {
@@ -75,7 +73,6 @@ function TableModel({
 
   return (
     <group
-      ref={groupRef}
       position={[transform.positionX, transform.positionY, transform.positionZ]}
       rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
       scale={transform.scale}
@@ -140,15 +137,29 @@ export default function TableScene3D({
         <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color="#b6e85a" />
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
-        <TableModel model={model} texture={texture} reduced={reduced} transform={transform} />
-
-        <Chairs transforms={chairs} spin={spin && !reduced} />
-
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <circleGeometry args={[5.4, 64]} />
-          <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
-        </mesh>
+        <RotatingSet enabled={spin && !reduced}>
+          <TableModel model={model} texture={texture} transform={transform} />
+          <Chairs transforms={chairs} />
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+            <circleGeometry args={[5.4, 64]} />
+            <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
+          </mesh>
+        </RotatingSet>
       </Canvas>
     </div>
   );
 }
+
+const RotatingSet = ({
+  children,
+  enabled,
+}: {
+  children: ReactNode;
+  enabled: boolean;
+}) => {
+  const ref = useRef<Group>(null);
+  useFrame((_state, delta) => {
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.05;
+  });
+  return <group ref={ref}>{children}</group>;
+};
