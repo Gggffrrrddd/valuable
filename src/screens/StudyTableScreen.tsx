@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
 import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 /** Friend-status poll cadence while this screen is open in the foreground. */
 const POLL_MS = 6000;
@@ -160,30 +160,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-      {/* TEMPORARY (table tuning session): the empty-table message block and
-          the seat figure sprites are hidden so the table can be positioned
-          without visual clutter. Restore once the transform values are set. */}
-      {friends !== null && friends.length === 0 && (
-        <div className="absolute bottom-8 left-1/2 z-20 w-[min(26rem,calc(100%-2rem))] -translate-x-1/2">
-          <div className="surface-soft p-4 text-center backdrop-blur-xl">
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-stone-200">
-              <BookOpen className="h-4 w-4 text-lime-300" /> Your table is quiet
-            </div>
-            <p className="mt-1.5 text-xs leading-5 text-stone-500">
-              Add friends in Circle — up to five can join you at the table.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {friends !== null && friends.length > 0 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4 sm:bottom-5">
-          <div className="flex items-center gap-4 rounded-full border border-white/[.06] bg-black/30 px-5 py-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500 backdrop-blur-xl">
-            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(197,255,84,.7)]" /> Open book — focusing</span>
-            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-stone-600" /> Closed — resting</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

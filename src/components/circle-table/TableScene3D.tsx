@@ -9,12 +9,9 @@ import {
   useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
-import { SEAT_POSITIONS_3D } from './tableConfig3D';
-import SeatBillboard from './SeatBillboard';
 import type { SeatOccupant } from './TableScene';
 
 export type { SeatOccupant };
-
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
 
@@ -91,12 +88,10 @@ function TableModel({
 }
 
 export default function TableScene3D({
-  self,
-  friends,
   transform = DEFAULT_TABLE_TRANSFORM,
 }: {
-  self: SeatOccupant;
-  friends: SeatOccupant[];
+  self?: SeatOccupant;
+  friends?: SeatOccupant[];
   showAnchors?: boolean;
   transform?: TableTransform;
 }) {
@@ -104,7 +99,6 @@ export default function TableScene3D({
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(TABLE_TEXTURE_URL);
 
-  const seated = friends.slice(0, SEAT_POSITIONS_3D.length - 1);
   const error = modelError ?? textureError;
 
   if (error) {
@@ -148,16 +142,6 @@ export default function TableScene3D({
           <circleGeometry args={[5.4, 64]} />
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
         </mesh>
-
-        <SeatBillboard seat={SEAT_POSITIONS_3D[0]} occupant={self} seatIndex={0} />
-        {seated.map((friend, index) => (
-          <SeatBillboard
-            key={friend.id}
-            seat={SEAT_POSITIONS_3D[index + 1]}
-            occupant={friend}
-            seatIndex={index + 1}
-          />
-        ))}
       </Canvas>
     </div>
   );
