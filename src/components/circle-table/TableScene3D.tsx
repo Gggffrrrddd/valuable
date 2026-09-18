@@ -149,15 +149,19 @@ export default function TableScene3D({
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
         </mesh>
 
-        <SeatBillboard seat={SEAT_POSITIONS_3D[0]} occupant={self} seatIndex={0} />
-        {seated.map((friend, index) => (
-          <SeatBillboard
-            key={friend.id}
-            seat={SEAT_POSITIONS_3D[index + 1]}
-            occupant={friend}
-            seatIndex={index + 1}
-          />
-        ))}
+        {/* TEMPORARY (table tuning session): seat sprites are hidden so the
+            table can be positioned without visual clutter. Restore once the
+            final transform values are captured. */}
+        {(false as boolean) && <SeatBillboard seat={SEAT_POSITIONS_3D[0]} occupant={self} seatIndex={0} />}
+        {(false as boolean) &&
+          seated.map((friend, index) => (
+            <SeatBillboard
+              key={friend.id}
+              seat={SEAT_POSITIONS_3D[index + 1]}
+              occupant={friend}
+              seatIndex={index + 1}
+            />
+          ))}
       </Canvas>
     </div>
   );
