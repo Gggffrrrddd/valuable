@@ -149,7 +149,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           }));
         }}
       >
-        <TableScene3D self={self} friends={seatedFriends} transform={transform} />
+        <TableScene3D self={self} friends={[]} transform={transform} />
       </div>
 
       <TableTuner
@@ -182,7 +182,10 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-      {friends !== null && friends.length === 0 && (
+      {/* TEMPORARY (table tuning session): the empty-table message block and
+          the seat figure sprites are hidden so the table can be positioned
+          without visual clutter. Restore once the transform values are set. */}
+      {(false as boolean) && (friends?.length ?? 0) === 0 && (
         <div className="absolute bottom-8 left-1/2 z-20 w-[min(26rem,calc(100%-2rem))] -translate-x-1/2">
           <div className="surface-soft p-4 text-center backdrop-blur-xl">
             <div className="flex items-center justify-center gap-2 text-xs font-bold text-stone-200">
@@ -195,7 +198,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       )}
 
-      {friends !== null && friends.length > 0 && (
+      {(false as boolean) && (friends?.length ?? 0) > 0 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4 sm:bottom-5">
           <div className="flex items-center gap-4 rounded-full border border-white/[.06] bg-black/30 px-5 py-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500 backdrop-blur-xl">
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(197,255,84,.7)]" /> Open book — focusing</span>
