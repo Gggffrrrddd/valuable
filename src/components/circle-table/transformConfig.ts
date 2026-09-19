@@ -44,7 +44,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: 0.94,
     rotationX: 0,
-    rotationY: -1.87,
+    rotationY: -1.82,
     rotationZ: 0,
   },
   {
@@ -53,7 +53,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: -0.239,
     rotationX: 0,
-    rotationY: -0.823,
+    rotationY: -0.773,
     rotationZ: 0,
   },
   {
@@ -62,7 +62,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: -0.519,
     rotationX: 0,
-    rotationY: 0.224,
+    rotationY: 0.274,
     rotationZ: 0,
   },
   {
@@ -71,7 +71,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: 0.38,
     rotationX: 0,
-    rotationY: 1.272,
+    rotationY: 1.322,
     rotationZ: 0,
   },
   {
@@ -80,7 +80,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: 1.559,
     rotationX: 0,
-    rotationY: 2.319,
+    rotationY: 2.369,
     rotationZ: 0,
   },
   {
@@ -89,7 +89,7 @@ export const DEFAULT_CHAIR_TRANSFORMS: ObjectTransform[] = [
     positionY: 0.86,
     positionZ: 1.839,
     rotationX: 0,
-    rotationY: 3.366,
+    rotationY: 3.416,
     rotationZ: 0,
   },
 ];
