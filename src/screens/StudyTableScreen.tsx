@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, {
-  type SeatOccupant,
-} from '@/components/circle-table/TableScene3D';
+import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
-  SLIDER_ROWS,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
@@ -25,7 +22,8 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
   paused: 'paused',
 };
 
-const INITIAL_CHARACTER: ObjectTransform = {
+/** Tuned reference for the sitting-character chairs (final hardcoded values). */
+const CHARACTER_REFERENCE: ObjectTransform = {
   scale: 0.74,
   positionX: 1.15,
   positionY: 0.5,
@@ -35,7 +33,8 @@ const INITIAL_CHARACTER: ObjectTransform = {
   rotationZ: 0,
 };
 
-const INITIAL_CHAIR: ObjectTransform = {
+/** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
+const CHAIR_REFERENCE: ObjectTransform = {
   scale: 0.74,
   positionX: 1.18,
   positionY: 0.84,
@@ -44,6 +43,15 @@ const INITIAL_CHAIR: ObjectTransform = {
   rotationY: -1.82,
   rotationZ: 0,
 };
+
+const TABLE_CENTER = {
+  x: DEFAULT_TABLE_TRANSFORM.positionX,
+  z: DEFAULT_TABLE_TRANSFORM.positionZ,
+};
+
+/** Six character chairs and six empty chairs, replicated 60° apart around the table. */
+const CHARACTER_CHAIRS = replicateChairs(CHARACTER_REFERENCE, TABLE_CENTER);
+const CHAIR_SEATS = replicateChairs(CHAIR_REFERENCE, TABLE_CENTER);
 
 interface StudyTableScreenProps {
   onBack: () => void;
@@ -79,12 +87,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [characterTransform, setCharacterTransform] = useState<ObjectTransform>(INITIAL_CHARACTER);
-  const [chairTransform, setChairTransform] = useState<ObjectTransform>(INITIAL_CHAIR);
-  const [tableScale, setTableScale] = useState(DEFAULT_TABLE_TRANSFORM.scale);
-  const [spin, setSpin] = useState(false);
-  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
-  const chairDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -164,42 +166,16 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [self.status, friendIdsKey, statuses]);
 
-  const tableTransform = useMemo(
-    () => ({ ...DEFAULT_TABLE_TRANSFORM, scale: tableScale }),
-    [tableScale],
-  );
-
-  // The six character chairs are built from the single reference chair,
-  // replicated in 60° steps around the table center.
-  const characterTransforms = useMemo(
-    () =>
-      replicateChairs(characterTransform, {
-        x: DEFAULT_TABLE_TRANSFORM.positionX,
-        z: DEFAULT_TABLE_TRANSFORM.positionZ,
-      }),
-    [characterTransform],
-  );
-
-  // The six original chairs are driven the same way, from their own reference.
-  const chairTransforms = useMemo(
-    () =>
-      replicateChairs(chairTransform, {
-        x: DEFAULT_TABLE_TRANSFORM.positionX,
-        z: DEFAULT_TABLE_TRANSFORM.positionZ,
-      }),
-    [chairTransform],
-  );
-
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
       <div className="absolute inset-0">
         <TableScene3D
           self={self}
           friends={seatedFriends}
-          transform={tableTransform}
-          chairs={chairTransforms}
-          characterTransforms={characterTransforms}
-          spin={spin}
+          transform={DEFAULT_TABLE_TRANSFORM}
+          chairs={CHAIR_SEATS}
+          characterTransforms={CHARACTER_CHAIRS}
+          spin={false}
         />
       </div>
 
@@ -227,252 +203,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Character chairs</div>
-            <div className="mt-1 text-xs text-stone-400">Reference chair tuner — six replicas follow</div>
-          </div>
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => setSpin((value) => !value)}
-          >
-            {spin ? 'Rotate: on' : 'Rotate: off'}
-          </button>
-        </div>
-
-        <div
-          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-[10px] text-stone-400"
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            dragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!dragOrigin.current) return;
-            const dx = event.clientX - dragOrigin.current.x;
-            const dy = event.clientY - dragOrigin.current.y;
-            dragOrigin.current = { x: event.clientX, y: event.clientY };
-            setCharacterTransform((current) => ({
-              ...current,
-              positionX: current.positionX + dx * 0.01,
-              positionZ: current.positionZ + dy * 0.01,
-            }));
-          }}
-          onPointerUp={() => {
-            dragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            dragOrigin.current = null;
-          }}
-        >
-          Drag here to position X / Z — moves the reference chair, all six follow
-        </div>
-
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => setSpin((value) => !value)}
-          >
-            {spin ? 'Rotate: on' : 'Rotate: off'}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => {
-              console.log('SITTING_CHARACTER_START');
-              console.log('reference:', JSON.stringify(characterTransform, null, 2));
-              console.log('replicas:', JSON.stringify(characterTransforms, null, 2));
-              console.log('SITTING_CHARACTER_END');
-            }}
-          >
-            Save
-          </button>
-        </div>
-        <div className="space-y-2">
-          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-            <span className="text-stone-500">Table size</span>
-            <input
-              type="range"
-              min={0.2}
-              max={3}
-              step={0.01}
-              value={tableScale}
-              onChange={(event) => setTableScale(Number(event.target.value))}
-              className="h-1 accent-lime-300"
-            />
-            <NumericInput
-              value={tableScale}
-              onCommit={setTableScale}
-              min={0.2}
-              max={3}
-            />
-          </label>
-        </div>
-
-        <div className="mt-3 border-t border-white/[.08] pt-3" />
-
-        <div className="space-y-2">
-          {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
-            <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-              <span className="text-stone-500">{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={characterTransform[key]}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setCharacterTransform((current) => ({ ...current, [key]: value }));
-                }}
-                className="h-1 accent-lime-300"
-              />
-              <NumericInput
-                value={characterTransform[key]}
-                onCommit={(value) =>
-                  setCharacterTransform((current) => ({ ...current, [key]: value }))
-                }
-                min={min}
-                max={max}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="pointer-events-auto absolute left-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:left-6 sm:top-24">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Chairs</div>
-            <div className="mt-1 text-xs text-stone-400">Reference chair tuner — six replicas follow</div>
-          </div>
-        </div>
-
-        <div
-          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-[10px] text-stone-400"
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            chairDragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!chairDragOrigin.current) return;
-            const dx = event.clientX - chairDragOrigin.current.x;
-            const dy = event.clientY - chairDragOrigin.current.y;
-            chairDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setChairTransform((current) => ({
-              ...current,
-              positionX: current.positionX + dx * 0.01,
-              positionZ: current.positionZ + dy * 0.01,
-            }));
-          }}
-          onPointerUp={() => {
-            chairDragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            chairDragOrigin.current = null;
-          }}
-        >
-          Drag here to position X / Z — moves the reference chair, all six follow
-        </div>
-
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => {
-              console.log('CHAIR_START');
-              console.log('reference:', JSON.stringify(chairTransform, null, 2));
-              console.log('replicas:', JSON.stringify(chairTransforms, null, 2));
-              console.log('CHAIR_END');
-            }}
-          >
-            Save
-          </button>
-        </div>
-        <div className="space-y-2">
-          {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
-            <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-              <span className="text-stone-500">{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={chairTransform[key]}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  setChairTransform((current) => ({ ...current, [key]: value }));
-                }}
-                className="h-1 accent-lime-300"
-              />
-              <NumericInput
-                value={chairTransform[key]}
-                onCommit={(value) => setChairTransform((current) => ({ ...current, [key]: value }))}
-                min={min}
-                max={max}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
     </div>
-  );
-}
-
-interface NumericInputProps {
-  value: number;
-  onCommit: (value: number) => void;
-  min: number;
-  max: number;
-}
-
-/**
- * Click-to-edit numeric field. Shows the value like a label until clicked, then
- * becomes a text input so exact numbers can be typed and committed with Enter
- * (or blur). Invalid or out-of-range input reverts to the previous value.
- */
-function NumericInput({ value, onCommit, min, max }: NumericInputProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-
-  function commit() {
-    const parsed = Number(draft);
-    if (Number.isFinite(parsed)) {
-      onCommit(Math.max(min, Math.min(max, parsed)));
-    }
-    setEditing(false);
-  }
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(String(value));
-          setEditing(true);
-        }}
-        className="w-full rounded border border-transparent text-right tabular-nums text-stone-400 hover:border-lime-300/30 hover:text-lime-200"
-      >
-        {value.toFixed(2)}
-      </button>
-    );
-  }
-
-  return (
-    <input
-      type="text"
-      value={draft}
-      autoFocus
-      onChange={(event) => setDraft(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') commit();
-        if (event.key === 'Escape') setEditing(false);
-      }}
-      onBlur={commit}
-      className="w-full rounded border border-lime-300/40 bg-black/60 px-1 text-right tabular-nums text-lime-200 outline-none"
-    />
   );
 }
