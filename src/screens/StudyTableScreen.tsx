@@ -302,7 +302,12 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
               onChange={(event) => setTableScale(Number(event.target.value))}
               className="h-1 accent-lime-300"
             />
-            <span className="text-right tabular-nums text-stone-400">{tableScale.toFixed(2)}</span>
+            <NumericInput
+              value={tableScale}
+              onCommit={setTableScale}
+              min={0.2}
+              max={3}
+            />
           </label>
         </div>
 
@@ -324,7 +329,14 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
                 }}
                 className="h-1 accent-lime-300"
               />
-              <span className="text-right tabular-nums text-stone-400">{characterTransform[key].toFixed(2)}</span>
+              <NumericInput
+                value={characterTransform[key]}
+                onCommit={(value) =>
+                  setCharacterTransform((current) => ({ ...current, [key]: value }))
+                }
+                min={min}
+                max={max}
+              />
             </label>
           ))}
         </div>
@@ -395,12 +407,72 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
                 }}
                 className="h-1 accent-lime-300"
               />
-              <span className="text-right tabular-nums text-stone-400">{chairTransform[key].toFixed(2)}</span>
+              <NumericInput
+                value={chairTransform[key]}
+                onCommit={(value) => setChairTransform((current) => ({ ...current, [key]: value }))}
+                min={min}
+                max={max}
+              />
             </label>
           ))}
         </div>
       </div>
 
     </div>
+  );
+}
+
+interface NumericInputProps {
+  value: number;
+  onCommit: (value: number) => void;
+  min: number;
+  max: number;
+}
+
+/**
+ * Click-to-edit numeric field. Shows the value like a label until clicked, then
+ * becomes a text input so exact numbers can be typed and committed with Enter
+ * (or blur). Invalid or out-of-range input reverts to the previous value.
+ */
+function NumericInput({ value, onCommit, min, max }: NumericInputProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  function commit() {
+    const parsed = Number(draft);
+    if (Number.isFinite(parsed)) {
+      onCommit(Math.max(min, Math.min(max, parsed)));
+    }
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(String(value));
+          setEditing(true);
+        }}
+        className="w-full rounded border border-transparent text-right tabular-nums text-stone-400 hover:border-lime-300/30 hover:text-lime-200"
+      >
+        {value.toFixed(2)}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      autoFocus
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') commit();
+        if (event.key === 'Escape') setEditing(false);
+      }}
+      onBlur={commit}
+      className="w-full rounded border border-lime-300/40 bg-black/60 px-1 text-right tabular-nums text-lime-200 outline-none"
+    />
   );
 }
