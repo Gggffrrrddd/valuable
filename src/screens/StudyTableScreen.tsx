@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { PointerEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -7,11 +6,9 @@ import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
 import TableScene3D, {
   type SeatOccupant,
 } from '@/components/circle-table/TableScene3D';
-import TableTuner from '@/components/circle-table/TableTuner';
 import {
   DEFAULT_CHAIR_TRANSFORMS,
   DEFAULT_TABLE_TRANSFORM,
-  type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
 
@@ -60,10 +57,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [tableTransform, setTableTransform] = useState(DEFAULT_TABLE_TRANSFORM);
-  const [chairTransforms, setChairTransforms] = useState<ObjectTransform[]>(DEFAULT_CHAIR_TRANSFORMS);
-  const [rotating, setRotating] = useState(false);
-  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -143,19 +136,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [self.status, friendIdsKey, statuses]);
 
-  function handleDragStart(event: PointerEvent<HTMLDivElement>) {
-    if (event.target instanceof HTMLElement && event.target.closest('.table-preview-panel')) return;
-    setDragging(true);
-  }
-
-  function handleDragMove(event: PointerEvent<HTMLDivElement>) {
-    if (!dragging) return;
-    const dx = event.movementX * 0.006;
-    const dz = event.movementY * 0.006;
-    setTableTransform((previous) => ({ ...previous, positionX: previous.positionX + dx, positionZ: previous.positionZ + dz }));
-    setChairTransforms((previous) => previous.map((chair) => ({ ...chair, positionX: chair.positionX + dx, positionZ: chair.positionZ + dz })));
-  }
-
   // The six chairs around the table are built from the single reference chair,
   // replicated in 60° steps around the table center.
   return (
@@ -164,20 +144,9 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <TableScene3D
           self={self}
           friends={seatedFriends}
-          transform={tableTransform}
-          chairs={chairTransforms}
-          spin={rotating}
-        />
-        <TableTuner
-          table={tableTransform}
-          chairs={chairTransforms}
-          rotating={rotating}
-          onTableChange={setTableTransform}
-          onChairsChange={setChairTransforms}
-          onRotationChange={setRotating}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={() => setDragging(false)}
+          transform={DEFAULT_TABLE_TRANSFORM}
+          chairs={DEFAULT_CHAIR_TRANSFORMS}
+          spin={false}
         />
       </div>
 
