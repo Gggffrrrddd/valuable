@@ -3,14 +3,15 @@ import type { Group } from 'three';
 import { useModelLoader } from '@/components/focus-visuals/model-core';
 import type { ObjectTransform } from './transformConfig';
 
-const CHARACTER_URL = '/visuals/table/sitting-character-fixed.glb';
+const CHARACTER_URL = '/visuals/table/sitting-character-final.glb';
 
 /**
- * Temporary preview of the sitting-character GLB, staged alongside the table
- * and chairs so its fit/orientation can be checked before it replaces them.
+ * Sitting-character chairs: the GLB keeps its own materials (unlike the OBJ
+ * chairs, which are re-wrapped) so the authored character+chair look survives.
  *
- * The GLB keeps its own materials (unlike the OBJ chairs, which are re-wrapped)
- * so the authored character look survives as-is.
+ * One reference transform is replicated into six, placed on the same seat
+ * positions the original chairs use, so the character's chair legs land
+ * exactly where the original chair legs were.
  */
 function CharacterModel({
   model,
@@ -33,10 +34,10 @@ function CharacterModel({
 }
 
 export default function SittingCharacter({
-  transform,
+  transforms,
   origin = [0, 0],
 }: {
-  transform: ObjectTransform;
+  transforms: ObjectTransform[];
   origin?: [number, number];
 }) {
   const { model, error } = useModelLoader(CHARACTER_URL);
@@ -47,11 +48,19 @@ export default function SittingCharacter({
   }
   if (!model) return null;
 
-  const adjustedTransform = {
-    ...transform,
-    positionX: transform.positionX - origin[0],
-    positionZ: transform.positionZ - origin[1],
-  };
-
-  return <CharacterModel model={model} transform={adjustedTransform} />;
+  return (
+    <group>
+      {transforms.map((transform, i) => (
+        <CharacterModel
+          key={i}
+          model={model}
+          transform={{
+            ...transform,
+            positionX: transform.positionX - origin[0],
+            positionZ: transform.positionZ - origin[1],
+          }}
+        />
+      ))}
+    </group>
+  );
 }

@@ -10,7 +10,6 @@ import {
   useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
-import Chairs from './Chairs';
 import SittingCharacter from './SittingCharacter';
 import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
@@ -87,19 +86,16 @@ function TableModel({
 
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
-  chairs = [],
-  characterTransform,
+  characterTransforms,
   spin = false,
 }: {
   self?: SeatOccupant;
   friends?: SeatOccupant[];
   showAnchors?: boolean;
   transform?: TableTransform;
-  /** Per-chair transforms; one chair renders per entry. */
-  chairs?: ObjectTransform[];
-  /** Optional temporary GLB preview transform. */
-  characterTransform?: ObjectTransform;
-  /** Master rotation: spins the table and orbits the chairs with it. */
+  /** Per-seat character chair transforms; one character renders per entry. */
+  characterTransforms?: ObjectTransform[];
+  /** Master rotation: spins table in place and orbits the characters with it. */
   spin?: boolean;
 }) {
   const reduced = useReducedMotion();
@@ -145,15 +141,13 @@ export default function TableScene3D({
 
         <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
         <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
-          <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
-          {characterTransform ? (
+          {characterTransforms ? (
             <SittingCharacter
-              transform={characterTransform}
+              transforms={characterTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
         </ChairOrbit>
-        {characterTransform ? <SittingCharacter transform={characterTransform} /> : null}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[5.4, 64]} />
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />

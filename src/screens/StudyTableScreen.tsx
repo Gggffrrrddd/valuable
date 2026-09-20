@@ -7,8 +7,8 @@ import TableScene3D, {
   type SeatOccupant,
 } from '@/components/circle-table/TableScene3D';
 import {
-  DEFAULT_CHAIR_TRANSFORMS,
   DEFAULT_TABLE_TRANSFORM,
+  replicateChairs,
   SLIDER_ROWS,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
@@ -27,11 +27,11 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
 
 const INITIAL_CHARACTER: ObjectTransform = {
   scale: 1,
-  positionX: 0,
+  positionX: 1.15,
   positionY: 0.86,
-  positionZ: 0,
+  positionZ: 0.94,
   rotationX: 0,
-  rotationY: 0,
+  rotationY: -1.82,
   rotationZ: 0,
 };
 
@@ -151,8 +151,17 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [self.status, friendIdsKey, statuses]);
 
-  // The six chairs around the table are built from the single reference chair,
+  // The six character chairs are built from the single reference chair,
   // replicated in 60° steps around the table center.
+  const characterTransforms = useMemo(
+    () =>
+      replicateChairs(characterTransform, {
+        x: DEFAULT_TABLE_TRANSFORM.positionX,
+        z: DEFAULT_TABLE_TRANSFORM.positionZ,
+      }),
+    [characterTransform],
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
       <div className="absolute inset-0">
@@ -160,8 +169,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           self={self}
           friends={seatedFriends}
           transform={DEFAULT_TABLE_TRANSFORM}
-          chairs={DEFAULT_CHAIR_TRANSFORMS}
-          characterTransform={characterTransform}
+          characterTransforms={characterTransforms}
           spin={spin}
         />
       </div>
@@ -193,8 +201,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
       <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">GLB preview</div>
-            <div className="mt-1 text-xs text-stone-400">Sitting character tuner</div>
+            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Character chairs</div>
+            <div className="mt-1 text-xs text-stone-400">Reference chair tuner — six replicas follow</div>
           </div>
           <button
             type="button"
@@ -229,7 +237,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             dragOrigin.current = null;
           }}
         >
-          Drag here to position X / Z
+          Drag here to position X / Z — moves the reference chair, all six follow
         </div>
 
         <div className="flex items-center justify-between">
@@ -245,7 +253,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
             onClick={() => {
               console.log('SITTING_CHARACTER_START');
-              console.log(JSON.stringify(characterTransform, null, 2));
+              console.log('reference:', JSON.stringify(characterTransform, null, 2));
+              console.log('replicas:', JSON.stringify(characterTransforms, null, 2));
               console.log('SITTING_CHARACTER_END');
             }}
           >
