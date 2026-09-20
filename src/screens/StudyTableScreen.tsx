@@ -26,9 +26,9 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
 };
 
 const INITIAL_CHARACTER: ObjectTransform = {
-  scale: 1,
+  scale: 0.74,
   positionX: 1.15,
-  positionY: 0.86,
+  positionY: 0.5,
   positionZ: 0.94,
   rotationX: 0,
   rotationY: -1.82,
@@ -36,10 +36,10 @@ const INITIAL_CHARACTER: ObjectTransform = {
 };
 
 const INITIAL_CHAIR: ObjectTransform = {
-  scale: 1,
-  positionX: 1.15,
-  positionY: 0.86,
-  positionZ: 0.94,
+  scale: 0.74,
+  positionX: 1.18,
+  positionY: 0.84,
+  positionZ: 0.95,
   rotationX: 0,
   rotationY: -1.82,
   rotationZ: 0,

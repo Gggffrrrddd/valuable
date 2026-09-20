@@ -89,6 +89,7 @@ export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
   characterTransforms,
+  chairsVisible = false,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -99,6 +100,8 @@ export default function TableScene3D({
   chairs?: ObjectTransform[];
   /** Per-seat character chair transforms; one character renders per entry. */
   characterTransforms?: ObjectTransform[];
+  /** Hide the empty OBJ chairs without unmounting them. */
+  chairsVisible?: boolean;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
@@ -145,7 +148,9 @@ export default function TableScene3D({
 
         <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
         <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
-          <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
+          <group visible={chairsVisible}>
+            <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
+          </group>
           {characterTransforms ? (
             <SittingCharacter
               transforms={characterTransforms}

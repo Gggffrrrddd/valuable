@@ -11,7 +11,7 @@ export interface ObjectTransform {
 }
 
 export const DEFAULT_TABLE_TRANSFORM: TableTransform = {
-  scale: 0.74,
+  scale: 0.68,
   positionX: -0.05,
   positionY: 0.64,
   positionZ: 0.66,
