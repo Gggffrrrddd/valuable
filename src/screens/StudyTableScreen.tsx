@@ -7,6 +7,7 @@ import TableScene3D, {
   type SeatOccupant,
 } from '@/components/circle-table/TableScene3D';
 import {
+  DEFAULT_CHAIR_TRANSFORMS,
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
   SLIDER_ROWS,
@@ -169,6 +170,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           self={self}
           friends={seatedFriends}
           transform={DEFAULT_TABLE_TRANSFORM}
+          chairs={DEFAULT_CHAIR_TRANSFORMS}
           characterTransforms={characterTransforms}
           spin={spin}
         />

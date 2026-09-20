@@ -10,6 +10,7 @@ import {
   useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
+import Chairs from './Chairs';
 import SittingCharacter from './SittingCharacter';
 import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
@@ -86,6 +87,7 @@ function TableModel({
 
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
+  chairs = [],
   characterTransforms,
   spin = false,
 }: {
@@ -93,9 +95,11 @@ export default function TableScene3D({
   friends?: SeatOccupant[];
   showAnchors?: boolean;
   transform?: TableTransform;
+  /** Per-chair transforms; one chair renders per entry. */
+  chairs?: ObjectTransform[];
   /** Per-seat character chair transforms; one character renders per entry. */
   characterTransforms?: ObjectTransform[];
-  /** Master rotation: spins table in place and orbits the characters with it. */
+  /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
   const reduced = useReducedMotion();
@@ -141,6 +145,7 @@ export default function TableScene3D({
 
         <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
         <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
+          <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
           {characterTransforms ? (
             <SittingCharacter
               transforms={characterTransforms}
