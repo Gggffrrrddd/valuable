@@ -81,6 +81,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const [characterTransform, setCharacterTransform] = useState<ObjectTransform>(INITIAL_CHARACTER);
   const [chairTransform, setChairTransform] = useState<ObjectTransform>(INITIAL_CHAIR);
+  const [tableScale, setTableScale] = useState(DEFAULT_TABLE_TRANSFORM.scale);
   const [spin, setSpin] = useState(false);
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
   const chairDragOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -163,6 +164,11 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [self.status, friendIdsKey, statuses]);
 
+  const tableTransform = useMemo(
+    () => ({ ...DEFAULT_TABLE_TRANSFORM, scale: tableScale }),
+    [tableScale],
+  );
+
   // The six character chairs are built from the single reference chair,
   // replicated in 60° steps around the table center.
   const characterTransforms = useMemo(
@@ -190,7 +196,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <TableScene3D
           self={self}
           friends={seatedFriends}
-          transform={DEFAULT_TABLE_TRANSFORM}
+          transform={tableTransform}
           chairs={chairTransforms}
           characterTransforms={characterTransforms}
           spin={spin}
@@ -284,6 +290,24 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             Save
           </button>
         </div>
+        <div className="space-y-2">
+          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+            <span className="text-stone-500">Table size</span>
+            <input
+              type="range"
+              min={0.2}
+              max={3}
+              step={0.01}
+              value={tableScale}
+              onChange={(event) => setTableScale(Number(event.target.value))}
+              className="h-1 accent-lime-300"
+            />
+            <span className="text-right tabular-nums text-stone-400">{tableScale.toFixed(2)}</span>
+          </label>
+        </div>
+
+        <div className="mt-3 border-t border-white/[.08] pt-3" />
+
         <div className="space-y-2">
           {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
             <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
