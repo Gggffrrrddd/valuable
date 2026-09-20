@@ -306,7 +306,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute right-4 top-[34rem] z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6">
+      <div className="pointer-events-auto absolute left-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:left-6 sm:top-24">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Chairs</div>
