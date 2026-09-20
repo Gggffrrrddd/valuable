@@ -11,6 +11,7 @@ import {
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
 import Chairs from './Chairs';
+import SittingCharacter from './SittingCharacter';
 import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
 
@@ -87,6 +88,7 @@ function TableModel({
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
+  characterTransform,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -95,6 +97,8 @@ export default function TableScene3D({
   transform?: TableTransform;
   /** Per-chair transforms; one chair renders per entry. */
   chairs?: ObjectTransform[];
+  /** Optional temporary GLB preview transform. */
+  characterTransform?: ObjectTransform;
   /** Master rotation: spins the table and orbits the chairs with it. */
   spin?: boolean;
 }) {
@@ -143,6 +147,7 @@ export default function TableScene3D({
         <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
           <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
         </ChairOrbit>
+        {characterTransform ? <SittingCharacter transform={characterTransform} /> : null}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
           <circleGeometry args={[5.4, 64]} />
           <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />

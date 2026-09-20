@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -9,6 +9,8 @@ import TableScene3D, {
 import {
   DEFAULT_CHAIR_TRANSFORMS,
   DEFAULT_TABLE_TRANSFORM,
+  SLIDER_ROWS,
+  type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
 
@@ -21,6 +23,16 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
   idle: 'online-idle',
   focusing: 'focusing',
   paused: 'paused',
+};
+
+const INITIAL_CHARACTER_TRANSFORM: ObjectTransform = {
+  scale: 1,
+  positionX: 1.15,
+  positionY: 0.86,
+  positionZ: 0.94,
+  rotationX: 0,
+  rotationY: -1.82,
+  rotationZ: 0,
 };
 
 interface StudyTableScreenProps {
@@ -57,6 +69,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
+  const [characterTransform, setCharacterTransform] = useState<ObjectTransform>(INITIAL_CHARACTER_TRANSFORM);
+  const dragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -144,9 +158,10 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <TableScene3D
           self={self}
           friends={seatedFriends}
-          transform={DEFAULT_TABLE_TRANSFORM}
-          chairs={DEFAULT_CHAIR_TRANSFORMS}
-          spin={false}
+           transform={DEFAULT_TABLE_TRANSFORM}
+           chairs={DEFAULT_CHAIR_TRANSFORMS}
+           characterTransform={characterTransform}
+           spin={false}
         />
       </div>
 
@@ -174,6 +189,74 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-    </div>
+      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">GLB preview</div>
+            <div className="mt-1 text-xs text-stone-400">Sitting character tuner</div>
+          </div>
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => {
+              console.log('SITTING_CHARACTER_START');
+              console.log('SITTING_CHARACTER_TRANSFORM', characterTransform);
+              console.log('SITTING_CHARACTER_END');
+            }}
+          >
+            Save
+          </button>
+        </div>
+
+        <div
+          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-[10px] text-stone-400"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            dragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!dragOrigin.current) return;
+            const dx = event.clientX - dragOrigin.current.x;
+            const dy = event.clientY - dragOrigin.current.y;
+            dragOrigin.current = { x: event.clientX, y: event.clientY };
+            setCharacterTransform((current) => ({
+              ...current,
+              positionX: current.positionX + dx * 0.01,
+              positionZ: current.positionZ + dy * 0.01,
+            }));
+          }}
+          onPointerUp={() => {
+            dragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            dragOrigin.current = null;
+          }}
+        >
+          Drag here to position X / Z
+        </div>
+
+        <div className="space-y-2">
+          {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
+            <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+              <span className="text-stone-500">{label}</span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={characterTransform[key]}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setCharacterTransform((current) => ({ ...current, [key]: value }));
+                }}
+                className="h-1 accent-lime-300"
+              />
+              <span className="text-right tabular-nums text-stone-400">{characterTransform[key].toFixed(2)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+     </div>
   );
 }
