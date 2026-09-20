@@ -25,13 +25,13 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
   paused: 'paused',
 };
 
-const INITIAL_CHARACTER_TRANSFORM: ObjectTransform = {
+const INITIAL_CHARACTER: ObjectTransform = {
   scale: 1,
-  positionX: 1.15,
+  positionX: 0,
   positionY: 0.86,
-  positionZ: 0.94,
+  positionZ: 0,
   rotationX: 0,
-  rotationY: -1.82,
+  rotationY: 0,
   rotationZ: 0,
 };
 
@@ -69,7 +69,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [characterTransform, setCharacterTransform] = useState<ObjectTransform>(INITIAL_CHARACTER_TRANSFORM);
+  const [characterTransform, setCharacterTransform] = useState<ObjectTransform>(INITIAL_CHARACTER);
+  const [spin, setSpin] = useState(false);
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -158,10 +159,10 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <TableScene3D
           self={self}
           friends={seatedFriends}
-           transform={DEFAULT_TABLE_TRANSFORM}
-           chairs={DEFAULT_CHAIR_TRANSFORMS}
-           characterTransform={characterTransform}
-           spin={false}
+          transform={DEFAULT_TABLE_TRANSFORM}
+          chairs={DEFAULT_CHAIR_TRANSFORMS}
+          characterTransform={characterTransform}
+          spin={spin}
         />
       </div>
 
@@ -198,13 +199,9 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           <button
             type="button"
             className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => {
-              console.log('SITTING_CHARACTER_START');
-              console.log('SITTING_CHARACTER_TRANSFORM', characterTransform);
-              console.log('SITTING_CHARACTER_END');
-            }}
+            onClick={() => setSpin((value) => !value)}
           >
-            Save
+            {spin ? 'Rotate: on' : 'Rotate: off'}
           </button>
         </div>
 
@@ -235,6 +232,26 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           Drag here to position X / Z
         </div>
 
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => setSpin((value) => !value)}
+          >
+            {spin ? 'Rotate: on' : 'Rotate: off'}
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => {
+              console.log('SITTING_CHARACTER_START');
+              console.log(JSON.stringify(characterTransform, null, 2));
+              console.log('SITTING_CHARACTER_END');
+            }}
+          >
+            Save
+          </button>
+        </div>
         <div className="space-y-2">
           {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
             <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
@@ -257,6 +274,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-     </div>
+    </div>
   );
 }

@@ -146,6 +146,12 @@ export default function TableScene3D({
         <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
         <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
           <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
+          {characterTransform ? (
+            <SittingCharacter
+              transform={characterTransform}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
         </ChairOrbit>
         {characterTransform ? <SittingCharacter transform={characterTransform} /> : null}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>

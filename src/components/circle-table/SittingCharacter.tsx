@@ -12,7 +12,13 @@ const CHARACTER_URL = '/visuals/table/sitting-character-fixed.glb';
  * The GLB keeps its own materials (unlike the OBJ chairs, which are re-wrapped)
  * so the authored character look survives as-is.
  */
-function CharacterModel({ model, transform }: { model: Group; transform: ObjectTransform }) {
+function CharacterModel({
+  model,
+  transform,
+}: {
+  model: Group;
+  transform: ObjectTransform;
+}) {
   const staged = useMemo(() => model.clone(true), [model]);
 
   return (
@@ -26,7 +32,13 @@ function CharacterModel({ model, transform }: { model: Group; transform: ObjectT
   );
 }
 
-export default function SittingCharacter({ transform }: { transform: ObjectTransform }) {
+export default function SittingCharacter({
+  transform,
+  origin = [0, 0],
+}: {
+  transform: ObjectTransform;
+  origin?: [number, number];
+}) {
   const { model, error } = useModelLoader(CHARACTER_URL);
 
   if (error) {
@@ -35,5 +47,11 @@ export default function SittingCharacter({ transform }: { transform: ObjectTrans
   }
   if (!model) return null;
 
-  return <CharacterModel model={model} transform={transform} />;
+  const adjustedTransform = {
+    ...transform,
+    positionX: transform.positionX - origin[0],
+    positionZ: transform.positionZ - origin[1],
+  };
+
+  return <CharacterModel model={model} transform={adjustedTransform} />;
 }
