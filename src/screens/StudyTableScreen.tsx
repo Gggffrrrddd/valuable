@@ -115,7 +115,44 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   });
   const [selectedBook, setSelectedBook] = useState(5);
   const [spin, setSpin] = useState(false);
+  const [showRefInput, setShowRefInput] = useState(false);
+  const [refJson, setRefJson] = useState('');
+  const [refError, setRefError] = useState<string | null>(null);
   const bookDragOrigin = useRef<{ x: number; y: number } | null>(null);
+
+  function applyReferenceBooks() {
+    try {
+      const parsed = JSON.parse(refJson);
+      if (!Array.isArray(parsed) || parsed.length !== 6) {
+        throw new Error('Expected an array of exactly 6 books.');
+      }
+      const required: (keyof ObjectTransform)[] = [
+        'scale', 'positionX', 'positionY', 'positionZ',
+        'rotationX', 'rotationY', 'rotationZ',
+      ];
+      const next = parsed.map((book, i) => {
+        for (const key of required) {
+          if (typeof book?.[key] !== 'number') {
+            throw new Error(`Book ${i + 1} is missing numeric "${key}".`);
+          }
+        }
+        return {
+          scale: book.scale,
+          positionX: book.positionX,
+          positionY: book.positionY,
+          positionZ: book.positionZ,
+          rotationX: book.rotationX,
+          rotationY: book.rotationY,
+          rotationZ: book.rotationZ,
+        };
+      });
+      setBookTransforms(next);
+      setRefError(null);
+      setShowRefInput(false);
+    } catch (e) {
+      setRefError(e instanceof Error ? e.message : 'Invalid JSON.');
+    }
+  }
 
   function updateSelectedBook(next: ObjectTransform) {
     setBookTransforms((current) =>
@@ -292,13 +329,20 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           Drag here to position X / Z — moves Book {selectedBook + 1} only
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <button
             type="button"
             className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
             onClick={() => setSpin((value) => !value)}
           >
             {spin ? 'Rotate: on' : 'Rotate: off'}
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => setShowRefInput((value) => !value)}
+          >
+            Book reference
           </button>
           <button
             type="button"
@@ -312,6 +356,38 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             Save
           </button>
         </div>
+
+        {showRefInput && (
+          <div className="mb-3 space-y-2 rounded-lg border border-lime-300/30 bg-lime-300/[.04] p-2">
+            <textarea
+              value={refJson}
+              onChange={(event) => setRefJson(event.target.value)}
+              placeholder={'[\n  { "scale": 0.5, "positionX": 0.86, ... },\n  ... 6 entries\n]'}
+              spellCheck={false}
+              className="h-40 w-full resize-none rounded border border-white/10 bg-black/60 p-2 font-mono text-[9px] leading-relaxed text-stone-200 outline-none focus:border-lime-300/40"
+            />
+            {refError && <div className="text-[9px] font-semibold text-red-400">{refError}</div>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-lime-300/40 bg-lime-300/10 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/20"
+                onClick={applyReferenceBooks}
+              >
+                Apply all six
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold text-stone-400 hover:bg-white/5"
+                onClick={() => {
+                  setRefJson(JSON.stringify(bookTransforms, null, 2));
+                  setRefError(null);
+                }}
+              >
+                Fill current
+              </button>
+            </div>
+          </div>
+        )}
         <div className="space-y-2">
           {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
             <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
