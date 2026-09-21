@@ -22,6 +22,7 @@ export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
 const FLOOR_TEXTURE_URL = '/visuals/table/floor-texture.png';
+const WALL_TEXTURE_URL = '/visuals/table/wall-texture.png';
 
 export interface TableTransform {
   scale: number;
@@ -96,6 +97,7 @@ export default function TableScene3D({
   bookTransforms,
   plantTransforms,
   penHolderTransforms,
+  wallZoom = 1,
   chairsVisible = false,
   spin = false,
 }: {
@@ -113,6 +115,8 @@ export default function TableScene3D({
   plantTransforms?: ObjectTransform[];
   /** Pen holder transforms; one holder renders per entry. */
   penHolderTransforms?: ObjectTransform[];
+  /** Wall image zoom factor (larger = closer crop). */
+  wallZoom?: number;
   /** Hide the empty OBJ chairs without unmounting them. */
   chairsVisible?: boolean;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
@@ -190,6 +194,7 @@ export default function TableScene3D({
           ) : null}
         </ChairOrbit>
         <Floor />
+        <Wall zoom={wallZoom} />
       </Canvas>
     </div>
   );
@@ -215,6 +220,29 @@ function Floor() {
         <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.04} toneMapped={false} />
       ) : (
         <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
+      )}
+    </mesh>
+  );
+}
+
+function Wall({ zoom }: { zoom: number }) {
+  const { texture } = useTextureLoader(WALL_TEXTURE_URL);
+  const mapped = useMemo(() => {
+    if (!texture) return null;
+    const t = texture.clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = ClampToEdgeWrapping;
+    t.repeat.set(zoom, zoom);
+    return t;
+  }, [texture, zoom]);
+  useEffect(() => () => mapped?.dispose(), [mapped]);
+  return (
+    <mesh position={[0, 2.7, -3.5]} rotation={[0.35, 0, 0]} receiveShadow>
+      <planeGeometry args={[16, 9]} />
+      {mapped ? (
+        <meshStandardMaterial map={mapped} roughness={0.85} metalness={0.05} toneMapped={false} />
+      ) : (
+        <meshStandardMaterial color="#1a1a1a" roughness={0.9} metalness={0.04} />
       )}
     </mesh>
   );
