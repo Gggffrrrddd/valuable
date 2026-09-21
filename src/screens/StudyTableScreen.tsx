@@ -100,15 +100,20 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
 
-  // Temporary book tuner state (removed once the final transform is captured).
-  const [bookTransform, setBookTransform] = useState<ObjectTransform>(BOOK_REFERENCE);
+  // Temporary book tuner state (removed once the final transforms are captured).
+  // Book 1 is fixed at the tuned reference; books 2-6 start from its replicas.
+  const [bookTransforms, setBookTransforms] = useState<ObjectTransform[]>(() =>
+    replicateChairs(BOOK_REFERENCE, TABLE_CENTER),
+  );
+  const [selectedBook, setSelectedBook] = useState(0);
   const [spin, setSpin] = useState(false);
   const bookDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
-  const bookTransforms = useMemo(
-    () => replicateChairs(bookTransform, TABLE_CENTER),
-    [bookTransform],
-  );
+  function updateSelectedBook(next: ObjectTransform) {
+    setBookTransforms((current) =>
+      current.map((book, i) => (i === selectedBook ? next : book)),
+    );
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -230,8 +235,25 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Books</div>
-            <div className="mt-1 text-xs text-stone-400">Reference book tuner — six replicas follow</div>
+            <div className="mt-1 text-xs text-stone-400">Per-book tuner — edit each independently</div>
           </div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-1">
+          {bookTransforms.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSelectedBook(i)}
+              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold ${
+                selectedBook === i
+                  ? 'border-lime-300 bg-lime-300 text-[#11130f]'
+                  : 'border-lime-300/30 text-lime-200 hover:bg-lime-300/10'
+              }`}
+            >
+              Book {i + 1}
+            </button>
+          ))}
         </div>
 
         <div
@@ -245,11 +267,12 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             const dx = event.clientX - bookDragOrigin.current.x;
             const dy = event.clientY - bookDragOrigin.current.y;
             bookDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setBookTransform((current) => ({
+            const current = bookTransforms[selectedBook];
+            updateSelectedBook({
               ...current,
               positionX: current.positionX + dx * 0.01,
               positionZ: current.positionZ + dy * 0.01,
-            }));
+            });
           }}
           onPointerUp={() => {
             bookDragOrigin.current = null;
@@ -258,7 +281,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             bookDragOrigin.current = null;
           }}
         >
-          Drag here to position X / Z — moves the reference book, all six follow
+          Drag here to position X / Z — moves Book {selectedBook + 1} only
         </div>
 
         <div className="flex items-center justify-between">
@@ -273,10 +296,9 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             type="button"
             className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
             onClick={() => {
-              console.log('BOOK_START');
-              console.log('reference:', JSON.stringify(bookTransform, null, 2));
-              console.log('replicas:', JSON.stringify(bookTransforms, null, 2));
-              console.log('BOOK_END');
+              console.log('BOOKS_START');
+              console.log(JSON.stringify(bookTransforms, null, 2));
+              console.log('BOOKS_END');
             }}
           >
             Save
@@ -291,16 +313,18 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
                 min={min}
                 max={max}
                 step={step}
-                value={bookTransform[key]}
+                value={bookTransforms[selectedBook][key]}
                 onChange={(event) => {
                   const value = Number(event.target.value);
-                  setBookTransform((current) => ({ ...current, [key]: value }));
+                  updateSelectedBook({ ...bookTransforms[selectedBook], [key]: value });
                 }}
                 className="h-1 accent-lime-300"
               />
               <NumericInput
-                value={bookTransform[key]}
-                onCommit={(value) => setBookTransform((current) => ({ ...current, [key]: value }))}
+                value={bookTransforms[selectedBook][key]}
+                onCommit={(value) =>
+                  updateSelectedBook({ ...bookTransforms[selectedBook], [key]: value })
+                }
                 min={min}
                 max={max}
               />
