@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -7,7 +7,6 @@ import TableScene3D, { type SeatOccupant } from '@/components/circle-table/Table
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
-  SLIDER_ROWS,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
@@ -45,17 +44,6 @@ const CHAIR_REFERENCE: ObjectTransform = {
   rotationZ: 0,
 };
 
-/** Starting reference for the book on the table, in front of each chair. */
-const BOOK_REFERENCE: ObjectTransform = {
-  scale: 0.5,
-  positionX: 0.25,
-  positionY: 1.09,
-  positionZ: 1.5,
-  rotationX: 1.55,
-  rotationY: -3.14,
-  rotationZ: -2.86,
-};
-
 const TABLE_CENTER = {
   x: DEFAULT_TABLE_TRANSFORM.positionX,
   z: DEFAULT_TABLE_TRANSFORM.positionZ,
@@ -64,6 +52,64 @@ const TABLE_CENTER = {
 /** Six character chairs and six empty chairs, replicated 60° apart around the table. */
 const CHARACTER_CHAIRS = replicateChairs(CHARACTER_REFERENCE, TABLE_CENTER);
 const CHAIR_SEATS = replicateChairs(CHAIR_REFERENCE, TABLE_CENTER);
+
+/** Final hand-tuned books, one per seat (values captured from the live tuner). */
+const BOOK_TRANSFORMS: ObjectTransform[] = [
+  {
+    scale: 0.5,
+    positionX: 0.85,
+    positionY: 1.09,
+    positionZ: 0.8201923788646686,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: -1.81,
+  },
+  {
+    scale: 0.5,
+    positionX: 0.53,
+    positionY: 1.09,
+    positionZ: -0.01980762113533141,
+    rotationX: 1.52,
+    rotationY: -3.13,
+    rotationZ: -0.81,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.34999999999999987,
+    positionY: 1.09,
+    positionZ: -0.17999999999999994,
+    rotationX: 1.58,
+    rotationY: -3.14,
+    rotationZ: 0.31,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.9274613391789284,
+    positionY: 1.09,
+    positionZ: 0.49980762113533117,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: 1.14,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.6,
+    positionY: 1.09,
+    positionZ: 1.38,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: 2.31,
+  },
+  {
+    scale: 0.5,
+    positionX: 0.25,
+    positionY: 1.09,
+    positionZ: 1.5,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: -2.86,
+  },
+];
 
 interface StudyTableScreenProps {
   onBack: () => void;
@@ -99,30 +145,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-
-  // Temporary book tuner state (removed once the final transforms are captured).
-  // Book 5 (slot 4) is the tuned reference; the other five replicate around it
-  // with identical orientation (parallel to the table).
-  const [bookTransforms, setBookTransforms] = useState<ObjectTransform[]>(() => {
-    const seats = replicateChairs(BOOK_REFERENCE, TABLE_CENTER).map((seat) => ({
-      ...seat,
-      rotationX: BOOK_REFERENCE.rotationX,
-      rotationY: BOOK_REFERENCE.rotationY,
-      rotationZ: BOOK_REFERENCE.rotationZ,
-    }));
-    const rotated = [...seats.slice(1), seats[0]];
-    rotated.splice(4, 1, BOOK_REFERENCE);
-    return rotated;
-  });
-  const [selectedBook, setSelectedBook] = useState(4);
-  const [spin, setSpin] = useState(false);
-  const bookDragOrigin = useRef<{ x: number; y: number } | null>(null);
-
-  function updateSelectedBook(next: ObjectTransform) {
-    setBookTransforms((current) =>
-      current.map((book, i) => (i === selectedBook ? next : book)),
-    );
-  }
 
   useEffect(() => {
     if (!session) return;
@@ -211,8 +233,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           transform={DEFAULT_TABLE_TRANSFORM}
           chairs={CHAIR_SEATS}
           characterTransforms={CHARACTER_CHAIRS}
-          bookTransforms={bookTransforms}
-          spin={spin}
+          bookTransforms={BOOK_TRANSFORMS}
+          spin={false}
         />
       </div>
 
@@ -240,164 +262,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute left-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:left-6 sm:top-24">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Books</div>
-            <div className="mt-1 text-xs text-stone-400">Per-book tuner — edit each independently</div>
-          </div>
-        </div>
-
-        <div className="mb-3 flex flex-wrap gap-1">
-          {bookTransforms.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setSelectedBook(i)}
-              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold ${
-                selectedBook === i
-                  ? 'border-lime-300 bg-lime-300 text-[#11130f]'
-                  : 'border-lime-300/30 text-lime-200 hover:bg-lime-300/10'
-              }`}
-            >
-              Book {i + 1}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-[10px] text-stone-400"
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            bookDragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!bookDragOrigin.current) return;
-            const dx = event.clientX - bookDragOrigin.current.x;
-            const dy = event.clientY - bookDragOrigin.current.y;
-            bookDragOrigin.current = { x: event.clientX, y: event.clientY };
-            const current = bookTransforms[selectedBook];
-            updateSelectedBook({
-              ...current,
-              positionX: current.positionX + dx * 0.01,
-              positionZ: current.positionZ + dy * 0.01,
-            });
-          }}
-          onPointerUp={() => {
-            bookDragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            bookDragOrigin.current = null;
-          }}
-        >
-          Drag here to position X / Z — moves Book {selectedBook + 1} only
-        </div>
-
-        <div className="mb-3 flex items-center justify-between">
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => setSpin((value) => !value)}
-          >
-            {spin ? 'Rotate: on' : 'Rotate: off'}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
-            onClick={() => {
-              console.log('BOOKS_START');
-              console.log(JSON.stringify(bookTransforms, null, 2));
-              console.log('BOOKS_END');
-            }}
-          >
-            Save
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
-            <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-              <span className="text-stone-500">{label}</span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={step}
-                value={bookTransforms[selectedBook][key]}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  updateSelectedBook({ ...bookTransforms[selectedBook], [key]: value });
-                }}
-                className="h-1 accent-lime-300"
-              />
-              <NumericInput
-                value={bookTransforms[selectedBook][key]}
-                onCommit={(value) =>
-                  updateSelectedBook({ ...bookTransforms[selectedBook], [key]: value })
-                }
-                min={min}
-                max={max}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
     </div>
-  );
-}
-
-interface NumericInputProps {
-  value: number;
-  onCommit: (value: number) => void;
-  min: number;
-  max: number;
-}
-
-/**
- * Click-to-edit numeric field. Shows the value like a label until clicked, then
- * becomes a text input so exact numbers can be typed and committed with Enter
- * (or blur). Invalid or out-of-range input reverts to the previous value.
- */
-function NumericInput({ value, onCommit, min, max }: NumericInputProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-
-  function commit() {
-    const parsed = Number(draft);
-    if (Number.isFinite(parsed)) {
-      onCommit(Math.max(min, Math.min(max, parsed)));
-    }
-    setEditing(false);
-  }
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(String(value));
-          setEditing(true);
-        }}
-        className="w-full rounded border border-transparent text-right tabular-nums text-stone-400 hover:border-lime-300/30 hover:text-lime-200"
-      >
-        {value.toFixed(2)}
-      </button>
-    );
-  }
-
-  return (
-    <input
-      type="text"
-      value={draft}
-      autoFocus
-      onChange={(event) => setDraft(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') commit();
-        if (event.key === 'Escape') setEditing(false);
-      }}
-      onBlur={commit}
-      className="w-full rounded border border-lime-300/40 bg-black/60 px-1 text-right tabular-nums text-lime-200 outline-none"
-    />
   );
 }
