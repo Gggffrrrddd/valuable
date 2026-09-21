@@ -196,26 +196,10 @@ export default function TableScene3D({
 }
 
 function Floor() {
-  const { texture } = useTextureLoader(FLOOR_TEXTURE_URL);
-  const mapped = useMemo(() => {
-    if (!texture) return null;
-    // Cover-fit the 16:9 image into the circular UV space (no stretch, no gaps).
-    const t = texture.clone();
-    t.needsUpdate = true;
-    t.wrapS = t.wrapT = ClampToEdgeWrapping;
-    t.repeat.set(1.05, 1.87);
-    t.offset.set(-0.025, -0.435);
-    return t;
-  }, [texture]);
-  useEffect(() => () => mapped?.dispose(), [mapped]);
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <circleGeometry args={[5.4, 64]} />
-      {mapped ? (
-        <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.04} toneMapped={false} />
-      ) : (
-        <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
-      )}
+      <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
     </mesh>
   );
 }
