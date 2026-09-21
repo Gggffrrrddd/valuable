@@ -125,10 +125,10 @@ const PLANT_TRANSFORM: ObjectTransform = {
 
 /** Starting reference for the pen holders (tunable via the live tuner). */
 const PEN_HOLDER_REFERENCE: ObjectTransform = {
-  scale: 0.5,
-  positionX: 0.85,
+  scale: 0.9,
+  positionX: 0.67,
   positionY: 1.09,
-  positionZ: 0.82,
+  positionZ: 0.96,
   rotationX: 0,
   rotationY: 0,
   rotationZ: 0,
