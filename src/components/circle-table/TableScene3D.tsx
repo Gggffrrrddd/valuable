@@ -21,6 +21,7 @@ import type { SeatOccupant } from './TableScene';
 export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
+const FLOOR_TEXTURE_URL = '/visuals/table/floor-texture.png';
 
 export interface TableTransform {
   scale: number;
@@ -188,12 +189,23 @@ export default function TableScene3D({
             />
           ) : null}
         </ChairOrbit>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <circleGeometry args={[5.4, 64]} />
-          <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
-        </mesh>
+        <Floor />
       </Canvas>
     </div>
+  );
+}
+
+function Floor() {
+  const { texture } = useTextureLoader(FLOOR_TEXTURE_URL);
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <circleGeometry args={[5.4, 64]} />
+      {texture ? (
+        <meshStandardMaterial map={texture} roughness={0.92} metalness={0.04} />
+      ) : (
+        <meshStandardMaterial color="#0d100c" roughness={0.92} metalness={0.04} />
+      )}
+    </mesh>
   );
 }
 
