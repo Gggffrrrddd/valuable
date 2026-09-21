@@ -10,6 +10,7 @@ import {
   useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
+import Books from './Books';
 import Chairs from './Chairs';
 import SittingCharacter from './SittingCharacter';
 import type { ObjectTransform } from './transformConfig';
@@ -89,6 +90,7 @@ export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
   characterTransforms,
+  bookTransforms,
   chairsVisible = false,
   spin = false,
 }: {
@@ -100,6 +102,8 @@ export default function TableScene3D({
   chairs?: ObjectTransform[];
   /** Per-seat character chair transforms; one character renders per entry. */
   characterTransforms?: ObjectTransform[];
+  /** Per-seat book transforms; one book renders per entry. */
+  bookTransforms?: ObjectTransform[];
   /** Hide the empty OBJ chairs without unmounting them. */
   chairsVisible?: boolean;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
@@ -154,6 +158,12 @@ export default function TableScene3D({
           {characterTransforms ? (
             <SittingCharacter
               transforms={characterTransforms}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
+          {bookTransforms ? (
+            <Books
+              transforms={bookTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
