@@ -12,6 +12,7 @@ import {
 } from '@/components/focus-visuals/model-core';
 import Books from './Books';
 import Chairs from './Chairs';
+import PenHolders from './PenHolders';
 import Plant from './Plant';
 import SittingCharacter from './SittingCharacter';
 import type { ObjectTransform } from './transformConfig';
@@ -93,6 +94,7 @@ export default function TableScene3D({
   characterTransforms,
   bookTransforms,
   plantTransforms,
+  penHolderTransforms,
   chairsVisible = false,
   spin = false,
 }: {
@@ -108,6 +110,8 @@ export default function TableScene3D({
   bookTransforms?: ObjectTransform[];
   /** Plant transforms; one plant renders per entry. */
   plantTransforms?: ObjectTransform[];
+  /** Pen holder transforms; one holder renders per entry. */
+  penHolderTransforms?: ObjectTransform[];
   /** Hide the empty OBJ chairs without unmounting them. */
   chairsVisible?: boolean;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
@@ -174,6 +178,12 @@ export default function TableScene3D({
           {plantTransforms ? (
             <Plant
               transforms={plantTransforms}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
+          {penHolderTransforms ? (
+            <PenHolders
+              transforms={penHolderTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
