@@ -103,15 +103,17 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   // Temporary book tuner state (removed once the final transforms are captured).
   // All six start at the tuned reference with identical orientation (parallel to
   // the table); positions come from the 60-degree replicas for now.
-  const [bookTransforms, setBookTransforms] = useState<ObjectTransform[]>(() =>
-    replicateChairs(BOOK_REFERENCE, TABLE_CENTER).map((seat) => ({
+  const [bookTransforms, setBookTransforms] = useState<ObjectTransform[]>(() => {
+    const seats = replicateChairs(BOOK_REFERENCE, TABLE_CENTER).map((seat) => ({
       ...seat,
       rotationX: BOOK_REFERENCE.rotationX,
       rotationY: BOOK_REFERENCE.rotationY,
       rotationZ: BOOK_REFERENCE.rotationZ,
-    })),
-  );
-  const [selectedBook, setSelectedBook] = useState(0);
+    }));
+    // The tuned reference lands in slot 5 (Book 6); shift the rest up.
+    return [...seats.slice(1), seats[0]];
+  });
+  const [selectedBook, setSelectedBook] = useState(5);
   const [spin, setSpin] = useState(false);
   const bookDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
