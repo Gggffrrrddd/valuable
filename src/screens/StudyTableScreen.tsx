@@ -182,7 +182,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [wallZoom, setWallZoom] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -274,32 +273,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           bookTransforms={BOOK_TRANSFORMS}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          wallZoom={wallZoom}
           spin={false}
         />
-      </div>
-
-      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Wall zoom</div>
-            <div className="mt-1 text-xs text-stone-400">Adjust back-wall image scale</div>
-          </div>
-        </div>
-
-        <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-          <span className="text-stone-500">Zoom</span>
-          <input
-            type="range"
-            min={0.5}
-            max={3}
-            step={0.01}
-            value={wallZoom}
-            onChange={(event) => setWallZoom(Number(event.target.value))}
-            className="h-1 accent-lime-300"
-          />
-          <span className="text-right tabular-nums text-stone-400">{wallZoom.toFixed(2)}</span>
-        </label>
       </div>
 
       {/* Chrome floats over the full-bleed scene */}
