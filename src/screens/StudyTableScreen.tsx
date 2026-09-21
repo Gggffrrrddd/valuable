@@ -101,9 +101,15 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
 
   // Temporary book tuner state (removed once the final transforms are captured).
-  // Book 1 is fixed at the tuned reference; books 2-6 start from its replicas.
+  // All six start at the tuned reference with identical orientation (parallel to
+  // the table); positions come from the 60-degree replicas for now.
   const [bookTransforms, setBookTransforms] = useState<ObjectTransform[]>(() =>
-    replicateChairs(BOOK_REFERENCE, TABLE_CENTER),
+    replicateChairs(BOOK_REFERENCE, TABLE_CENTER).map((seat) => ({
+      ...seat,
+      rotationX: BOOK_REFERENCE.rotationX,
+      rotationY: BOOK_REFERENCE.rotationY,
+      rotationZ: BOOK_REFERENCE.rotationZ,
+    })),
   );
   const [selectedBook, setSelectedBook] = useState(0);
   const [spin, setSpin] = useState(false);
