@@ -114,10 +114,10 @@ const BOOK_TRANSFORMS: ObjectTransform[] = [
 
 /** Starting reference for the plant on the table (tunable via the live tuner). */
 const PLANT_REFERENCE: ObjectTransform = {
-  scale: 0.5,
-  positionX: 0,
-  positionY: 1.09,
-  positionZ: 0,
+  scale: 0.99,
+  positionX: -0.02,
+  positionY: 1.15,
+  positionZ: 0.65,
   rotationX: 0,
   rotationY: 0,
   rotationZ: 0,
