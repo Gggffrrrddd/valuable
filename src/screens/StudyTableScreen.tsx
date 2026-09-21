@@ -48,12 +48,12 @@ const CHAIR_REFERENCE: ObjectTransform = {
 /** Starting reference for the book on the table, in front of each chair. */
 const BOOK_REFERENCE: ObjectTransform = {
   scale: 0.5,
-  positionX: 0.7,
-  positionY: 1.2,
+  positionX: 0.86,
+  positionY: 1.1,
   positionZ: 0.84,
-  rotationX: 0,
-  rotationY: -1.82,
-  rotationZ: 0,
+  rotationX: -1.56,
+  rotationY: -2.03,
+  rotationZ: -0.36,
 };
 
 const TABLE_CENTER = {
