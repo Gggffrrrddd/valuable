@@ -122,45 +122,21 @@ const PLANT_TRANSFORM: ObjectTransform = {
   rotationZ: 0,
 };
 
-/** Final hand-tuned pen holders, one per seat (values captured from the live tuner). */
-const PEN_HOLDER_TRANSFORMS: ObjectTransform[] = [
-  {
-    scale: 0.9,
-    positionX: 0.67,
-    positionY: 1.09,
-    positionZ: 0.96,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-  },
-  {
-    scale: 0.9,
-    positionX: 0.67,
-    positionY: 1.09,
-    positionZ: 0.96,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-  },
-  {
-    scale: 0.9,
-    positionX: 0.67,
-    positionY: 1.09,
-    positionZ: 0.96,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-  },
-  {
-    scale: 0.9,
-    positionX: 0.67,
-    positionY: 1.09,
-    positionZ: 0.96,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-  },
-  {
+/** Reference pen holder (slot 1); slots 2-6 replicate it 60 degrees apart. */
+const PEN_HOLDER_REFERENCE: ObjectTransform = {
+  scale: 0.9,
+  positionX: 0.67,
+  positionY: 1.09,
+  positionZ: 0.96,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+};
+
+/** Final hand-tuned pen holders, one per seat (replicas + slot 5 overridden). */
+const PEN_HOLDER_TRANSFORMS: ObjectTransform[] = (() => {
+  const seats = replicateChairs(PEN_HOLDER_REFERENCE, TABLE_CENTER);
+  seats[4] = {
     scale: 0.9,
     positionX: -0.67,
     positionY: 1.08,
@@ -168,17 +144,9 @@ const PEN_HOLDER_TRANSFORMS: ObjectTransform[] = [
     rotationX: 0,
     rotationY: 4.19,
     rotationZ: 0,
-  },
-  {
-    scale: 0.9,
-    positionX: 0.67,
-    positionY: 1.09,
-    positionZ: 0.96,
-    rotationX: 0,
-    rotationY: 0,
-    rotationZ: 0,
-  },
-];
+  };
+  return seats;
+})();
 
 interface StudyTableScreenProps {
   onBack: () => void;
