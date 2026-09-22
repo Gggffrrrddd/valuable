@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { ClampToEdgeWrapping, Group, Mesh, Texture } from 'three';
+import { CanvasTexture, ClampToEdgeWrapping, Group, Mesh, SRGBColorSpace, Texture } from 'three';
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
@@ -225,6 +225,7 @@ export default function TableScene3D({
         </ChairOrbit>
         <Floor />
         <Wall transform={wallTransform} />
+        <WallSign />
       </Canvas>
     </div>
   );
@@ -272,6 +273,89 @@ function Wall({ transform }: { transform: WallTransform }) {
         depthWrite={false}
         toneMapped={false}
       />
+    </mesh>
+  );
+}
+
+/**
+ * Builds the "STAY FOCUSED" wall sign on a canvas: wide-tracked serif caps
+ * filled with a champagne-gold gradient, a soft warm bloom, and a hairline
+ * rule beneath. Rendered on a transparent background so only the lettering
+ * lands on the wall.
+ */
+function createFocusSignTexture(): CanvasTexture {
+  const width = 2048;
+  const height = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const texture = new CanvasTexture(canvas);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return texture;
+
+  const text = 'STAY FOCUSED';
+  const fontSize = 170;
+  const tracking = 36;
+  ctx.font = `500 ${fontSize}px Georgia, "Times New Roman", serif`;
+
+  // Measure with manual tracking so the lettering stays optically centered.
+  const advances = [...text].map((ch) => ctx.measureText(ch).width);
+  const total = advances.reduce((sum, w) => sum + w, 0) + tracking * (text.length - 1);
+  let x = (width - total) / 2;
+  const baseline = height / 2 + fontSize * 0.34;
+
+  // Champagne gradient: bright top edge falling to a warm gold base.
+  const gradient = ctx.createLinearGradient(0, height * 0.24, 0, height * 0.82);
+  gradient.addColorStop(0, '#fffdf7');
+  gradient.addColorStop(0.46, '#f6e3ba');
+  gradient.addColorStop(1, '#c6a469');
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = gradient;
+  ctx.shadowColor = 'rgba(255, 238, 196, 0.6)';
+  ctx.shadowBlur = 30;
+  for (const [i, ch] of [...text].entries()) {
+    ctx.fillText(ch, x, baseline);
+    x += advances[i] + tracking;
+  }
+
+  // Soft second pass for a deeper halo behind the glyphs.
+  ctx.shadowColor = 'rgba(255, 214, 140, 0.32)';
+  ctx.shadowBlur = 60;
+  x = (width - total) / 2;
+  for (const [i, ch] of [...text].entries()) {
+    ctx.fillText(ch, x, baseline);
+    x += advances[i] + tracking;
+  }
+
+  // Hairline rule centred under the wordmark.
+  ctx.shadowBlur = 0;
+  const ruleY = baseline + 46;
+  const ruleHalf = total * 0.24;
+  const rule = ctx.createLinearGradient(width / 2 - ruleHalf, 0, width / 2 + ruleHalf, 0);
+  rule.addColorStop(0, 'rgba(214, 178, 108, 0)');
+  rule.addColorStop(0.5, 'rgba(246, 227, 186, 0.85)');
+  rule.addColorStop(1, 'rgba(214, 178, 108, 0)');
+  ctx.strokeStyle = rule;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(width / 2 - ruleHalf, ruleY);
+  ctx.lineTo(width / 2 + ruleHalf, ruleY);
+  ctx.stroke();
+
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+function WallSign() {
+  const sign = useMemo(() => createFocusSignTexture(), []);
+  useEffect(() => () => sign.dispose(), [sign]);
+
+  return (
+    <mesh position={[0, 2.9, -3.45]} renderOrder={1}>
+      <planeGeometry args={[6.5, 1.625]} />
+      <meshBasicMaterial map={sign} transparent depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }
