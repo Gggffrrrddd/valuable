@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
+import TableScene3D, {
+  DEFAULT_WALL_TRANSFORM,
+  type SeatOccupant,
+  type WallTransform,
+} from '@/components/circle-table/TableScene3D';
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
@@ -203,6 +207,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
+  const [wallTransform, setWallTransform] = useState<WallTransform>(DEFAULT_WALL_TRANSFORM);
+  const wallDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -295,6 +301,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
+          wallTransform={wallTransform}
           spin={false}
         />
       </div>
@@ -320,6 +327,117 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           <span className="text-stone-200">{counts.online}</span> online
           <span className="text-stone-700">·</span>
           <span>{counts.away}</span> away
+        </div>
+      </div>
+
+      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
+        <div className="mb-3">
+          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Wall image</div>
+          <div className="mt-1 text-xs text-stone-400">Move left/right, up/down, and zoom</div>
+        </div>
+
+        <div
+          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-center text-[10px] text-stone-400"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            wallDragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!wallDragOrigin.current) return;
+            const dx = (event.clientX - wallDragOrigin.current.x) * 0.01;
+            const dy = (event.clientY - wallDragOrigin.current.y) * 0.01;
+            wallDragOrigin.current = { x: event.clientX, y: event.clientY };
+            setWallTransform((current) => ({
+              ...current,
+              positionX: current.positionX + dx,
+              positionY: current.positionY - dy,
+            }));
+          }}
+          onPointerUp={() => {
+            wallDragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            wallDragOrigin.current = null;
+          }}
+        >
+          ↑↓←→ drag me
+        </div>
+
+        <div className="space-y-2">
+          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+            <span className="text-stone-500">Left / Right</span>
+            <input
+              type="range"
+              min={-12}
+              max={12}
+              step={0.01}
+              value={wallTransform.positionX}
+              onChange={(event) =>
+                setWallTransform((c) => ({ ...c, positionX: Number(event.target.value) }))
+              }
+              className="h-1 accent-lime-300"
+            />
+            <span className="text-right tabular-nums text-stone-400">
+              {wallTransform.positionX.toFixed(2)}
+            </span>
+          </label>
+
+          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+            <span className="text-stone-500">Up / Down</span>
+            <input
+              type="range"
+              min={-6}
+              max={12}
+              step={0.01}
+              value={wallTransform.positionY}
+              onChange={(event) =>
+                setWallTransform((c) => ({ ...c, positionY: Number(event.target.value) }))
+              }
+              className="h-1 accent-lime-300"
+            />
+            <span className="text-right tabular-nums text-stone-400">
+              {wallTransform.positionY.toFixed(2)}
+            </span>
+          </label>
+
+          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+            <span className="text-stone-500">Zoom</span>
+            <input
+              type="range"
+              min={0.5}
+              max={4}
+              step={0.01}
+              value={wallTransform.zoom}
+              onChange={(event) =>
+                setWallTransform((c) => ({ ...c, zoom: Number(event.target.value) }))
+              }
+              className="h-1 accent-lime-300"
+            />
+            <span className="text-right tabular-nums text-stone-400">
+              {wallTransform.zoom.toFixed(2)}
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="flex-1 rounded-lg border border-lime-300/40 bg-lime-300/10 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/20"
+            onClick={() => {
+              console.log('WALL_START');
+              console.log(JSON.stringify(wallTransform, null, 2));
+              console.log('WALL_END');
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold text-stone-400 hover:bg-white/5"
+            onClick={() => setWallTransform(DEFAULT_WALL_TRANSFORM)}
+          >
+            Reset
+          </button>
         </div>
       </div>
 

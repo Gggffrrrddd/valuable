@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { Group, Mesh, Texture } from 'three';
+import { ClampToEdgeWrapping, Group, Mesh, Texture } from 'three';
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
@@ -22,6 +22,20 @@ import type { SeatOccupant } from './TableScene';
 export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
+const WALL_TEXTURE_URL = '/visuals/table/wall-texture.png';
+
+/** Back-wall image placement: left/right, up/down, and zoom. */
+export interface WallTransform {
+  positionX: number;
+  positionY: number;
+  zoom: number;
+}
+
+export const DEFAULT_WALL_TRANSFORM: WallTransform = {
+  positionX: 0,
+  positionY: 2.7,
+  zoom: 1,
+};
 
 export interface TableTransform {
   scale: number;
@@ -99,6 +113,7 @@ export default function TableScene3D({
   penHolderTransforms,
   chairsVisible = false,
   booksVisible = false,
+  wallTransform = DEFAULT_WALL_TRANSFORM,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -121,6 +136,8 @@ export default function TableScene3D({
   chairsVisible?: boolean;
   /** Hide the closed books without unmounting them. */
   booksVisible?: boolean;
+  /** Back-wall image placement (left/right, up/down, zoom). */
+  wallTransform?: WallTransform;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
@@ -204,6 +221,7 @@ export default function TableScene3D({
           ) : null}
         </ChairOrbit>
         <Floor />
+        <Wall transform={wallTransform} />
       </Canvas>
     </div>
   );
@@ -214,6 +232,31 @@ function Floor() {
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <circleGeometry args={[5.4, 64]} />
       <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
+    </mesh>
+  );
+}
+
+function Wall({ transform }: { transform: WallTransform }) {
+  const { texture } = useTextureLoader(WALL_TEXTURE_URL);
+  const mapped = useMemo(() => {
+    if (!texture) return null;
+    const t = texture.clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = ClampToEdgeWrapping;
+    t.repeat.set(transform.zoom, transform.zoom);
+    t.offset.set((1 - transform.zoom) / 2, (1 - transform.zoom) / 2);
+    return t;
+  }, [texture, transform.zoom]);
+  useEffect(() => () => mapped?.dispose(), [mapped]);
+
+  return (
+    <mesh position={[transform.positionX, transform.positionY, -3.6]} receiveShadow>
+      <planeGeometry args={[14, 16]} />
+      {mapped ? (
+        <meshBasicMaterial map={mapped} toneMapped={false} />
+      ) : (
+        <meshStandardMaterial color="#12130f" roughness={0.92} metalness={0.03} />
+      )}
     </mesh>
   );
 }
