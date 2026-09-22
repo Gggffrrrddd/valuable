@@ -7,7 +7,6 @@ import {
   createWrapTextureMaterial,
   normalizeModel,
   useModelLoader,
-  useReducedMotion,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
 import Books from './Books';
@@ -160,7 +159,6 @@ export default function TableScene3D({
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
-  const reduced = useReducedMotion();
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(TABLE_TEXTURE_URL);
 
@@ -201,8 +199,8 @@ export default function TableScene3D({
         <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color="#b6e85a" />
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
-        <TableModel model={model} texture={texture} transform={transform} spin={spin && !reduced} />
-        <ChairOrbit enabled={spin && !reduced} center={[transform.positionX, transform.positionZ]}>
+        <TableModel model={model} texture={texture} transform={transform} spin={spin} />
+        <ChairOrbit enabled={spin} center={[transform.positionX, transform.positionZ]}>
           <group visible={chairsVisible}>
             <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
           </group>
@@ -389,7 +387,7 @@ const TableSpin = ({
 }) => {
   const ref = useRef<Group>(null);
   useFrame((_state, delta) => {
-    if (enabled && ref.current) ref.current.rotation.y += delta * 0.01;
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.04;
   });
   return <group ref={ref}>{children}</group>;
 };
@@ -405,7 +403,7 @@ const ChairOrbit = ({
 }) => {
   const ref = useRef<Group>(null);
   useFrame((_state, delta) => {
-    if (enabled && ref.current) ref.current.rotation.y += delta * 0.01;
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.04;
   });
   return <group ref={ref} position={[center[0], 0, center[1]]}>{children}</group>;
 };
