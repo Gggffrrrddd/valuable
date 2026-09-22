@@ -187,6 +187,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
     replicateChairs({ scale: 0.5, positionX: 0.86, positionY: 1.1, positionZ: 0.84, rotationX: -1.56, rotationY: -2.03, rotationZ: -0.36 }, TABLE_CENTER),
   );
   const [selectedOpenBook, setSelectedOpenBook] = useState(0);
+  const [spin, setSpin] = useState(false);
   const openBookDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   function updateSelectedOpenBook(next: ObjectTransform) {
@@ -286,7 +287,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          spin={false}
+          spin={spin}
         />
       </div>
 
@@ -366,6 +367,13 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
 
         <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => setSpin((value) => !value)}
+          >
+            {spin ? 'Rotate: on' : 'Rotate: off'}
+          </button>
           <button
             type="button"
             className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
