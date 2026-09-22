@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { ClampToEdgeWrapping, Group, Mesh, Texture } from 'three';
+import { Group, Mesh, Texture } from 'three';
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
@@ -22,7 +22,6 @@ import type { SeatOccupant } from './TableScene';
 export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
-const FLOOR_TEXTURE_URL = '/visuals/table/floor-texture.png';
 
 export interface TableTransform {
   scale: number;
@@ -99,6 +98,7 @@ export default function TableScene3D({
   plantTransforms,
   penHolderTransforms,
   chairsVisible = false,
+  booksVisible = false,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -119,6 +119,8 @@ export default function TableScene3D({
   penHolderTransforms?: ObjectTransform[];
   /** Hide the empty OBJ chairs without unmounting them. */
   chairsVisible?: boolean;
+  /** Hide the closed books without unmounting them. */
+  booksVisible?: boolean;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
@@ -174,12 +176,14 @@ export default function TableScene3D({
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
-          {bookTransforms ? (
-            <Books
-              transforms={bookTransforms}
-              origin={[transform.positionX, transform.positionZ]}
-            />
-          ) : null}
+          <group visible={booksVisible}>
+            {bookTransforms ? (
+              <Books
+                transforms={bookTransforms}
+                origin={[transform.positionX, transform.positionZ]}
+              />
+            ) : null}
+          </group>
           {openBookTransforms ? (
             <OpenBooks
               transforms={openBookTransforms}

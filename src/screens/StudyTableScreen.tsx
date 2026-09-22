@@ -7,6 +7,7 @@ import TableScene3D, { type SeatOccupant } from '@/components/circle-table/Table
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
+  SLIDER_ROWS,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
@@ -189,7 +190,9 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const openBookDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   function updateSelectedOpenBook(next: ObjectTransform) {
-    setOpenBookTransforms((current) => current.map((book, i) => (i === selectedOpenBook ? next : book)));
+    setOpenBookTransforms((current) =>
+      current.map((book, i) => (i === selectedOpenBook ? next : book)),
+    );
   }
 
   useEffect(() => {
@@ -311,6 +314,150 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
       </div>
 
+      <div className="pointer-events-auto absolute left-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:left-6 sm:top-24">
+        <div className="mb-3">
+          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Open books</div>
+          <div className="mt-1 text-xs text-stone-400">Per-book tuner — edit each independently</div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-1">
+          {openBookTransforms.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSelectedOpenBook(i)}
+              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold ${
+                selectedOpenBook === i
+                  ? 'border-lime-300 bg-lime-300 text-[#11130f]'
+                  : 'border-lime-300/30 text-lime-200 hover:bg-lime-300/10'
+              }`}
+            >
+              Book {i + 1}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-[10px] text-stone-400"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            openBookDragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!openBookDragOrigin.current) return;
+            const dx = event.clientX - openBookDragOrigin.current.x;
+            const dy = event.clientY - openBookDragOrigin.current.y;
+            openBookDragOrigin.current = { x: event.clientX, y: event.clientY };
+            const current = openBookTransforms[selectedOpenBook];
+            updateSelectedOpenBook({
+              ...current,
+              positionX: current.positionX + dx * 0.01,
+              positionZ: current.positionZ + dy * 0.01,
+            });
+          }}
+          onPointerUp={() => {
+            openBookDragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            openBookDragOrigin.current = null;
+          }}
+        >
+          Drag here to position X / Z — moves Book {selectedOpenBook + 1} only
+        </div>
+
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            className="rounded-lg border border-lime-300/30 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/10"
+            onClick={() => {
+              console.log('OPEN_BOOKS_START');
+              console.log(JSON.stringify(openBookTransforms, null, 2));
+              console.log('OPEN_BOOKS_END');
+            }}
+          >
+            Save
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {SLIDER_ROWS.map(({ key, label, min, max, step }) => (
+            <label key={key} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+              <span className="text-stone-500">{label}</span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={openBookTransforms[selectedOpenBook][key]}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  updateSelectedOpenBook({ ...openBookTransforms[selectedOpenBook], [key]: value });
+                }}
+                className="h-1 accent-lime-300"
+              />
+              <NumericInput
+                value={openBookTransforms[selectedOpenBook][key]}
+                onCommit={(value) =>
+                  updateSelectedOpenBook({ ...openBookTransforms[selectedOpenBook], [key]: value })
+                }
+                min={min}
+                max={max}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
     </div>
+  );
+}
+
+interface NumericInputProps {
+  value: number;
+  onCommit: (value: number) => void;
+  min: number;
+  max: number;
+}
+
+function NumericInput({ value, onCommit, min, max }: NumericInputProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  function commit() {
+    const parsed = Number(draft);
+    if (Number.isFinite(parsed)) {
+      onCommit(Math.max(min, Math.min(max, parsed)));
+    }
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(String(value));
+          setEditing(true);
+        }}
+        className="w-full rounded border border-transparent text-right tabular-nums text-stone-400 hover:border-lime-300/30 hover:text-lime-200"
+      >
+        {value.toFixed(2)}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      autoFocus
+      onChange={(event) => setDraft(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') commit();
+        if (event.key === 'Escape') setEditing(false);
+      }}
+      onBlur={commit}
+      className="w-full rounded border border-lime-300/40 bg-black/60 px-1 text-right tabular-nums text-lime-200 outline-none"
+    />
   );
 }
