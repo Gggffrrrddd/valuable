@@ -203,7 +203,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
-  const [wallZoom, setWallZoom] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -296,7 +295,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          wallZoom={wallZoom}
           spin={false}
         />
       </div>
@@ -323,27 +321,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           <span className="text-stone-700">·</span>
           <span>{counts.away}</span> away
         </div>
-      </div>
-
-      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
-        <div className="mb-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Wall zoom</div>
-          <div className="mt-1 text-xs text-stone-400">Adjust back-wall image scale</div>
-        </div>
-
-        <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-          <span className="text-stone-500">Zoom</span>
-          <input
-            type="range"
-            min={0.5}
-            max={4}
-            step={0.01}
-            value={wallZoom}
-            onChange={(event) => setWallZoom(Number(event.target.value))}
-            className="h-1 accent-lime-300"
-          />
-          <span className="text-right tabular-nums text-stone-400">{wallZoom.toFixed(2)}</span>
-        </label>
       </div>
 
     </div>
