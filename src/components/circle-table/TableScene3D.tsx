@@ -12,6 +12,7 @@ import {
 } from '@/components/focus-visuals/model-core';
 import Books from './Books';
 import Chairs from './Chairs';
+import OpenBooks from './OpenBooks';
 import PenHolders from './PenHolders';
 import Plant from './Plant';
 import SittingCharacter from './SittingCharacter';
@@ -94,6 +95,7 @@ export default function TableScene3D({
   chairs = [],
   characterTransforms,
   bookTransforms,
+  openBookTransforms,
   plantTransforms,
   penHolderTransforms,
   chairsVisible = false,
@@ -109,6 +111,8 @@ export default function TableScene3D({
   characterTransforms?: ObjectTransform[];
   /** Per-seat book transforms; one book renders per entry. */
   bookTransforms?: ObjectTransform[];
+  /** Per-seat open-book transforms; one open book renders per entry. */
+  openBookTransforms?: ObjectTransform[];
   /** Plant transforms; one plant renders per entry. */
   plantTransforms?: ObjectTransform[];
   /** Pen holder transforms; one holder renders per entry. */
@@ -173,6 +177,12 @@ export default function TableScene3D({
           {bookTransforms ? (
             <Books
               transforms={bookTransforms}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
+          {openBookTransforms ? (
+            <OpenBooks
+              transforms={openBookTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}

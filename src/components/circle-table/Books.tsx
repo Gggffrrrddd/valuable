@@ -3,7 +3,7 @@ import type { Group } from 'three';
 import { normalizeModel, useModelLoader } from '@/components/focus-visuals/model-core';
 import type { ObjectTransform } from './transformConfig';
 
-const BOOK_URL = '/visuals/table/book-v2.glb';
+const BOOK_URL = '/visuals/table/open_book_table_ready.glb';
 
 /**
  * One book on the table. Clones the shared source model per instance — a

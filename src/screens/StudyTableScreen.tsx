@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -182,6 +182,15 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
+  const [openBookTransforms, setOpenBookTransforms] = useState<ObjectTransform[]>(() =>
+    replicateChairs({ scale: 0.5, positionX: 0.86, positionY: 1.1, positionZ: 0.84, rotationX: -1.56, rotationY: -2.03, rotationZ: -0.36 }, TABLE_CENTER),
+  );
+  const [selectedOpenBook, setSelectedOpenBook] = useState(0);
+  const openBookDragOrigin = useRef<{ x: number; y: number } | null>(null);
+
+  function updateSelectedOpenBook(next: ObjectTransform) {
+    setOpenBookTransforms((current) => current.map((book, i) => (i === selectedOpenBook ? next : book)));
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -271,6 +280,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           chairs={CHAIR_SEATS}
           characterTransforms={CHARACTER_CHAIRS}
           bookTransforms={BOOK_TRANSFORMS}
+          openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
           spin={false}
