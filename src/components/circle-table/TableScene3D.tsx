@@ -159,6 +159,7 @@ export default function TableScene3D({
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
+  const hue = useMemo(() => Math.random() * 360, []);
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(TABLE_TEXTURE_URL);
 
@@ -196,7 +197,7 @@ export default function TableScene3D({
           castShadow
           shadow-mapSize={[1024, 1024]}
         />
-        <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color="#b6e85a" />
+        <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color={`hsl(${hue}, 75%, 63%)`} />
         <pointLight position={[2.6, 1.4, 1.8]} intensity={0.6} distance={6} decay={2} color="#f4cea0" />
 
         <TableModel model={model} texture={texture} transform={transform} spin={spin} />
