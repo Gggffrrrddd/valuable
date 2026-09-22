@@ -183,9 +183,14 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
-  const [openBookTransforms, setOpenBookTransforms] = useState<ObjectTransform[]>(() =>
-    replicateChairs({ scale: 0.5, positionX: 0.86, positionY: 1.1, positionZ: 0.84, rotationX: -1.56, rotationY: -2.03, rotationZ: -0.36 }, TABLE_CENTER),
-  );
+  const [openBookTransforms, setOpenBookTransforms] = useState<ObjectTransform[]>(() => {
+    // Book 6 is the tuned reference; the rest are its 60-degree replicas.
+    const seats = replicateChairs(
+      { scale: 1.12, positionX: 0.25, positionY: 1.07, positionZ: 1.54, rotationX: -0.03, rotationY: -2.81, rotationZ: 0.03 },
+      TABLE_CENTER,
+    );
+    return [...seats.slice(1), seats[0]];
+  });
   const [selectedOpenBook, setSelectedOpenBook] = useState(0);
   const [spin, setSpin] = useState(false);
   const openBookDragOrigin = useRef<{ x: number; y: number } | null>(null);
