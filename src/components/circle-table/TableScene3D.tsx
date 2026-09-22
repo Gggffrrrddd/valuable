@@ -48,9 +48,9 @@ export interface SignTransform {
 }
 
 export const DEFAULT_SIGN_TRANSFORM: SignTransform = {
-  positionX: 0,
-  positionY: 2.9,
-  zoom: 1,
+  positionX: -0.11,
+  positionY: 0.96,
+  zoom: 0.57,
 };
 
 export interface TableTransform {

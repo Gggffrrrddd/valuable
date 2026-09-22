@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
-import TableScene3D, {
-  DEFAULT_SIGN_TRANSFORM,
-  type SeatOccupant,
-  type SignTransform,
-} from '@/components/circle-table/TableScene3D';
+import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
@@ -207,8 +203,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
-  const [signTransform, setSignTransform] = useState<SignTransform>(DEFAULT_SIGN_TRANSFORM);
-  const signDragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -301,7 +295,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          signTransform={signTransform}
           spin={false}
         />
       </div>
@@ -327,117 +320,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           <span className="text-stone-200">{counts.online}</span> online
           <span className="text-stone-700">·</span>
           <span>{counts.away}</span> away
-        </div>
-      </div>
-
-      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
-        <div className="mb-3">
-          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Wall text</div>
-          <div className="mt-1 text-xs text-stone-400">Move the sign and scale it</div>
-        </div>
-
-        <div
-          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-center text-[10px] text-stone-400"
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            signDragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!signDragOrigin.current) return;
-            const dx = (event.clientX - signDragOrigin.current.x) * 0.01;
-            const dy = (event.clientY - signDragOrigin.current.y) * 0.01;
-            signDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setSignTransform((current) => ({
-              ...current,
-              positionX: current.positionX + dx,
-              positionY: current.positionY - dy,
-            }));
-          }}
-          onPointerUp={() => {
-            signDragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            signDragOrigin.current = null;
-          }}
-        >
-          ↑↓←→ drag me
-        </div>
-
-        <div className="space-y-2">
-          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-            <span className="text-stone-500">Left / Right</span>
-            <input
-              type="range"
-              min={-12}
-              max={12}
-              step={0.01}
-              value={signTransform.positionX}
-              onChange={(event) =>
-                setSignTransform((c) => ({ ...c, positionX: Number(event.target.value) }))
-              }
-              className="h-1 accent-lime-300"
-            />
-            <span className="text-right tabular-nums text-stone-400">
-              {signTransform.positionX.toFixed(2)}
-            </span>
-          </label>
-
-          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-            <span className="text-stone-500">Up / Down</span>
-            <input
-              type="range"
-              min={-2}
-              max={8}
-              step={0.01}
-              value={signTransform.positionY}
-              onChange={(event) =>
-                setSignTransform((c) => ({ ...c, positionY: Number(event.target.value) }))
-              }
-              className="h-1 accent-lime-300"
-            />
-            <span className="text-right tabular-nums text-stone-400">
-              {signTransform.positionY.toFixed(2)}
-            </span>
-          </label>
-
-          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
-            <span className="text-stone-500">Zoom</span>
-            <input
-              type="range"
-              min={0.1}
-              max={6}
-              step={0.01}
-              value={signTransform.zoom}
-              onChange={(event) =>
-                setSignTransform((c) => ({ ...c, zoom: Number(event.target.value) }))
-              }
-              className="h-1 accent-lime-300"
-            />
-            <span className="text-right tabular-nums text-stone-400">
-              {signTransform.zoom.toFixed(2)}
-            </span>
-          </label>
-        </div>
-
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className="flex-1 rounded-lg border border-lime-300/40 bg-lime-300/10 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/20"
-            onClick={() => {
-              console.log('SIGN_START');
-              console.log(JSON.stringify(signTransform, null, 2));
-              console.log('SIGN_END');
-            }}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold text-stone-400 hover:bg-white/5"
-            onClick={() => setSignTransform(DEFAULT_SIGN_TRANSFORM)}
-          >
-            Reset
-          </button>
         </div>
       </div>
 
