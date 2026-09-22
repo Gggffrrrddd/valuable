@@ -24,17 +24,20 @@ const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
 const WALL_TEXTURE_URL = '/visuals/table/wall-texture.png';
 
-/** Back-wall image placement: left/right, up/down, and zoom. */
+/** Back-wall image placement: left/right, up/down, zoom, and in-plane tilt. */
 export interface WallTransform {
   positionX: number;
   positionY: number;
   zoom: number;
+  /** In-plane spin of the image (radians): positive = anticlockwise. */
+  rotation: number;
 }
 
 export const DEFAULT_WALL_TRANSFORM: WallTransform = {
   positionX: 0,
   positionY: 2.7,
   zoom: 1,
+  rotation: 0,
 };
 
 export interface TableTransform {
@@ -249,14 +252,26 @@ function Wall({ transform }: { transform: WallTransform }) {
   }, [texture, transform.zoom]);
   useEffect(() => () => mapped?.dispose(), [mapped]);
 
+  // Nothing until the image is ready — an opaque placeholder plane would show
+  // up as a second dark "wall" behind the artwork.
+  if (!mapped) return null;
+
   return (
-    <mesh position={[transform.positionX, transform.positionY, -3.6]} receiveShadow>
+    <mesh
+      position={[transform.positionX, transform.positionY, -3.6]}
+      rotation={[0, 0, transform.rotation]}
+      renderOrder={-1}
+    >
       <planeGeometry args={[14, 16]} />
-      {mapped ? (
-        <meshBasicMaterial map={mapped} toneMapped={false} />
-      ) : (
-        <meshStandardMaterial color="#12130f" roughness={0.92} metalness={0.03} />
-      )}
+      {/* transparent + alphaTest: the PNG's clear areas fall through to the
+          scene instead of rendering as an opaque black rectangle. */}
+      <meshBasicMaterial
+        map={mapped}
+        transparent
+        alphaTest={0.01}
+        depthWrite={false}
+        toneMapped={false}
+      />
     </mesh>
   );
 }

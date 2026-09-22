@@ -405,7 +405,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             <input
               type="range"
               min={0.5}
-              max={4}
+              max={20}
               step={0.01}
               value={wallTransform.zoom}
               onChange={(event) =>
@@ -415,6 +415,24 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
             />
             <span className="text-right tabular-nums text-stone-400">
               {wallTransform.zoom.toFixed(2)}
+            </span>
+          </label>
+
+          <label className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]">
+            <span className="text-stone-500">Tilt ↺↻</span>
+            <input
+              type="range"
+              min={-3.14}
+              max={3.14}
+              step={0.01}
+              value={wallTransform.rotation}
+              onChange={(event) =>
+                setWallTransform((c) => ({ ...c, rotation: Number(event.target.value) }))
+              }
+              className="h-1 accent-lime-300"
+            />
+            <span className="text-right tabular-nums text-stone-400">
+              {wallTransform.rotation.toFixed(2)}
             </span>
           </label>
         </div>
