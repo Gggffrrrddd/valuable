@@ -40,6 +40,19 @@ export const DEFAULT_WALL_TRANSFORM: WallTransform = {
   rotation: -0.03,
 };
 
+/** "STAY FOCUSED" wall sign placement: left/right, up/down, and size. */
+export interface SignTransform {
+  positionX: number;
+  positionY: number;
+  zoom: number;
+}
+
+export const DEFAULT_SIGN_TRANSFORM: SignTransform = {
+  positionX: 0,
+  positionY: 2.9,
+  zoom: 1,
+};
+
 export interface TableTransform {
   scale: number;
   positionX: number;
@@ -117,6 +130,7 @@ export default function TableScene3D({
   chairsVisible = false,
   booksVisible = false,
   wallTransform = DEFAULT_WALL_TRANSFORM,
+  signTransform = DEFAULT_SIGN_TRANSFORM,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -141,6 +155,8 @@ export default function TableScene3D({
   booksVisible?: boolean;
   /** Back-wall image placement (left/right, up/down, zoom). */
   wallTransform?: WallTransform;
+  /** "STAY FOCUSED" sign placement (left/right, up/down, size). */
+  signTransform?: SignTransform;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
@@ -225,7 +241,7 @@ export default function TableScene3D({
         </ChairOrbit>
         <Floor />
         <Wall transform={wallTransform} />
-        <WallSign />
+        <WallSign transform={signTransform} />
       </Canvas>
     </div>
   );
@@ -348,12 +364,16 @@ function createFocusSignTexture(): CanvasTexture {
   return texture;
 }
 
-function WallSign() {
+function WallSign({ transform }: { transform: SignTransform }) {
   const sign = useMemo(() => createFocusSignTexture(), []);
   useEffect(() => () => sign.dispose(), [sign]);
 
   return (
-    <mesh position={[0, 2.9, -3.45]} renderOrder={1}>
+    <mesh
+      position={[transform.positionX, transform.positionY, -3.45]}
+      scale={transform.zoom}
+      renderOrder={1}
+    >
       <planeGeometry args={[6.5, 1.625]} />
       <meshBasicMaterial map={sign} transparent depthWrite={false} toneMapped={false} />
     </mesh>
