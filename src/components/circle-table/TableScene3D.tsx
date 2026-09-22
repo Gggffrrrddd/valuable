@@ -22,7 +22,28 @@ import type { SeatOccupant } from './TableScene';
 export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
+const FLOOR_TEXTURE_URL = '/visuals/table/floor-texture.png';
 const WALL_TEXTURE_URL = '/visuals/table/wall-texture.png';
+
+export const DEFAULT_FLOOR_TRANSFORM: ObjectTransform = {
+  scale: 1,
+  positionX: 0,
+  positionY: 0,
+  positionZ: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+};
+
+export const DEFAULT_WALL_TRANSFORM: ObjectTransform = {
+  scale: 1,
+  positionX: 0,
+  positionY: 2.8,
+  positionZ: -3.6,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+};
 
 export interface TableTransform {
   scale: number;
@@ -100,6 +121,9 @@ export default function TableScene3D({
   penHolderTransforms,
   chairsVisible = false,
   booksVisible = false,
+  floorTransform = DEFAULT_FLOOR_TRANSFORM,
+  floorZoom = 1,
+  wallTransform = DEFAULT_WALL_TRANSFORM,
   wallZoom = 1,
   spin = false,
 }: {
@@ -123,6 +147,12 @@ export default function TableScene3D({
   chairsVisible?: boolean;
   /** Hide the closed books without unmounting them. */
   booksVisible?: boolean;
+  /** Floor image placement (outer transform around the laid-flat disc). */
+  floorTransform?: ObjectTransform;
+  /** Floor image zoom factor (larger = closer crop). */
+  floorZoom?: number;
+  /** Back-wall image placement (outer transform around the upright plane). */
+  wallTransform?: ObjectTransform;
   /** Back-wall image zoom factor (larger = closer crop). */
   wallZoom?: number;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
@@ -207,23 +237,47 @@ export default function TableScene3D({
             />
           ) : null}
         </ChairOrbit>
-        <Floor />
-        <Wall zoom={wallZoom} />
+        <Floor transform={floorTransform} zoom={floorZoom} />
+        <Wall transform={wallTransform} zoom={wallZoom} />
       </Canvas>
     </div>
   );
 }
 
-function Floor() {
+function Floor({ transform, zoom }: { transform: ObjectTransform; zoom: number }) {
+  const { texture } = useTextureLoader(FLOOR_TEXTURE_URL);
+  const mapped = useMemo(() => {
+    if (!texture) return null;
+    // Cover-fit the 16:9 image into the circular UV space (no stretch, no gaps).
+    const t = texture.clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = ClampToEdgeWrapping;
+    const rx = 1.05 * zoom;
+    const ry = 1.87 * zoom;
+    t.repeat.set(rx, ry);
+    t.offset.set(0.5 - rx / 2, 0.5 - ry / 2);
+    return t;
+  }, [texture, zoom]);
+  useEffect(() => () => mapped?.dispose(), [mapped]);
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-      <circleGeometry args={[5.4, 64]} />
-      <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
-    </mesh>
+    <group
+      position={[transform.positionX, transform.positionY, transform.positionZ]}
+      rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
+      scale={transform.scale}
+    >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[5.4, 64]} />
+        {mapped ? (
+          <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.04} toneMapped={false} />
+        ) : (
+          <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
+        )}
+      </mesh>
+    </group>
   );
 }
 
-function Wall({ zoom }: { zoom: number }) {
+function Wall({ transform, zoom }: { transform: ObjectTransform; zoom: number }) {
   const { texture } = useTextureLoader(WALL_TEXTURE_URL);
   const mapped = useMemo(() => {
     if (!texture) return null;
@@ -236,14 +290,20 @@ function Wall({ zoom }: { zoom: number }) {
   }, [texture, zoom]);
   useEffect(() => () => mapped?.dispose(), [mapped]);
   return (
-    <mesh position={[0, 2.8, -3.6]} rotation={[0.32, 0, 0]} receiveShadow>
-      <planeGeometry args={[17, 9.5]} />
-      {mapped ? (
-        <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.03} toneMapped={false} />
-      ) : (
-        <meshStandardMaterial color="#12130f" roughness={0.92} metalness={0.03} />
-      )}
-    </mesh>
+    <group
+      position={[transform.positionX, transform.positionY, transform.positionZ]}
+      rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
+      scale={transform.scale}
+    >
+      <mesh rotation={[0.32, 0, 0]} receiveShadow>
+        <planeGeometry args={[17, 9.5]} />
+        {mapped ? (
+          <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.03} toneMapped={false} />
+        ) : (
+          <meshStandardMaterial color="#12130f" roughness={0.92} metalness={0.03} />
+        )}
+      </mesh>
+    </group>
   );
 }
 
