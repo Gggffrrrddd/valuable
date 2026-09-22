@@ -389,7 +389,7 @@ const TableSpin = ({
 }) => {
   const ref = useRef<Group>(null);
   useFrame((_state, delta) => {
-    if (enabled && ref.current) ref.current.rotation.y += delta * 0.05;
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.01;
   });
   return <group ref={ref}>{children}</group>;
 };
@@ -405,7 +405,7 @@ const ChairOrbit = ({
 }) => {
   const ref = useRef<Group>(null);
   useFrame((_state, delta) => {
-    if (enabled && ref.current) ref.current.rotation.y += delta * 0.05;
+    if (enabled && ref.current) ref.current.rotation.y += delta * 0.01;
   });
   return <group ref={ref} position={[center[0], 0, center[1]]}>{children}</group>;
 };
