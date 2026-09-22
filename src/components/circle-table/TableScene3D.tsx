@@ -34,10 +34,10 @@ export interface WallTransform {
 }
 
 export const DEFAULT_WALL_TRANSFORM: WallTransform = {
-  positionX: 0,
-  positionY: 2.7,
-  zoom: 1,
-  rotation: 0,
+  positionX: -4.78,
+  positionY: 0.53,
+  zoom: 12.23,
+  rotation: -0.03,
 };
 
 export interface TableTransform {
