@@ -10,10 +10,14 @@ function OpenBookModel({ model, transform }: { model: Group; transform: ObjectTr
   return (
     <group
       position={[transform.positionX, transform.positionY, transform.positionZ]}
-      rotation={[transform.rotationX, transform.rotationY, transform.rotationZ]}
+      rotation={[0, transform.rotationY, 0]}
       scale={transform.scale}
     >
-      <primitive object={staged} />
+      {/* Tilt lives on an inner group so the seat's Y turn cannot leak into the
+          X/Z tilt (default XYZ Euler order would couple them). */}
+      <group rotation={[transform.rotationX, 0, transform.rotationZ]}>
+        <primitive object={staged} />
+      </group>
     </group>
   );
 }
