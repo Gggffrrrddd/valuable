@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { Group, Mesh, Texture } from 'three';
+import { ClampToEdgeWrapping, Group, Mesh, Texture } from 'three';
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
@@ -22,6 +22,7 @@ import type { SeatOccupant } from './TableScene';
 export type { SeatOccupant };
 const TABLE_OBJ_URL = '/visuals/table/table-3d.obj';
 const TABLE_TEXTURE_URL = '/visuals/table/table-3d-texture.png';
+const WALL_TEXTURE_URL = '/visuals/table/wall-texture.png';
 
 export interface TableTransform {
   scale: number;
@@ -99,6 +100,7 @@ export default function TableScene3D({
   penHolderTransforms,
   chairsVisible = false,
   booksVisible = false,
+  wallZoom = 1,
   spin = false,
 }: {
   self?: SeatOccupant;
@@ -121,6 +123,8 @@ export default function TableScene3D({
   chairsVisible?: boolean;
   /** Hide the closed books without unmounting them. */
   booksVisible?: boolean;
+  /** Back-wall image zoom factor (larger = closer crop). */
+  wallZoom?: number;
   /** Master rotation: spins table in place and orbits chairs/characters with it. */
   spin?: boolean;
 }) {
@@ -204,6 +208,7 @@ export default function TableScene3D({
           ) : null}
         </ChairOrbit>
         <Floor />
+        <Wall zoom={wallZoom} />
       </Canvas>
     </div>
   );
@@ -214,6 +219,30 @@ function Floor() {
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <circleGeometry args={[5.4, 64]} />
       <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
+    </mesh>
+  );
+}
+
+function Wall({ zoom }: { zoom: number }) {
+  const { texture } = useTextureLoader(WALL_TEXTURE_URL);
+  const mapped = useMemo(() => {
+    if (!texture) return null;
+    const t = texture.clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = ClampToEdgeWrapping;
+    t.repeat.set(zoom, zoom);
+    t.offset.set((1 - zoom) / 2, (1 - zoom) / 2);
+    return t;
+  }, [texture, zoom]);
+  useEffect(() => () => mapped?.dispose(), [mapped]);
+  return (
+    <mesh position={[0, 2.8, -3.6]} rotation={[0.32, 0, 0]} receiveShadow>
+      <planeGeometry args={[17, 9.5]} />
+      {mapped ? (
+        <meshStandardMaterial map={mapped} roughness={0.9} metalness={0.03} toneMapped={false} />
+      ) : (
+        <meshStandardMaterial color="#12130f" roughness={0.92} metalness={0.03} />
+      )}
     </mesh>
   );
 }
