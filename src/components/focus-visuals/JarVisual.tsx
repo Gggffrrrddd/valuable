@@ -32,6 +32,12 @@ const CLOUDS = [
 const RAIN_SOURCE_Y = 208;
 const RAIN_COLUMNS = [168, 224, 280, 336, 392, 448, 504, 560, 616, 672, 728, 784] as const;
 
+/**
+ * Whole-deck placement for the cloud ensemble. Tune with the on-screen panel;
+ * the values captured from Save are hardcoded here as the shipped default.
+ */
+const DEFAULT_CLOUD_DECK = { x: 60, y: 40, scale: 2.4 };
+
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
   { x: 465, y: 718, side: 'right', width: 62, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
@@ -246,6 +252,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [splashes, setSplashes] = useState<Splash[]>([]);
+  const [cloudDeck, setCloudDeck] = useState(DEFAULT_CLOUD_DECK);
+  const cloudDragOrigin = useRef<{ x: number; y: number } | null>(null);
   const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
   const waterYRef = useRef(waterY);
@@ -445,7 +453,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </g>
 
           {/* Volumetric cloud deck, drawn above the rain so drops emerge from it. */}
-          <g filter={`url(#${cloudShadowId})`}>
+          <g
+            filter={`url(#${cloudShadowId})`}
+            transform={`translate(${cloudDeck.x} ${cloudDeck.y}) scale(${cloudDeck.scale})`}
+          >
             {CLOUDS.map((cloud, index) => (
               <g
                 key={index}
@@ -480,6 +491,78 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
+
+      {/* Temporary cloud-deck tuner: drag the box or use the sliders, then Save. */}
+      <div style={{ position: 'absolute', right: 16, top: 16, zIndex: 30, width: 272, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.66)', padding: 16, color: '#d6d3d1', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(0,0,0,.5)', fontFamily: 'inherit' }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Cloud deck</div>
+          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Move the whole cloud group</div>
+        </div>
+
+        <div
+          style={{ marginBottom: 12, cursor: 'move', borderRadius: 8, border: '1px dashed rgba(190,242,100,.3)', background: 'rgba(190,242,100,.04)', padding: '8px 12px', textAlign: 'center', fontSize: 10, color: '#a8a29e' }}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            cloudDragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!cloudDragOrigin.current) return;
+            const dx = (event.clientX - cloudDragOrigin.current.x) * 0.6;
+            const dy = (event.clientY - cloudDragOrigin.current.y) * 0.6;
+            cloudDragOrigin.current = { x: event.clientX, y: event.clientY };
+            setCloudDeck((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+          }}
+          onPointerUp={() => {
+            cloudDragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            cloudDragOrigin.current = null;
+          }}
+        >
+          ↑↓←→ drag me
+        </div>
+
+        {([
+          { key: 'x', label: 'Move X', min: -900, max: 900, step: 1 },
+          { key: 'y', label: 'Move Y', min: -600, max: 600, step: 1 },
+          { key: 'scale', label: 'Size', min: 0.2, max: 8, step: 0.05 },
+        ] as const).map((row) => (
+          <label key={row.key} style={{ display: 'grid', gridTemplateColumns: '4.5rem 1fr 3.5rem', alignItems: 'center', gap: 8, fontSize: 10, marginBottom: 8 }}>
+            <span style={{ color: '#78716c' }}>{row.label}</span>
+            <input
+              type="range"
+              min={row.min}
+              max={row.max}
+              step={row.step}
+              value={cloudDeck[row.key]}
+              onChange={(event) => setCloudDeck((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
+              style={{ height: 4, accentColor: '#bef264' }}
+            />
+            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{cloudDeck[row.key].toFixed(2)}</span>
+          </label>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button
+            type="button"
+            style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(190,242,100,.4)', background: 'rgba(190,242,100,.1)', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#d9f99d' }}
+            onClick={() => {
+              console.log('CLOUD_DECK_START');
+              console.log(JSON.stringify({ x: Number(cloudDeck.x.toFixed(2)), y: Number(cloudDeck.y.toFixed(2)), scale: Number(cloudDeck.scale.toFixed(3)) }, null, 2));
+              console.log('CLOUD_DECK_END');
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#a8a29e' }}
+            onClick={() => setCloudDeck(DEFAULT_CLOUD_DECK)}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
