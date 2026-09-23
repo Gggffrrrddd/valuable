@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
+const CLOUD_RAIN_URL = '/visuals/jar/cloud-rain.png';
 const IMG_W = 1672;
 const IMG_H = 941;
 const OBJECT_POSITION = { x: 0.4, y: 0.15 };
@@ -17,56 +17,10 @@ const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
 /**
- * Whole-deck placement for the cloud ensemble. Rain lives inside this transform,
- * so drops follow the tuner (and slider) exactly as the clouds move.
- * Values captured from the on-screen Save button are hardcoded here as default.
+ * Cloud + rain artwork placement. Tune with the on-screen panel; values captured
+ * from Save are hardcoded here as the shipped default.
  */
-const DEFAULT_CLOUD_DECK = { x: 20, y: -70, scale: 1.7 };
-
-type CloudSpec = { x: number; y: number; scale: number; tone: number; drift: number; duration: number; delay: number };
-
-/**
- * A dense, layered rain-cloud field. Rows get progressively darker toward the
- * bottom (lit white crowns up top → charcoal bellies near the jar mouth), and a
- * seeded generator keeps the layout stable across reloads.
- */
-function buildCloudField(): CloudSpec[] {
-  let seed = 20260923;
-  const rnd = () => {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    return seed / 0x7fffffff;
-  };
-  const clouds: CloudSpec[] = [];
-  const columns = 8;
-  const rows = 3;
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      const x = -300 + column * 260 + (rnd() - 0.5) * 150 + (row % 2 === 1 ? 130 : 0);
-      const y = 40 + row * 74 + (rnd() - 0.5) * 42;
-      // Upper row: bright whites. Middle: light greys. Bottom: dark charcoal.
-      const tone = row === 0
-        ? Math.floor(rnd() * 2)
-        : row === 1
-          ? 1 + Math.floor(rnd() * 2)
-          : 2 + Math.floor(rnd() * 2);
-      clouds.push({
-        x,
-        y,
-        scale: 0.85 + rnd() * 1.05,
-        tone: Math.min(3, tone),
-        drift: 9 + rnd() * 22,
-        duration: 18 + rnd() * 16,
-        delay: -rnd() * 24,
-      });
-    }
-  }
-  return clouds;
-}
-
-const CLOUDS = buildCloudField();
-
-/** Beam top edge (scene coords); the light shaft pours down toward the vessel. */
-const BEAM_TOP_Y = 190;
+const DEFAULT_CLOUD_RAIN = { x: 0, y: 0, scale: 1, opacity: 1 };
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
@@ -79,8 +33,6 @@ const FISH = [
 type FishConfig = (typeof FISH)[number];
 type MaskRow = { left: number; right: number } | null;
 type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
-type FallingRain = { id: number; x: number; y: number; fall: number; duration: number; length: number; width: number; drift: number; sceneX: number; sceneY: number };
-type Splash = { id: number; x: number; y: number; duration: number };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -212,57 +164,10 @@ function useReducedMotion() {
   return reduced;
 }
 
-/**
- * One volumetric cloud: stacked soft ellipses with a lit crown and a shaded
- * belly. `tone` (0 bright → 3 charcoal) picks the gradient palette so the deck
- * reads as a real rain system rather than repeated stickers.
- */
-function CloudShape({ scale, base, tone }: { scale: number; base: string; tone: number }) {
-  const body = `url(#${base}-body-${tone})`;
-  const top = `url(#${base}-top-${tone})`;
-  const hi = `url(#${base}-hi)`;
-  const belly = `url(#${base}-belly-${tone})`;
-  return (
-    <g transform={`scale(${scale})`}>
-      <ellipse cx="0" cy="-6" rx="92" ry="34" fill={body} />
-      <ellipse cx="-56" cy="-2" rx="50" ry="28" fill={body} />
-      <ellipse cx="58" cy="-4" rx="54" ry="30" fill={body} />
-      <ellipse cx="-26" cy="-36" rx="47" ry="34" fill={top} />
-      <ellipse cx="29" cy="-40" rx="51" ry="36" fill={top} />
-      <ellipse cx="1" cy="-50" rx="41" ry="30" fill={hi} opacity=".9" />
-      <ellipse cx="-42" cy="-14" rx="27" ry="15" fill="#ffffff" opacity={tone <= 1 ? .5 : .22} />
-      <ellipse cx="0" cy="10" rx="84" ry="14" fill={belly} />
-    </g>
-  );
-}
-
 const keyframes = `
   @keyframes jar-ripple { to { stroke-dashoffset: -48; } }
   @keyframes jar-current { from { transform: translateX(-28px); opacity: .08; } to { transform: translateX(32px); opacity: .2; } }
   @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
-  @keyframes jar-cloud-drift {
-    0% { transform: translateX(calc(var(--drift) * -0.5)); }
-    100% { transform: translateX(calc(var(--drift) * 0.5)); }
-  }
-  @keyframes jar-cloud-breathe {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-3px) scale(1.016); }
-  }
-  @keyframes jar-rain-fall {
-    0% { transform: translate3d(0, 0, 0); opacity: 0; }
-    12% { opacity: .85; }
-    80% { opacity: .7; }
-    100% { transform: translate3d(var(--wind), var(--fall), 0); opacity: 0; }
-  }
-  @keyframes jar-splash {
-    0% { transform: scale(.25); opacity: 0; }
-    22% { transform: scale(1); opacity: .6; }
-    100% { transform: scale(1.9); opacity: 0; }
-  }
-  @keyframes jar-beam {
-    0%, 100% { opacity: .04; }
-    50% { opacity: .09; }
-  }
 `;
 
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
@@ -272,22 +177,13 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const svgId = useId().replace(/:/g, '');
   const waterMaskId = `jar-water-alpha-mask-${svgId}`;
   const waterGradientId = `jar-water-depth-${svgId}`;
-  const rainGradientId = `jar-rain-${svgId}`;
-  const beamGradientId = `jar-beam-${svgId}`;
-  const cloudBaseId = `jar-cloud-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
-  const [rains, setRains] = useState<FallingRain[]>([]);
-  const [splashes, setSplashes] = useState<Splash[]>([]);
-  const [cloudDeck, setCloudDeck] = useState(DEFAULT_CLOUD_DECK);
+  const [cloudRain, setCloudRain] = useState(DEFAULT_CLOUD_RAIN);
   const cloudDragOrigin = useRef<{ x: number; y: number } | null>(null);
-  const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
-  const waterYRef = useRef(waterY);
-  waterYRef.current = waterY;
-  const cloudDeckRef = useRef(cloudDeck);
-  cloudDeckRef.current = cloudDeck;
+  void running;
 
   useEffect(() => {
     const element = containerRef.current;
@@ -298,52 +194,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-
-  // Natural drizzle: a random cloud releases a small burst, then the next cloud
-  // is picked after a random pause — so rain never falls from everywhere at once.
-  useEffect(() => {
-    if (reducedMotion || !running) return;
-    let timer: ReturnType<typeof setTimeout>;
-    let cancelled = false;
-
-    const emit = () => {
-      const deck = cloudDeckRef.current;
-      const cloud = CLOUDS[Math.floor(Math.random() * CLOUDS.length)];
-      const localWaterY = (waterYRef.current - deck.y) / deck.scale;
-      const burst = 1 + Math.floor(Math.random() * 3);
-      const drops: FallingRain[] = [];
-      for (let i = 0; i < burst; i += 1) {
-        const localX = cloud.x + randomBetween(-34, 34) * cloud.scale;
-        const localY = cloud.y + 20 + randomBetween(-8, 12);
-        drops.push({
-          id: nextRainId.current++,
-          x: localX,
-          y: localY,
-          fall: Math.max(40, localWaterY - localY),
-          duration: randomBetween(1.6, 2.9),
-          length: randomBetween(16, 30),
-          width: randomBetween(1.2, 2.2),
-          drift: randomBetween(-16, 16),
-          sceneX: deck.x + localX * deck.scale,
-          sceneY: waterYRef.current,
-        });
-      }
-      setRains((current) => [...current.slice(-64), ...drops]);
-    };
-
-    const schedule = () => {
-      if (cancelled) return;
-      timer = setTimeout(() => {
-        emit();
-        schedule();
-      }, randomBetween(150, 520));
-    };
-    schedule();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [reducedMotion, running]);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,7 +233,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const offsetY = (viewport.height - IMG_H * scale) * OBJECT_POSITION.y;
   const sceneTransform = `translate(${offsetX} ${offsetY}) scale(${scale})`;
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
-  const deckTransform = `translate(${cloudDeck.x} ${cloudDeck.y}) scale(${cloudDeck.scale})`;
 
   return (
     <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
@@ -399,45 +248,17 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#dff4ff" stopOpacity="0" />
-            <stop offset=".3" stopColor="#b4e3ff" stopOpacity=".7" />
-            <stop offset="1" stopColor="#7ec8f5" stopOpacity=".98" />
-          </linearGradient>
-          <linearGradient id={beamGradientId} x1="0" y1={BEAM_TOP_Y} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#eaf6ff" stopOpacity=".5" />
-            <stop offset="1" stopColor="#dff0ff" stopOpacity="0" />
-          </linearGradient>
-
-          {/* Four cloud tones: 0 bright white → 3 charcoal rain bellies. */}
-          <linearGradient id={`${cloudBaseId}-body-0`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset=".55" stopColor="#eef3fa" /><stop offset="1" stopColor="#d5e0ee" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-top-0`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#e9f0f9" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-belly-0`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a8bacc" stopOpacity=".34" /><stop offset="1" stopColor="#9aadc2" stopOpacity="0" /></linearGradient>
-
-          <linearGradient id={`${cloudBaseId}-body-1`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f4f7fc" /><stop offset=".55" stopColor="#dde5ef" /><stop offset="1" stopColor="#bccbdd" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-top-1`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fbfdff" /><stop offset="1" stopColor="#d3dfec" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-belly-1`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8fa3b8" stopOpacity=".42" /><stop offset="1" stopColor="#8699b0" stopOpacity="0" /></linearGradient>
-
-          <linearGradient id={`${cloudBaseId}-body-2`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dfe6ef" /><stop offset=".55" stopColor="#bcc8d8" /><stop offset="1" stopColor="#93a4b8" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-top-2`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eef3f9" /><stop offset="1" stopColor="#b6c4d6" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-belly-2`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6d8098" stopOpacity=".5" /><stop offset="1" stopColor="#66798f" stopOpacity="0" /></linearGradient>
-
-          <linearGradient id={`${cloudBaseId}-body-3`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#aab6c5" /><stop offset=".55" stopColor="#7f8d9f" /><stop offset="1" stopColor="#546274" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-top-3`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c8d2de" /><stop offset="1" stopColor="#8391a3" /></linearGradient>
-          <linearGradient id={`${cloudBaseId}-belly-3`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3f4c5c" stopOpacity=".62" /><stop offset="1" stopColor="#3a4656" stopOpacity="0" /></linearGradient>
-
-          <radialGradient id={`${cloudBaseId}-hi`} cx="38%" cy="28%" r="72%">
-            <stop offset="0" stopColor="#ffffff" stopOpacity=".95" />
-            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-          </radialGradient>
         </defs>
 
         <g transform={sceneTransform}>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
-          {/* Soft light shaft pouring from the clouds toward the vessel. */}
-          <g style={{ animation: reducedMotion ? undefined : 'jar-beam 7s ease-in-out infinite' }}>
-            <path d={`M250 ${BEAM_TOP_Y} L800 ${BEAM_TOP_Y} L${WATER_IMAGE.x + WATER_IMAGE.width * .82} ${WATER_BASE} L${WATER_IMAGE.x + WATER_IMAGE.width * .18} ${WATER_BASE} Z`} fill={`url(#${beamGradientId})`} opacity=".07" />
+          {/* Cloud + rain artwork (replaces the previous animated system). */}
+          <g
+            transform={`translate(${cloudRain.x} ${cloudRain.y}) scale(${cloudRain.scale})`}
+            opacity={cloudRain.opacity}
+          >
+            <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
           </g>
 
           {/* Calibrated silhouette: only the reveal rect's top edge rises. */}
@@ -459,77 +280,17 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           <g mask={`url(#${waterMaskId})`}>
             {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
           </g>
-
-          {/* Splashes where drops meet the surface. */}
-          <g mask={`url(#${waterMaskId})`}>
-            {splashes.map((splash) => (
-              <g
-                key={splash.id}
-                style={{ animation: `jar-splash ${splash.duration}s ease-out forwards`, transform: `translate(${splash.x}px, ${splash.y}px)` }}
-                onAnimationEnd={() => setSplashes((current) => current.filter((s) => s.id !== splash.id))}
-              >
-                <ellipse cx="0" cy="0" rx="9" ry="3" fill="none" stroke="#d9f4ff" strokeWidth="1.3" opacity=".7" />
-                <ellipse cx="0" cy="0" rx="4" ry="1.6" fill="#eafaff" opacity=".55" />
-              </g>
-            ))}
-          </g>
-
-          {/* Cloud deck + its rain. Rain is a child of the deck transform, so every
-              existing drop shifts with the tuner the moment clouds are moved. */}
-          <g transform={deckTransform}>
-            <g>
-              {rains.map((drop) => (
-                <g
-                  key={drop.id}
-                  style={{
-                    '--fall': `${drop.fall}px`,
-                    '--wind': `${drop.drift}px`,
-                    animation: `jar-rain-fall ${drop.duration}s linear forwards`,
-                    transform: `translate(${drop.x}px, ${drop.y}px)`,
-                  } as CSSProperties}
-                  onAnimationEnd={() => {
-                    setRains((current) => current.filter((r) => r.id !== drop.id));
-                    const splashId = nextRainId.current;
-                    nextRainId.current += 1;
-                    setSplashes((current) => [...current.slice(-28), { id: splashId, x: drop.sceneX, y: drop.sceneY, duration: randomBetween(.5, .7) }]);
-                  }}
-                >
-                  <rect x={-drop.width / 2} y={0} width={drop.width} height={drop.length} rx={drop.width / 2} fill={`url(#${rainGradientId})`} opacity=".88" />
-                  <rect x={-0.6} y={drop.length - 7} width={1.2} height={5} rx={0.6} fill="#f2fbff" opacity=".72" />
-                </g>
-              ))}
-            </g>
-
-            {CLOUDS.map((cloud, index) => (
-              <g
-                key={index}
-                style={{
-                  transform: `translate(${cloud.x}px, ${cloud.y}px)`,
-                  ...(reducedMotion
-                    ? {}
-                    : {
-                        animation: `jar-cloud-drift ${cloud.duration}s ease-in-out ${cloud.delay}s infinite alternate`,
-                        '--drift': `${cloud.drift}px`,
-                      }),
-                }}
-              >
-                <g style={{ animation: reducedMotion ? undefined : `jar-cloud-breathe ${cloud.duration * 0.6}s ease-in-out ${cloud.delay}s infinite` }}>
-                  <CloudShape scale={cloud.scale} base={cloudBaseId} tone={cloud.tone} />
-                </g>
-              </g>
-            ))}
-          </g>
         </g>
       </svg>
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
 
-      {/* Temporary cloud-deck tuner: drag the box or use the sliders, then Save. */}
+      {/* Temporary tuner: drag the box or use the sliders, then Save. */}
       <div style={{ position: 'absolute', right: 16, top: 16, zIndex: 30, width: 272, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.66)', padding: 16, color: '#d6d3d1', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(0,0,0,.5)', fontFamily: 'inherit' }}>
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Cloud deck</div>
-          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Move clouds + rain together</div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Cloud + rain</div>
+          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Move, size and fade the artwork</div>
         </div>
 
         <div
@@ -543,7 +304,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             const dx = (event.clientX - cloudDragOrigin.current.x) * 0.6;
             const dy = (event.clientY - cloudDragOrigin.current.y) * 0.6;
             cloudDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setCloudDeck((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+            setCloudRain((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
           }}
           onPointerUp={() => {
             cloudDragOrigin.current = null;
@@ -558,7 +319,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         {([
           { key: 'x', label: 'Move X', min: -900, max: 900, step: 1 },
           { key: 'y', label: 'Move Y', min: -600, max: 600, step: 1 },
-          { key: 'scale', label: 'Size', min: 0.2, max: 8, step: 0.05 },
+          { key: 'scale', label: 'Size', min: 0.2, max: 6, step: 0.05 },
+          { key: 'opacity', label: 'Fade', min: 0, max: 1, step: 0.01 },
         ] as const).map((row) => (
           <label key={row.key} style={{ display: 'grid', gridTemplateColumns: '4.5rem 1fr 3.5rem', alignItems: 'center', gap: 8, fontSize: 10, marginBottom: 8 }}>
             <span style={{ color: '#78716c' }}>{row.label}</span>
@@ -567,11 +329,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
               min={row.min}
               max={row.max}
               step={row.step}
-              value={cloudDeck[row.key]}
-              onChange={(event) => setCloudDeck((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
+              value={cloudRain[row.key]}
+              onChange={(event) => setCloudRain((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
               style={{ height: 4, accentColor: '#bef264' }}
             />
-            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{cloudDeck[row.key].toFixed(2)}</span>
+            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{cloudRain[row.key].toFixed(2)}</span>
           </label>
         ))}
 
@@ -580,9 +342,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             type="button"
             style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(190,242,100,.4)', background: 'rgba(190,242,100,.1)', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#d9f99d' }}
             onClick={() => {
-              console.log('CLOUD_DECK_START');
-              console.log(JSON.stringify({ x: Number(cloudDeck.x.toFixed(2)), y: Number(cloudDeck.y.toFixed(2)), scale: Number(cloudDeck.scale.toFixed(3)) }, null, 2));
-              console.log('CLOUD_DECK_END');
+              console.log('CLOUD_RAIN_START');
+              console.log(JSON.stringify({ x: Number(cloudRain.x.toFixed(2)), y: Number(cloudRain.y.toFixed(2)), scale: Number(cloudRain.scale.toFixed(3)), opacity: Number(cloudRain.opacity.toFixed(3)) }, null, 2));
+              console.log('CLOUD_RAIN_END');
             }}
           >
             Save
@@ -590,7 +352,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           <button
             type="button"
             style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#a8a29e' }}
-            onClick={() => setCloudDeck(DEFAULT_CLOUD_DECK)}
+            onClick={() => setCloudRain(DEFAULT_CLOUD_RAIN)}
           >
             Reset
           </button>
