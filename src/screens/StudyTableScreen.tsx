@@ -37,9 +37,9 @@ const CHARACTER_REFERENCE: ObjectTransform = {
 
 /** Girl scale needs a much wider slider range than the shared default. */
 const GIRL_SLIDER_ROWS = SLIDER_ROWS.map((row) =>
-  row.key === 'scale' ? { ...row, min: 0.2, max: 25, step: 0.1 } : row,
+  row.key === 'scale' ? { ...row, min: 0.2, max: 150, step: 0.5 } : row,
 );
-const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE, scale: 14.8 };
+const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE, scale: 100 };
 
 /** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
 const CHAIR_REFERENCE: ObjectTransform = {
