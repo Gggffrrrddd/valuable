@@ -307,6 +307,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           chairs={CHAIR_SEATS}
           characterTransforms={CHARACTER_CHAIRS}
           girlTransforms={girlChairs}
+          chairsVisible
           bookTransforms={BOOK_TRANSFORMS}
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
