@@ -377,7 +377,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           {GIRL_SLIDER_ROWS.map((row) => (
             <label
               key={row.key}
-              className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]"
+              className="grid grid-cols-[4.5rem_1fr_4.75rem] items-center gap-2 text-[10px]"
             >
               <span className="text-stone-500">{row.label}</span>
               <input
@@ -394,9 +394,28 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
                 }
                 className="h-1 accent-lime-300"
               />
-              <span className="text-right tabular-nums text-stone-400">
-                {girlReference[row.key].toFixed(2)}
-              </span>
+              <input
+                type="number"
+                min={row.min}
+                max={row.max}
+                step="any"
+                value={girlReference[row.key]}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === '') return;
+                  const parsed = Number(next);
+                  if (Number.isFinite(parsed)) {
+                    setGirlReference((c) => ({ ...c, [row.key]: parsed }));
+                  }
+                }}
+                onBlur={(event) => {
+                  const parsed = Number(event.target.value);
+                  if (!Number.isFinite(parsed)) {
+                    setGirlReference((c) => ({ ...c, [row.key]: girlReference[row.key] }));
+                  }
+                }}
+                className="w-full rounded border border-white/10 bg-black/40 px-1.5 py-1 text-right tabular-nums text-stone-200 outline-none focus:border-lime-300/50"
+              />
             </label>
           ))}
         </div>
