@@ -37,6 +37,8 @@ const RAIN = {
 const RAIN_OFFSET = { x: 40, y: -323 };
 const FLOOR_Y = 884;
 const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
+/** Even horizontal lanes so drops never clump into one side or column. */
+const RAIN_LANES = 32;
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
@@ -211,6 +213,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterYRef = useRef(waterY);
   waterYRef.current = waterY;
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
+  const rainLaneCursor = useRef(0);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -231,16 +234,15 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
     const emitOne = () => {
       const extent = jarExtentRef.current;
-      const toJar = Math.random() < 0.58;
-      let x: number;
-      if (toJar) {
-        x = randomBetween(extent.left + 16, extent.right - 16);
-      } else {
-        const leftSide = Math.random() < 0.5;
-        x = leftSide
-          ? randomBetween(extent.left - RAIN.spread, extent.left - 30)
-          : randomBetween(extent.right + 30, extent.right + RAIN.spread);
-      }
+      // Cycle through equal horizontal lanes (with light jitter inside each
+      // lane) so the rainfall is spread evenly, left to right.
+      const minX = extent.left - RAIN.spread;
+      const maxX = extent.right + RAIN.spread;
+      const laneWidth = (maxX - minX) / RAIN_LANES;
+      const lane = rainLaneCursor.current % RAIN_LANES;
+      rainLaneCursor.current += 1;
+      const x = minX + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
+      const toJar = x >= extent.left && x <= extent.right;
       const y = RAIN.sourceY + randomBetween(-26, 26);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
       // Account for the group offset so the drop's final position lands exactly
@@ -347,9 +349,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
           <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#e6f6ff" stopOpacity=".1" />
-            <stop offset=".4" stopColor="#c6e9fc" stopOpacity=".8" />
-            <stop offset="1" stopColor="#9ad6f5" stopOpacity={RAIN.opacity} />
+            <stop offset="0" stopColor="#f7fdff" stopOpacity=".18" />
+            <stop offset=".45" stopColor="#dff6ff" stopOpacity=".52" />
+            <stop offset="1" stopColor="#bdeaff" stopOpacity={RAIN.opacity * 0.62} />
           </linearGradient>
         </defs>
 
@@ -375,7 +377,26 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                 } as CSSProperties}
                 onAnimationEnd={() => setRains((current) => current.filter((r) => r.id !== drop.id))}
               >
-                <rect x={-drop.width / 2} y={0} width={drop.width} height={drop.length} rx={drop.width / 2} fill={`url(#${rainGradientId})`} />
+                <g>
+                  {/* Translucent water crystal: glassy body + specular glint. */}
+                  <rect
+                    x={-drop.width / 2}
+                    y={0}
+                    width={drop.width}
+                    height={drop.length}
+                    rx={drop.width / 2}
+                    fill={`url(#${rainGradientId})`}
+                    stroke="rgba(255,255,255,.55)"
+                    strokeWidth={0.45}
+                  />
+                  <ellipse
+                    cx={-drop.width * 0.14}
+                    cy={drop.length * 0.2}
+                    rx={Math.max(0.35, drop.width * 0.16)}
+                    ry={Math.max(1.4, drop.length * 0.1)}
+                    fill="rgba(255,255,255,.8)"
+                  />
+                </g>
               </g>
             ))}
           </g>
