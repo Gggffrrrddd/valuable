@@ -20,8 +20,18 @@ const FISH_SURFACE_PADDING = 14;
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
 
+/** Rain feel — tuned live with the on-screen panel, then hardcoded here. */
+const DEFAULT_RAIN = {
+  density: 99,
+  speed: 1,
+  length: 1,
+  opacity: 0.85,
+  wind: 1,
+  sourceY: 300,
+  spread: 340,
+};
+
 /** Rain falls from below the cloud band down to the jar surface or the floor. */
-const RAIN_SOURCE_Y = 300;
 const FLOOR_Y = 884;
 const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 
@@ -45,6 +55,7 @@ type FallingRain = {
   length: number;
   width: number;
   drift: number;
+  peak: number;
   kind: 'jar' | 'floor';
   landX: number;
   landY: number;
@@ -223,11 +234,15 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
   const [floorRipples, setFloorRipples] = useState<FloorRipple[]>([]);
+  const [rain, setRain] = useState(DEFAULT_RAIN);
+  const rainDragOrigin = useRef<{ x: number; y: number } | null>(null);
   const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
   const waterYRef = useRef(waterY);
   waterYRef.current = waterY;
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
+  const rainRef = useRef(rain);
+  rainRef.current = rain;
 
   useEffect(() => {
     const element = containerRef.current;
@@ -248,6 +263,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
     const emit = () => {
       const extent = jarExtentRef.current;
+      const cfg = rainRef.current;
       const toJar = Math.random() < 0.58;
       let x: number;
       if (toJar) {
@@ -255,26 +271,27 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       } else {
         const leftSide = Math.random() < 0.5;
         x = leftSide
-          ? randomBetween(extent.left - 340, extent.left - 30)
-          : randomBetween(extent.right + 30, extent.right + 340);
+          ? randomBetween(extent.left - cfg.spread, extent.left - 30)
+          : randomBetween(extent.right + 30, extent.right + cfg.spread);
       }
-      const y = RAIN_SOURCE_Y + randomBetween(-24, 24);
+      const y = cfg.sourceY + randomBetween(-24, 24);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
       const fall = Math.max(60, landY - y);
       const heavy = Math.random() < 0.32;
       const id = nextRainId.current;
       nextRainId.current += 1;
       setRains((current) => [
-        ...current.slice(-110),
+        ...current.slice(-Math.round(cfg.density)),
         {
           id,
           x,
           y,
           fall,
-          duration: randomBetween(1.5, 2.6),
-          length: heavy ? randomBetween(26, 44) : randomBetween(13, 26),
-          width: heavy ? randomBetween(1.6, 2.4) : randomBetween(0.9, 1.5),
-          drift: randomBetween(-16, 16),
+          duration: randomBetween(1.5, 2.6) / cfg.speed,
+          length: (heavy ? randomBetween(26, 44) : randomBetween(13, 26)) * cfg.length,
+          width: (heavy ? randomBetween(1.6, 2.4) : randomBetween(0.9, 1.5)) * cfg.length,
+          drift: randomBetween(-16, 16) * cfg.wind,
+          peak: cfg.opacity * (toJar ? 1 : 0.82),
           kind: toJar ? 'jar' : 'floor',
           landX: x,
           landY,
@@ -288,7 +305,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         emit();
         if (Math.random() < 0.55) emit();
         schedule();
-      }, randomBetween(58, 140));
+      }, randomBetween(58, 140) * (100 / Math.max(10, rainRef.current.density)));
     };
     schedule();
     return () => {
@@ -390,7 +407,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                 style={{
                   '--fall': `${drop.fall}px`,
                   '--wind': `${drop.drift}px`,
-                  '--peak': `${drop.kind === 'jar' ? 0.9 : 0.72}`,
+                  '--peak': `${drop.peak}`,
                   animation: `jar-rain-fall ${drop.duration}s linear forwards`,
                   transform: `translate(${drop.x}px, ${drop.y}px)`,
                 } as CSSProperties}
@@ -467,6 +484,89 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
+
+      {/* Temporary rain tuner: tune the drizzle, then Save to hardcode. */}
+      <div style={{ position: 'absolute', right: 16, top: 16, zIndex: 30, width: 272, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.66)', padding: 16, color: '#d6d3d1', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(0,0,0,.5)', fontFamily: 'inherit' }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Rain</div>
+          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Density, speed, length, spread</div>
+        </div>
+
+        <div
+          style={{ marginBottom: 12, cursor: 'move', borderRadius: 8, border: '1px dashed rgba(190,242,100,.3)', background: 'rgba(190,242,100,.04)', padding: '8px 12px', textAlign: 'center', fontSize: 10, color: '#a8a29e' }}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            rainDragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!rainDragOrigin.current) return;
+            const dy = (event.clientY - rainDragOrigin.current.y) * 1.2;
+            rainDragOrigin.current = { x: event.clientX, y: event.clientY };
+            setRain((current) => ({ ...current, sourceY: current.sourceY + dy }));
+          }}
+          onPointerUp={() => {
+            rainDragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            rainDragOrigin.current = null;
+          }}
+        >
+          ↕ drag to move rain start
+        </div>
+
+        {([
+          { key: 'density', label: 'Density', min: 20, max: 260, step: 1 },
+          { key: 'speed', label: 'Speed', min: 0.3, max: 3, step: 0.05 },
+          { key: 'length', label: 'Length', min: 0.4, max: 2.5, step: 0.05 },
+          { key: 'opacity', label: 'Opacity', min: 0.2, max: 1, step: 0.01 },
+          { key: 'wind', label: 'Wind', min: 0, max: 3, step: 0.05 },
+          { key: 'sourceY', label: 'Start Y', min: 100, max: 700, step: 1 },
+          { key: 'spread', label: 'Spread', min: 80, max: 700, step: 5 },
+        ] as const).map((row) => (
+          <label key={row.key} style={{ display: 'grid', gridTemplateColumns: '4.5rem 1fr 3.5rem', alignItems: 'center', gap: 8, fontSize: 10, marginBottom: 8 }}>
+            <span style={{ color: '#78716c' }}>{row.label}</span>
+            <input
+              type="range"
+              min={row.min}
+              max={row.max}
+              step={row.step}
+              value={rain[row.key]}
+              onChange={(event) => setRain((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
+              style={{ height: 4, accentColor: '#bef264' }}
+            />
+            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{rain[row.key].toFixed(2)}</span>
+          </label>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button
+            type="button"
+            style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(190,242,100,.4)', background: 'rgba(190,242,100,.1)', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#d9f99d' }}
+            onClick={() => {
+              console.log('RAIN_START');
+              console.log(JSON.stringify({
+                density: Math.round(rain.density),
+                speed: Number(rain.speed.toFixed(2)),
+                length: Number(rain.length.toFixed(2)),
+                opacity: Number(rain.opacity.toFixed(2)),
+                wind: Number(rain.wind.toFixed(2)),
+                sourceY: Math.round(rain.sourceY),
+                spread: Math.round(rain.spread),
+              }, null, 2));
+              console.log('RAIN_END');
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#a8a29e' }}
+            onClick={() => setRain(DEFAULT_RAIN)}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
