@@ -209,6 +209,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
   const [girlReference, setGirlReference] = useState<ObjectTransform>(GIRL_REFERENCE_DEFAULT);
+  const [spinOn, setSpinOn] = useState(true);
   const girlDragOrigin = useRef<{ x: number; y: number } | null>(null);
   const girlChairs = useMemo(
     () => replicateChairs(girlReference, TABLE_CENTER),
@@ -307,7 +308,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          spin
+          spin={spinOn}
         />
       </div>
 
@@ -396,7 +397,21 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           ))}
         </div>
 
-        <div className="mt-3 flex gap-2">
+        <div className="mb-3">
+          <button
+            type="button"
+            className={`w-full rounded-lg border px-2.5 py-1.5 text-[10px] font-bold ${
+              spinOn
+                ? 'border-lime-300/40 bg-lime-300/10 text-lime-200 hover:bg-lime-300/20'
+                : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
+            }`}
+            onClick={() => setSpinOn((v) => !v)}
+          >
+            Rotation: {spinOn ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        <div className="flex gap-2">
           <button
             type="button"
             className="flex-1 rounded-lg border border-lime-300/40 bg-lime-300/10 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/20"
