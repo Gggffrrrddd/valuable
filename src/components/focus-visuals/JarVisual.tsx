@@ -29,6 +29,8 @@ const DEFAULT_RAIN = {
   wind: 1,
   sourceY: 300,
   spread: 340,
+  offsetX: 0,
+  offsetY: 0,
 };
 
 /** Rain falls from below the cloud band down to the jar surface or the floor. */
@@ -274,7 +276,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           ? randomBetween(extent.left - cfg.spread, extent.left - 30)
           : randomBetween(extent.right + 30, extent.right + cfg.spread);
       }
-      const y = cfg.sourceY + randomBetween(-24, 24);
+      x += cfg.offsetX;
+      const y = cfg.sourceY + cfg.offsetY + randomBetween(-24, 24);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
       const fall = Math.max(60, landY - y);
       const heavy = Math.random() < 0.32;
@@ -500,9 +503,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           }}
           onPointerMove={(event) => {
             if (!rainDragOrigin.current) return;
+            const dx = (event.clientX - rainDragOrigin.current.x) * 1.2;
             const dy = (event.clientY - rainDragOrigin.current.y) * 1.2;
             rainDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setRain((current) => ({ ...current, sourceY: current.sourceY + dy }));
+            setRain((current) => ({ ...current, offsetX: current.offsetX + dx, offsetY: current.offsetY + dy }));
           }}
           onPointerUp={() => {
             rainDragOrigin.current = null;
@@ -511,10 +515,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             rainDragOrigin.current = null;
           }}
         >
-          ↕ drag to move rain start
+          ↑↓←→ drag me
         </div>
 
         {([
+          { key: 'offsetX', label: 'Left / Right', min: -800, max: 800, step: 1 },
+          { key: 'offsetY', label: 'Up / Down', min: -400, max: 400, step: 1 },
           { key: 'density', label: 'Density', min: 20, max: 260, step: 1 },
           { key: 'speed', label: 'Speed', min: 0.3, max: 3, step: 0.05 },
           { key: 'length', label: 'Length', min: 0.4, max: 2.5, step: 0.05 },
@@ -545,6 +551,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             onClick={() => {
               console.log('RAIN_START');
               console.log(JSON.stringify({
+                offsetX: Math.round(rain.offsetX),
+                offsetY: Math.round(rain.offsetY),
                 density: Math.round(rain.density),
                 speed: Number(rain.speed.toFixed(2)),
                 length: Number(rain.length.toFixed(2)),
