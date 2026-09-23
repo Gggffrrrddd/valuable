@@ -34,7 +34,7 @@ const RAIN = {
   spread: 380,
 };
 
-const DEFAULT_RAIN_OFFSET = { x: 0, y: 0 };
+const RAIN_OFFSET = { x: 40, y: -323 };
 const FLOOR_Y = 884;
 const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 
@@ -206,8 +206,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
-  const [rainOffset, setRainOffset] = useState(DEFAULT_RAIN_OFFSET);
-  const rainDragOrigin = useRef<{ x: number; y: number } | null>(null);
   const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
   const waterYRef = useRef(waterY);
@@ -245,7 +243,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       }
       const y = RAIN.sourceY + randomBetween(-26, 26);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
-      const fall = Math.max(60, landY - y);
+      // Account for the group offset so the drop's final position lands exactly
+      // on the floor / water surface: final = y + RAIN_OFFSET.y + fall.
+      const fall = Math.max(60, landY - (y + RAIN_OFFSET.y));
       const heavy = Math.random() < 0.34;
       const id = nextRainId.current;
       nextRainId.current += 1;
@@ -361,9 +361,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
           </g>
 
-          {/* Dense animated rainfall beneath the artwork. The group carries the
-              move offsets so every drop shifts the moment you drag. */}
-          <g transform={`translate(${rainOffset.x} ${rainOffset.y})`}>
+          {/* Dense animated rainfall beneath the artwork, offset hardcoded. */}
+          <g transform={`translate(${RAIN_OFFSET.x} ${RAIN_OFFSET.y})`}>
             {rains.map((drop) => (
               <g
                 key={drop.id}
@@ -405,77 +404,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
-
-      {/* Temporary move-only tuner: position the rain, then Save to hardcode. */}
-      <div style={{ position: 'absolute', right: 16, top: 16, zIndex: 30, width: 272, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.66)', padding: 16, color: '#d6d3d1', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(0,0,0,.5)', fontFamily: 'inherit' }}>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Rain move</div>
-          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Left / right and up / down</div>
-        </div>
-
-        <div
-          style={{ marginBottom: 12, cursor: 'move', borderRadius: 8, border: '1px dashed rgba(190,242,100,.3)', background: 'rgba(190,242,100,.04)', padding: '8px 12px', textAlign: 'center', fontSize: 10, color: '#a8a29e' }}
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            rainDragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!rainDragOrigin.current) return;
-            const dx = (event.clientX - rainDragOrigin.current.x) * 1.2;
-            const dy = (event.clientY - rainDragOrigin.current.y) * 1.2;
-            rainDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setRainOffset((current) => ({ x: current.x + dx, y: current.y + dy }));
-          }}
-          onPointerUp={() => {
-            rainDragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            rainDragOrigin.current = null;
-          }}
-        >
-          ↑↓←→ drag me
-        </div>
-
-        {([
-          { key: 'x', label: 'Left / Right', min: -900, max: 900, step: 1 },
-          { key: 'y', label: 'Up / Down', min: -500, max: 500, step: 1 },
-        ] as const).map((row) => (
-          <label key={row.key} style={{ display: 'grid', gridTemplateColumns: '4.5rem 1fr 3.5rem', alignItems: 'center', gap: 8, fontSize: 10, marginBottom: 8 }}>
-            <span style={{ color: '#78716c' }}>{row.label}</span>
-            <input
-              type="range"
-              min={row.min}
-              max={row.max}
-              step={row.step}
-              value={rainOffset[row.key]}
-              onChange={(event) => setRainOffset((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
-              style={{ height: 4, accentColor: '#bef264' }}
-            />
-            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{rainOffset[row.key].toFixed(0)}</span>
-          </label>
-        ))}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button
-            type="button"
-            style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(190,242,100,.4)', background: 'rgba(190,242,100,.1)', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#d9f99d' }}
-            onClick={() => {
-              console.log('RAIN_MOVE_START');
-              console.log(JSON.stringify({ x: Math.round(rainOffset.x), y: Math.round(rainOffset.y) }, null, 2));
-              console.log('RAIN_MOVE_END');
-            }}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#a8a29e' }}
-            onClick={() => setRainOffset(DEFAULT_RAIN_OFFSET)}
-          >
-            Reset
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
