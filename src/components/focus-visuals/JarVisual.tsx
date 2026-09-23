@@ -20,6 +20,9 @@ const FISH_SURFACE_PADDING = 14;
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
 
+/** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
+const ARTWORK_BOTTOM = 569;
+
 /** Rain feel — tuned live with the on-screen panel, then hardcoded here. */
 const DEFAULT_RAIN = {
   density: 99,
@@ -27,7 +30,8 @@ const DEFAULT_RAIN = {
   length: 1,
   opacity: 0.85,
   wind: 1,
-  sourceY: 300,
+  /** Starts just below the cloud-rain artwork (image bottom ≈ y 569). */
+  sourceY: ARTWORK_BOTTOM + 6,
   spread: 340,
   offsetX: 0,
   offsetY: 0,
@@ -276,8 +280,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           ? randomBetween(extent.left - cfg.spread, extent.left - 30)
           : randomBetween(extent.right + 30, extent.right + cfg.spread);
       }
-      x += cfg.offsetX;
-      const y = cfg.sourceY + cfg.offsetY + randomBetween(-24, 24);
+      const y = cfg.sourceY + randomBetween(-24, 24);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
       const fall = Math.max(60, landY - y);
       const heavy = Math.random() < 0.32;
@@ -402,8 +405,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
           </g>
 
-          {/* Animated rainfall beneath the clouds. */}
-          <g>
+          {/* Animated rainfall beneath the clouds. The whole group is offset so
+              moving the tuner shifts every drop — including ones mid-flight. */}
+          <g transform={`translate(${rain.offsetX} ${rain.offsetY})`}>
             {rains.map((drop) => (
               <g
                 key={drop.id}
@@ -418,10 +422,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                   setRains((current) => current.filter((r) => r.id !== drop.id));
                   const splashId = nextRainId.current;
                   nextRainId.current += 1;
+                  const splashX = drop.landX + rainRef.current.offsetX;
                   if (drop.kind === 'jar') {
-                    setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: drop.landX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
+                    setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
                   } else {
-                    setFloorRipples((current) => [...current.slice(-34), { id: splashId, x: drop.landX, y: drop.landY + randomBetween(-3, 3), duration: randomBetween(.62, .95), rx: randomBetween(7, 13) }]);
+                    setFloorRipples((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY + randomBetween(-3, 3), duration: randomBetween(.62, .95), rx: randomBetween(7, 13) }]);
                   }
                 }}
               >
