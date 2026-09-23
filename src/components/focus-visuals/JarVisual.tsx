@@ -23,13 +23,13 @@ const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
 /** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
 const ARTWORK_BOTTOM = 569;
 
-/** Rain feel — fixed values; only the move offsets are tuned live. */
+/** Rain feel — mostly vertical streaks, gentle fall, minimal sway. */
 const RAIN = {
   density: 260,
-  speed: 1.15,
-  length: 1.7,
-  opacity: 0.95,
-  wind: 0.6,
+  speed: 0.85,
+  length: 1.25,
+  opacity: 0.9,
+  wind: 0.18,
   sourceY: ARTWORK_BOTTOM + 6,
   spread: 380,
 };
@@ -187,9 +187,9 @@ const keyframes = `
   @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
   @keyframes jar-rain-fall {
     0% { transform: translate(var(--x), var(--y)); opacity: 0; }
-    12% { opacity: .7; }
-    28% { opacity: 1; }
-    85% { opacity: 1; }
+    10% { opacity: .6; }
+    22% { opacity: 1; }
+    90% { opacity: 1; }
     100% { transform: translate(calc(var(--x) + var(--wind)), calc(var(--y) + var(--fall))); opacity: 0; }
   }
 `;
@@ -254,10 +254,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         x,
         y,
         fall,
-        duration: randomBetween(1.4, 2.4) / RAIN.speed,
-        length: (heavy ? randomBetween(34, 58) : randomBetween(18, 34)) * RAIN.length,
-        width: (heavy ? randomBetween(1.8, 2.6) : randomBetween(1, 1.7)) * RAIN.length,
-        drift: randomBetween(-18, 18) * RAIN.wind,
+        duration: randomBetween(2.2, 3.2) / RAIN.speed,
+        length: (heavy ? randomBetween(26, 42) : randomBetween(14, 26)) * RAIN.length,
+        width: (heavy ? randomBetween(1.6, 2.2) : randomBetween(0.9, 1.4)) * RAIN.length,
+        drift: randomBetween(-5, 5) * RAIN.wind,
       };
     };
 
