@@ -213,6 +213,8 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
   const [girlReference, setGirlReference] = useState<ObjectTransform>(GIRL_REFERENCE_DEFAULT);
   const [spinOn, setSpinOn] = useState(true);
+  const [editingKey, setEditingKey] = useState<keyof ObjectTransform | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const girlDragOrigin = useRef<{ x: number; y: number } | null>(null);
   const girlChairs = useMemo(
     () => replicateChairs(girlReference, TABLE_CENTER),
@@ -394,28 +396,42 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
                 }
                 className="h-1 accent-lime-300"
               />
-              <input
-                type="number"
-                min={row.min}
-                max={row.max}
-                step="any"
-                value={girlReference[row.key]}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  if (next === '') return;
-                  const parsed = Number(next);
-                  if (Number.isFinite(parsed)) {
-                    setGirlReference((c) => ({ ...c, [row.key]: parsed }));
-                  }
-                }}
-                onBlur={(event) => {
-                  const parsed = Number(event.target.value);
-                  if (!Number.isFinite(parsed)) {
-                    setGirlReference((c) => ({ ...c, [row.key]: girlReference[row.key] }));
-                  }
-                }}
-                className="w-full rounded border border-white/10 bg-black/40 px-1.5 py-1 text-right tabular-nums text-stone-200 outline-none focus:border-lime-300/50"
-              />
+              {editingKey === row.key ? (
+                <input
+                  autoFocus
+                  type="text"
+                  inputMode="decimal"
+                  value={editDraft}
+                  onChange={(event) => setEditDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      const parsed = Number(editDraft);
+                      if (Number.isFinite(parsed)) {
+                        setGirlReference((c) => ({ ...c, [row.key]: parsed }));
+                      }
+                      setEditingKey(null);
+                    } else if (event.key === 'Escape') {
+                      setEditingKey(null);
+                    }
+                  }}
+                  onBlur={() => setEditingKey(null)}
+                  className="w-full rounded border border-lime-300/50 bg-black/60 px-1.5 py-1 text-right tabular-nums text-stone-100 outline-none"
+                />
+              ) : (
+                <button
+                  type="button"
+                  title="Click to type a value"
+                  className="w-full rounded border border-white/10 bg-black/30 px-1.5 py-1 text-right tabular-nums text-stone-400 hover:border-lime-300/40 hover:text-stone-200"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setEditDraft(String(girlReference[row.key]));
+                    setEditingKey(row.key);
+                  }}
+                >
+                  {Number(girlReference[row.key].toFixed(3))}
+                </button>
+              )}
             </label>
           ))}
         </div>
