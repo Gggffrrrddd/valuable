@@ -186,11 +186,11 @@ const keyframes = `
   @keyframes jar-current { from { transform: translateX(-28px); opacity: .08; } to { transform: translateX(32px); opacity: .2; } }
   @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
   @keyframes jar-rain-fall {
-    0% { transform: translate3d(0, 0, 0); opacity: 0; }
-    8% { opacity: .55; }
-    30% { opacity: 1; }
+    0% { transform: translate(var(--x), var(--y)); opacity: 0; }
+    12% { opacity: .7; }
+    28% { opacity: 1; }
     85% { opacity: 1; }
-    100% { transform: translate3d(var(--wind), var(--fall), 0); opacity: 0; }
+    100% { transform: translate(calc(var(--x) + var(--wind)), calc(var(--y) + var(--fall))); opacity: 0; }
   }
 `;
 
@@ -368,10 +368,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
               <g
                 key={drop.id}
                 style={{
+                  '--x': `${drop.x}px`,
+                  '--y': `${drop.y}px`,
                   '--fall': `${drop.fall}px`,
                   '--wind': `${drop.drift}px`,
                   animation: `jar-rain-fall ${drop.duration}s linear forwards`,
-                  transform: `translate(${drop.x}px, ${drop.y}px)`,
                 } as CSSProperties}
                 onAnimationEnd={() => setRains((current) => current.filter((r) => r.id !== drop.id))}
               >
