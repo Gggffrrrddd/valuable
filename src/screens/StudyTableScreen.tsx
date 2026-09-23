@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -7,6 +7,8 @@ import TableScene3D, { type SeatOccupant } from '@/components/circle-table/Table
 import {
   DEFAULT_TABLE_TRANSFORM,
   replicateChairs,
+  roundTransform,
+  SLIDER_ROWS,
   type ObjectTransform,
 } from '@/components/circle-table/transformConfig';
 import { ArrowLeft } from 'lucide-react';
@@ -32,6 +34,9 @@ const CHARACTER_REFERENCE: ObjectTransform = {
   rotationY: -1.82,
   rotationZ: 0,
 };
+
+/** Girl starts at the boy's exact reference so seats line up before tuning. */
+const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE };
 
 /** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
 const CHAIR_REFERENCE: ObjectTransform = {
@@ -203,6 +208,12 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
   const [ownState, setOwnState] = useState<LocalFocusState>(() => readLocalFocusState());
   const openBookTransforms = OPEN_BOOK_TRANSFORMS;
+  const [girlReference, setGirlReference] = useState<ObjectTransform>(GIRL_REFERENCE_DEFAULT);
+  const girlDragOrigin = useRef<{ x: number; y: number } | null>(null);
+  const girlChairs = useMemo(
+    () => replicateChairs(girlReference, TABLE_CENTER),
+    [girlReference],
+  );
 
   useEffect(() => {
     if (!session) return;
@@ -291,6 +302,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           transform={DEFAULT_TABLE_TRANSFORM}
           chairs={CHAIR_SEATS}
           characterTransforms={CHARACTER_CHAIRS}
+          girlTransforms={girlChairs}
           bookTransforms={BOOK_TRANSFORMS}
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
@@ -320,6 +332,89 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           <span className="text-stone-200">{counts.online}</span> online
           <span className="text-stone-700">·</span>
           <span>{counts.away}</span> away
+        </div>
+      </div>
+
+      <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
+        <div className="mb-3">
+          <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Girl character</div>
+          <div className="mt-1 text-xs text-stone-400">Move, size and tilt — Save logs all values</div>
+        </div>
+
+        <div
+          className="mb-3 cursor-move rounded-lg border border-dashed border-lime-300/30 bg-lime-300/[.04] px-3 py-2 text-center text-[10px] text-stone-400"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            girlDragOrigin.current = { x: event.clientX, y: event.clientY };
+          }}
+          onPointerMove={(event) => {
+            if (!girlDragOrigin.current) return;
+            const dx = (event.clientX - girlDragOrigin.current.x) * 0.01;
+            const dy = (event.clientY - girlDragOrigin.current.y) * 0.01;
+            girlDragOrigin.current = { x: event.clientX, y: event.clientY };
+            setGirlReference((current) => ({
+              ...current,
+              positionX: current.positionX + dx,
+              positionY: current.positionY - dy,
+            }));
+          }}
+          onPointerUp={() => {
+            girlDragOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            girlDragOrigin.current = null;
+          }}
+        >
+          ↑↓←→ drag me
+        </div>
+
+        <div className="space-y-2">
+          {SLIDER_ROWS.map((row) => (
+            <label
+              key={row.key}
+              className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]"
+            >
+              <span className="text-stone-500">{row.label}</span>
+              <input
+                type="range"
+                min={row.min}
+                max={row.max}
+                step={row.step}
+                value={girlReference[row.key]}
+                onChange={(event) =>
+                  setGirlReference((c) => ({
+                    ...c,
+                    [row.key]: Number(event.target.value),
+                  }))
+                }
+                className="h-1 accent-lime-300"
+              />
+              <span className="text-right tabular-nums text-stone-400">
+                {girlReference[row.key].toFixed(2)}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="flex-1 rounded-lg border border-lime-300/40 bg-lime-300/10 px-2.5 py-1.5 text-[10px] font-bold text-lime-200 hover:bg-lime-300/20"
+            onClick={() => {
+              console.log('GIRL_START');
+              console.log(JSON.stringify(roundTransform(girlReference), null, 2));
+              console.log('GIRL_END');
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-bold text-stone-400 hover:bg-white/5"
+            onClick={() => setGirlReference(GIRL_REFERENCE_DEFAULT)}
+          >
+            Reset
+          </button>
         </div>
       </div>
 

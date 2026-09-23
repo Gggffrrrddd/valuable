@@ -15,6 +15,7 @@ import OpenBooks from './OpenBooks';
 import PenHolders from './PenHolders';
 import Plant from './Plant';
 import SittingCharacter from './SittingCharacter';
+import SittingGirl from './SittingGirl';
 import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
 
@@ -122,12 +123,14 @@ export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
   characterTransforms,
+  girlTransforms,
   bookTransforms,
   openBookTransforms,
   plantTransforms,
   penHolderTransforms,
   chairsVisible = false,
   booksVisible = false,
+  charactersVisible = false,
   wallTransform = DEFAULT_WALL_TRANSFORM,
   signTransform = DEFAULT_SIGN_TRANSFORM,
   spin = false,
@@ -140,6 +143,8 @@ export default function TableScene3D({
   chairs?: ObjectTransform[];
   /** Per-seat character chair transforms; one character renders per entry. */
   characterTransforms?: ObjectTransform[];
+  /** Per-seat girl character transforms; one girl renders per entry. */
+  girlTransforms?: ObjectTransform[];
   /** Per-seat book transforms; one book renders per entry. */
   bookTransforms?: ObjectTransform[];
   /** Per-seat open-book transforms; one open book renders per entry. */
@@ -152,6 +157,8 @@ export default function TableScene3D({
   chairsVisible?: boolean;
   /** Hide the closed books without unmounting them. */
   booksVisible?: boolean;
+  /** Hide the boy sitting characters without unmounting them. */
+  charactersVisible?: boolean;
   /** Back-wall image placement (left/right, up/down, zoom). */
   wallTransform?: WallTransform;
   /** "STAY FOCUSED" sign placement (left/right, up/down, size). */
@@ -205,9 +212,17 @@ export default function TableScene3D({
           <group visible={chairsVisible}>
             <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
           </group>
-          {characterTransforms ? (
-            <SittingCharacter
-              transforms={characterTransforms}
+          <group visible={charactersVisible}>
+            {characterTransforms ? (
+              <SittingCharacter
+                transforms={characterTransforms}
+                origin={[transform.positionX, transform.positionZ]}
+              />
+            ) : null}
+          </group>
+          {girlTransforms ? (
+            <SittingGirl
+              transforms={girlTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
