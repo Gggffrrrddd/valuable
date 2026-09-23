@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
@@ -16,11 +17,13 @@ const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
-/**
- * Cloud + rain artwork placement. Tune with the on-screen panel; values captured
- * from Save are hardcoded here as the shipped default.
- */
-const DEFAULT_CLOUD_RAIN = { x: 0, y: 0, scale: 1, opacity: 1 };
+/** Cloud + rain artwork placement (hardcoded from the live tuner). */
+const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
+
+/** Rain falls from below the cloud band down to the jar surface or the floor. */
+const RAIN_SOURCE_Y = 300;
+const FLOOR_Y = 884;
+const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
@@ -33,6 +36,21 @@ const FISH = [
 type FishConfig = (typeof FISH)[number];
 type MaskRow = { left: number; right: number } | null;
 type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
+type FallingRain = {
+  id: number;
+  x: number;
+  y: number;
+  fall: number;
+  duration: number;
+  length: number;
+  width: number;
+  drift: number;
+  kind: 'jar' | 'floor';
+  landX: number;
+  landY: number;
+};
+type JarSplash = { id: number; x: number; y: number; duration: number; scale: number };
+type FloorRipple = { id: number; x: number; y: number; duration: number; rx: number };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -168,6 +186,26 @@ const keyframes = `
   @keyframes jar-ripple { to { stroke-dashoffset: -48; } }
   @keyframes jar-current { from { transform: translateX(-28px); opacity: .08; } to { transform: translateX(32px); opacity: .2; } }
   @keyframes jar-fish-bob { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
+  @keyframes jar-rain-fall {
+    0% { transform: translate3d(0, 0, 0); opacity: 0; }
+    10% { opacity: var(--peak, .9); }
+    82% { opacity: var(--peak, .9); }
+    100% { transform: translate3d(var(--wind), var(--fall), 0); opacity: 0; }
+  }
+  @keyframes jar-splash {
+    0% { transform: scale(.3); opacity: 0; }
+    22% { transform: scale(1); opacity: .6; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+  @keyframes jar-floor-ripple {
+    0% { transform: scale(.35); opacity: 0; }
+    26% { transform: scale(1); opacity: .5; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+  @keyframes jar-floor-sheen {
+    0%, 100% { opacity: .05; }
+    50% { opacity: .1; }
+  }
 `;
 
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
@@ -177,13 +215,19 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const svgId = useId().replace(/:/g, '');
   const waterMaskId = `jar-water-alpha-mask-${svgId}`;
   const waterGradientId = `jar-water-depth-${svgId}`;
+  const rainGradientId = `jar-rain-${svgId}`;
+  const floorGradientId = `jar-floor-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
-  const [cloudRain, setCloudRain] = useState(DEFAULT_CLOUD_RAIN);
-  const cloudDragOrigin = useRef<{ x: number; y: number } | null>(null);
+  const [rains, setRains] = useState<FallingRain[]>([]);
+  const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
+  const [floorRipples, setFloorRipples] = useState<FloorRipple[]>([]);
+  const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
-  void running;
+  const waterYRef = useRef(waterY);
+  waterYRef.current = waterY;
+  const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -194,6 +238,64 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  // Constant drizzle while the session runs: many thin streaks at once, split
+  // between drops that land in the jar and drops that land on the floor.
+  useEffect(() => {
+    if (reducedMotion || !running) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const emit = () => {
+      const extent = jarExtentRef.current;
+      const toJar = Math.random() < 0.58;
+      let x: number;
+      if (toJar) {
+        x = randomBetween(extent.left + 16, extent.right - 16);
+      } else {
+        const leftSide = Math.random() < 0.5;
+        x = leftSide
+          ? randomBetween(extent.left - 340, extent.left - 30)
+          : randomBetween(extent.right + 30, extent.right + 340);
+      }
+      const y = RAIN_SOURCE_Y + randomBetween(-24, 24);
+      const landY = toJar ? waterYRef.current : FLOOR_Y;
+      const fall = Math.max(60, landY - y);
+      const heavy = Math.random() < 0.32;
+      const id = nextRainId.current;
+      nextRainId.current += 1;
+      setRains((current) => [
+        ...current.slice(-110),
+        {
+          id,
+          x,
+          y,
+          fall,
+          duration: randomBetween(1.5, 2.6),
+          length: heavy ? randomBetween(26, 44) : randomBetween(13, 26),
+          width: heavy ? randomBetween(1.6, 2.4) : randomBetween(0.9, 1.5),
+          drift: randomBetween(-16, 16),
+          kind: toJar ? 'jar' : 'floor',
+          landX: x,
+          landY,
+        },
+      ]);
+    };
+
+    const schedule = () => {
+      if (cancelled) return;
+      timer = setTimeout(() => {
+        emit();
+        if (Math.random() < 0.55) emit();
+        schedule();
+      }, randomBetween(58, 140));
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [reducedMotion, running]);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,6 +323,19 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         rows.push(left === -1 ? null : { left: WATER_IMAGE.x + left, right: WATER_IMAGE.x + right });
       }
       setMaskRows(rows);
+
+      // Widest silhouette row approximates the jar's full horizontal extent.
+      let widest: Exclude<MaskRow, null> | null = null;
+      let widestSpan = 0;
+      for (const row of rows) {
+        if (!row) continue;
+        const span = row.right - row.left;
+        if (span > widestSpan) {
+          widestSpan = span;
+          widest = row;
+        }
+      }
+      if (widest) jarExtentRef.current = { left: widest.left, right: widest.right };
     };
     return () => {
       cancelled = true;
@@ -248,17 +363,52 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
+          <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#eaf7ff" stopOpacity="0" />
+            <stop offset=".28" stopColor="#bfe6fb" stopOpacity=".72" />
+            <stop offset="1" stopColor="#8ed0f2" stopOpacity=".98" />
+          </linearGradient>
+          <linearGradient id={floorGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
+            <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
+          </linearGradient>
         </defs>
 
         <g transform={sceneTransform}>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
-          {/* Cloud + rain artwork (replaces the previous animated system). */}
-          <g
-            transform={`translate(${cloudRain.x} ${cloudRain.y}) scale(${cloudRain.scale})`}
-            opacity={cloudRain.opacity}
-          >
+          {/* Cloud + rain artwork. */}
+          <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
             <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+          </g>
+
+          {/* Animated rainfall beneath the clouds. */}
+          <g>
+            {rains.map((drop) => (
+              <g
+                key={drop.id}
+                style={{
+                  '--fall': `${drop.fall}px`,
+                  '--wind': `${drop.drift}px`,
+                  '--peak': `${drop.kind === 'jar' ? 0.9 : 0.72}`,
+                  animation: `jar-rain-fall ${drop.duration}s linear forwards`,
+                  transform: `translate(${drop.x}px, ${drop.y}px)`,
+                } as CSSProperties}
+                onAnimationEnd={() => {
+                  setRains((current) => current.filter((r) => r.id !== drop.id));
+                  const splashId = nextRainId.current;
+                  nextRainId.current += 1;
+                  if (drop.kind === 'jar') {
+                    setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: drop.landX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
+                  } else {
+                    setFloorRipples((current) => [...current.slice(-34), { id: splashId, x: drop.landX, y: drop.landY + randomBetween(-3, 3), duration: randomBetween(.62, .95), rx: randomBetween(7, 13) }]);
+                  }
+                }}
+              >
+                <rect x={-drop.width / 2} y={0} width={drop.width} height={drop.length} rx={drop.width / 2} fill={`url(#${rainGradientId})`} />
+                <rect x={-0.55} y={drop.length - 6} width={1.1} height={4.5} rx={0.55} fill="#f4fcff" opacity=".7" />
+              </g>
+            ))}
           </g>
 
           {/* Calibrated silhouette: only the reveal rect's top edge rises. */}
@@ -280,84 +430,43 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           <g mask={`url(#${waterMaskId})`}>
             {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
           </g>
+
+          {/* Splashes where drops meet the jar's surface. */}
+          <g mask={`url(#${waterMaskId})`}>
+            {jarSplashes.map((splash) => (
+              <g key={splash.id} style={{ transform: `translate(${splash.x}px, ${splash.y}px)` }}>
+                <g
+                  style={{ animation: `jar-splash ${splash.duration}s ease-out forwards`, transformOrigin: 'center', transformBox: 'fill-box', scale: splash.scale }}
+                  onAnimationEnd={() => setJarSplashes((current) => current.filter((s) => s.id !== splash.id))}
+                >
+                  <ellipse cx="0" cy="0" rx="9" ry="3" fill="none" stroke="#d9f4ff" strokeWidth="1.3" opacity=".7" />
+                  <ellipse cx="0" cy="0" rx="4" ry="1.6" fill="#eafaff" opacity=".5" />
+                </g>
+              </g>
+            ))}
+          </g>
+
+          {/* Floor: small water ripples only — no accumulation, the jar is the
+              only thing that fills. */}
+          <g>
+            <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
+            {floorRipples.map((ripple) => (
+              <g key={ripple.id} style={{ transform: `translate(${ripple.x}px, ${ripple.y}px)` }}>
+                <g
+                  style={{ animation: `jar-floor-ripple ${ripple.duration}s ease-out forwards`, transformOrigin: 'center' }}
+                  onAnimationEnd={() => setFloorRipples((current) => current.filter((r) => r.id !== ripple.id))}
+                >
+                  <ellipse cx="0" cy="0" rx={ripple.rx} ry={ripple.rx * 0.32} fill="none" stroke="#ceeaf7" strokeWidth="1" opacity=".55" />
+                  <ellipse cx="0" cy="0" rx={ripple.rx * 0.5} ry={ripple.rx * 0.16} fill="#e0f3fb" opacity=".18" />
+                </g>
+              </g>
+            ))}
+          </g>
         </g>
       </svg>
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
-
-      {/* Temporary tuner: drag the box or use the sliders, then Save. */}
-      <div style={{ position: 'absolute', right: 16, top: 16, zIndex: 30, width: 272, borderRadius: 16, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(0,0,0,.66)', padding: 16, color: '#d6d3d1', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(0,0,0,.5)', fontFamily: 'inherit' }}>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#bef264' }}>Cloud + rain</div>
-          <div style={{ marginTop: 4, fontSize: 11, color: '#a8a29e' }}>Move, size and fade the artwork</div>
-        </div>
-
-        <div
-          style={{ marginBottom: 12, cursor: 'move', borderRadius: 8, border: '1px dashed rgba(190,242,100,.3)', background: 'rgba(190,242,100,.04)', padding: '8px 12px', textAlign: 'center', fontSize: 10, color: '#a8a29e' }}
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture(event.pointerId);
-            cloudDragOrigin.current = { x: event.clientX, y: event.clientY };
-          }}
-          onPointerMove={(event) => {
-            if (!cloudDragOrigin.current) return;
-            const dx = (event.clientX - cloudDragOrigin.current.x) * 0.6;
-            const dy = (event.clientY - cloudDragOrigin.current.y) * 0.6;
-            cloudDragOrigin.current = { x: event.clientX, y: event.clientY };
-            setCloudRain((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
-          }}
-          onPointerUp={() => {
-            cloudDragOrigin.current = null;
-          }}
-          onPointerCancel={() => {
-            cloudDragOrigin.current = null;
-          }}
-        >
-          ↑↓←→ drag me
-        </div>
-
-        {([
-          { key: 'x', label: 'Move X', min: -900, max: 900, step: 1 },
-          { key: 'y', label: 'Move Y', min: -600, max: 600, step: 1 },
-          { key: 'scale', label: 'Size', min: 0.2, max: 6, step: 0.05 },
-          { key: 'opacity', label: 'Fade', min: 0, max: 1, step: 0.01 },
-        ] as const).map((row) => (
-          <label key={row.key} style={{ display: 'grid', gridTemplateColumns: '4.5rem 1fr 3.5rem', alignItems: 'center', gap: 8, fontSize: 10, marginBottom: 8 }}>
-            <span style={{ color: '#78716c' }}>{row.label}</span>
-            <input
-              type="range"
-              min={row.min}
-              max={row.max}
-              step={row.step}
-              value={cloudRain[row.key]}
-              onChange={(event) => setCloudRain((current) => ({ ...current, [row.key]: Number(event.target.value) }))}
-              style={{ height: 4, accentColor: '#bef264' }}
-            />
-            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#a8a29e' }}>{cloudRain[row.key].toFixed(2)}</span>
-          </label>
-        ))}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button
-            type="button"
-            style={{ flex: 1, borderRadius: 8, border: '1px solid rgba(190,242,100,.4)', background: 'rgba(190,242,100,.1)', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#d9f99d' }}
-            onClick={() => {
-              console.log('CLOUD_RAIN_START');
-              console.log(JSON.stringify({ x: Number(cloudRain.x.toFixed(2)), y: Number(cloudRain.y.toFixed(2)), scale: Number(cloudRain.scale.toFixed(3)), opacity: Number(cloudRain.opacity.toFixed(3)) }, null, 2));
-              console.log('CLOUD_RAIN_END');
-            }}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', padding: '6px 10px', fontSize: 10, fontWeight: 700, color: '#a8a29e' }}
-            onClick={() => setCloudRain(DEFAULT_CLOUD_RAIN)}
-          >
-            Reset
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
