@@ -35,8 +35,11 @@ const CHARACTER_REFERENCE: ObjectTransform = {
   rotationZ: 0,
 };
 
-/** Girl starts at the boy's exact reference so seats line up before tuning. */
-const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE };
+/** Girl scale needs a much wider slider range than the shared default. */
+const GIRL_SLIDER_ROWS = SLIDER_ROWS.map((row) =>
+  row.key === 'scale' ? { ...row, min: 0.2, max: 25, step: 0.1 } : row,
+);
+const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE, scale: 14.8 };
 
 /** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
 const CHAIR_REFERENCE: ObjectTransform = {
@@ -370,7 +373,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
         </div>
 
         <div className="space-y-2">
-          {SLIDER_ROWS.map((row) => (
+          {GIRL_SLIDER_ROWS.map((row) => (
             <label
               key={row.key}
               className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-[10px]"
