@@ -348,10 +348,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
+          {/* Exact palette from the removed splash/floor bubbles. */}
           <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#f7fdff" stopOpacity=".18" />
-            <stop offset=".45" stopColor="#dff6ff" stopOpacity=".52" />
-            <stop offset="1" stopColor="#bdeaff" stopOpacity={RAIN.opacity * 0.62} />
+            <stop offset="0" stopColor="#eafaff" stopOpacity=".2" />
+            <stop offset=".32" stopColor="#d9f4ff" stopOpacity=".72" />
+            <stop offset=".68" stopColor="#ceeaf7" stopOpacity=".9" />
+            <stop offset="1" stopColor="#e0f3fb" stopOpacity={RAIN.opacity} />
           </linearGradient>
         </defs>
 
@@ -378,23 +380,26 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                 onAnimationEnd={() => setRains((current) => current.filter((r) => r.id !== drop.id))}
               >
                 <g>
-                  {/* Translucent water crystal: glassy body + specular glint. */}
-                  <rect
-                    x={-drop.width / 2}
-                    y={0}
-                    width={drop.width}
-                    height={drop.length}
-                    rx={drop.width / 2}
+                  {/* Geometric drop: sharp point at the top, wide rounded base
+                      that tapers smoothly — exact bubble palette. */}
+                  <path
+                    d={
+                      drop.length > drop.width
+                        ? `M 0 0 C ${drop.width * 0.1} ${drop.length * 0.32} ${drop.width / 2} ${drop.length * 0.52} ${drop.width / 2} ${drop.length - drop.width / 2} A ${drop.width / 2} ${drop.width / 2} 0 0 1 ${-drop.width / 2} ${drop.length - drop.width / 2} C ${-drop.width / 2} ${drop.length * 0.52} ${-drop.width * 0.1} ${drop.length * 0.32} 0 0 Z`
+                        : `M 0 0 C ${drop.width * 0.4} ${drop.length * 0.4} ${drop.width / 2} ${drop.length * 0.6} 0 ${drop.length} C ${-drop.width / 2} ${drop.length * 0.6} ${-drop.width * 0.4} ${drop.length * 0.4} 0 0 Z`
+                    }
                     fill={`url(#${rainGradientId})`}
-                    stroke="rgba(255,255,255,.55)"
-                    strokeWidth={0.45}
+                    stroke="#d9f4ff"
+                    strokeWidth={0.5}
+                    strokeLinejoin="round"
                   />
                   <ellipse
-                    cx={-drop.width * 0.14}
-                    cy={drop.length * 0.2}
-                    rx={Math.max(0.35, drop.width * 0.16)}
-                    ry={Math.max(1.4, drop.length * 0.1)}
-                    fill="rgba(255,255,255,.8)"
+                    cx={-drop.width * 0.12}
+                    cy={drop.length * 0.62}
+                    rx={Math.max(0.3, drop.width * 0.15)}
+                    ry={Math.max(1.2, drop.length * 0.08)}
+                    fill="#f4fcff"
+                    opacity=".75"
                   />
                 </g>
               </g>
