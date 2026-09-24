@@ -370,12 +370,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          {/* Exact bubble palette — same hexes as jar splash + floor ripple. */}
+          {/* Rain streak body only — pale cyan-white to match splash bubbles. */}
           <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#eafaff" stopOpacity=".55" />
             <stop offset=".34" stopColor="#d9f4ff" stopOpacity=".85" />
-            <stop offset=".7" stopColor="#ceeaf7" stopOpacity=".95" />
-            <stop offset="1" stopColor="#e0f3fb" stopOpacity={RAIN.opacity} />
+            <stop offset=".7" stopColor="#d9f4ff" stopOpacity=".95" />
+            <stop offset="1" stopColor="#eafaff" stopOpacity={RAIN.opacity} />
           </linearGradient>
           <linearGradient id={floorGradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
