@@ -370,12 +370,13 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          {/* Rain streak body only — pale cyan-white to match splash bubbles. */}
+          {/* Soft, translucent rain streak — fades at both tips like the ripples. */}
           <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#eafaff" stopOpacity=".55" />
-            <stop offset=".34" stopColor="#d9f4ff" stopOpacity=".85" />
-            <stop offset=".7" stopColor="#d9f4ff" stopOpacity=".95" />
-            <stop offset="1" stopColor="#eafaff" stopOpacity={RAIN.opacity} />
+            <stop offset="0" stopColor="#eafaff" stopOpacity="0" />
+            <stop offset=".15" stopColor="#eafaff" stopOpacity=".5" />
+            <stop offset=".5" stopColor="#d9f4ff" stopOpacity=".6" />
+            <stop offset=".85" stopColor="#eafaff" stopOpacity=".5" />
+            <stop offset="1" stopColor="#eafaff" stopOpacity="0" />
           </linearGradient>
           <linearGradient id={floorGradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
@@ -425,9 +426,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                         : `M 0 0 C ${drop.width * 0.4} ${drop.length * 0.4} ${drop.width / 2} ${drop.length * 0.6} 0 ${drop.length} C ${-drop.width / 2} ${drop.length * 0.6} ${-drop.width * 0.4} ${drop.length * 0.4} 0 0 Z`
                     }
                     fill={`url(#${rainGradientId})`}
-                    stroke="#d9f4ff"
-                    strokeWidth={0.6}
-                    strokeLinejoin="round"
+                    opacity=".42"
                   />
                   <ellipse
                     cx={-drop.width * 0.12}
@@ -435,7 +434,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                     rx={Math.max(0.3, drop.width * 0.16)}
                     ry={Math.max(1.2, drop.length * 0.09)}
                     fill="#eafaff"
-                    opacity=".7"
+                    opacity=".35"
                   />
                 </g>
               </g>
