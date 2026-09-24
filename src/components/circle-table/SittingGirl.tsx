@@ -3,7 +3,7 @@ import type { Group } from 'three';
 import { useModelLoader } from '@/components/focus-visuals/model-core';
 import type { ObjectTransform } from './transformConfig';
 
-const GIRL_URL = '/visuals/table/girl-project.glb';
+const GIRL_URL = '/visuals/table/girl_project_chair_polished.glb';
 
 /**
  * Girl character chairs: same staging/orbit pattern as SittingCharacter,
