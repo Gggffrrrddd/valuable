@@ -15,6 +15,7 @@ import OpenBooks from './OpenBooks';
 import PenHolders from './PenHolders';
 import Plant from './Plant';
 import SittingCharacter from './SittingCharacter';
+import SittingGirl from './SittingGirl';
 import type { ObjectTransform } from './transformConfig';
 import type { SeatOccupant } from './TableScene';
 
@@ -122,6 +123,7 @@ export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
   characterTransforms,
+  girlTransforms,
   bookTransforms,
   openBookTransforms,
   plantTransforms,
@@ -141,6 +143,8 @@ export default function TableScene3D({
   chairs?: ObjectTransform[];
   /** Per-seat character chair transforms; one character renders per entry. */
   characterTransforms?: ObjectTransform[];
+  /** Per-seat girl character transforms; one girl renders per entry. */
+  girlTransforms?: ObjectTransform[];
   /** Per-seat book transforms; one book renders per entry. */
   bookTransforms?: ObjectTransform[];
   /** Per-seat open-book transforms; one open book renders per entry. */
@@ -216,6 +220,12 @@ export default function TableScene3D({
               />
             ) : null}
           </group>
+          {girlTransforms ? (
+            <SittingGirl
+              transforms={girlTransforms}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
           <group visible={booksVisible}>
             {bookTransforms ? (
               <Books
