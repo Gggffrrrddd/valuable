@@ -51,7 +51,9 @@ const FISH = [
 type FishConfig = (typeof FISH)[number];
 type MaskRow = { left: number; right: number } | null;
 type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
-type FallingRain = { id: number; x: number; y: number; fall: number; duration: number; length: number; width: number; drift: number };
+type FallingRain = { id: number; x: number; y: number; fall: number; duration: number; length: number; width: number; drift: number; kind: 'jar' | 'floor'; landX: number; landY: number };
+type JarSplash = { id: number; x: number; y: number; duration: number; scale: number };
+type FloorRipple = { id: number; x: number; y: number; duration: number; rx: number };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -194,6 +196,20 @@ const keyframes = `
     90% { opacity: 1; }
     100% { transform: translate(calc(var(--x) + var(--wind)), calc(var(--y) + var(--fall))); opacity: 0; }
   }
+  @keyframes jar-splash {
+    0% { transform: scale(.3); opacity: 0; }
+    22% { transform: scale(1); opacity: .6; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+  @keyframes jar-floor-ripple {
+    0% { transform: scale(.35); opacity: 0; }
+    26% { transform: scale(1); opacity: .5; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+  @keyframes jar-floor-sheen {
+    0%, 100% { opacity: .05; }
+    50% { opacity: .1; }
+  }
 `;
 
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
@@ -204,10 +220,13 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterMaskId = `jar-water-alpha-mask-${svgId}`;
   const waterGradientId = `jar-water-depth-${svgId}`;
   const rainGradientId = `jar-rain-${svgId}`;
+  const floorGradientId = `jar-floor-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
+  const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
+  const [floorRipples, setFloorRipples] = useState<FloorRipple[]>([]);
   const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
   const waterYRef = useRef(waterY);
@@ -260,6 +279,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         length: (heavy ? randomBetween(26, 42) : randomBetween(14, 26)) * RAIN.length,
         width: (heavy ? randomBetween(1.6, 2.2) : randomBetween(0.9, 1.4)) * RAIN.length,
         drift: randomBetween(-5, 5) * RAIN.wind,
+        kind: (toJar ? 'jar' : 'floor') as 'jar' | 'floor',
+        landX: x,
+        landY,
       };
     };
 
@@ -355,6 +377,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".68" stopColor="#ceeaf7" stopOpacity=".9" />
             <stop offset="1" stopColor="#e0f3fb" stopOpacity={RAIN.opacity} />
           </linearGradient>
+          <linearGradient id={floorGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
+            <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
+          </linearGradient>
         </defs>
 
         <g transform={sceneTransform}>
@@ -377,7 +403,17 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                   '--wind': `${drop.drift}px`,
                   animation: `jar-rain-fall ${drop.duration}s linear forwards`,
                 } as CSSProperties}
-                onAnimationEnd={() => setRains((current) => current.filter((r) => r.id !== drop.id))}
+                onAnimationEnd={() => {
+                  setRains((current) => current.filter((r) => r.id !== drop.id));
+                  const splashId = nextRainId.current;
+                  nextRainId.current += 1;
+                  const splashX = drop.landX + RAIN_OFFSET.x;
+                  if (drop.kind === 'jar') {
+                    setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
+                  } else {
+                    setFloorRipples((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY + randomBetween(-3, 3), duration: randomBetween(.62, .95), rx: randomBetween(7, 13) }]);
+                  }
+                }}
               >
                 <g>
                   {/* Geometric drop: sharp point at the top, wide rounded base
@@ -406,6 +442,21 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             ))}
           </g>
 
+          {/* Splashes where drops meet the jar's surface. */}
+          <g mask={`url(#${waterMaskId})`}>
+            {jarSplashes.map((splash) => (
+              <g key={splash.id} style={{ transform: `translate(${splash.x}px, ${splash.y}px)` }}>
+                <g
+                  style={{ animation: `jar-splash ${splash.duration}s ease-out forwards`, transformOrigin: 'center', transformBox: 'fill-box', scale: splash.scale }}
+                  onAnimationEnd={() => setJarSplashes((current) => current.filter((s) => s.id !== splash.id))}
+                >
+                  <ellipse cx="0" cy="0" rx="9" ry="3" fill="none" stroke="#d9f4ff" strokeWidth="1.3" opacity=".7" />
+                  <ellipse cx="0" cy="0" rx="4" ry="1.6" fill="#eafaff" opacity=".5" />
+                </g>
+              </g>
+            ))}
+          </g>
+
           {/* Calibrated silhouette: only the reveal rect's top edge rises. */}
           <g mask={`url(#${waterMaskId})`}>
             <rect x={WATER_IMAGE.x} y={waterY} width={WATER_IMAGE.width} height={WATER_BASE - waterY} fill={`url(#${waterGradientId})`} style={{ transition: reducedMotion ? undefined : 'y 1s linear, height 1s linear' }} />
@@ -424,6 +475,23 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
           <g mask={`url(#${waterMaskId})`}>
             {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
+          </g>
+
+          {/* Floor: small water ripples only — no accumulation, the jar is the
+              only thing that fills. */}
+          <g>
+            <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
+            {floorRipples.map((ripple) => (
+              <g key={ripple.id} style={{ transform: `translate(${ripple.x}px, ${ripple.y}px)` }}>
+                <g
+                  style={{ animation: `jar-floor-ripple ${ripple.duration}s ease-out forwards`, transformOrigin: 'center' }}
+                  onAnimationEnd={() => setFloorRipples((current) => current.filter((r) => r.id !== ripple.id))}
+                >
+                  <ellipse cx="0" cy="0" rx={ripple.rx} ry={ripple.rx * 0.32} fill="none" stroke="#ceeaf7" strokeWidth="1" opacity=".55" />
+                  <ellipse cx="0" cy="0" rx={ripple.rx * 0.5} ry={ripple.rx * 0.16} fill="#e0f3fb" opacity=".18" />
+                </g>
+              </g>
+            ))}
           </g>
         </g>
       </svg>
