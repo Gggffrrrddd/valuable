@@ -36,15 +36,15 @@ const CHARACTER_REFERENCE: ObjectTransform = {
 };
 
 /**
- * Girl model zoom is a slider (not a camera zoom): Size starts at 5× and the
+ * Girl model zoom is a slider (not a camera zoom): Size starts at 100× and the
  * range is wide enough to fine-tune the polished GLB on the live scene.
  */
 const GIRL_SLIDER_ROWS = SLIDER_ROWS.map((row) =>
   row.key === 'scale'
-    ? { ...row, label: 'Zoom', min: 0.1, max: 50, step: 0.1 }
+    ? { ...row, label: 'Zoom', min: 0.1, max: 150, step: 0.5 }
     : row,
 );
-const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE, scale: 5 };
+const GIRL_REFERENCE_DEFAULT: ObjectTransform = { ...CHARACTER_REFERENCE, scale: 100 };
 
 /** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
 const CHAIR_REFERENCE: ObjectTransform = {
@@ -350,7 +350,7 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
       <div className="pointer-events-auto absolute right-4 top-20 z-30 w-72 rounded-2xl border border-white/[.08] bg-black/60 p-4 text-stone-300 shadow-2xl backdrop-blur-xl sm:right-6 sm:top-24">
         <div className="mb-3">
           <div className="text-[10px] font-bold uppercase tracking-[.18em] text-lime-300">Girl character</div>
-          <div className="mt-1 text-xs text-stone-400">Zoom starts at 5× — drag or type exact values</div>
+          <div className="mt-1 text-xs text-stone-400">Zoom starts at 100× — drag or type exact values</div>
         </div>
 
         <div
