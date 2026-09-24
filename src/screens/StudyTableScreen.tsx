@@ -65,6 +65,14 @@ const CHARACTER_CHAIRS = replicateChairs(CHARACTER_REFERENCE, TABLE_CENTER);
 const CHAIR_SEATS = replicateChairs(CHAIR_REFERENCE, TABLE_CENTER);
 const GIRL_CHAIRS = replicateChairs(GIRL_REFERENCE, TABLE_CENTER);
 
+/**
+ * Seat order around the table: boy, girl, empty, boy, girl, empty.
+ * Only the matching transforms are passed per slot so the rest stay hidden.
+ */
+const SEAT_BOYS = [CHARACTER_CHAIRS[0], CHARACTER_CHAIRS[3]];
+const SEAT_GIRLS = [GIRL_CHAIRS[1], GIRL_CHAIRS[4]];
+const SEAT_EMPTIES = [CHAIR_SEATS[2], CHAIR_SEATS[5]];
+
 /** Final hand-tuned books, one per seat (values captured from the live tuner). */
 const BOOK_TRANSFORMS: ObjectTransform[] = [
   {
@@ -301,13 +309,15 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           self={self}
           friends={seatedFriends}
           transform={DEFAULT_TABLE_TRANSFORM}
-          chairs={CHAIR_SEATS}
-          characterTransforms={CHARACTER_CHAIRS}
-          girlTransforms={GIRL_CHAIRS}
+          chairs={SEAT_EMPTIES}
+          characterTransforms={SEAT_BOYS}
+          girlTransforms={SEAT_GIRLS}
           bookTransforms={BOOK_TRANSFORMS}
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
+          chairsVisible
+          charactersVisible
           spin
         />
       </div>
