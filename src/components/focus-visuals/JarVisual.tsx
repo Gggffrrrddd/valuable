@@ -53,7 +53,6 @@ type MaskRow = { left: number; right: number } | null;
 type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
 type FallingRain = { id: number; x: number; y: number; fall: number; duration: number; length: number; width: number; drift: number; kind: 'jar' | 'floor'; landX: number; landY: number };
 type JarSplash = { id: number; x: number; y: number; duration: number; scale: number };
-type FloorRipple = { id: number; x: number; y: number; duration: number; rx: number };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -201,11 +200,6 @@ const keyframes = `
     22% { transform: scale(1); opacity: .6; }
     100% { transform: scale(1.9); opacity: 0; }
   }
-  @keyframes jar-floor-ripple {
-    0% { transform: scale(.35); opacity: 0; }
-    26% { transform: scale(1); opacity: .5; }
-    100% { transform: scale(2.1); opacity: 0; }
-  }
   @keyframes jar-floor-sheen {
     0%, 100% { opacity: .05; }
     50% { opacity: .1; }
@@ -226,7 +220,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
-  const [floorRipples, setFloorRipples] = useState<FloorRipple[]>([]);
   const nextRainId = useRef(0);
   const waterY = WATER_BASE - value * (WATER_BASE - WATER_TOP);
   const waterYRef = useRef(waterY);
@@ -406,14 +399,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                 } as CSSProperties}
                 onAnimationEnd={() => {
                   setRains((current) => current.filter((r) => r.id !== drop.id));
+                  if (drop.kind !== 'jar') return;
                   const splashId = nextRainId.current;
                   nextRainId.current += 1;
                   const splashX = drop.landX + RAIN_OFFSET.x;
-                  if (drop.kind === 'jar') {
-                    setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
-                  } else {
-                    setFloorRipples((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY + randomBetween(-3, 3), duration: randomBetween(.62, .95), rx: randomBetween(7, 13) }]);
-                  }
+                  setJarSplashes((current) => [...current.slice(-34), { id: splashId, x: splashX, y: drop.landY, duration: randomBetween(.5, .72), scale: randomBetween(.8, 1.5) }]);
                 }}
               >
                 <g>
@@ -476,21 +466,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             {FISH.map((fish) => <SwimmingFish key={`${fish.side}-${fish.y}`} fish={fish} maskRows={maskRows} waterY={waterY} reducedMotion={reducedMotion} />)}
           </g>
 
-          {/* Floor: small water ripples only — no accumulation, the jar is the
-              only thing that fills. */}
+          {/* Floor sheen glow under the jar (no ground ripples). */}
           <g>
             <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
-            {floorRipples.map((ripple) => (
-              <g key={ripple.id} style={{ transform: `translate(${ripple.x}px, ${ripple.y}px)` }}>
-                <g
-                  style={{ animation: `jar-floor-ripple ${ripple.duration}s ease-out forwards`, transformOrigin: 'center' }}
-                  onAnimationEnd={() => setFloorRipples((current) => current.filter((r) => r.id !== ripple.id))}
-                >
-                  <ellipse cx="0" cy="0" rx={ripple.rx} ry={ripple.rx * 0.32} fill="none" stroke="#ceeaf7" strokeWidth="1" opacity=".55" />
-                  <ellipse cx="0" cy="0" rx={ripple.rx * 0.5} ry={ripple.rx * 0.16} fill="#e0f3fb" opacity=".18" />
-                </g>
-              </g>
-            ))}
           </g>
         </g>
       </svg>
