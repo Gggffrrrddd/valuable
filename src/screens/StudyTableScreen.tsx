@@ -44,7 +44,7 @@ const GIRL_REFERENCE: ObjectTransform = {
   rotationZ: 0,
 };
 
-/** Tuned reference for the empty OBJ chairs (kept invisible, still in scene). */
+/** Tuned reference for the empty OBJ chairs (kept hidden, still mounted). */
 const CHAIR_REFERENCE: ObjectTransform = {
   scale: 0.74,
   positionX: 1.18,
@@ -308,7 +308,6 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
-          chairsVisible
           spin
         />
       </div>
