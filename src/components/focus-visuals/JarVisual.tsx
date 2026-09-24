@@ -370,11 +370,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset=".84" stopColor="#4a9b8e" stopOpacity=".65" />
             <stop offset="1" stopColor="#3c867c" stopOpacity=".55" />
           </linearGradient>
-          {/* Exact palette from the removed splash/floor bubbles. */}
+          {/* Exact bubble palette — same hexes as jar splash + floor ripple. */}
           <linearGradient id={rainGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#eafaff" stopOpacity=".2" />
-            <stop offset=".32" stopColor="#d9f4ff" stopOpacity=".72" />
-            <stop offset=".68" stopColor="#ceeaf7" stopOpacity=".9" />
+            <stop offset="0" stopColor="#eafaff" stopOpacity=".55" />
+            <stop offset=".34" stopColor="#d9f4ff" stopOpacity=".85" />
+            <stop offset=".7" stopColor="#ceeaf7" stopOpacity=".95" />
             <stop offset="1" stopColor="#e0f3fb" stopOpacity={RAIN.opacity} />
           </linearGradient>
           <linearGradient id={floorGradientId} x1="0" y1="0" x2="0" y2="1">
@@ -426,16 +426,16 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
                     }
                     fill={`url(#${rainGradientId})`}
                     stroke="#d9f4ff"
-                    strokeWidth={0.5}
+                    strokeWidth={0.6}
                     strokeLinejoin="round"
                   />
                   <ellipse
                     cx={-drop.width * 0.12}
                     cy={drop.length * 0.62}
-                    rx={Math.max(0.3, drop.width * 0.15)}
-                    ry={Math.max(1.2, drop.length * 0.08)}
-                    fill="#f4fcff"
-                    opacity=".75"
+                    rx={Math.max(0.3, drop.width * 0.16)}
+                    ry={Math.max(1.2, drop.length * 0.09)}
+                    fill="#eafaff"
+                    opacity=".7"
                   />
                 </g>
               </g>
