@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "generate:table-placeholders": "node scripts/generate-table-placeholders.mjs",
-    "generate:compete-placeholders": "node scripts/generate-compete-placeholders.mjs"
+    "generate:compete-placeholders": "node scripts/generate-compete-placeholders.mjs",
+    "generate:butterfly-placeholders": "node scripts/generate-butterfly-placeholders.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^8.18.0",
