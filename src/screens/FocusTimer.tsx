@@ -230,6 +230,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
   // Butterfly theme: full-bleed artwork only — no timer chrome for now.
+  const [butterflyArt, setButterflyArt] = useState({ scale: 1, positionX: 0, positionY: 0 });
+
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
@@ -239,7 +241,34 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           aria-hidden="true"
           draggable={false}
           className="absolute inset-0 h-full w-full select-none object-cover"
+          style={{
+            transform: `translate(${butterflyArt.positionX}%, ${butterflyArt.positionY}%) scale(${butterflyArt.scale})`,
+          }}
         />
+        <div className="absolute bottom-3 right-3 z-20 w-44 space-y-2.5 rounded-[1rem] border border-white/[.07] bg-black/40 p-3 backdrop-blur-xl">
+          <div className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Tuner</div>
+          {([
+            { key: 'scale', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.5 },
+            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.5 },
+          ] as const).map((row) => (
+            <label key={row.key} className="block">
+              <span className="flex items-center justify-between text-[10px] font-bold text-stone-300">
+                {row.label}
+                <span className="font-mono text-[9px] text-stone-500">{butterflyArt[row.key].toFixed(1)}</span>
+              </span>
+              <input
+                type="range"
+                min={row.min}
+                max={row.max}
+                step={row.step}
+                value={butterflyArt[row.key]}
+                onChange={(e) => setButterflyArt((t) => ({ ...t, [row.key]: Number(e.target.value) }))}
+                className="mt-1 w-full accent-lime-300"
+              />
+            </label>
+          ))}
+        </div>
       </div>
     );
   }
