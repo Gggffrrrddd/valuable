@@ -8,7 +8,7 @@ interface MountainTunerProps {
 /** Live placement tuner for the Everest model: zoom, left/right, up/down. */
 export default function MountainTuner({ transform, onChange }: MountainTunerProps) {
   return (
-    <div className="space-y-4 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
+    <div className="max-h-[70vh] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
       <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
         Mountain tuner
       </div>

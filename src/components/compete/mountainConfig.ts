@@ -51,17 +51,23 @@ export const DEFAULT_MOUNTAIN_TRANSFORM: MountainTransform = {
   cameraHeight: 2.5,
 };
 
-/** Tuner slider rows: zoom (scale), left/right (X), up/down (Y). */
+/** Full tuner: zoom, move X/Y/Z, tilt/turn, camera distance and height. */
 export const MOUNTAIN_SLIDER_ROWS: {
-  key: keyof Pick<MountainTransform, 'scale' | 'positionX' | 'positionY'>;
+  key: keyof MountainTransform;
   label: string;
   min: number;
   max: number;
   step: number;
 }[] = [
   { key: 'scale', label: 'Zoom', min: 0.2, max: 4, step: 0.01 },
-  { key: 'positionX', label: 'Left / Right', min: -5, max: 5, step: 0.01 },
-  { key: 'positionY', label: 'Up / Down', min: -3, max: 4, step: 0.01 },
+  { key: 'positionX', label: 'Move X', min: -5, max: 5, step: 0.01 },
+  { key: 'positionY', label: 'Move Y', min: -3, max: 4, step: 0.01 },
+  { key: 'positionZ', label: 'Move Z', min: -5, max: 5, step: 0.01 },
+  { key: 'rotationX', label: 'Tilt X', min: -3.14, max: 3.14, step: 0.01 },
+  { key: 'rotationY', label: 'Turn Y', min: -3.14, max: 3.14, step: 0.01 },
+  { key: 'rotationZ', label: 'Tilt Z', min: -3.14, max: 3.14, step: 0.01 },
+  { key: 'cameraDistance', label: 'Camera Distance', min: 1, max: 12, step: 0.01 },
+  { key: 'cameraHeight', label: 'Camera Height', min: -2, max: 8, step: 0.01 },
 ];
 
 /**
