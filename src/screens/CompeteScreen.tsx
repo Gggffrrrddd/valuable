@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Mountain, Flag, Clock3, Loader2, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { ArrowLeft, Mountain, Flag, Clock3, Loader2, TrendingUp, ArrowUpRight, Lock } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchActiveGoal,
@@ -63,6 +63,57 @@ export default function CompeteScreen() {
         <h2 className="page-title">Look how much you have climbed</h2>
         <p className="page-copy mb-7">One honest day of tracked focus moves you one step up the mountain.</p>
 
+        {/* Progress, exam and today's hours live on the entry screen. */}
+        {goal && (
+          <div className="mb-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
+                <span className="flex items-center gap-2"><Mountain className="h-3.5 w-3.5" /> Progress</span>
+                <span className="flex items-center gap-1 text-lime-300">
+                  <TrendingUp className="h-3 w-3" /> {Math.min(100, Math.round((goal.current_step / goal.total_steps) * 100))}%
+                </span>
+              </div>
+              <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
+                {goal.current_step}
+                <span className="text-lg text-stone-600"> / {goal.total_steps}</span>
+              </div>
+            </div>
+
+            <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
+                <Flag className="h-3.5 w-3.5" /> Exam
+              </div>
+              <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
+                {daysUntil(goal.exam_date)}
+              </div>
+              <div className="mt-1 text-xs text-stone-600">days remaining</div>
+            </div>
+
+            <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
+                <Clock3 className="h-3.5 w-3.5" /> Today
+              </div>
+              <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
+                {todayHours.toFixed(1)}
+                <span className="text-lg text-stone-600"> / {goal.daily_target_hours}h</span>
+              </div>
+              <div className="mt-1 text-xs text-stone-600">tracked focus vs target</div>
+            </div>
+          </div>
+        )}
+
+        {/* Setup lives here too; once set, the details lock. */}
+        {!goal && <SetupForm onCreated={setGoal} />}
+        {goal && (
+          <div className="mb-6 flex items-center gap-3 rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-4 text-xs text-stone-500">
+            <Lock className="h-3.5 w-3.5 text-stone-600" />
+            <span>
+              Goal locked — exam {goal.exam_date}, {goal.daily_target_hours}h daily target.
+              Set once so the climb stays honest.
+            </span>
+          </div>
+        )}
+
         <button
           onClick={() => setOpen(true)}
           className="group flex w-full items-center justify-between rounded-[1.4rem] border border-lime-300/15 bg-lime-300/[.05] p-5 text-left transition hover:border-lime-300/35 hover:bg-lime-300/[.08] sm:p-6"
@@ -88,69 +139,21 @@ export default function CompeteScreen() {
     );
   }
 
+  // The opened view is the mountain only — nothing else.
   if (!goal) {
     return (
       <ClimbShell onBack={() => setOpen(false)}>
-        <SetupForm onCreated={setGoal} />
+        <div className="flex h-full items-center justify-center pt-16">
+          <MountainScene totalSteps={1} currentStep={0} />
+        </div>
       </ClimbShell>
     );
   }
 
-  const remaining = daysUntil(goal.exam_date);
-  const pct = Math.min(100, Math.round((goal.current_step / goal.total_steps) * 100));
-
   return (
     <ClimbShell onBack={() => setOpen(false)}>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-20 sm:px-6 lg:px-10 lg:pt-24">
-      <div className="px-1">
-        <div className="page-kicker">The climb</div>
-        <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-5xl">
-          Every honest day <span className="text-lime-300">climbs.</span>
-        </h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-stone-400">
-          Hit {goal.daily_target_hours}h of tracked focus in a day and the mountain moves.
-          No check-ins, no claims — only logged sessions count.
-        </p>
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className="flex h-full items-center justify-center px-4 pb-10 pt-16 sm:px-6">
         <MountainScene totalSteps={goal.total_steps} currentStep={goal.current_step} />
-
-        <div className="space-y-3">
-          <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
-              <span className="flex items-center gap-2"><Mountain className="h-3.5 w-3.5" /> Progress</span>
-              <span className="flex items-center gap-1 text-lime-300"><TrendingUp className="h-3 w-3" /> {pct}%</span>
-            </div>
-            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
-              {goal.current_step}
-              <span className="text-lg text-stone-600"> / {goal.total_steps}</span>
-            </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[.06]">
-              <div className="h-full rounded-full bg-lime-300 transition-all" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-
-          <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
-              <Flag className="h-3.5 w-3.5" /> Exam
-            </div>
-            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">{remaining}</div>
-            <div className="mt-1 text-xs text-stone-600">days remaining</div>
-          </div>
-
-          <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
-              <Clock3 className="h-3.5 w-3.5" /> Today
-            </div>
-            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
-              {todayHours.toFixed(1)}
-              <span className="text-lg text-stone-600"> / {goal.daily_target_hours}h</span>
-            </div>
-            <div className="mt-1 text-xs text-stone-600">tracked focus vs target</div>
-          </div>
-        </div>
-      </div>
       </div>
     </ClimbShell>
   );
@@ -202,7 +205,7 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => void }) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 pt-20 sm:px-6 lg:pt-24">
+    <div>
       <div className="page-kicker">Set your climb</div>
       <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-5xl">
         Pick a summit. <span className="text-stone-600">Start climbing.</span>
