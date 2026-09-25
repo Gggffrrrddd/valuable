@@ -229,6 +229,21 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
+  // Butterfly theme: full-bleed artwork only — no timer chrome for now.
+  if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+        <img
+          src="/visuals/butterfly/butterfly-art.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="absolute inset-0 h-full w-full select-none object-cover"
+        />
+      </div>
+    );
+  }
+
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className={`fixed inset-0 z-50 bg-[#090b0a] ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''}`}>
