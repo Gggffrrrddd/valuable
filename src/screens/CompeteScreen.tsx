@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mountain, Flag, Clock3, Loader2 } from 'lucide-react';
+import { Mountain, Flag, Clock3, Loader2, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchActiveGoal,
@@ -68,20 +68,21 @@ export default function CompeteScreen() {
           Every honest day <span className="text-lime-300">climbs.</span>
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-6 text-stone-400">
-          Hit your daily target of {goal.daily_target_hours}h of tracked focus and you rise one
-          step. No manual check-ins — the mountain only moves when you actually study.
+          Hit {goal.daily_target_hours}h of tracked focus in a day and the mountain moves.
+          No check-ins, no claims — only logged sessions count.
         </p>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
         <MountainScene totalSteps={goal.total_steps} currentStep={goal.current_step} />
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-5">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
-              <Mountain className="h-3.5 w-3.5" /> Progress
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
+              <span className="flex items-center gap-2"><Mountain className="h-3.5 w-3.5" /> Progress</span>
+              <span className="flex items-center gap-1 text-lime-300"><TrendingUp className="h-3 w-3" /> {pct}%</span>
             </div>
-            <div className="mt-3 font-display text-3xl font-extrabold text-stone-50">
+            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
               {goal.current_step}
               <span className="text-lg text-stone-600"> / {goal.total_steps}</span>
             </div>
@@ -94,7 +95,7 @@ export default function CompeteScreen() {
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
               <Flag className="h-3.5 w-3.5" /> Exam
             </div>
-            <div className="mt-3 font-display text-3xl font-extrabold text-stone-50">{remaining}</div>
+            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">{remaining}</div>
             <div className="mt-1 text-xs text-stone-600">days remaining</div>
           </div>
 
@@ -102,7 +103,7 @@ export default function CompeteScreen() {
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
               <Clock3 className="h-3.5 w-3.5" /> Today
             </div>
-            <div className="mt-3 font-display text-3xl font-extrabold text-stone-50">
+            <div className="mt-3 font-display text-4xl font-extrabold tracking-[-.03em] text-stone-50">
               {todayHours.toFixed(1)}
               <span className="text-lg text-stone-600"> / {goal.daily_target_hours}h</span>
             </div>

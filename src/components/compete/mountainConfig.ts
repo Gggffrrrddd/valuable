@@ -10,6 +10,22 @@ export interface StepPosition {
   y: number;
 }
 
+/** Layered background ridges, drawn far-to-near for atmospheric depth. */
+export interface Ridge {
+  /** SVG polygon points in the 0-100 scene space. */
+  points: string;
+  fill: string;
+}
+
+export const RIDGES: Ridge[] = [
+  { points: '0,62 9,40 17,50 26,30 34,44 43,26 52,42 61,22 70,38 80,26 90,44 100,34 100,100 0,100', fill: '#161d29' },
+  { points: '0,74 12,56 22,66 33,48 45,62 55,44 66,58 78,46 90,62 100,54 100,100 0,100', fill: '#111722' },
+  { points: '0,86 14,72 27,82 41,66 56,80 70,68 84,80 100,70 100,100 0,100', fill: '#0c1118' },
+];
+
+/** Hero summit used by the front ridge, snow cap, and beacon. */
+export const PEAK = { summitX: 61, summitY: 22 };
+
 /**
  * Winding path from base camp to summit, drawn as a polyline of control
  * points. Step markers are spaced evenly along this polyline, so any
@@ -60,9 +76,3 @@ export function stepPositions(totalSteps: number): StepPosition[] {
   }
   return out;
 }
-
-/** Placeholder asset paths — replace the files, keep the paths. */
-export const COMPETE_ASSETS = {
-  stepMarker: '/visuals/compete/step-marker.png',
-  climber: '/visuals/compete/climber.png',
-} as const;
