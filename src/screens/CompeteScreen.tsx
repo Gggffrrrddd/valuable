@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mountain, Flag, Clock3, Loader2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Mountain, Flag, Clock3, Loader2, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchActiveGoal,
@@ -14,6 +14,7 @@ import MountainScene from '@/components/compete/MountainScene';
 
 export default function CompeteScreen() {
   const { session } = useAuth();
+  const [open, setOpen] = useState(false);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayHours, setTodayHours] = useState(0);
@@ -53,15 +54,54 @@ export default function CompeteScreen() {
     );
   }
 
+  // Entry state mirrors the Friend Circle "study table" card: the climb view
+  // (setup + mountain) only opens on click.
+  if (!open) {
+    return (
+      <div className="page-wrap pb-24">
+        <div className="page-kicker">Compete</div>
+        <h2 className="page-title">Look how much you have climbed</h2>
+        <p className="page-copy mb-7">One honest day of tracked focus moves you one step up the mountain.</p>
+
+        <button
+          onClick={() => setOpen(true)}
+          className="group flex w-full items-center justify-between rounded-[1.4rem] border border-lime-300/15 bg-lime-300/[.05] p-5 text-left transition hover:border-lime-300/35 hover:bg-lime-300/[.08] sm:p-6"
+        >
+          <span className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime-300/10 text-lime-300">
+              <Mountain className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="font-display block text-sm font-bold text-stone-100">
+                {goal ? 'Your mountain' : 'Start your climb'}
+              </span>
+              <span className="mt-0.5 block text-xs leading-5 text-stone-500">
+                {goal
+                  ? `${goal.current_step} of ${goal.total_steps} steps climbed — open your mountain.`
+                  : 'Set your exam date and daily target to begin.'}
+              </span>
+            </span>
+          </span>
+          <ArrowUpRight className="h-4 w-4 shrink-0 text-lime-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </button>
+      </div>
+    );
+  }
+
   if (!goal) {
-    return <SetupForm onCreated={setGoal} />;
+    return (
+      <ClimbShell onBack={() => setOpen(false)}>
+        <SetupForm onCreated={setGoal} />
+      </ClimbShell>
+    );
   }
 
   const remaining = daysUntil(goal.exam_date);
   const pct = Math.min(100, Math.round((goal.current_step / goal.total_steps) * 100));
 
   return (
-    <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
+    <ClimbShell onBack={() => setOpen(false)}>
+      <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-20 sm:px-6 lg:px-10 lg:pt-24">
       <div className="px-1">
         <div className="page-kicker">The climb</div>
         <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-5xl">
@@ -111,6 +151,26 @@ export default function CompeteScreen() {
           </div>
         </div>
       </div>
+      </div>
+    </ClimbShell>
+  );
+}
+
+/** Full-screen climb view, mirroring StudyTableScreen's fixed chrome. */
+function ClimbShell({ onBack, children }: { onBack: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#090b0a]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-4 sm:p-6">
+        <button
+          onClick={onBack}
+          className="icon-button pointer-events-auto flex h-10 items-center gap-2 px-3.5 text-xs font-bold"
+          aria-label="Back to Compete"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Compete
+        </button>
+      </div>
+      {children}
     </div>
   );
 }
@@ -142,7 +202,7 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => void }) {
   };
 
   return (
-    <div className="mx-auto max-w-xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
+    <div className="mx-auto w-full max-w-xl px-4 pt-20 sm:px-6 lg:pt-24">
       <div className="page-kicker">Set your climb</div>
       <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-5xl">
         Pick a summit. <span className="text-stone-600">Start climbing.</span>
