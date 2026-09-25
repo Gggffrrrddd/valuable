@@ -11,6 +11,12 @@ import {
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
 import MountainScene from '@/components/compete/MountainScene';
+import EverestScene3D from '@/components/compete/EverestScene3D';
+import MountainTuner from '@/components/compete/MountainTuner';
+import {
+  DEFAULT_MOUNTAIN_TRANSFORM,
+  type MountainTransform,
+} from '@/components/compete/mountainConfig';
 
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -18,6 +24,9 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayHours, setTodayHours] = useState(0);
+  const [mountainTransform, setMountainTransform] = useState<MountainTransform>(
+    DEFAULT_MOUNTAIN_TRANSFORM,
+  );
 
   useEffect(() => {
     if (!session) return;
@@ -152,8 +161,14 @@ export default function CompeteScreen() {
 
   return (
     <ClimbShell onBack={() => setOpen(false)}>
-      <div className="flex h-full items-center justify-center px-4 pb-10 pt-16 sm:px-6">
-        <MountainScene totalSteps={goal.total_steps} currentStep={goal.current_step} />
+      <div className="absolute inset-0">
+        <EverestScene3D transform={mountainTransform} />
+      </div>
+      <div className="absolute bottom-4 right-4 z-20 w-60">
+        <MountainTuner
+          transform={mountainTransform}
+          onChange={(patch) => setMountainTransform((t) => ({ ...t, ...patch }))}
+        />
       </div>
     </ClimbShell>
   );

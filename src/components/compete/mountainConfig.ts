@@ -26,6 +26,44 @@ export const RIDGES: Ridge[] = [
 /** Hero summit used by the front ridge, snow cap, and beacon. */
 export const PEAK = { summitX: 61, summitY: 22 };
 
+/** 3D mountain transform: scene placement tuned via the live tuner. */
+export interface MountainTransform {
+  scale: number;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  rotationX: number;
+  rotationY: number;
+  rotationZ: number;
+  cameraDistance: number;
+  cameraHeight: number;
+}
+
+export const DEFAULT_MOUNTAIN_TRANSFORM: MountainTransform = {
+  scale: 1,
+  positionX: 0,
+  positionY: 0,
+  positionZ: 0,
+  rotationX: 0,
+  rotationY: 0,
+  rotationZ: 0,
+  cameraDistance: 5,
+  cameraHeight: 2.5,
+};
+
+/** Tuner slider rows: zoom (scale), left/right (X), up/down (Y). */
+export const MOUNTAIN_SLIDER_ROWS: {
+  key: keyof Pick<MountainTransform, 'scale' | 'positionX' | 'positionY'>;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+}[] = [
+  { key: 'scale', label: 'Zoom', min: 0.2, max: 4, step: 0.01 },
+  { key: 'positionX', label: 'Left / Right', min: -5, max: 5, step: 0.01 },
+  { key: 'positionY', label: 'Up / Down', min: -3, max: 4, step: 0.01 },
+];
+
 /**
  * Winding path from base camp to summit, drawn as a polyline of control
  * points. Step markers are spaced evenly along this polyline, so any
