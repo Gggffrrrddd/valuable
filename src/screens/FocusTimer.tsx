@@ -245,18 +245,31 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             transform: `translate(${butterflyArt.positionX}%, ${butterflyArt.positionY}%) scale(${butterflyArt.scale})`,
           }}
         />
-        <div className="absolute bottom-3 right-3 z-20 w-44 space-y-2.5 rounded-[1rem] border border-white/[.07] bg-black/40 p-3 backdrop-blur-xl">
+        <div className="absolute bottom-3 right-3 z-20 w-56 space-y-2.5 rounded-[1rem] border border-white/[.07] bg-black/60 p-3.5 backdrop-blur-xl">
           <div className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Tuner</div>
           {([
             { key: 'scale', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.5 },
-            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.5 },
+            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.1 },
+            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.1 },
           ] as const).map((row) => (
-            <label key={row.key} className="block">
-              <span className="flex items-center justify-between text-[10px] font-bold text-stone-300">
-                {row.label}
-                <span className="font-mono text-[9px] text-stone-500">{butterflyArt[row.key].toFixed(1)}</span>
-              </span>
+            <div key={row.key} className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold text-stone-300">{row.label}</span>
+                <input
+                  type="number"
+                  min={row.min}
+                  max={row.max}
+                  step={row.step}
+                  value={butterflyArt[row.key]}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isNaN(v)) {
+                      setButterflyArt((t) => ({ ...t, [row.key]: Math.min(row.max, Math.max(row.min, v)) }));
+                    }
+                  }}
+                  className="w-20 rounded-md border border-white/[.1] bg-black/50 px-1.5 py-0.5 text-right font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
+                />
+              </div>
               <input
                 type="range"
                 min={row.min}
@@ -264,10 +277,17 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
                 step={row.step}
                 value={butterflyArt[row.key]}
                 onChange={(e) => setButterflyArt((t) => ({ ...t, [row.key]: Number(e.target.value) }))}
-                className="mt-1 w-full accent-lime-300"
+                className="w-full accent-lime-300"
               />
-            </label>
+            </div>
           ))}
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(JSON.stringify(butterflyArt))}
+            className="w-full rounded-md border border-white/[.1] py-1 text-[9px] font-bold uppercase tracking-widest text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
+          >
+            Copy values
+          </button>
         </div>
       </div>
     );
