@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FocusVisualProps } from './types';
 
 /** Artwork shown in place of the constellation canvas, with a live tuner. */
-const ART_URL = '/visuals/butterfly/butterfly-art.png';
+const ART_URL = '/visuals/butterfly/butterfly-art.webp';
 
 interface ArtTransform {
   scale: number;
