@@ -236,7 +236,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <img
-          src="/visuals/butterfly/butterfly-art.webp"
+          src="/visuals/butterfly/butterfly-art.png"
           alt=""
           aria-hidden="true"
           draggable={false}
