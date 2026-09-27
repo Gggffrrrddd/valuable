@@ -229,10 +229,10 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  // Butterfly theme: full-bleed artwork with a simple timer floating on top.
+  // Butterfly theme: full-bleed artwork only (no timer), with a box tuner.
+  const [butterflyArt, setButterflyArt] = useState({ scale: 1, positionX: 0, positionY: 0 });
+
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
-    const mm = String(Math.floor(Math.max(0, secondsLeft) / 60)).padStart(2, '0');
-    const ss = String(Math.max(0, secondsLeft) % 60).padStart(2, '0');
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <img
@@ -241,79 +241,55 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           aria-hidden="true"
           draggable={false}
           className="absolute inset-0 h-full w-full select-none object-cover"
-          style={{ transform: 'translate(-2.2%, 5.4%) scale(0.98)' }}
+          style={{
+            transform: `translate(${butterflyArt.positionX}%, ${butterflyArt.positionY}%) scale(${butterflyArt.scale})`,
+          }}
         />
 
-        {/* Simple timer over the image */}
-        <div className="absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-3 pt-8">
-          <div className="font-display text-5xl font-extrabold tracking-[-.03em] text-white drop-shadow-[0_2px_18px_rgba(0,0,0,.7)] sm:text-6xl">
-            {mm}:{ss}
-          </div>
-          <div className="h-[3px] w-40 overflow-hidden rounded-full bg-white/25 backdrop-blur-sm sm:w-52">
-            <div
-              className="h-full rounded-full bg-lime-300 transition-all duration-1000 ease-linear"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
-          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-white/70 drop-shadow-[0_1px_8px_rgba(0,0,0,.8)]">
-            {phase === 'paused' ? 'Paused' : phase === 'completing' ? 'Focus complete' : 'Focusing'}
-          </div>
-        </div>
-
-        {/* Minimal controls over the image */}
-        {phase !== 'completing' && (
-          <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3">
-            {phase === 'focus' ? (
-              <button
-                onClick={handlePause}
-                className="flex h-12 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-5 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-xl transition hover:bg-black/65"
-                aria-label="Pause"
-              >
-                <Pause className="h-4 w-4" strokeWidth={1.8} /> Pause
-              </button>
-            ) : (
-              <button
-                onClick={handleResume}
-                className="flex h-12 items-center gap-2 rounded-full bg-lime-300 px-5 text-xs font-bold uppercase tracking-widest text-[#11130f] transition hover:bg-lime-200"
-                aria-label="Resume"
-              >
-                <Play className="h-4 w-4 ml-0.5" strokeWidth={1.8} /> Resume
-              </button>
-            )}
-            <button
-              onClick={handleQuitRequest}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white/80 backdrop-blur-xl transition hover:border-red-400/50 hover:text-red-400"
-              aria-label="Quit session"
-            >
-              <X className="h-4 w-4" strokeWidth={1.8} />
-            </button>
-          </div>
-        )}
-
-        {showQuitConfirm && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
-            <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full border border-slate-800 animate-grow-in">
-              <h3 className="text-lg font-semibold text-white mb-2">End this session?</h3>
-              <p className="text-slate-400 text-sm mb-6">
-                Your progress so far will still be saved. No pressure — you can always start another.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleQuitConfirm(false)}
-                  className="flex-1 py-3 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700 transition-colors"
-                >
-                  Keep Going
-                </button>
-                <button
-                  onClick={() => handleQuitConfirm(true)}
-                  className="flex-1 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-medium hover:bg-red-500/20 transition-colors"
-                >
-                  End Session
-                </button>
+        <div className="absolute bottom-3 right-3 z-20 w-56 space-y-2.5 rounded-[1rem] border border-white/[.07] bg-black/60 p-3.5 backdrop-blur-xl">
+          <div className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Tuner</div>
+          {([
+            { key: 'scale', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.1 },
+            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.1 },
+          ] as const).map((row) => (
+            <div key={row.key} className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold text-stone-300">{row.label}</span>
+                <input
+                  type="number"
+                  min={row.min}
+                  max={row.max}
+                  step={row.step}
+                  value={butterflyArt[row.key]}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isNaN(v)) {
+                      setButterflyArt((t) => ({ ...t, [row.key]: Math.min(row.max, Math.max(row.min, v)) }));
+                    }
+                  }}
+                  className="w-20 rounded-md border border-white/[.1] bg-black/50 px-1.5 py-0.5 text-right font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
+                />
               </div>
+              <input
+                type="range"
+                min={row.min}
+                max={row.max}
+                step={row.step}
+                value={butterflyArt[row.key]}
+                onChange={(e) => setButterflyArt((t) => ({ ...t, [row.key]: Number(e.target.value) }))}
+                className="w-full accent-lime-300"
+              />
             </div>
-          </div>
-        )}
+          ))}
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(JSON.stringify(butterflyArt))}
+            className="w-full rounded-md border border-white/[.1] py-1 text-[9px] font-bold uppercase tracking-widest text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
+          >
+            Copy values
+          </button>
+        </div>
       </div>
     );
   }
