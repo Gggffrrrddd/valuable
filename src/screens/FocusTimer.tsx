@@ -233,7 +233,16 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   // base art with its own move/resize/position transform.
   const [butterflyLayers, setButterflyLayers] = useState<
     { scale: number; positionX: number; positionY: number }[]
-  >([{ scale: 1, positionX: 0, positionY: 0 }]);
+  >([
+    { scale: 0.04, positionX: -48.1, positionY: 24.2 },
+    { scale: 0.04, positionX: -45.5, positionY: 27.3 },
+    { scale: 0.04, positionX: -34.8, positionY: 24.2 },
+    { scale: 0.04, positionX: -36.1, positionY: 21.2 },
+    { scale: 0.04, positionX: -31.8, positionY: 27.3 },
+    { scale: 0.04, positionX: -21.2, positionY: 25.8 },
+    { scale: 0.04, positionX: 0, positionY: 28.8 },
+    { scale: 0.04, positionX: -12.1, positionY: 34.8 },
+  ]);
   const [butterflyActiveLayer, setButterflyActiveLayer] = useState(0);
 
   // Butterfly theme: keep the artwork exactly as-is and show the same
