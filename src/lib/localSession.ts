@@ -13,6 +13,9 @@ export const SESSION_PAUSED_AT_KEY = 'valuable-session-paused-at';
 export const SESSION_PAUSED_TOTAL_KEY = 'valuable-session-paused-total';
 export const SESSION_SUBJECT_KEY = 'valuable-session-subject';
 export const SESSION_BREAK_KEY = 'valuable-session-break';
+/** Garden finale choices, persisted so a mid-session refresh keeps them. */
+export const SESSION_PALETTE_KEY = 'valuable-session-palette';
+export const SESSION_PHRASE_KEY = 'valuable-session-phrase';
 
 export type LocalFocusState = 'idle' | 'focusing' | 'paused';
 

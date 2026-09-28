@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
+import GardenVisual from '@/components/focus-visuals/GardenVisual';
 import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
@@ -229,71 +230,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  // Butterfly overlay layers: permanent configuration — overlay images stacked
-  // on top of the untouched base art (tuner removed, values hardcoded).
-  const butterflyLayers = [
-    { scale: 0.04, positionX: -48.1, positionY: 24.2 },
-    { scale: 0.04, positionX: -45.5, positionY: 27.3 },
-    { scale: 0.04, positionX: -34.8, positionY: 24.2 },
-    { scale: 0.04, positionX: -36.1, positionY: 21.2 },
-    { scale: 0.04, positionX: -31.8, positionY: 27.3 },
-    { scale: 0.04, positionX: -21.2, positionY: 25.8 },
-    { scale: 0.04, positionX: 0, positionY: 28.8 },
-    { scale: 0.04, positionX: -12.1, positionY: 34.8 },
-    { scale: 0.04, positionX: -18.2, positionY: 27.3 },
-    { scale: 0.04, positionX: 9.1, positionY: 27.3 },
-    { scale: 0.04, positionX: -14.9, positionY: 40.9 },
-    { scale: 0.04, positionX: -37.9, positionY: 43.9 },
-    { scale: 0.04, positionX: -7.6, positionY: 33.3 },
-    { scale: 0.04, positionX: -36.4, positionY: 36.4 },
-    { scale: 0.04, positionX: -2.2, positionY: 25.8 },
-    { scale: 0.04, positionX: -46.4, positionY: 46.2 },
-    { scale: 0.04, positionX: 28.8, positionY: 33.3 },
-    { scale: 0.04, positionX: -47.4, positionY: 39.8 },
-    { scale: 0.04, positionX: -22.7, positionY: 42.4 },
-    { scale: 0.04, positionX: -25.4, positionY: 38.4 },
-    { scale: 0.04, positionX: -10.6, positionY: 28.8 },
-    { scale: 0.04, positionX: -13.6, positionY: 25.8 },
-    { scale: 0.04, positionX: 7.6, positionY: 40.9 },
-    { scale: 0.03, positionX: -25.8, positionY: 25.8 },
-    { scale: 0.03, positionX: 4.5, positionY: 27.3 },
-    { scale: 0.03, positionX: -43.9, positionY: 24.2 },
-    { scale: 0.03, positionX: 12.1, positionY: 33.3 },
-    { scale: 0.03, positionX: -4.5, positionY: 27.3 },
-    { scale: 0.04, positionX: 21.2, positionY: 28.8 },
-    { scale: 0.04, positionX: 16.7, positionY: 28.8 },
-  ];
-
-  // Butterfly theme: keep the artwork exactly as-is and show the same
-  // minimal black flip-clock as the jar/tree sessions, in the same position.
+  // Butterfly theme: render the Garden visual as a full-screen background
+  // and show the same minimal black flip-clock as the jar/tree sessions.
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-        <img
-          src="/visuals/butterfly/butterfly-art.png"
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          className="absolute inset-0 h-full w-full select-none object-cover"
-          style={{ transform: 'translate(0%, 1.3%) scale(1)' }}
-        />
-
-        {/* Overlay layers — stacked on top of the base art */}
-        {butterflyLayers.map((layer, i) => (
-          <img
-            key={`overlay-${i}`}
-            src="/visuals/butterfly/butterfly-art-2.png"
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="absolute inset-0 h-full w-full select-none object-contain"
-            style={{
-              zIndex: 1 + i,
-              transform: `translate(${layer.positionX}%, ${layer.positionY}%) scale(${layer.scale})`,
-            }}
-          />
-        ))}
-
+        <GardenVisual progress={progress} running={phase === 'focus'} />
+        
         <div className="butterfly-focus-layout relative z-10 h-full w-full">
           <div />
           <div
