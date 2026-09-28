@@ -257,6 +257,17 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
       setButterflyLayers((layers) => [...layers, { scale: 1, positionX: 0, positionY: 0 }]);
       setButterflyActiveLayer(butterflyLayers.length);
     };
+    const ensureLayer = (n: number) => {
+      const target = Math.max(1, Math.round(n));
+      setButterflyLayers((layers) => {
+        if (target <= layers.length) return layers;
+        return [
+          ...layers,
+          ...Array.from({ length: target - layers.length }, () => ({ scale: 1, positionX: 0, positionY: 0 })),
+        ];
+      });
+      setButterflyActiveLayer(target - 1);
+    };
     const coordinatesText = butterflyLayers
       .map((l, i) => `Layer ${i + 1}: translate(${l.positionX}%, ${l.positionY}%) scale(${l.scale})`)
       .join('\n');
@@ -300,9 +311,32 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
         {/* Layer tuner: per-layer move/resize controls + coordinates readout */}
         <div className="absolute bottom-3 right-3 z-30 w-60 space-y-2 rounded-[1rem] border border-white/[.07] bg-black/60 p-3 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Layers</span>
-            <div className="flex items-center gap-1">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Layers</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={1}
+                  value={butterflyActiveLayer + 1}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (!Number.isNaN(n)) ensureLayer(n);
+                  }}
+                  className="h-5 w-10 rounded-md border border-white/[.1] bg-black/50 text-center font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
+                  aria-label="Set layer number"
+                />
+                <button
+                  type="button"
+                  onClick={addLayer}
+                  className="h-5 w-5 shrink-0 rounded-md border border-white/[.1] text-[10px] font-bold text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
+                  aria-label="Add image layer"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
               {butterflyLayers.map((_, i) => (
                 <button
                   key={i}
@@ -317,14 +351,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
                   {i + 1}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={addLayer}
-                className="h-5 w-5 rounded-md border border-white/[.1] text-[10px] font-bold text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
-                aria-label="Add image layer"
-              >
-                +
-              </button>
             </div>
           </div>
           {([
