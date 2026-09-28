@@ -319,7 +319,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             </div>
           </div>
           {([
-            { key: 'scale', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+            { key: 'scale', label: 'Zoom', min: 0.01, max: 3, step: 0.01 },
             { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.1 },
             { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.1 },
           ] as const).map((row) => (
