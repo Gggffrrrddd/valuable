@@ -5,6 +5,11 @@ import { ASSETS, COCOON, GARDEN_PLACEMENT, SKY, COCOON_COUNT } from './garden/co
 import { CAMERA_KEYS, T, OPEN } from './garden/finaleTimeline';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
+import { ButterflyRenderer } from './garden/butterflySprite';
+import { generateConstellation } from './garden/constellation';
+import { ArrivalSwarm, EmergenceSwarm } from './garden/butterflySwarm';
+import { PHRASE_POOL } from './garden/phrases';
+import { smoothstep } from './model-core/canvasUtils';
 
 function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t;
@@ -39,16 +44,27 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
   const complete = value >= 1;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const skyLayerRef = useRef<SkyLayer | null>(null);
+  const rendererRef = useRef<ButterflyRenderer | null>(null);
+  const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
+  const lastTimeRef = useRef(0);
   
   // Timer for finale
   const [finaleTime, setFinaleTime] = useState(0);
 
   useEffect(() => {
     if (!complete) return;
+    
+    // Initialize renderer and swarms if not ready
+    if (!rendererRef.current) {
+      rendererRef.current = new ButterflyRenderer(palette.hue);
+    }
+    
     const start = performance.now();
+    lastTimeRef.current = 0;
     let frame: number;
     const loop = (now: number) => {
       const t = (now - start) / 1000;
+      lastTimeRef.current = t;
       setFinaleTime(t);
       if (t < T.dollyEnd + 2) {
         frame = requestAnimationFrame(loop);
@@ -56,7 +72,7 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [complete]);
+  }, [complete, palette.hue]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -68,10 +84,16 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
       cvs.height = h;
       // Pre-render sky once
       skyLayerRef.current = generateSky(w, h * SKY.heightVh);
+      
+      const targets = generateConstellation(w, h * SKY.heightVh);
+      swarmsRef.current = {
+        arrival: new ArrivalSwarm(targets, w, h),
+        emergence: new EmergenceSwarm(COCOON_SLOTS, w, h),
+      };
     }
     
     const ctx = cvs.getContext('2d');
-    if (!ctx || !skyLayerRef.current) return;
+    if (!ctx || !skyLayerRef.current || !swarmsRef.current) return;
     
     ctx.clearRect(0, 0, w, h);
     
@@ -88,11 +110,48 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     const panPx = maxPanPx * cam.panY;
     ctx.translate(0, panPx);
     
-    // Draw sky layer (placed above the viewport initially, revealed on pan up)
-    // The sky rect spans from y = -h to y = h*0.5
+    // Draw sky layer
     ctx.drawImage(skyLayerRef.current.canvas, 0, -skyLayerRef.current.height + h * 0.9);
     
-    // Draw butterflies here eventually...
+    // Draw constellation stars (based on ArrivalSwarm dissolving)
+    ctx.globalCompositeOperation = 'lighter';
+    for (const target of swarmsRef.current.arrival['targets']) {
+      // Simplified: if time > dissolveEnd, draw stars
+      if (finaleTime > T.dissolveEnd) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, finaleTime - T.dissolveEnd)})`;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.isProminent ? 2 : 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Draw phrase particles
+    if (finaleTime > T.writeStart) {
+       // Mock drawing phrase
+       const phraseOpacity = smoothstep(T.writeStart, T.writeEnd, finaleTime);
+       ctx.fillStyle = `rgba(255, 255, 255, ${phraseOpacity})`;
+       ctx.font = 'bold 32px serif';
+       ctx.textAlign = 'center';
+       ctx.textBaseline = 'middle';
+       ctx.fillText(PHRASE_POOL[0], 0, h * 0.32 - h/2); // adjusted for translate center
+    }
+    
+    // Draw butterflies
+    swarmsRef.current.arrival.update(finaleTime, 1 / 60);
+    swarmsRef.current.emergence.update(finaleTime, 1 / 60);
+    
+    if (rendererRef.current && rendererRef.current.ready) {
+      const arrRigs = swarmsRef.current.arrival.getRenderData(finaleTime);
+      for (const rig of arrRigs) {
+        rendererRef.current.draw(ctx, rig);
+      }
+      
+      const emRigs = swarmsRef.current.emergence.getRenderData(finaleTime);
+      for (const rig of emRigs) {
+        rendererRef.current.draw(ctx, rig);
+      }
+    }
     
     ctx.restore();
   }, [finaleTime, complete]);
@@ -112,8 +171,14 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
   const maxPanPx = typeof window !== 'undefined' ? window.innerHeight * SKY.heightVh - window.innerHeight : 0;
   const panPx = maxPanPx * cam.panY;
   
+  const handleSkip = () => {
+    if (complete && finaleTime < T.dollyEnd) {
+      setFinaleTime(T.dollyEnd);
+    }
+  };
+
   return (
-    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden" aria-hidden="true">
+    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden" aria-hidden="true" onClick={handleSkip}>
       <canvas 
         ref={canvasRef}
         className="absolute inset-0 z-10 w-full h-full pointer-events-none"
