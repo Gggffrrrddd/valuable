@@ -5,9 +5,9 @@ const ART_URL = '/visuals/butterfly/butterfly-art.png';
 
 /** Placement tuned live and hardcoded — tuner removed. */
 const ART_TRANSFORM = {
-  scale: 0.98,
-  positionX: -2.2,
-  positionY: 5.4,
+  scale: 1,
+  positionX: 0,
+  positionY: 1.3,
 };
 
 /**
