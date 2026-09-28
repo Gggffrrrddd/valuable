@@ -320,8 +320,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           </div>
           {([
             { key: 'scale', label: 'Zoom', min: 0.01, max: 3, step: 0.01 },
-            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.1 },
-            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.1 },
+            { key: 'positionX', label: 'Left / Right', min: -150, max: 150, step: 0.1 },
+            { key: 'positionY', label: 'Up / Down', min: -150, max: 150, step: 0.1 },
           ] as const).map((row) => (
             <div key={row.key} className="space-y-1">
               <div className="flex items-center justify-between gap-2">
