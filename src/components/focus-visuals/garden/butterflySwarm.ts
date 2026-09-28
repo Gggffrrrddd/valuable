@@ -4,6 +4,7 @@ import { smoothstep } from '../model-core/canvasUtils';
 import type { StarTarget } from './constellation';
 import type { ButterflyRig } from './butterflySprite';
 import type { CocoonSlot } from './cocoonSlots';
+import { allocateButterfliesToPhrase, type PhraseGlyphPoint } from './phrases';
 
 // Simple deterministic random
 function randRange(min: number, max: number, seed: number) {
@@ -72,6 +73,12 @@ export class ArrivalSwarm {
         const dTime = T.dissolveStart + (b.id / ARRIVAL_COUNT) * (T.dissolveEnd - T.dissolveStart);
         if (time >= dTime) {
           b.dissolved = true;
+          // When dissolved, store final position so constellation formation can take over
+          const targetObj = this.targets.find(t => t.id === b.targetId) as StarTarget & { startX?: number, startY?: number };
+          if (targetObj) {
+            targetObj.startX = b.x;
+            targetObj.startY = b.y;
+          }
           continue;
         }
       }
@@ -80,9 +87,9 @@ export class ArrivalSwarm {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       
-      // Wander
+      // Wander + steer up
       b.vx += Math.sin(time * 2 + b.phaseOffset) * 100 * dt;
-      b.vy += Math.cos(time * 1.5 + b.phaseOffset) * 50 * dt;
+      b.vy += (Math.cos(time * 1.5 + b.phaseOffset) * 50 - 200) * dt;
       
       // Damping
       b.vx *= 0.98;
@@ -128,9 +135,10 @@ export class EmergenceSwarm {
     flapHz: number;
     bank: number;
     dissolved: boolean;
+    phrasePoints?: PhraseGlyphPoint[];
   }[] = [];
   
-  constructor(private cocoons: CocoonSlot[], private width: number, private height: number) {
+  constructor(private cocoons: CocoonSlot[], private width: number, private height: number, phrasePoints: PhraseGlyphPoint[] = []) {
     for (let i = 0; i < COCOON_COUNT; i++) {
       const c = cocoons[i];
       const startX = c.x * width;
@@ -152,6 +160,13 @@ export class EmergenceSwarm {
         dissolved: false
       });
     }
+
+    if (phrasePoints.length > 0) {
+      const allocation = allocateButterfliesToPhrase(COCOON_COUNT, phrasePoints);
+      for (let i = 0; i < COCOON_COUNT; i++) {
+        this.butterflies[i].phrasePoints = allocation.get(i) ?? [];
+      }
+    }
   }
 
   update(time: number, dt: number) {
@@ -162,6 +177,22 @@ export class EmergenceSwarm {
         // Rise
         b.y -= 150 * dt;
         b.x += Math.sin(time * 2 + b.phaseOffset) * 50 * dt;
+      } else if (time >= T.writeStart && time < T.writeEnd && b.phrasePoints && b.phrasePoints.length > 0) {
+        // Writing Phase - steer to target points
+        const writeDuration = T.writeEnd - T.writeStart;
+        const localTime = (time - T.writeStart) / writeDuration; // 0 to 1
+        
+        // Find which point to fly to
+        const pointIdx = Math.floor(localTime * b.phrasePoints.length);
+        const p = b.phrasePoints[Math.min(b.phrasePoints.length - 1, pointIdx)];
+        
+        // Steer towards p
+        const targetX = p.x;
+        const targetY = p.y;
+        
+        // Interpolate directly for simplicity
+        b.x += (targetX - b.x) * 5 * dt;
+        b.y += (targetY - b.y) * 5 * dt;
       }
       
       if (time >= T.writeEnd) {
