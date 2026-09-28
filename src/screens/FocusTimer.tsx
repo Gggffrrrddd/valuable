@@ -229,18 +229,40 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  // Butterfly theme: keep the artwork exactly as-is and show the same
-  // minimal black flip-clock as the jar/tree sessions, in the same position.
+  // Butterfly theme: art (multi-image + tuner) over the jar/tree flip-clock.
+  const BUTTERFLY_IMAGES = ['/visuals/butterfly/butterfly-art.png', '/visuals/butterfly/butterfly-art-2.png'];
+  const BUTTERFLY_DEFAULT_ART = { scale: 1, positionX: 0, positionY: 1.3 };
+  const [butterflyImageIdx, setButterflyImageIdx] = useState(0);
+  const [butterflyArtBySrc, setButterflyArtBySrc] = useState<Record<string, typeof BUTTERFLY_DEFAULT_ART>>({});
+
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
+    const butterflySrc = BUTTERFLY_IMAGES[butterflyImageIdx];
+    const butterflyArt = butterflyArtBySrc[butterflySrc] ?? BUTTERFLY_DEFAULT_ART;
+    const setButterflyArt = (patch: Partial<typeof BUTTERFLY_DEFAULT_ART>) =>
+      setButterflyArtBySrc((m) => ({ ...m, [butterflySrc]: { ...(m[butterflySrc] ?? BUTTERFLY_DEFAULT_ART), ...patch } }));
+    const addButterflyImage = () => {
+      const nextIdx = (butterflyImageIdx + 1) % BUTTERFLY_IMAGES.length;
+      console.log(`[butterfly] + add image -> ${BUTTERFLY_IMAGES[nextIdx]}`);
+      setButterflyImageIdx(nextIdx);
+    };
+
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <img
-          src="/visuals/butterfly/butterfly-art.png"
+          key={butterflySrc}
+          src={butterflySrc}
           alt=""
           aria-hidden="true"
           draggable={false}
+          onLoad={(e) =>
+            console.log(
+              `[butterfly] image loaded: ${butterflySrc} (${e.currentTarget.naturalWidth}x${e.currentTarget.naturalHeight})`,
+            )
+          }
           className="absolute inset-0 h-full w-full select-none object-cover"
-          style={{ transform: 'translate(0%, 1.3%) scale(1)' }}
+          style={{
+            transform: `translate(${butterflyArt.positionX}%, ${butterflyArt.positionY}%) scale(${butterflyArt.scale})`,
+          }}
         />
 
         <div className="butterfly-focus-layout relative z-10 h-full w-full">
@@ -250,6 +272,66 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}
           >
             <FlipClock secondsLeft={secondsLeft} />
+          </div>
+        </div>
+
+        {/* Art tuner: number box + slider per row, + adds the next image */}
+        <div className="absolute bottom-3 right-3 z-20 w-56 space-y-2.5 rounded-[1rem] border border-white/[.07] bg-black/60 p-3.5 backdrop-blur-xl">
+          <div className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Tuner</div>
+          {([
+            { key: 'scale', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+            { key: 'positionX', label: 'Left / Right', min: -40, max: 40, step: 0.1 },
+            { key: 'positionY', label: 'Up / Down', min: -40, max: 40, step: 0.1 },
+          ] as const).map((row) => (
+            <div key={row.key} className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold text-stone-300">{row.label}</span>
+                <input
+                  type="number"
+                  min={row.min}
+                  max={row.max}
+                  step={row.step}
+                  value={butterflyArt[row.key]}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isNaN(v)) setButterflyArt({ [row.key]: Math.min(row.max, Math.max(row.min, v)) });
+                  }}
+                  className="w-20 rounded-md border border-white/[.1] bg-black/50 px-1.5 py-0.5 text-right font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
+                />
+              </div>
+              <input
+                type="range"
+                min={row.min}
+                max={row.max}
+                step={row.step}
+                value={butterflyArt[row.key]}
+                onChange={(e) => setButterflyArt({ [row.key]: Number(e.target.value) })}
+                className="w-full accent-lime-300"
+              />
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={addButterflyImage}
+              className="flex-1 rounded-md border border-white/[.1] py-1 text-[9px] font-bold uppercase tracking-widest text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
+              aria-label="Add image"
+            >
+              + Add image
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                console.log(`[butterfly] copy values:`, butterflyArt);
+                navigator.clipboard?.writeText(JSON.stringify(butterflyArt));
+              }}
+              className="flex-1 rounded-md border border-white/[.1] py-1 text-[9px] font-bold uppercase tracking-widest text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
+            >
+              Copy values
+            </button>
+          </div>
+          <div className="truncate text-[9px] text-stone-500" title={butterflySrc}>
+            {butterflySrc}
           </div>
         </div>
 
