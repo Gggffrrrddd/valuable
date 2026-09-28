@@ -271,7 +271,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="absolute inset-0 h-full w-full select-none object-cover"
+            className="absolute inset-0 h-full w-full select-none object-contain"
             style={{
               zIndex: 1 + i,
               transform: `translate(${layer.positionX}%, ${layer.positionY}%) scale(${layer.scale})`,
