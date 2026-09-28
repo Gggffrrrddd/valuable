@@ -229,11 +229,9 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  // Butterfly overlay layers: each added image sits on top of the untouched
-  // base art with its own move/resize/position transform.
-  const [butterflyLayers, setButterflyLayers] = useState<
-    { scale: number; positionX: number; positionY: number }[]
-  >([
+  // Butterfly overlay layers: permanent configuration — overlay images stacked
+  // on top of the untouched base art (tuner removed, values hardcoded).
+  const butterflyLayers = [
     { scale: 0.04, positionX: -48.1, positionY: 24.2 },
     { scale: 0.04, positionX: -45.5, positionY: 27.3 },
     { scale: 0.04, positionX: -34.8, positionY: 24.2 },
@@ -264,36 +262,11 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     { scale: 0.03, positionX: -4.5, positionY: 27.3 },
     { scale: 0.04, positionX: 21.2, positionY: 28.8 },
     { scale: 0.04, positionX: 16.7, positionY: 28.8 },
-  ]);
-  const [butterflyActiveLayer, setButterflyActiveLayer] = useState(0);
+  ];
 
   // Butterfly theme: keep the artwork exactly as-is and show the same
   // minimal black flip-clock as the jar/tree sessions, in the same position.
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
-    const activeLayer = butterflyLayers[butterflyActiveLayer] ?? butterflyLayers[0];
-    const setLayerProp = (key: 'scale' | 'positionX' | 'positionY', value: number) =>
-      setButterflyLayers((layers) =>
-        layers.map((layer, i) => (i === butterflyActiveLayer ? { ...layer, [key]: value } : layer)),
-      );
-    const addLayer = () => {
-      setButterflyLayers((layers) => [...layers, { scale: 1, positionX: 0, positionY: 0 }]);
-      setButterflyActiveLayer(butterflyLayers.length);
-    };
-    const ensureLayer = (n: number) => {
-      const target = Math.max(1, Math.round(n));
-      setButterflyLayers((layers) => {
-        if (target <= layers.length) return layers;
-        return [
-          ...layers,
-          ...Array.from({ length: target - layers.length }, () => ({ scale: 1, positionX: 0, positionY: 0 })),
-        ];
-      });
-      setButterflyActiveLayer(target - 1);
-    };
-    const coordinatesText = butterflyLayers
-      .map((l, i) => `Layer ${i + 1}: translate(${l.positionX}%, ${l.positionY}%) scale(${l.scale})`)
-      .join('\n');
-
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <img
@@ -329,97 +302,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           >
             <FlipClock secondsLeft={secondsLeft} />
           </div>
-        </div>
-
-        {/* Layer tuner: per-layer move/resize controls + coordinates readout */}
-        <div className="absolute bottom-3 right-3 z-30 w-60 space-y-2 rounded-[1rem] border border-white/[.07] bg-black/60 p-3 backdrop-blur-xl">
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[9px] font-bold uppercase tracking-[.2em] text-stone-500">Layers</span>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={1}
-                  value={butterflyActiveLayer + 1}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) ensureLayer(n);
-                  }}
-                  className="h-5 w-10 rounded-md border border-white/[.1] bg-black/50 text-center font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
-                  aria-label="Set layer number"
-                />
-                <button
-                  type="button"
-                  onClick={addLayer}
-                  className="h-5 w-5 shrink-0 rounded-md border border-white/[.1] text-[10px] font-bold text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
-                  aria-label="Add image layer"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-1">
-              {butterflyLayers.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setButterflyActiveLayer(i)}
-                  className={`h-5 w-5 rounded-md text-[10px] font-bold transition ${
-                    i === butterflyActiveLayer
-                      ? 'bg-lime-300 text-[#11130f]'
-                      : 'border border-white/[.1] text-stone-400 hover:text-lime-300'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-          {([
-            { key: 'scale', label: 'Zoom', min: 0.01, max: 3, step: 0.01 },
-            { key: 'positionX', label: 'Left / Right', min: -150, max: 150, step: 0.1 },
-            { key: 'positionY', label: 'Up / Down', min: -150, max: 150, step: 0.1 },
-          ] as const).map((row) => (
-            <div key={row.key} className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold text-stone-300">{row.label}</span>
-                <input
-                  type="number"
-                  min={row.min}
-                  max={row.max}
-                  step={row.step}
-                  value={activeLayer[row.key]}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isNaN(v)) setLayerProp(row.key, Math.min(row.max, Math.max(row.min, v)));
-                  }}
-                  className="w-20 rounded-md border border-white/[.1] bg-black/50 px-1.5 py-0.5 text-right font-mono text-[10px] text-stone-100 outline-none focus:border-lime-300/50"
-                />
-              </div>
-              <input
-                type="range"
-                min={row.min}
-                max={row.max}
-                step={row.step}
-                value={activeLayer[row.key]}
-                onChange={(e) => setLayerProp(row.key, Number(e.target.value))}
-                className="w-full accent-lime-300"
-              />
-            </div>
-          ))}
-          <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all rounded-md bg-black/50 p-2 font-mono text-[8px] leading-relaxed text-stone-400">
-            {coordinatesText}
-          </pre>
-          <button
-            type="button"
-            onClick={() => {
-              console.log(`[butterfly] layer coordinates:\n${coordinatesText}`);
-              navigator.clipboard?.writeText(coordinatesText);
-            }}
-            className="w-full rounded-md border border-white/[.1] py-1 text-[9px] font-bold uppercase tracking-widest text-stone-400 transition hover:border-lime-300/40 hover:text-lime-300"
-          >
-            Copy all coordinates
-          </button>
         </div>
 
         {/* Session controls — same as jar/tree */}
