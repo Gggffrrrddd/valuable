@@ -252,6 +252,61 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
+
+        {/* Session controls — same as jar/tree */}
+        {phase !== 'completing' && (
+          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
+            {phase === 'focus' ? (
+              <button
+                onClick={handlePause}
+                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-100 transition hover:bg-white/[.10] hover:scale-105 active:scale-95"
+                aria-label="Pause"
+              >
+                <Pause className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+              </button>
+            ) : (
+              <button
+                onClick={handleResume}
+                className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#11130f] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
+                aria-label="Resume"
+              >
+                <Play className="h-7 w-7 ml-0.5 transition group-hover:scale-105" strokeWidth={1.8} />
+              </button>
+            )}
+            <button
+              onClick={handleQuitRequest}
+              className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-300 transition hover:bg-white/[.10] hover:text-red-400 hover:scale-105 active:scale-95"
+              aria-label="Quit session"
+            >
+              <X className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+            </button>
+          </div>
+        )}
+
+        {showQuitConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
+            <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full border border-slate-800 animate-grow-in">
+              <h3 className="text-lg font-semibold text-white mb-2">End this session?</h3>
+              <p className="text-slate-400 text-sm mb-6">
+                Your progress so far will still be saved. No pressure — you can always start another.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleQuitConfirm(false)}
+                  className="flex-1 py-3 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700 transition-colors"
+                >
+                  Keep Going
+                </button>
+                <button
+                  onClick={() => handleQuitConfirm(true)}
+                  className="flex-1 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-medium hover:bg-red-500/20 transition-colors"
+                >
+                  End Session
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

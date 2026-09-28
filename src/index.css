@@ -875,7 +875,7 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   width: auto;
   margin: 0;
   padding: 0;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% - 3vh));
 }
 
 .butterfly-constellation {
