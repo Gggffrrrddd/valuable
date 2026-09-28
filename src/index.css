@@ -859,23 +859,23 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   .tree-leaf-shed { opacity: 0; }
 }
 
-.butterfly-focus-session .focus-grid,
-.butterfly-focus-session .focus-orbit {
-  opacity: .14;
-}
-
-.butterfly-focus-session .focus-atmosphere {
-  background:
-    radial-gradient(ellipse at 40% 46%, rgba(168, 130, 255, .1), transparent 40%),
-    radial-gradient(ellipse at 24% 78%, rgba(120, 190, 255, .05), transparent 34%),
-    linear-gradient(148deg, #050510 0%, #0a0a1c 48%, #03040a 100%);
-}
-
-.butterfly-focus-layout > div:first-child > div {
-  width: min(61vw, 49rem);
-  height: min(75vh, 49rem);
+.butterfly-focus-layout > div:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   max-width: none;
-  max-height: none;
+  padding: 0;
+}
+
+.butterfly-focus-layout > div:last-child {
+  position: absolute;
+  right: clamp(1.5rem, 6vw, 7rem);
+  top: 50%;
+  z-index: 20;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
 }
 
 .butterfly-constellation {
@@ -899,12 +899,6 @@ button .butterfly-constellation {
   border-radius: .8rem;
 }
 
-@media (max-width: 1023px) {
-  .butterfly-focus-layout > div:first-child > div {
-    width: min(94vw, 39rem);
-    height: min(50vh, 33rem);
-  }
-}
 .leaf-stem-calibrator {
   display: grid;
   grid-template-columns: 16rem 1fr;

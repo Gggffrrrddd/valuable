@@ -229,7 +229,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
 
-  // Butterfly theme: full-bleed artwork only (no timer), placement hardcoded.
+  // Butterfly theme: keep the artwork exactly as-is and show the same
+  // minimal black flip-clock as the jar/tree sessions, in the same position.
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
@@ -241,6 +242,16 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           className="absolute inset-0 h-full w-full select-none object-cover"
           style={{ transform: 'translate(0%, 1.3%) scale(1)' }}
         />
+
+        <div className="butterfly-focus-layout relative z-10 h-full w-full">
+          <div />
+          <div
+            className="pointer-events-none transition-opacity duration-700 ease-out"
+            style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}
+          >
+            <FlipClock secondsLeft={secondsLeft} />
+          </div>
+        </div>
       </div>
     );
   }
