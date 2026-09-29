@@ -32,7 +32,7 @@ import { generateSky, type SkyLayer } from './garden/sky';
 import { AnimatedButterflyRenderer } from './garden/animatedButterfly';
 import { generateMoon, type MoonSprite } from './garden/moon';
 import { generateStarfield } from './garden/starfield';
-import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule } from './garden/butterflySwarm';
+import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule, type EmergenceButterfly } from './garden/butterflySwarm';
 import { layoutPhrase, resolveSessionPhrase } from './garden/phrases';
 import { clamp01, smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
@@ -41,6 +41,36 @@ import { useReducedMotion } from './model-core/useReducedMotion';
 function rand01(seed: number) {
   const x = Math.sin(seed * 9999.9999) * 10000;
   return x - Math.floor(x);
+}
+
+function hexToRgba(hex: string, a: number): string {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const value = Number.parseInt(full, 16);
+  if (Number.isNaN(value)) return `rgba(255,255,255,${a})`;
+  return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${a})`;
+}
+
+/**
+ * Pre-rendered radial glow sprite for stars — one build, then every star is a
+ * single cheap drawImage instead of a per-frame shadowBlur arc.
+ */
+function makeGlowSprite(color: string): HTMLCanvasElement {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, color);
+    g.addColorStop(0.17, color);
+    g.addColorStop(0.42, hexToRgba(color, 0.32));
+    g.addColorStop(1, hexToRgba(color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  }
+  return canvas;
 }
 
 export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
@@ -75,6 +105,17 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const moonRef = useRef<MoonSprite | null>(null);
   const rendererRef = useRef<AnimatedButterflyRenderer | null>(null);
   const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
+  // Phrase dots are stamped into an offscreen canvas once, then blitted —
+  // never re-drawn — so a full phrase costs one drawImage per frame instead
+  // of thousands of shadowed arcs.
+  const phraseCvsRef = useRef<HTMLCanvasElement | null>(null);
+  const phraseStampRef = useRef<WeakMap<EmergenceButterfly, number>>(new WeakMap());
+  const phraseStampPRef = useRef(0);
+
+  const starSprites = useMemo(
+    () => ({ white: makeGlowSprite('#ffffff'), tint: makeGlowSprite(palette.starTint) }),
+    [palette.starTint],
+  );
 
   // Open schedule is precomputed once per session and stable across re-renders.
   const openSchedule = useMemo(() => createOpenSchedule(COCOON_COUNT), []);
@@ -89,8 +130,10 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       const h = effCvs.clientHeight;
       if (w === 0 || h === 0) return;
 
-      // (Re)build the offscreen layers and swarms whenever the canvas resizes.
-      if (effCvs.width !== w || effCvs.height !== h) {
+      // (Re)build the offscreen layers and swarms whenever the canvas resizes
+      // (or when the swarms were dropped by an effect re-run).
+      const needsBuild = !swarmsRef.current || effCvs.width !== w || effCvs.height !== h;
+      if (needsBuild) {
         effCvs.width = w;
         effCvs.height = h;
 
@@ -103,6 +146,12 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           sctx.clearRect(0, 0, w, skyH);
           sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
         }
+
+        if (!phraseCvsRef.current) phraseCvsRef.current = document.createElement('canvas');
+        phraseCvsRef.current.width = w;
+        phraseCvsRef.current.height = h;
+        phraseStampRef.current = new WeakMap();
+        phraseStampPRef.current = 0;
 
         const targets = generateStarfield(w, h);
         const layout = layoutPhrase(phrase, w, h);
@@ -120,6 +169,8 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       ctx.clearRect(0, 0, w, h);
 
       // --- Stars the arrivals dissolve into (no figure, just a scatter) ---
+      // Drawn from a pre-rendered glow sprite: one drawImage per star instead
+      // of a per-frame shadowBlur arc (same look, a fraction of the cost).
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (const target of swarms.arrival.targets) {
@@ -129,25 +180,25 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         const twinkle = 0.78 + 0.22 * Math.sin(time * 2.1 + target.id * 1.7);
         const alpha = appear * (target.isProminent ? 1 : 0.8) * twinkle;
         const tinted = rand01(target.id * 1.37) < STARFIELD.tintChance;
-        const color = tinted ? palette.starTint : '#ffffff';
+        const sprite = tinted ? starSprites.tint : starSprites.white;
         const radius = (target.isProminent ? 2 : 1.1) * (0.5 + 0.5 * appear);
+        const size = radius * 7;
 
-        ctx.shadowBlur = target.isProminent ? 8 : 4;
-        ctx.shadowColor = color;
-        ctx.fillStyle = color;
         ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(target.x, target.y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.drawImage(sprite, target.x - size / 2, target.y - size / 2, size, size);
 
         // Bright pulse as a butterfly lands and becomes the star.
         const pulse = swarms.arrival.getStarPulse(target, p);
         if (pulse > 0.001) {
+          const pulseSize = (radius + 3.5 * pulse) * 7;
           ctx.globalAlpha = pulse * 0.9;
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(target.x, target.y, radius + 3.5 * pulse, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.drawImage(
+            starSprites.white,
+            target.x - pulseSize / 2,
+            target.y - pulseSize / 2,
+            pulseSize,
+            pulseSize,
+          );
         }
       }
       ctx.restore();
@@ -164,27 +215,65 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       }
 
       // --- Phrase, built one letter at a time by the butterflies ---
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      for (const b of swarms.emergence.butterflies) {
-        if (p < b.writeStart || b.phrasePoints.length === 0) continue;
-        const localT = swarms.emergence.getSliceProgress(b, p);
-        const drawn = localT * b.phrasePoints.length;
-        const upto = Math.min(b.phrasePoints.length, Math.ceil(drawn));
-        for (let k = 0; k < upto; k++) {
-          const pt = b.phrasePoints[k];
-          const a = clamp01(drawn - k);
-          if (a <= 0.01) continue;
-          ctx.globalAlpha = a * 0.95;
-          ctx.fillStyle = palette.core;
-          ctx.shadowBlur = 6;
-          ctx.shadowColor = palette.glow;
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 1.7, 0, Math.PI * 2);
-          ctx.fill();
+      // Every finished dot is stamped once into an offscreen canvas; each
+      // frame we only stamp the few newly-finished dots and blit the rest.
+      const pcv = phraseCvsRef.current;
+      if (pcv) {
+        const pctx = pcv.getContext('2d');
+        if (pctx) {
+          // Dev seeking backwards: rebuild the stamped canvas from scratch.
+          if (p + 1e-6 < phraseStampPRef.current) {
+            pctx.clearRect(0, 0, w, h);
+            phraseStampRef.current = new WeakMap();
+            phraseStampPRef.current = 0;
+          }
+
+          const frontier: { x: number; y: number; a: number }[] = [];
+          pctx.save();
+          pctx.globalCompositeOperation = 'lighter';
+          pctx.fillStyle = palette.core;
+          pctx.shadowBlur = 6;
+          pctx.shadowColor = palette.glow;
+          for (const b of swarms.emergence.butterflies) {
+            const pts = b.phrasePoints;
+            if (pts.length === 0 || p < b.writeStart) continue;
+            const drawn = swarms.emergence.getSliceProgress(b, p) * pts.length;
+            const stamped = phraseStampRef.current.get(b) ?? 0;
+            // A dot is stamped once its fade-in is ~done (alpha >= 0.95).
+            const done = Math.min(pts.length, Math.max(stamped, Math.floor(drawn - 0.95) + 1));
+            for (let k = stamped; k < done; k++) {
+              const pt = pts[k];
+              pctx.globalAlpha = 0.95;
+              pctx.beginPath();
+              pctx.arc(pt.x, pt.y, 1.7, 0, Math.PI * 2);
+              pctx.fill();
+            }
+            if (done > stamped) phraseStampRef.current.set(b, done);
+            // At most one still-fading dot per butterfly, drawn live.
+            for (let k = done; k < pts.length && k < Math.ceil(drawn); k++) {
+              frontier.push({ x: pts[k].x, y: pts[k].y, a: clamp01(drawn - k) * 0.95 });
+            }
+          }
+          pctx.restore();
+          phraseStampPRef.current = p;
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.drawImage(pcv, 0, 0);
+          if (frontier.length > 0) {
+            ctx.fillStyle = palette.core;
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = palette.glow;
+            for (const d of frontier) {
+              ctx.globalAlpha = d.a;
+              ctx.beginPath();
+              ctx.arc(d.x, d.y, 1.7, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
         }
       }
-      ctx.restore();
 
       // --- Cocoon opening bursts ---
       ctx.save();
@@ -216,7 +305,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         for (const rig of swarms.emergence.getRenderData(p, time)) renderer.draw(ctx, rig);
       }
     },
-    [phrase, openSchedule, palette],
+    [phrase, openSchedule, palette, starSprites],
   );
 
   // Continuous render loop: eases the displayed progress towards the live
@@ -227,6 +316,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
     swarmsRef.current = null;
     let frame = 0;
     let last = performance.now();
+    let lastDraw = 0;
     let displayed = targetPRef.current;
 
     const loop = (now: number) => {
@@ -238,7 +328,11 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       } else {
         displayed += (target - displayed) * (1 - Math.exp(-dt * 10));
       }
-      renderCanvasFrame(displayed, now / 1000);
+      // Cap drawing at ~30fps — plenty for this scene, half the GPU cost.
+      if (now - lastDraw >= 33) {
+        lastDraw = now;
+        renderCanvasFrame(displayed, now / 1000);
+      }
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);

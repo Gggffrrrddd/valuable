@@ -260,6 +260,7 @@ function buildBody(core: HexRgb, accent: HexRgb, deep: HexRgb): HTMLCanvasElemen
 export class AnimatedButterflyRenderer {
   public ready = true;
   private wing: WingTexture;
+  private wingDim: HTMLCanvasElement;
   private body: HTMLCanvasElement;
   private bodyScale: number;
   private bodyWidth: number;
@@ -272,6 +273,18 @@ export class AnimatedButterflyRenderer {
 
     this.wing = buildWing(core, accent);
     this.body = buildBody(core, accent, deep);
+
+    // Pre-rendered dimmed wing for the flipped state — building it once beats
+    // a per-frame ctx.filter pass (which forces an offscreen composite).
+    this.wingDim = document.createElement('canvas');
+    this.wingDim.width = this.wing.canvas.width;
+    this.wingDim.height = this.wing.canvas.height;
+    const dctx = this.wingDim.getContext('2d');
+    if (dctx) {
+      dctx.filter = 'brightness(0.66) saturate(0.6)';
+      dctx.drawImage(this.wing.canvas, 0, 0);
+      dctx.filter = 'none';
+    }
 
     const bodyLen = RIG.bodyWingRatio * this.wing.extentH;
     this.bodyScale = bodyLen / this.body.height;
@@ -286,6 +299,7 @@ export class AnimatedButterflyRenderer {
     const hingeY = -this.wing.extentH * RIG.wingRootY;
     const wingDrawY = hingeY - this.wing.rootY;
     const wingDrawX = -this.wing.rootX;
+    const wingCanvas = rig.isFlipped ? this.wingDim : this.wing.canvas;
 
     ctx.save();
     ctx.translate(rig.x, rig.y);
@@ -293,17 +307,13 @@ export class AnimatedButterflyRenderer {
     ctx.scale(scale, scale);
     ctx.globalAlpha = rig.alpha;
 
-    if (rig.isFlipped) ctx.filter = 'brightness(0.66) saturate(0.6)';
-
     for (const dir of [-1, 1] as const) {
       ctx.save();
       ctx.translate(-dir * this.bodyWidth * 0.16, hingeY);
       ctx.scale(dir * wingScaleX, 1);
-      ctx.drawImage(this.wing.canvas, wingDrawX, wingDrawY);
+      ctx.drawImage(wingCanvas, wingDrawX, wingDrawY);
       ctx.restore();
     }
-
-    ctx.filter = 'none';
 
     // Body sits over the wing roots.
     ctx.save();
