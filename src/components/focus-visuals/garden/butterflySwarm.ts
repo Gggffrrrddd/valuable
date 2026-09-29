@@ -300,7 +300,11 @@ export class EmergenceSwarm {
     return { x: a.x + (c.x - a.x) * frac, y: a.y + (c.y - a.y) * frac };
   }
 
-  getRenderData(p: number, time: number): ButterflyRig[] {
+  /**
+   * @param dissolve 0..1 — once the phrase is complete (progress 1), fades
+   *   every phrase butterfly out while it keeps fluttering on its letter.
+   */
+  getRenderData(p: number, time: number, dissolve = 0): ButterflyRig[] {
     const rigs: ButterflyRig[] = [];
     for (const b of this.butterflies) {
       if (p < b.tOpen) continue;
@@ -311,7 +315,7 @@ export class EmergenceSwarm {
       const here = this.posAt(b, p);
       const next = this.posAt(b, Math.min(1, p + 0.004));
       const heading = Math.atan2(next.y - here.y, next.x - here.x) + Math.PI / 2;
-      const alpha = smoothstep(b.tOpen, b.tOpen + OPEN_WINDOW.popP, p);
+      const alpha = smoothstep(b.tOpen, b.tOpen + OPEN_WINDOW.popP, p) * (1 - dissolve);
       // Idle hover so butterflies keep moving continuously, never going still.
       const bobX = Math.sin(time * 1.6 + b.phaseOffset) * RIG.hoverPx;
       const bobY = Math.cos(time * 2.2 + b.phaseOffset * 1.4) * RIG.hoverPx * 0.75;
@@ -319,7 +323,7 @@ export class EmergenceSwarm {
       rigs.push({
         x: here.x + bobX,
         y: here.y + bobY,
-        px: b.px * grow,
+        px: b.px * grow * (1 - 0.35 * dissolve),
         alpha,
         heading,
         flapPhase: flapPhase(time, b.flapHz, b.phaseOffset),

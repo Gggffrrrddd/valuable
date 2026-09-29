@@ -26,6 +26,7 @@ import {
   COCOON_COUNT,
   STAR_COLORS,
   OPEN_WINDOW,
+  DISSOLVE,
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
@@ -111,6 +112,9 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const phraseCvsRef = useRef<HTMLCanvasElement | null>(null);
   const phraseStampRef = useRef<WeakMap<EmergenceButterfly, number>>(new WeakMap());
   const phraseStampPRef = useRef(0);
+  // Wall-clock moment progress first hit 1 — drives the end-of-phrase
+  // dissolve of the phrase-writing butterflies (progress never exceeds 1).
+  const phraseDoneAtRef = useRef<number | null>(null);
 
   // Natural star-colour glow sprites (fixed colours — stars never take the
   // session palette) plus a white pulse sprite for landing flashes.
@@ -305,7 +309,21 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       const renderer = rendererRef.current;
       if (renderer && renderer.ready) {
         for (const rig of swarms.arrival.getRenderData(p, time)) renderer.draw(ctx, rig);
-        for (const rig of swarms.emergence.getRenderData(p, time)) renderer.draw(ctx, rig);
+
+        // Once the phrase is complete (progress 1), the phrase-writing
+        // butterflies hold for a beat and then dissolve into their letters.
+        if (p >= 0.999) {
+          if (phraseDoneAtRef.current === null) phraseDoneAtRef.current = time;
+        } else {
+          phraseDoneAtRef.current = null;
+        }
+        const dissolve =
+          phraseDoneAtRef.current === null
+            ? 0
+            : clamp01((time - phraseDoneAtRef.current) / DISSOLVE.durationS);
+        for (const rig of swarms.emergence.getRenderData(p, time, dissolve)) {
+          renderer.draw(ctx, rig);
+        }
       }
     },
     [phrase, openSchedule, palette, starSprites],

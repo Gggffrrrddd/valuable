@@ -215,6 +215,15 @@ export const OPEN_WINDOW = {
   burstP: 0.014,
 } as const;
 
+/**
+ * Once the phrase is fully written (progress reaches 1), every phrase-writing
+ * butterfly melts away into the letters it formed — the phrase itself stays.
+ * Time-based, since progress never goes past 1.
+ */
+export const DISSOLVE = {
+  durationS: 1.4,
+} as const;
+
 /** Session storage keys for palette/phrase persistence. */
 export const GARDEN_BAG_KEY = 'valuable-garden-bag';
 export const GARDEN_PHRASE_BAG_KEY = 'valuable-garden-phrase-bag';
