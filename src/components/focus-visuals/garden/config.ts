@@ -7,9 +7,6 @@
 /** Exactly 30 cocoons, each an individual sprite with its own slot. */
 export const COCOON_COUNT = 30;
 
-/** Act 1 arrivals (butterflies flying in from outside the screen). */
-export const ARRIVAL_COUNT = 70;
-
 export interface SessionPalette {
   id: string;
   label: string;
@@ -100,38 +97,69 @@ export const AMBIENT = { count: 30, alpha: 0.3, speed: 14, curl: 0.7 } as const;
 /** Procedural butterfly constellation. */
 export const CONSTELLATION = {
   points: 110,
-  fitW: 0.88,
-  fitH: 0.6,
-  centerY: 0.32,
+  fitW: 0.3,
+  fitH: 0.4,
+  /** Centre of the figure as a fraction of the viewport height (dark area). */
+  centerY: 0.28,
   lineAlpha: 0.25,
   showLines: true,
   tintChance: 0.25,
   prominentChance: 0.18,
 } as const;
 
-/** Camera presets (viewport units; panY = world distance panned up). */
-export const FINALE_VIEW = { panY: 0.58, zoom: 1 } as const;
-export const DOLLY_OUT = { panY: 0.66, zoom: 0.92 } as const;
-
-/** Phrase draw box, relative to the constellation bounding box. */
-export const PHRASE_BOX = { w: 0.45, h: 0.22, maxAlpha: 0.35 } as const;
+/**
+ * Phrase placement as a fraction of the viewport height. The sampler centres
+ * text in the canvas it is handed, so it receives a canvas that is
+ * `2 * centerY` tall — putting the phrase centre exactly at `centerY`.
+ */
+export const PHRASE = { centerY: 0.57, fontPx: 48 } as const;
 
 /** Fixed letter-particle pool (subsample / orbit if the phrase is too small). */
 export const PARTICLE_POOL = 700;
 
 /** Generated sky. */
 export const SKY = {
-  heightVh: 2.2,
-  widthVw: 2,
-  maxDim: 2048,
+  /** Height of the static sky overlay, as a fraction of the viewport height. */
+  overlayVh: 0.65,
+  /** Fraction of the sky height where the fade-to-transparent starts. */
+  fadeFrom: 0.62,
   starsFull: 800,
   starsReduced: 300,
   brightStars: 34,
-  sparkleStars: 9,
-  twinkleCount: 50,
-  shootingMinS: 8,
-  shootingMaxS: 15,
-  moon: { x: 0.7, y: 0.2, r: 0.03 },
+  /** Fade-in window (in progress) for the whole sky layer. */
+  fadeInEnd: 0.25,
+} as const;
+
+/**
+ * Phase A — constellation build-up. Each constellation group is revealed in
+ * its own sub-range of progress 0..0.5 (outer boundary first, then wings,
+ * upper/lower details, then the centre body).
+ */
+export const ARRIVAL = {
+  groups: {
+    outer: [0.0, 0.16],
+    wing: [0.14, 0.3],
+    upperLower: [0.28, 0.42],
+    center: [0.4, 0.5],
+  },
+  /** Flight duration for one arrival butterfly, in progress units. */
+  flightP: 0.06,
+  /** Vertical band (fraction of viewport) the arrivals enter from. */
+  entryTopY: 0.08,
+  entryBottomY: 0.5,
+} as const;
+
+/** Phase B — cocoon opening + phrase writing. */
+export const OPEN_WINDOW = {
+  /** Shuffled opening moments are spread across this progress range. */
+  start: 0.5,
+  end: 0.9,
+  /** Pop-out duration at the cocoon slot. */
+  popP: 0.015,
+  /** Flight from the slot to the first phrase point. */
+  flyP: 0.05,
+  /** Particle burst duration when a cocoon opens. */
+  burstP: 0.02,
 } as const;
 
 /** Session storage keys for palette/phrase persistence. */

@@ -1,59 +1,57 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+/**
+ * Garden / "Starlight Butterfly" focus visual.
+ *
+ * The whole animation is driven by the session `progress` value (0..1) — the
+ * same value the timer uses. There is NO camera and NO separate post-session
+ * finale: the garden image is a fixed, untouched backdrop and everything else
+ * (sky, constellation, cocoons, butterflies, phrase) is an overlay in the dark
+ * area above it.
+ *
+ *   Phase A (0.0 -> 0.5): butterflies trickle in from the screen edges and
+ *                         dissolve into a constellation that is fully formed
+ *                         at exactly progress 0.5.
+ *   Phase B (0.5 -> 1.0): cocoons open in a shuffled order, each releasing a
+ *                         butterfly that traces its slice of the phrase; the
+ *                         phrase is complete at exactly progress 1.0.
+ */
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { FocusVisualProps } from './types';
 import { COCOON_SLOTS, COCOON_PHASES } from './garden/cocoonSlots';
-import { ASSETS, COCOON, GARDEN_PLACEMENT, SKY, COCOON_COUNT, CONSTELLATION } from './garden/config';
-import { CAMERA_KEYS, T, OPEN } from './garden/finaleTimeline';
+import {
+  ASSETS,
+  COCOON,
+  GARDEN_PLACEMENT,
+  SKY,
+  COCOON_COUNT,
+  CONSTELLATION,
+  PHRASE,
+  OPEN_WINDOW,
+} from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
 import { ButterflyRenderer } from './garden/butterflySprite';
 import { generateConstellation } from './garden/constellation';
-import { ArrivalSwarm, EmergenceSwarm } from './garden/butterflySwarm';
+import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule } from './garden/butterflySwarm';
 import { samplePhrase, resolveSessionPhrase } from './garden/phrases';
-import { smoothstep } from './model-core/canvasUtils';
+import { clamp01, smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
 
-function lerp(start: number, end: number, t: number) {
-  return start + (end - start) * t;
-}
-
-function easeInOutCubic(x: number): number {
-  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-}
-
-function interpolateCamera(tSec: number) {
-  if (tSec <= CAMERA_KEYS[0].t) return CAMERA_KEYS[0];
-  if (tSec >= CAMERA_KEYS[CAMERA_KEYS.length - 1].t) return CAMERA_KEYS[CAMERA_KEYS.length - 1];
-  
-  for (let i = 0; i < CAMERA_KEYS.length - 1; i++) {
-    const k1 = CAMERA_KEYS[i];
-    const k2 = CAMERA_KEYS[i + 1];
-    if (tSec >= k1.t && tSec <= k2.t) {
-      const progress = (tSec - k1.t) / (k2.t - k1.t);
-      const eased = easeInOutCubic(progress);
-      return {
-        panY: lerp(k1.panY, k2.panY, eased),
-        zoom: lerp(k1.zoom, k2.zoom, eased)
-      };
-    }
-  }
-  return CAMERA_KEYS[0];
+/** Deterministic pseudo-random in [0, 1) from a numeric seed. */
+function rand01(seed: number) {
+  const x = Math.sin(seed * 9999.9999) * 10000;
+  return x - Math.floor(x);
 }
 
 export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
-  // Dev tools
+  // Dev tools: ?garden=progress&p=0.0-1.0 seeks the whole animation instantly.
   const devTools = useMemo(() => {
-    if (typeof window === 'undefined') return { speed: 1, startT: 0, palette: null, phrase: null };
+    if (typeof window === 'undefined') return { p: null as number | null, palette: null, phrase: null };
     const params = new URLSearchParams(window.location.search);
-    const isFinale = params.get('garden') === 'finale';
-    if (!isFinale) return { speed: 1, startT: 0, palette: null, phrase: null };
-    
-    const act = params.get('act');
-    let startT = Number(params.get('t')) || 0;
-    if (act === '2') startT = Math.max(startT, T.viewStart);
-    
+    if (params.get('garden') !== 'progress') return { p: null as number | null, palette: null, phrase: null };
+    const rawP = params.get('p');
+    const p = rawP === null ? null : clamp01(Number(rawP));
     return {
-      speed: Number(params.get('speed')) || 1,
-      startT,
+      p: p !== null && Number.isFinite(p) ? p : null,
       palette: params.get('palette'),
       phrase: params.get('phrase'),
     };
@@ -61,273 +59,233 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
 
   const palette = resolveSessionPalette(devTools.palette);
   const phrase = useMemo(() => resolveSessionPhrase(devTools.phrase), [devTools.phrase]);
-  const value = Math.max(0, Math.min(1, progress));
-  const complete = value >= 1;
+  const reducedMotion = useReducedMotion();
+
+  const sessionProgress = clamp01(progress);
+  const complete = sessionProgress >= 1;
+  const targetP = devTools.p ?? (reducedMotion ? 1 : sessionProgress);
+
+  const targetPRef = useRef(targetP);
+  targetPRef.current = targetP;
+
   const skyCanvasRef = useRef<HTMLCanvasElement>(null);
   const effectsCanvasRef = useRef<HTMLCanvasElement>(null);
   const skyLayerRef = useRef<SkyLayer | null>(null);
   const rendererRef = useRef<ButterflyRenderer | null>(null);
   const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
-  const lastTimeRef = useRef(0);
-  const skippedRef = useRef(false);
-  
-  // Timer for finale
-  const [finaleTime, setFinaleTime] = useState(0);
-  const gardenContainerRef = useRef<HTMLDivElement>(null);
-  const cocoonsContainerRef = useRef<HTMLDivElement>(null);
-  
-  const reducedMotion = useReducedMotion();
 
+  // Open schedule is precomputed once per session and stable across re-renders.
+  const openSchedule = useMemo(() => createOpenSchedule(COCOON_COUNT), []);
+
+  const renderCanvasFrame = useCallback(
+    (p: number, time: number) => {
+      const effCvs = effectsCanvasRef.current;
+      const skyCvs = skyCanvasRef.current;
+      if (!effCvs || !skyCvs) return;
+
+      const w = effCvs.clientWidth;
+      const h = effCvs.clientHeight;
+      if (w === 0 || h === 0) return;
+
+      // (Re)build the offscreen layers and swarms whenever the canvas resizes.
+      if (effCvs.width !== w || effCvs.height !== h) {
+        effCvs.width = w;
+        effCvs.height = h;
+
+        const skyH = Math.max(1, Math.round(h * SKY.overlayVh));
+        skyCvs.width = w;
+        skyCvs.height = skyH;
+        skyLayerRef.current = generateSky(w, skyH);
+        const sctx = skyCvs.getContext('2d');
+        if (sctx) {
+          sctx.clearRect(0, 0, w, skyH);
+          sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
+        }
+
+        const targets = generateConstellation(w, h);
+        // The sampler centres its text, so a canvas twice as tall as the
+        // desired centre offset places the phrase at `PHRASE.centerY`.
+        const phraseCanvasH = Math.max(1, Math.round(h * PHRASE.centerY * 2));
+        const phrasePoints = samplePhrase(phrase, w, phraseCanvasH);
+        swarmsRef.current = {
+          arrival: new ArrivalSwarm(targets, w, h),
+          emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, openSchedule, phrasePoints),
+        };
+      }
+
+      const swarms = swarmsRef.current;
+      const ctx = effCvs.getContext('2d');
+      if (!swarms || !ctx) return;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // --- Constellation lines (fade in as the figure completes) ---
+      if (CONSTELLATION.showLines) {
+        const lineAlpha = CONSTELLATION.lineAlpha * smoothstep(0.4, 0.5, p);
+        if (lineAlpha > 0.001) {
+          ctx.strokeStyle = `rgba(255,255,255,${lineAlpha})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          const targets = swarms.arrival.targets;
+          for (let i = 0; i < targets.length; i++) {
+            for (let j = i + 1; j < targets.length; j++) {
+              const dx = targets[i].x - targets[j].x;
+              const dy = targets[i].y - targets[j].y;
+              if (dx * dx + dy * dy < 10000) {
+                ctx.moveTo(targets[i].x, targets[i].y);
+                ctx.lineTo(targets[j].x, targets[j].y);
+              }
+            }
+          }
+          ctx.stroke();
+        }
+      }
+
+      // --- Constellation stars (arrive one by one, then idle-twinkle) ---
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const target of swarms.arrival.targets) {
+        const starP = swarms.arrival.starP.get(target.id);
+        if (starP === undefined || p < starP) continue;
+        const appear = smoothstep(starP, starP + 0.02, p);
+        const twinkle = 0.78 + 0.22 * Math.sin(time * 2.1 + target.id * 1.7);
+        const alpha = appear * (target.isProminent ? 1 : 0.8) * twinkle;
+        const tinted = rand01(target.id * 1.37) < CONSTELLATION.tintChance;
+        const color = tinted ? palette.starTint : '#ffffff';
+        const radius = (target.isProminent ? 2 : 1.1) * (0.5 + 0.5 * appear);
+
+        ctx.shadowBlur = target.isProminent ? 8 : 4;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // --- Phrase (accent-coloured), traced by the emergence butterflies ---
+      const writeAlpha = smoothstep(0.6, 0.98, p);
+      if (writeAlpha > 0.001) {
+        ctx.save();
+        ctx.font = `bold ${PHRASE.fontPx}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = writeAlpha * 0.85;
+        ctx.fillStyle = palette.glow;
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = palette.glow;
+        ctx.fillText(phrase, w / 2, h * PHRASE.centerY);
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const b of swarms.emergence.butterflies) {
+        if (p < b.writeStart || b.phrasePoints.length === 0) continue;
+        const localT = swarms.emergence.getSliceProgress(b, p);
+        const drawn = localT * b.phrasePoints.length;
+        const upto = Math.min(b.phrasePoints.length, Math.ceil(drawn));
+        for (let k = 0; k < upto; k++) {
+          const pt = b.phrasePoints[k];
+          const a = clamp01(drawn - k);
+          if (a <= 0.01) continue;
+          ctx.globalAlpha = a * 0.95;
+          ctx.fillStyle = palette.core;
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = palette.glow;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // --- Cocoon opening bursts ---
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < COCOON_SLOTS.length; i++) {
+        const openP = openSchedule[i] ?? OPEN_WINDOW.start;
+        const t = (p - openP) / OPEN_WINDOW.burstP;
+        if (t < 0 || t > 1) continue;
+        const slot = COCOON_SLOTS[i];
+        const cx = slot.x * w;
+        const cy = slot.y * h;
+        const eased = 1 - Math.pow(1 - t, 2);
+        for (let k = 0; k < 12; k++) {
+          const angle = (k / 12) * Math.PI * 2 + rand01(i * 3 + 1) * Math.PI;
+          const dist = eased * (28 + 24 * rand01(i * 7 + k));
+          ctx.globalAlpha = (1 - t) * 0.8;
+          ctx.fillStyle = palette.glow;
+          ctx.beginPath();
+          ctx.arc(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+
+      // --- Butterflies ---
+      const renderer = rendererRef.current;
+      if (renderer && renderer.ready) {
+        for (const rig of swarms.arrival.getRenderData(p, time)) renderer.draw(ctx, rig);
+        for (const rig of swarms.emergence.getRenderData(p, time)) renderer.draw(ctx, rig);
+      }
+    },
+    [phrase, openSchedule, palette],
+  );
+
+  // Continuous render loop: eases the displayed progress towards the live
+  // value (so 1 Hz timer ticks look smooth) while always finishing exactly on
+  // the target. Dev seeking / reduced motion snap instantly.
   useEffect(() => {
-    if (!complete) return;
-    
-    if (reducedMotion) {
-      setFinaleTime(T.dollyEnd);
-      return;
-    }
-    
-    // Initialize renderer and swarms if not ready
-    if (!rendererRef.current) {
-      rendererRef.current = new ButterflyRenderer(palette.hue);
-    }
-    
-    const start = performance.now();
-    lastTimeRef.current = devTools.startT;
-    let frame: number;
+    rendererRef.current = new ButterflyRenderer(palette.hue);
+    swarmsRef.current = null;
+    let frame = 0;
+    let last = performance.now();
+    let displayed = targetPRef.current;
+
     const loop = (now: number) => {
-      let t = devTools.startT + ((now - start) / 1000) * devTools.speed;
-      if (skippedRef.current) {
-        t = Math.max(t, T.dollyEnd);
+      const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+      last = now;
+      const target = targetPRef.current;
+      if (Math.abs(target - displayed) > 0.02) {
+        displayed = target;
+      } else {
+        displayed += (target - displayed) * (1 - Math.exp(-dt * 10));
       }
-      lastTimeRef.current = t;
-      setFinaleTime(t);
-      
-      renderCanvasFrame(t);
-      updateDomElements(t);
-      
-      if (t < T.dollyEnd + 2) {
-        frame = requestAnimationFrame(loop);
-      }
+      renderCanvasFrame(displayed, now / 1000);
+      frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [complete, palette.hue, devTools, reducedMotion]);
+  }, [palette.hue, renderCanvasFrame]);
 
-  const updateDomElements = (t: number) => {
-    const cam = interpolateCamera(t);
-    const maxPanPx = typeof window !== 'undefined' ? window.innerHeight * SKY.heightVh - window.innerHeight : 0;
-    const panPx = maxPanPx * cam.panY;
-    
-    if (skyCanvasRef.current && skyCanvasRef.current.parentElement) {
-      skyCanvasRef.current.parentElement.style.transform = `scale(${cam.zoom}) translateY(${panPx}px)`;
-    }
-    if (gardenContainerRef.current) {
-      gardenContainerRef.current.style.transform = `scale(${cam.zoom}) translateY(${panPx}px)`;
-    }
-    
-    // Hide cocoons as they open
-    if (cocoonsContainerRef.current && t >= T.openStart) {
-      const children = cocoonsContainerRef.current.children;
-      for (let i = 0; i < children.length; i++) {
-        const isOpened = t >= (T.openStart + (i / COCOON_COUNT) * OPEN.stagger);
-        if (isOpened) {
-          (children[i] as HTMLElement).style.display = 'none';
-        }
-      }
-    }
-  };
-
-  const renderCanvasFrame = (finaleTime: number) => {
-    if (!skyCanvasRef.current || !effectsCanvasRef.current) return;
-    const effCvs = effectsCanvasRef.current;
-    const skyCvs = skyCanvasRef.current;
-    
-    const w = effCvs.clientWidth;
-    const h = effCvs.clientHeight;
-    
-    if (effCvs.width !== w || effCvs.height !== h) {
-      effCvs.width = w;
-      effCvs.height = h;
-      
-      const skyH = h * SKY.heightVh;
-      skyCvs.width = w;
-      skyCvs.height = skyH;
-      
-      skyLayerRef.current = generateSky(w, skyH);
-      const sctx = skyCvs.getContext('2d');
-      if (sctx) sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
-      
-      const targets = generateConstellation(w, skyH);
-      const pPoints = samplePhrase(phrase, w, h);
-      
-      swarmsRef.current = {
-        arrival: new ArrivalSwarm(targets, w, h),
-        emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, pPoints),
-      };
-    }
-    
-    const ctx = effCvs.getContext('2d');
-    if (!ctx || !swarmsRef.current) return;
-    
-    ctx.clearRect(0, 0, w, h);
-    
-    const cam = interpolateCamera(finaleTime);
-    
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.scale(cam.zoom, cam.zoom);
-    ctx.translate(-w / 2, -h / 2);
-    
-    const maxPanPx = h * SKY.heightVh - h;
-    const panPx = maxPanPx * cam.panY;
-    ctx.translate(0, panPx);
-    
-    // Draw lines between constellation stars
-    if (CONSTELLATION.showLines && finaleTime > T.formEnd) {
-      ctx.strokeStyle = `rgba(255, 255, 255, ${CONSTELLATION.lineAlpha})`;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      // simplified nearest-neighbor drawing for demonstration
-      const targets = swarmsRef.current.arrival.targets;
-      for (let i = 0; i < targets.length; i++) {
-        for (let j = i + 1; j < targets.length; j++) {
-          const dx = targets[i].x - targets[j].x;
-          const dy = targets[i].y - targets[j].y;
-          if (dx*dx + dy*dy < 10000) {
-            ctx.moveTo(targets[i].x, targets[i].y);
-            ctx.lineTo(targets[j].x, targets[j].y);
-          }
-        }
-      }
-      ctx.stroke();
-    }
-    
-    // Draw constellation stars
-    ctx.globalCompositeOperation = 'lighter';
-    const formStart = T.formStart;
-    const formEnd = T.formEnd;
-    for (const target of swarmsRef.current.arrival.targets) {
-      // @ts-expect-error StartX is added dynamically
-      if (target.startX !== undefined) {
-        // @ts-expect-error StartX is added dynamically
-        const sx = target.startX;
-        // @ts-expect-error StartY is added dynamically
-        const sy = target.startY;
-        
-        let tForm = 0;
-        if (finaleTime > formStart) {
-          tForm = Math.min(1, (finaleTime - formStart) / (formEnd - formStart));
-        }
-        
-        const eased = smoothstep(0, 1, tForm);
-        const swirlAngle = (1 - eased) * Math.PI * 2;
-        const swirlRadius = (1 - eased) * 100;
-        const cx = sx + (target.x - sx) * eased + Math.cos(swirlAngle) * swirlRadius;
-        const cy = sy + (target.y - sy) * eased + Math.sin(swirlAngle) * swirlRadius;
-
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + 0.5 * eased})`;
-        ctx.beginPath();
-        ctx.arc(cx, cy, target.isProminent ? 2 : 1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.globalCompositeOperation = 'source-over';
-
-    // Draw phrase particles
-    if (finaleTime > T.writeStart) {
-       const phraseOpacity = smoothstep(T.writeStart, T.writeEnd, finaleTime);
-       ctx.fillStyle = `rgba(255, 255, 255, ${phraseOpacity})`;
-       ctx.font = 'bold 32px serif';
-       ctx.textAlign = 'center';
-       ctx.textBaseline = 'middle';
-       ctx.fillText(phrase, w / 2, h * 0.32 - panPx); // adjusted for translate center
-    }
-    
-    // Draw butterflies
-    swarmsRef.current.arrival.update(finaleTime, 1 / 60);
-    swarmsRef.current.emergence.update(finaleTime, 1 / 60);
-    
-    if (rendererRef.current && rendererRef.current.ready) {
-      const arrRigs = swarmsRef.current.arrival.getRenderData(finaleTime);
-      for (const rig of arrRigs) {
-        rendererRef.current.draw(ctx, rig);
-      }
-      
-      const emRigs = swarmsRef.current.emergence.getRenderData(finaleTime);
-      for (const rig of emRigs) {
-        rendererRef.current.draw(ctx, rig);
-      }
-    }
-    
-    ctx.restore();
-  };
-  
-  // Cocoon glow response
-  const isEndWindow = running && progress > 0.9;
-  const baseGlow = running 
-    ? COCOON.minGlow + value * (COCOON.maxGlow - COCOON.minGlow)
-    : COCOON.pausedGlow;
-  
-  // In finale Act 1, cocoons go to full steady glow
-  const inFinaleAct1 = complete && finaleTime < T.openStart;
-  const targetGlow = inFinaleAct1 ? COCOON.brightGlow : (running && isEndWindow ? COCOON.brightGlow : baseGlow);
-  const period = isEndWindow ? COCOON.breathPeriodEndS : COCOON.breathPeriodS;
-
-  const cam = interpolateCamera(finaleTime);
-  const maxPanPx = typeof window !== 'undefined' ? window.innerHeight * SKY.heightVh - window.innerHeight : 0;
-  const panPx = maxPanPx * cam.panY;
-  
-  const handleSkip = () => {
-    if (complete && finaleTime < T.dollyEnd) {
-      skippedRef.current = true;
-      setFinaleTime(T.dollyEnd);
-    }
-  };
+  // --- Cocoon glow response (ramps 0.12 -> 0.85 across phase A) ---
+  const glow = COCOON.minGlow + clamp01(targetP / 0.5) * (COCOON.maxGlow - COCOON.minGlow);
+  const targetGlow = running ? glow : COCOON.pausedGlow;
+  const period = targetP > 0.9 ? COCOON.breathPeriodEndS : COCOON.breathPeriodS;
+  const skyOpacity = smoothstep(0, SKY.fadeInEnd, targetP);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden" onClick={handleSkip}>
-      {/* 1. Generated Sky Layer (behind everything, panning) */}
-      <div 
-        className="absolute inset-0 w-full h-full"
-        aria-hidden="true"
-        style={{
-          transform: `scale(${cam.zoom}) translateY(${panPx}px)`,
-          transformOrigin: 'center center'
-        }}
-      >
-        <canvas 
-          ref={skyCanvasRef}
-          className="absolute inset-x-0 w-full"
-          style={{ bottom: '100%', height: `${SKY.heightVh * 100}vh` }}
-        />
-      </div>
-
-      {/* 2 & 3. Garden Image + Cocoons (panning together with sky) */}
-      <div 
-        className="absolute inset-0 w-full h-full"
-        aria-hidden="true"
-        style={{
-          transform: `scale(${cam.zoom}) translateY(${panPx}px)`,
-          transformOrigin: 'center center'
-        }}
-      >
-        {/* Base garden art */}
+    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden">
+      {/* 1. Garden artwork — fixed size/position/crop, never transformed. */}
+      <div className="absolute inset-0 h-full w-full" aria-hidden="true">
         <img
           src={ASSETS.garden}
           alt=""
           draggable={false}
           className="absolute inset-0 h-full w-full select-none object-cover"
-          style={{ transform: `translate(${GARDEN_PLACEMENT.positionX}%, ${GARDEN_PLACEMENT.positionY}%) scale(${GARDEN_PLACEMENT.scale})` }}
+          style={{
+            transform: `translate(${GARDEN_PLACEMENT.positionX}%, ${GARDEN_PLACEMENT.positionY}%) scale(${GARDEN_PLACEMENT.scale})`,
+          }}
         />
-        
-        {/* 30 Individual Cocoons */}
+
+        {/* 2. Cocoon sprites — individual, hidden once their cocoon opens. */}
         {COCOON_SLOTS.map((slot, i) => {
-          // If past their individual opening time, hide them
-          const isOpened = complete && finaleTime >= (T.openStart + (i / COCOON_COUNT) * OPEN.stagger);
-          if (isOpened) return null;
-          
+          const openP = openSchedule[i] ?? OPEN_WINDOW.start;
+          if (targetP >= openP) return null;
           return (
-            <div 
+            <div
               key={slot.id}
               className="absolute"
               style={{
@@ -339,13 +297,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
                 pointerEvents: 'none',
               }}
             >
-              {/* Base un-glowing sprite */}
-              <img
-                src={ASSETS.cocoon}
-                alt=""
-                className="absolute inset-0 h-full w-full object-contain"
-              />
-              {/* Additive glowing sprite overlay */}
+              <img src={ASSETS.cocoon} alt="" className="absolute inset-0 h-full w-full object-contain" />
               <img
                 src={ASSETS.cocoon}
                 alt=""
@@ -354,8 +306,8 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
                   filter: `drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.glow})`,
                   mixBlendMode: 'screen',
                   opacity: targetGlow,
-                  animation: running && !complete ? `garden-breathe ${period}s ease-in-out infinite alternate` : 'none',
-                  animationDelay: `-${COCOON_PHASES[i]}s`
+                  animation: running ? `garden-breathe ${period}s ease-in-out infinite alternate` : 'none',
+                  animationDelay: `-${COCOON_PHASES[i]}s`,
                 }}
               />
             </div>
@@ -363,24 +315,32 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         })}
       </div>
 
-      {/* 4. Effects Canvas */}
-      <canvas 
-        ref={effectsCanvasRef}
+      {/* 3. Static stars-only sky overlay (fades in during phase A). */}
+      <canvas
+        ref={skyCanvasRef}
         aria-hidden="true"
-        className="absolute inset-0 z-10 w-full h-full pointer-events-none"
+        className="absolute left-0 top-0 w-full pointer-events-none"
+        style={{ height: `${SKY.overlayVh * 100}vh`, opacity: skyOpacity }}
       />
 
-      {/* Screen-reader only phrase announcement */}
-      {complete && finaleTime >= T.writeStart && (
+      {/* 4. Effects canvas — fully transparent, cleared every frame. */}
+      <canvas
+        ref={effectsCanvasRef}
+        aria-hidden="true"
+        className="absolute inset-0 z-10 h-full w-full pointer-events-none"
+      />
+
+      {/* Screen-reader announcement of the written phrase. */}
+      {complete && (
         <div aria-live="polite" className="sr-only">
           {phrase}
         </div>
       )}
 
-      {/* Continue button at the very end */}
-      {complete && finaleTime >= T.dollyEnd && (
+      {/* Continue button once the session is truly complete. */}
+      {complete && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-end pb-24 pointer-events-none animate-fade-in">
-          <button 
+          <button
             onClick={onFinaleComplete}
             className="pointer-events-auto rounded-full bg-lime-300 px-8 py-3.5 font-display text-sm font-bold tracking-wide text-[#11130f] transition hover:bg-lime-200 hover:scale-105"
           >

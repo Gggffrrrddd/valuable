@@ -11,10 +11,9 @@ export interface StarTarget {
 export function generateConstellation(width: number, height: number): StarTarget[] {
   const targets: StarTarget[] = [];
   const cx = width * 0.5;
-  // Center is in the sky, so negative Y. We want it roughly in the middle of the revealed sky.
-  // The sky height is `height`. The garden is at y=0 downwards.
-  // The sky extends from y = -height to y = 0.
-  const cy = -height * 0.5; 
+  // The figure lives in the dark upper area of the current static view (no
+  // camera anymore), centred at a fraction of the viewport height.
+  const cy = height * CONSTELLATION.centerY;
   const halfW = (width * CONSTELLATION.fitW) / 2;
   const h = height * CONSTELLATION.fitH;
   
