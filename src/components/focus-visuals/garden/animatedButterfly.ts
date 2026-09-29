@@ -7,7 +7,7 @@
  * Butterflies are the only butterfly implementation in the app — there is no
  * image-based rig.
  */
-import { RIG } from './config';
+import { BUTTERFLY_ACCENTS, RIG } from './config';
 
 /** Everything the renderer needs to place and animate one butterfly. */
 export interface ButterflyRig {
@@ -21,6 +21,8 @@ export interface ButterflyRig {
   bank: number; // radians
   isFlipped: boolean;
   glowAlpha: number;
+  /** Which colour variant this butterfly wears (0 = session palette). */
+  colorIdx: number;
 }
 
 interface HexRgb {
@@ -257,49 +259,68 @@ function buildBody(core: HexRgb, accent: HexRgb, deep: HexRgb): HTMLCanvasElemen
   return canvas;
 }
 
+/** Pre-render a wing in its dimmed (flipped) tone once — beats a per-frame ctx.filter. */
+function dimTexture(src: HTMLCanvasElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = src.width;
+  canvas.height = src.height;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.filter = 'brightness(0.66) saturate(0.6)';
+    ctx.drawImage(src, 0, 0);
+    ctx.filter = 'none';
+  }
+  return canvas;
+}
+
+interface ButterflyVariant {
+  wing: WingTexture;
+  wingDim: HTMLCanvasElement;
+  body: HTMLCanvasElement;
+}
+
 export class AnimatedButterflyRenderer {
   public ready = true;
-  private wing: WingTexture;
-  private wingDim: HTMLCanvasElement;
-  private body: HTMLCanvasElement;
+  private variants: ButterflyVariant[];
   private bodyScale: number;
   private bodyWidth: number;
   private totalWidth: number;
 
   constructor(_hue: number, coreHex: string, glowHex: string) {
-    const core = hexToRgb(coreHex);
-    const accent = hexToRgb(glowHex);
-    const deep = shade(accent, 0.34);
+    const specs: { core: HexRgb; accent: HexRgb }[] = [
+      { core: hexToRgb(coreHex), accent: hexToRgb(glowHex) },
+      // Every other butterfly gets its own accent so the swarm is multi-coloured.
+      ...BUTTERFLY_ACCENTS.map((hex) => {
+        const accent = hexToRgb(hex);
+        return { core: mix(accent, { r: 255, g: 255, b: 255 }, 0.55), accent };
+      }),
+    ];
 
-    this.wing = buildWing(core, accent);
-    this.body = buildBody(core, accent, deep);
+    this.variants = specs.map(({ core, accent }) => {
+      const wing = buildWing(core, accent);
+      return {
+        wing,
+        wingDim: dimTexture(wing.canvas),
+        body: buildBody(core, accent, shade(accent, 0.34)),
+      };
+    });
 
-    // Pre-rendered dimmed wing for the flipped state — building it once beats
-    // a per-frame ctx.filter pass (which forces an offscreen composite).
-    this.wingDim = document.createElement('canvas');
-    this.wingDim.width = this.wing.canvas.width;
-    this.wingDim.height = this.wing.canvas.height;
-    const dctx = this.wingDim.getContext('2d');
-    if (dctx) {
-      dctx.filter = 'brightness(0.66) saturate(0.6)';
-      dctx.drawImage(this.wing.canvas, 0, 0);
-      dctx.filter = 'none';
-    }
-
-    const bodyLen = RIG.bodyWingRatio * this.wing.extentH;
-    this.bodyScale = bodyLen / this.body.height;
-    this.bodyWidth = this.body.width * this.bodyScale;
-    this.totalWidth = this.wing.extentW * 2 + this.bodyWidth;
+    const first = this.variants[0].wing;
+    const bodyLen = RIG.bodyWingRatio * first.extentH;
+    this.bodyScale = bodyLen / this.variants[0].body.height;
+    this.bodyWidth = this.variants[0].body.width * this.bodyScale;
+    this.totalWidth = first.extentW * 2 + this.bodyWidth;
   }
 
   draw(ctx: CanvasRenderingContext2D, rig: ButterflyRig) {
+    const variant = this.variants[Math.abs(rig.colorIdx) % this.variants.length];
     const scale = rig.px / Math.max(1, this.totalWidth);
     const flap = Math.cos(rig.flapPhase);
     const wingScaleX = RIG.flapClose + (1 - RIG.flapClose) * (0.5 + 0.5 * flap);
-    const hingeY = -this.wing.extentH * RIG.wingRootY;
-    const wingDrawY = hingeY - this.wing.rootY;
-    const wingDrawX = -this.wing.rootX;
-    const wingCanvas = rig.isFlipped ? this.wingDim : this.wing.canvas;
+    const hingeY = -variant.wing.extentH * RIG.wingRootY;
+    const wingDrawY = hingeY - variant.wing.rootY;
+    const wingDrawX = -variant.wing.rootX;
+    const wingCanvas = rig.isFlipped ? variant.wingDim : variant.wing.canvas;
 
     ctx.save();
     ctx.translate(rig.x, rig.y);
@@ -318,7 +339,7 @@ export class AnimatedButterflyRenderer {
     // Body sits over the wing roots.
     ctx.save();
     ctx.scale(this.bodyScale, this.bodyScale);
-    ctx.drawImage(this.body, -this.body.width / 2, -this.body.height * RIG.thoraxY);
+    ctx.drawImage(variant.body, -variant.body.width / 2, -variant.body.height * RIG.thoraxY);
     ctx.restore();
 
     ctx.restore();

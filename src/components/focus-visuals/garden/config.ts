@@ -55,7 +55,29 @@ export const COCOON = {
   glowRadius: 7,
   /** Wider bloom radius, in px, layered under the core glow. */
   bloomRadius: 18,
+  /** Warm orange glow — fixed for every session, independent of the palette. */
+  glowColor: '#ffb066',
+  coreColor: '#ff8f3f',
 } as const;
+
+/**
+ * Natural star colours — stars always look like real stars (white with a
+ * little warm/cool variation) and never take the session palette.
+ */
+export const STAR_COLORS = ['#ffffff', '#ffffff', '#ffffff', '#fff3dd', '#dfe9ff'] as const;
+
+/**
+ * One accent per butterfly, so the swarm is a mix of colours instead of a
+ * single palette hue. Index 0 of the renderer variants is the session palette.
+ */
+export const BUTTERFLY_ACCENTS = [
+  '#ff7ab8', // rose
+  '#6fb7ff', // sky blue
+  '#a98bff', // violet
+  '#4fe0c0', // mint
+  '#ffd166', // gold
+  '#ff8f5e', // coral
+] as const;
 
 /**
  * Butterfly rig (body + mirrored wings). Sizes are the butterfly's nominal
@@ -90,6 +112,8 @@ export const RIG = {
   speedGamma: 1.55,
   /** Gentle mid-flight surge so the pace reads as a natural flutter. */
   surgeAmount: 0.18,
+  /** Idle hover bob, in px — butterflies are never completely still. */
+  hoverPx: 2.6,
 } as const;
 
 export const VARIATION = { size: 0.22 } as const;

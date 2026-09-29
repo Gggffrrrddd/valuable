@@ -24,7 +24,7 @@ import {
   MOON,
   SKY,
   COCOON_COUNT,
-  STARFIELD,
+  STAR_COLORS,
   OPEN_WINDOW,
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
@@ -112,9 +112,11 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const phraseStampRef = useRef<WeakMap<EmergenceButterfly, number>>(new WeakMap());
   const phraseStampPRef = useRef(0);
 
+  // Natural star-colour glow sprites (fixed colours — stars never take the
+  // session palette) plus a white pulse sprite for landing flashes.
   const starSprites = useMemo(
-    () => ({ white: makeGlowSprite('#ffffff'), tint: makeGlowSprite(palette.starTint) }),
-    [palette.starTint],
+    () => ({ colors: STAR_COLORS.map(makeGlowSprite), pulse: makeGlowSprite('#ffffff') }),
+    [],
   );
 
   // Open schedule is precomputed once per session and stable across re-renders.
@@ -179,8 +181,9 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         const appear = smoothstep(starP, starP + 0.02, p);
         const twinkle = 0.78 + 0.22 * Math.sin(time * 2.1 + target.id * 1.7);
         const alpha = appear * (target.isProminent ? 1 : 0.8) * twinkle;
-        const tinted = rand01(target.id * 1.37) < STARFIELD.tintChance;
-        const sprite = tinted ? starSprites.tint : starSprites.white;
+        const colorIdx =
+          Math.floor(rand01(target.id * 1.37) * starSprites.colors.length) % starSprites.colors.length;
+        const sprite = starSprites.colors[colorIdx];
         const radius = (target.isProminent ? 2 : 1.1) * (0.5 + 0.5 * appear);
         const size = radius * 7;
 
@@ -193,7 +196,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           const pulseSize = (radius + 3.5 * pulse) * 7;
           ctx.globalAlpha = pulse * 0.9;
           ctx.drawImage(
-            starSprites.white,
+            starSprites.pulse,
             target.x - pulseSize / 2,
             target.y - pulseSize / 2,
             pulseSize,
@@ -326,7 +329,9 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       if (Math.abs(target - displayed) > 0.02) {
         displayed = target;
       } else {
-        displayed += (target - displayed) * (1 - Math.exp(-dt * 10));
+        // Slower chase (τ ≈ 0.25s): the displayed progress glides across the
+        // whole gap between 1 Hz ticks instead of snapping then stalling.
+        displayed += (target - displayed) * (1 - Math.exp(-dt * 4));
       }
       // Cap drawing at ~30fps — plenty for this scene, half the GPU cost.
       if (now - lastDraw >= 33) {
@@ -384,7 +389,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
                 alt=""
                 className="absolute inset-0 h-full w-full object-contain"
                 style={{
-                  filter: `blur(${COCOON.bloomRadius / 2}px) drop-shadow(0 0 ${COCOON.bloomRadius}px ${palette.glow})`,
+                  filter: `blur(${COCOON.bloomRadius / 2}px) drop-shadow(0 0 ${COCOON.bloomRadius}px ${COCOON.glowColor})`,
                   mixBlendMode: 'screen',
                   opacity: targetGlow * 0.85,
                   animation: running ? `garden-breathe ${period}s ease-in-out infinite alternate` : 'none',
@@ -397,7 +402,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
                 alt=""
                 className="absolute inset-0 h-full w-full object-contain"
                 style={{
-                  filter: `brightness(1.35) drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.glow}) drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.core})`,
+                  filter: `brightness(1.35) drop-shadow(0 0 ${COCOON.glowRadius}px ${COCOON.glowColor}) drop-shadow(0 0 ${COCOON.glowRadius}px ${COCOON.coreColor})`,
                   mixBlendMode: 'screen',
                   opacity: targetGlow,
                   animation: running ? `garden-breathe ${period * 0.8}s ease-in-out infinite alternate` : 'none',

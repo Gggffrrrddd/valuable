@@ -4,7 +4,7 @@
  * progress, which keeps the whole animation seekable (dev tools), stable
  * across re-renders and identical between live playback and reduced motion.
  */
-import { ARRIVAL, OPEN_WINDOW, RIG } from './config';
+import { ARRIVAL, BUTTERFLY_ACCENTS, OPEN_WINDOW, RIG } from './config';
 import { clamp01, smoothstep } from '../model-core/canvasUtils';
 import type { StarTarget } from './starfield';
 import type { ButterflyRig } from './animatedButterfly';
@@ -137,10 +137,13 @@ export class ArrivalSwarm {
       const next = this.posAt(b, Math.min(1, t + 0.02));
       const heading = Math.atan2(next.y - here.y, next.x - here.x) + Math.PI / 2;
       const isFlipping = b.willFlip && p > b.flipP && p < b.flipP + 0.02;
+      // Idle hover so the butterfly keeps drifting even between progress ticks.
+      const bobX = Math.sin(time * 1.6 + b.phaseOffset) * RIG.hoverPx;
+      const bobY = Math.cos(time * 2.2 + b.phaseOffset * 1.4) * RIG.hoverPx * 0.75;
 
       rigs.push({
-        x: here.x,
-        y: here.y,
+        x: here.x + bobX,
+        y: here.y + bobY,
         px: b.px * (1 - 0.55 * convert),
         alpha,
         heading,
@@ -148,6 +151,7 @@ export class ArrivalSwarm {
         bank: b.bank,
         isFlipped: isFlipping,
         glowAlpha: 0.5 + 0.5 * Math.cos(flapPhase(time, b.flapHz, b.phaseOffset)),
+        colorIdx: Math.floor(randRange(0, BUTTERFLY_ACCENTS.length + 1, b.id * 5.3 + 2.1)),
       });
     }
     return rigs;
@@ -308,10 +312,13 @@ export class EmergenceSwarm {
       const next = this.posAt(b, Math.min(1, p + 0.004));
       const heading = Math.atan2(next.y - here.y, next.x - here.x) + Math.PI / 2;
       const alpha = smoothstep(b.tOpen, b.tOpen + OPEN_WINDOW.popP, p);
+      // Idle hover so butterflies keep moving continuously, never going still.
+      const bobX = Math.sin(time * 1.6 + b.phaseOffset) * RIG.hoverPx;
+      const bobY = Math.cos(time * 2.2 + b.phaseOffset * 1.4) * RIG.hoverPx * 0.75;
 
       rigs.push({
-        x: here.x,
-        y: here.y,
+        x: here.x + bobX,
+        y: here.y + bobY,
         px: b.px * grow,
         alpha,
         heading,
@@ -319,6 +326,7 @@ export class EmergenceSwarm {
         bank: b.bank,
         isFlipped: false,
         glowAlpha: 0.8,
+        colorIdx: Math.floor(randRange(0, BUTTERFLY_ACCENTS.length + 1, b.id * 7.9 + 4.4)),
       });
     }
     return rigs;
