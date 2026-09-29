@@ -19,8 +19,10 @@ import type { FocusVisualProps } from './types';
 import { COCOON_SLOTS, COCOON_PHASES } from './garden/cocoonSlots';
 import {
   ASSETS,
+  BUTTERFLY_STYLE,
   COCOON,
   GARDEN_PLACEMENT,
+  MOON,
   SKY,
   COCOON_COUNT,
   STARFIELD,
@@ -28,7 +30,9 @@ import {
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
-import { ButterflyRenderer } from './garden/butterflySprite';
+import { ButterflyRenderer, type ButterflyRig } from './garden/butterflySprite';
+import { AnimatedButterflyRenderer } from './garden/animatedButterfly';
+import { generateMoon, type MoonSprite } from './garden/moon';
 import { generateStarfield } from './garden/starfield';
 import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule } from './garden/butterflySwarm';
 import { layoutPhrase, resolveSessionPhrase } from './garden/phrases';
@@ -39,6 +43,22 @@ import { useReducedMotion } from './model-core/useReducedMotion';
 function rand01(seed: number) {
   const x = Math.sin(seed * 9999.9999) * 10000;
   return x - Math.floor(x);
+}
+
+/** Minimal shared shape of the two butterfly renderers (see BUTTERFLY_STYLE). */
+interface ButterflyDrawer {
+  readonly ready: boolean;
+  draw: (ctx: CanvasRenderingContext2D, rig: ButterflyRig) => void;
+}
+
+function createButterflyRenderer(
+  hue: number,
+  core: string,
+  glow: string,
+): ButterflyDrawer {
+  return BUTTERFLY_STYLE === 'sprite'
+    ? new ButterflyRenderer(hue)
+    : new AnimatedButterflyRenderer(hue, core, glow);
 }
 
 export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
@@ -70,7 +90,8 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const skyCanvasRef = useRef<HTMLCanvasElement>(null);
   const effectsCanvasRef = useRef<HTMLCanvasElement>(null);
   const skyLayerRef = useRef<SkyLayer | null>(null);
-  const rendererRef = useRef<ButterflyRenderer | null>(null);
+  const moonRef = useRef<MoonSprite | null>(null);
+  const rendererRef = useRef<ButterflyDrawer | null>(null);
   const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
 
   // Open schedule is precomputed once per session and stable across re-renders.
@@ -103,6 +124,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
 
         const targets = generateStarfield(w, h);
         const layout = layoutPhrase(phrase, w, h);
+        moonRef.current = generateMoon(Math.min(w, h) * MOON.radius);
         swarmsRef.current = {
           arrival: new ArrivalSwarm(targets, w, h),
           emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, openSchedule, layout),
@@ -147,6 +169,17 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         }
       }
       ctx.restore();
+
+      // --- Premium moon: fades in once the star field is complete, then stays.
+      // Drawn before the phrase, so the phrase is written beneath it.
+      const moon = moonRef.current;
+      const moonAlpha = smoothstep(MOON.fadeStart, MOON.fadeEnd, p);
+      if (moon && moonAlpha > 0.001) {
+        ctx.save();
+        ctx.globalAlpha = moonAlpha;
+        ctx.drawImage(moon.canvas, w * MOON.x - moon.cx, h * MOON.y - moon.cy);
+        ctx.restore();
+      }
 
       // --- Phrase, built one letter at a time by the butterflies ---
       ctx.save();
@@ -208,7 +241,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   // value (so 1 Hz timer ticks look smooth) while always finishing exactly on
   // the target. Dev seeking / reduced motion snap instantly.
   useEffect(() => {
-    rendererRef.current = new ButterflyRenderer(palette.hue);
+    rendererRef.current = createButterflyRenderer(palette.hue, palette.core, palette.glow);
     swarmsRef.current = null;
     let frame = 0;
     let last = performance.now();
@@ -228,7 +261,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [palette.hue, renderCanvasFrame]);
+  }, [palette.hue, palette.core, palette.glow, renderCanvasFrame]);
 
   // --- Cocoon glow response (ramps 0.12 -> 0.85 across phase A) ---
   const glow = COCOON.minGlow + clamp01(targetP / 0.5) * (COCOON.maxGlow - COCOON.minGlow);

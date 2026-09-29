@@ -32,6 +32,18 @@ export const PALETTE: SessionPalette[] = [
 /** Hue of the provided wing artwork (base for the per-session rotation). */
 export const BASE_HUE = 45;
 
+/**
+ * Butterfly rendering style.
+ *
+ *  - 'animated': butterflies are drawn entirely in code (no image assets, no
+ *    downloads, lighter to render). This is the current default.
+ *  - 'sprite': the wing/body PNG sprite rig (the previous look).
+ *
+ * Both implementations are kept side by side; flipping this single constant
+ * switches back and forth without touching anything else.
+ */
+export const BUTTERFLY_STYLE: 'animated' | 'sprite' = 'animated';
+
 export const ASSETS = {
   wing: '/visuals/garden/butterfly/wing.png',
   bodyTop: '/visuals/garden/butterfly/body-top.png',
@@ -142,6 +154,22 @@ export const SKY = {
   nebulaAlpha: 0.14,
   /** Fade-in window (in progress) for the whole sky layer. */
   fadeInEnd: 0.3,
+} as const;
+
+/**
+ * Premium moon. It fades in as the star field completes (end of phase A) and
+ * stays for the rest of the session, so the phrase is written beneath it.
+ * Positioned in the upper right, clear of the flip-clock.
+ */
+export const MOON = {
+  /** Centre, as fractions of the viewport. */
+  x: 0.82,
+  y: 0.16,
+  /** Radius as a fraction of min(viewport width, height). */
+  radius: 0.05,
+  /** Progress window over which the moon fades in. */
+  fadeStart: 0.4,
+  fadeEnd: 0.52,
 } as const;
 
 /** Phase B — cocoon opening + phrase writing. */
