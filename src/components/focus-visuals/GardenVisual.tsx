@@ -4,12 +4,12 @@
  * The whole animation is driven by the session `progress` value (0..1) — the
  * same value the timer uses. There is NO camera and NO separate post-session
  * finale: the garden image is a fixed, untouched backdrop and everything else
- * (sky, constellation, cocoons, butterflies, phrase) is an overlay in the dark
- * area above it.
+ * (sky, stars, cocoons, butterflies, phrase) is an overlay in the dark area
+ * above it.
  *
- *   Phase A (0.0 -> 0.5): butterflies trickle in from the screen edges and
- *                         dissolve into a constellation that is fully formed
- *                         at exactly progress 0.5.
+ *   Phase A (0.0 -> 0.5): small butterflies trickle in from the screen edges
+ *                         and dissolve into a scatter of stars (no figure);
+ *                         the whole star field is present by progress 0.5.
  *   Phase B (0.5 -> 1.0): cocoons open in a shuffled order, each releasing a
  *                         butterfly that traces its slice of the phrase; the
  *                         phrase is complete at exactly progress 1.0.
@@ -23,14 +23,14 @@ import {
   GARDEN_PLACEMENT,
   SKY,
   COCOON_COUNT,
-  CONSTELLATION,
+  STARFIELD,
   PHRASE,
   OPEN_WINDOW,
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
 import { ButterflyRenderer } from './garden/butterflySprite';
-import { generateConstellation } from './garden/constellation';
+import { generateStarfield } from './garden/starfield';
 import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule } from './garden/butterflySwarm';
 import { samplePhrase, resolveSessionPhrase } from './garden/phrases';
 import { clamp01, smoothstep } from './model-core/canvasUtils';
@@ -102,7 +102,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
         }
 
-        const targets = generateConstellation(w, h);
+        const targets = generateStarfield(w, h);
         // The sampler centres its text, so a canvas twice as tall as the
         // desired centre offset places the phrase at `PHRASE.centerY`.
         const phraseCanvasH = Math.max(1, Math.round(h * PHRASE.centerY * 2));
@@ -119,29 +119,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
 
       ctx.clearRect(0, 0, w, h);
 
-      // --- Constellation lines (fade in as the figure completes) ---
-      if (CONSTELLATION.showLines) {
-        const lineAlpha = CONSTELLATION.lineAlpha * smoothstep(0.4, 0.5, p);
-        if (lineAlpha > 0.001) {
-          ctx.strokeStyle = `rgba(255,255,255,${lineAlpha})`;
-          ctx.lineWidth = 0.6;
-          ctx.beginPath();
-          const targets = swarms.arrival.targets;
-          for (let i = 0; i < targets.length; i++) {
-            for (let j = i + 1; j < targets.length; j++) {
-              const dx = targets[i].x - targets[j].x;
-              const dy = targets[i].y - targets[j].y;
-              if (dx * dx + dy * dy < 10000) {
-                ctx.moveTo(targets[i].x, targets[i].y);
-                ctx.lineTo(targets[j].x, targets[j].y);
-              }
-            }
-          }
-          ctx.stroke();
-        }
-      }
-
-      // --- Constellation stars (arrive one by one, then idle-twinkle) ---
+      // --- Stars the arrivals dissolve into (no figure, just a scatter) ---
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (const target of swarms.arrival.targets) {
@@ -150,7 +128,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         const appear = smoothstep(starP, starP + 0.02, p);
         const twinkle = 0.78 + 0.22 * Math.sin(time * 2.1 + target.id * 1.7);
         const alpha = appear * (target.isProminent ? 1 : 0.8) * twinkle;
-        const tinted = rand01(target.id * 1.37) < CONSTELLATION.tintChance;
+        const tinted = rand01(target.id * 1.37) < STARFIELD.tintChance;
         const color = tinted ? palette.starTint : '#ffffff';
         const radius = (target.isProminent ? 2 : 1.1) * (0.5 + 0.5 * appear);
 

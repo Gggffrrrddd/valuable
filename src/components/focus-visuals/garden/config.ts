@@ -1,7 +1,8 @@
 /*
- * Garden finale — all tunable constants live here.
- * The garden scene itself is the existing butterfly artwork; the sky, stars,
- * moon, milky way and nebula are generated in code (see sky.ts).
+ * Garden focus visual — all tunable constants live here.
+ * The garden scene itself is the existing butterfly artwork; the night sky,
+ * scattered stars and the written phrase are generated in code
+ * (see sky.ts / starfield.ts). There is no camera and no constellation.
  */
 
 /** Exactly 30 cocoons, each an individual sprite with its own slot. */
@@ -12,9 +13,9 @@ export interface SessionPalette {
   label: string;
   /** Radial glow colour (soft additive halos). */
   glow: string;
-  /** Bright core colour (centres, letter particles). */
+  /** Bright core colour (letter particles). */
   core: string;
-  /** Star tint mixed into ~25% of constellation stars. */
+  /** Accent tint mixed into a share of the scattered stars. */
   starTint: string;
   /** Target hue (0-360) for the session wing rotation. */
   hue: number;
@@ -28,10 +29,7 @@ export const PALETTE: SessionPalette[] = [
   { id: 'rose', label: 'Rose', glow: '#ff8fb3', core: '#ffe0ea', starTint: '#ffaecb', hue: 340 },
 ];
 
-/**
- * Hue of the provided wing artwork. Measured/recorded here as the base for the
- * per-session hue rotation; `detectBaseHue()` refines it at runtime.
- */
+/** Hue of the provided wing artwork (base for the per-session rotation). */
 export const BASE_HUE = 45;
 
 export const ASSETS = {
@@ -52,59 +50,66 @@ export const SPRITE_MAX_PX = 256;
 export const COCOON = {
   minGlow: 0.12,
   maxGlow: 0.85,
-  brightGlow: 1.0,
   breathPeriodS: 4,
-  breathPeriodEndS: 2,
-  endWindowSeconds: 10,
+  breathPeriodEndS: 2.4,
   pausedGlow: 0.04,
   glowRadius: 3.2,
 } as const;
 
-/** Butterfly rig (body + mirrored wings). */
+/**
+ * Butterfly rig (body + mirrored wings). Sizes are the butterfly's nominal
+ * on-screen width in CSS pixels — small and delicate by design. The sprites
+ * are auto-cropped to their opaque content on load so wings hinge exactly at
+ * the body, with no transparent gap.
+ */
 export const RIG = {
-  /** Wing length as a fraction of the butterfly's nominal size. */
-  wingScale: 1,
-  /** Body length relative to wing length. */
-  bodyWingRatio: 0.6,
+  /** Body length relative to the wing image height. */
+  bodyWingRatio: 0.62,
   /** Thorax y within the body sprite (0 top .. 1 bottom). */
   thoraxY: 0.42,
-  /** Hinge inset from the wing's root edge (fraction of wing width). */
-  hingeInset: 0.06,
+  /** Root edge y within the cropped wing sprite (the hinge line). */
+  wingRootY: 0.5,
+  /** Inset from the (cropped) wing root edge, as a fraction of wing width. */
+  hingeInset: 0,
   flapHz: 3,
   flapVariance: 0.25,
-  glideChance: 0.12,
-  glideOpen: 0.9,
-  glideMinS: 0.6,
-  glideMaxS: 1.2,
   bankDeg: 8,
   flipChance: 0.15,
-  minPx: 16,
-  maxPx: 70,
+  /** Nominal on-screen width range, in px. */
+  minPx: 13,
+  maxPx: 26,
 } as const;
 
-/** Depth tiers for the swarm (far / mid / near). */
-export const DEPTH_TIERS = [
-  { scale: 0.6, alpha: 0.6, blur: true },
-  { scale: 1, alpha: 0.9, blur: false },
-  { scale: 1.4, alpha: 1, blur: false },
-] as const;
+export const VARIATION = { size: 0.22 } as const;
 
-export const VARIATION = { size: 0.2, brightness: 0.1, lightChance: 0.2, lightMix: 0.25 } as const;
+/**
+ * Phase A — butterflies enter from the left/right edges across this progress
+ * range and dissolve into scattered stars (no constellation figure).
+ */
+export const ARRIVAL = {
+  start: 0.02,
+  end: 0.5,
+  /** Flight duration for one arrival butterfly, in progress units. */
+  flightP: 0.07,
+  /** Vertical band (fraction of viewport) the arrivals enter from. */
+  entryTopY: 0.06,
+  entryBottomY: 0.55,
+  /** Nominal width range for arriving butterflies, in px. */
+  minPx: 11,
+  maxPx: 20,
+} as const;
 
-/** Ambient drifting pollen/fireflies during the session. */
-export const AMBIENT = { count: 30, alpha: 0.3, speed: 14, curl: 0.7 } as const;
-
-/** Procedural butterfly constellation. */
-export const CONSTELLATION = {
-  points: 110,
-  fitW: 0.3,
-  fitH: 0.4,
-  /** Centre of the figure as a fraction of the viewport height (dark area). */
-  centerY: 0.28,
-  lineAlpha: 0.25,
-  showLines: true,
-  tintChance: 0.25,
-  prominentChance: 0.18,
+/** Scattered stars the arrivals dissolve into (no shape, natural placement). */
+export const STARFIELD = {
+  /** Number of scattered stars (one arrival butterfly each). */
+  points: 52,
+  /** Centre of the scatter, as a fraction of the viewport height. */
+  centerY: 0.32,
+  /** Scatter half-extents, as fractions of viewport width / height. */
+  spreadX: 0.4,
+  spreadY: 0.26,
+  tintChance: 0.3,
+  prominentChance: 0.22,
 } as const;
 
 /**
@@ -112,41 +117,24 @@ export const CONSTELLATION = {
  * text in the canvas it is handed, so it receives a canvas that is
  * `2 * centerY` tall — putting the phrase centre exactly at `centerY`.
  */
-export const PHRASE = { centerY: 0.57, fontPx: 48 } as const;
+export const PHRASE = { centerY: 0.6, fontPx: 42, maxAlpha: 0.92 } as const;
 
-/** Fixed letter-particle pool (subsample / orbit if the phrase is too small). */
+/** Fixed letter-particle pool (subsample if the phrase is too dense). */
 export const PARTICLE_POOL = 700;
 
-/** Generated sky. */
+/** Generated premium night sky (written once to an offscreen canvas). */
 export const SKY = {
   /** Height of the static sky overlay, as a fraction of the viewport height. */
-  overlayVh: 0.65,
+  overlayVh: 0.7,
   /** Fraction of the sky height where the fade-to-transparent starts. */
-  fadeFrom: 0.62,
-  starsFull: 800,
-  starsReduced: 300,
-  brightStars: 34,
+  fadeFrom: 0.58,
+  starsFull: 1100,
+  starsReduced: 380,
+  brightStars: 46,
+  nebulaBlobs: 22,
+  nebulaAlpha: 0.14,
   /** Fade-in window (in progress) for the whole sky layer. */
-  fadeInEnd: 0.25,
-} as const;
-
-/**
- * Phase A — constellation build-up. Each constellation group is revealed in
- * its own sub-range of progress 0..0.5 (outer boundary first, then wings,
- * upper/lower details, then the centre body).
- */
-export const ARRIVAL = {
-  groups: {
-    outer: [0.0, 0.16],
-    wing: [0.14, 0.3],
-    upperLower: [0.28, 0.42],
-    center: [0.4, 0.5],
-  },
-  /** Flight duration for one arrival butterfly, in progress units. */
-  flightP: 0.06,
-  /** Vertical band (fraction of viewport) the arrivals enter from. */
-  entryTopY: 0.08,
-  entryBottomY: 0.5,
+  fadeInEnd: 0.3,
 } as const;
 
 /** Phase B — cocoon opening + phrase writing. */
