@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { FocusVisualProps } from './types';
 import { COCOON_SLOTS, COCOON_PHASES } from './garden/cocoonSlots';
-import { ASSETS, COCOON, GARDEN_PLACEMENT, SKY, COCOON_COUNT } from './garden/config';
+import { ASSETS, COCOON, GARDEN_PLACEMENT, SKY, COCOON_COUNT, CONSTELLATION } from './garden/config';
 import { CAMERA_KEYS, T, OPEN } from './garden/finaleTimeline';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
@@ -10,6 +10,7 @@ import { generateConstellation } from './garden/constellation';
 import { ArrivalSwarm, EmergenceSwarm } from './garden/butterflySwarm';
 import { samplePhrase, PHRASE_POOL } from './garden/phrases';
 import { smoothstep } from './model-core/canvasUtils';
+import { useReducedMotion } from './model-core/useReducedMotion';
 
 function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t;
@@ -38,7 +39,7 @@ function interpolateCamera(tSec: number) {
   return CAMERA_KEYS[0];
 }
 
-export default function GardenVisual({ progress, running = false }: FocusVisualProps) {
+export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
   const palette = resolveSessionPalette();
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
@@ -51,9 +52,35 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
   
   // Timer for finale
   const [finaleTime, setFinaleTime] = useState(0);
+  const gardenContainerRef = useRef<HTMLDivElement>(null);
+  const cocoonsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Dev tools
+  const devTools = useMemo(() => {
+    if (typeof window === 'undefined') return { speed: 1, startT: 0 };
+    const params = new URLSearchParams(window.location.search);
+    const isFinale = params.get('garden') === 'finale';
+    if (!isFinale) return { speed: 1, startT: 0 };
+    
+    const act = params.get('act');
+    let startT = Number(params.get('t')) || 0;
+    if (act === '2') startT = Math.max(startT, T.viewStart);
+    
+    return {
+      speed: Number(params.get('speed')) || 1,
+      startT,
+    };
+  }, []);
+
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!complete) return;
+    
+    if (reducedMotion) {
+      setFinaleTime(T.dollyEnd);
+      return;
+    }
     
     // Initialize renderer and swarms if not ready
     if (!rendererRef.current) {
@@ -61,26 +88,53 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     }
     
     const start = performance.now();
-    lastTimeRef.current = 0;
+    lastTimeRef.current = devTools.startT;
     let frame: number;
     const loop = (now: number) => {
-      const t = (now - start) / 1000;
+      const t = devTools.startT + ((now - start) / 1000) * devTools.speed;
       lastTimeRef.current = t;
       setFinaleTime(t);
+      
+      renderCanvasFrame(t);
+      updateDomElements(t);
+      
       if (t < T.dollyEnd + 2) {
         frame = requestAnimationFrame(loop);
       }
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [complete, palette.hue]);
+  }, [complete, palette.hue, devTools, reducedMotion]);
 
-  useEffect(() => {
+  const updateDomElements = (t: number) => {
+    const cam = interpolateCamera(t);
+    const maxPanPx = typeof window !== 'undefined' ? window.innerHeight * SKY.heightVh - window.innerHeight : 0;
+    const panPx = maxPanPx * cam.panY;
+    
+    if (skyCanvasRef.current && skyCanvasRef.current.parentElement) {
+      skyCanvasRef.current.parentElement.style.transform = `scale(${cam.zoom}) translateY(${panPx}px)`;
+    }
+    if (gardenContainerRef.current) {
+      gardenContainerRef.current.style.transform = `scale(${cam.zoom}) translateY(${panPx}px)`;
+    }
+    
+    // Hide cocoons as they open
+    if (cocoonsContainerRef.current && t >= T.openStart) {
+      const children = cocoonsContainerRef.current.children;
+      for (let i = 0; i < children.length; i++) {
+        const isOpened = t >= (T.openStart + (i / COCOON_COUNT) * OPEN.stagger);
+        if (isOpened) {
+          (children[i] as HTMLElement).style.display = 'none';
+        }
+      }
+    }
+  };
+
+  const renderCanvasFrame = (finaleTime: number) => {
     if (!skyCanvasRef.current || !effectsCanvasRef.current) return;
     const effCvs = effectsCanvasRef.current;
     const skyCvs = skyCanvasRef.current;
     
-    // We base dimensions on the effects canvas (viewport size)
     const w = effCvs.clientWidth;
     const h = effCvs.clientHeight;
     
@@ -92,9 +146,7 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
       skyCvs.width = w;
       skyCvs.height = skyH;
       
-      // Pre-render sky once
       skyLayerRef.current = generateSky(w, skyH);
-      // Blit to the actual sky canvas element
       const sctx = skyCvs.getContext('2d');
       if (sctx) sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
       
@@ -115,15 +167,33 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     const cam = interpolateCamera(finaleTime);
     
     ctx.save();
-    // Center origin for zoom
     ctx.translate(w / 2, h / 2);
     ctx.scale(cam.zoom, cam.zoom);
     ctx.translate(-w / 2, -h / 2);
     
-    // Pan
     const maxPanPx = h * SKY.heightVh - h;
     const panPx = maxPanPx * cam.panY;
     ctx.translate(0, panPx);
+    
+    // Draw lines between constellation stars
+    if (CONSTELLATION.showLines && finaleTime > T.formEnd) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${CONSTELLATION.lineAlpha})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      // simplified nearest-neighbor drawing for demonstration
+      const targets = swarmsRef.current.arrival.targets;
+      for (let i = 0; i < targets.length; i++) {
+        for (let j = i + 1; j < targets.length; j++) {
+          const dx = targets[i].x - targets[j].x;
+          const dy = targets[i].y - targets[j].y;
+          if (dx*dx + dy*dy < 10000) {
+            ctx.moveTo(targets[i].x, targets[i].y);
+            ctx.lineTo(targets[j].x, targets[j].y);
+          }
+        }
+      }
+      ctx.stroke();
+    }
     
     // Draw constellation stars
     ctx.globalCompositeOperation = 'lighter';
@@ -132,7 +202,6 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     for (const target of swarmsRef.current.arrival.targets) {
       // @ts-expect-error StartX is added dynamically
       if (target.startX !== undefined) {
-        // Formation interpolation
         // @ts-expect-error StartX is added dynamically
         const sx = target.startX;
         // @ts-expect-error StartY is added dynamically
@@ -143,7 +212,6 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
           tForm = Math.min(1, (finaleTime - formStart) / (formEnd - formStart));
         }
         
-        // Spring + swirl
         const eased = smoothstep(0, 1, tForm);
         const swirlAngle = (1 - eased) * Math.PI * 2;
         const swirlRadius = (1 - eased) * 100;
@@ -160,13 +228,12 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
 
     // Draw phrase particles
     if (finaleTime > T.writeStart) {
-       // Mock drawing phrase
        const phraseOpacity = smoothstep(T.writeStart, T.writeEnd, finaleTime);
        ctx.fillStyle = `rgba(255, 255, 255, ${phraseOpacity})`;
        ctx.font = 'bold 32px serif';
        ctx.textAlign = 'center';
        ctx.textBaseline = 'middle';
-       ctx.fillText(PHRASE_POOL[0], 0, h * 0.32 - h/2); // adjusted for translate center
+       ctx.fillText(PHRASE_POOL[0], w / 2, h * 0.32 - panPx); // adjusted for translate center
     }
     
     // Draw butterflies
@@ -186,7 +253,7 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
     }
     
     ctx.restore();
-  }, [finaleTime, complete]);
+  };
   
   // Cocoon glow response
   const isEndWindow = running && progress > 0.9;
@@ -286,11 +353,23 @@ export default function GardenVisual({ progress, running = false }: FocusVisualP
         })}
       </div>
 
-      {/* 4. Effects Canvas (butterflies, phrase, constellation stars) - full screen, static bounding box but handles camera pan internally or via CSS */}
+      {/* 4. Effects Canvas */}
       <canvas 
         ref={effectsCanvasRef}
         className="absolute inset-0 z-10 w-full h-full pointer-events-none"
       />
+
+      {/* Continue button at the very end */}
+      {complete && finaleTime >= T.dollyEnd && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-end pb-24 pointer-events-none animate-fade-in">
+          <button 
+            onClick={onFinaleComplete}
+            className="pointer-events-auto rounded-full bg-lime-300 px-8 py-3.5 font-display text-sm font-bold tracking-wide text-[#11130f] transition hover:bg-lime-200 hover:scale-105"
+          >
+            Continue
+          </button>
+        </div>
+      )}
     </div>
   );
 }

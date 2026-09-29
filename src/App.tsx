@@ -64,11 +64,25 @@ function AppContent() {
     return <AuthScreen />;
   }
 
-  async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number) {
+  async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number, delayNavigation: boolean = false) {
+    const doNavigate = () => {
+      if (durationSeconds < 10 && !completedFully) {
+        setScreen('tab');
+        return;
+      }
+      if (completedFully) {
+        setBreakMinutes(breakMins);
+        setScreen('break');
+      } else {
+        setScreen('tab');
+      }
+    };
+
     if (!session || durationSeconds < 10) {
-      setScreen('tab');
-      return;
+      if (!delayNavigation) doNavigate();
+      return doNavigate;
     }
+    
     try {
       await supabase.from('focus_sessions').insert({
         user_id: session.user.id,
@@ -82,12 +96,11 @@ function AppContent() {
       console.error('Session log error:', e);
     }
 
-    if (completedFully) {
-      setBreakMinutes(breakMins);
-      setScreen('break');
-    } else {
-      setScreen('tab');
+    if (!delayNavigation) {
+      doNavigate();
     }
+    
+    return doNavigate;
   }
 
   if (screen === 'timer') {

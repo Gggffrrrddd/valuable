@@ -2,6 +2,7 @@ export interface FocusVisualProps {
   progress: number;
   running?: boolean;
   leafAsset?: string;
+  onFinaleComplete?: () => void;
 }
 
 export type FocusVisualTheme = 'hourglass' | 'tree' | 'jar' | 'blade' | 'butterfly';

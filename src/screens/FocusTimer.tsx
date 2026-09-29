@@ -17,7 +17,7 @@ import {
 } from '@/lib/localSession';
 
 interface FocusTimerProps {
-  onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number) => void;
+  onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, delayNavigation?: boolean) => Promise<() => void> | void;
 }
 
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
@@ -122,19 +122,29 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
 
-  const completeSession = useCallback(() => {
+  const navigateToNextScreenRef = useRef<(() => void) | null>(null);
+
+  const completeSession = useCallback(async () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     setPhase('completing');
-    completionRef.current = setTimeout(() => {
-      const s = readStoredSession();
-      const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
-      clearSessionStorage();
-      onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current);
-    }, 1300);
-  }, [onComplete, totalFocusSeconds]);
+    
+    const s = readStoredSession();
+    const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
+    clearSessionStorage();
+    
+    if (visualTheme === 'butterfly') {
+      // For butterfly, save stats immediately but delay navigation until finale finishes.
+      const navFn = await onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current, true);
+      if (navFn) navigateToNextScreenRef.current = navFn;
+    } else {
+      completionRef.current = setTimeout(() => {
+        onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current, false);
+      }, 1300);
+    }
+  }, [onComplete, totalFocusSeconds, visualTheme]);
 
   useEffect(() => {
     if (bootHandledRef.current) return;
@@ -235,7 +245,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-        <GardenVisual progress={progress} running={phase === 'focus'} />
+        <GardenVisual 
+          progress={progress} 
+          running={phase === 'focus'} 
+          onFinaleComplete={() => {
+            if (navigateToNextScreenRef.current) navigateToNextScreenRef.current();
+          }}
+        />
         
         <div className="butterfly-focus-layout relative z-10 h-full w-full">
           <div />
