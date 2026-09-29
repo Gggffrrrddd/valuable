@@ -67,7 +67,7 @@ export function samplePhrase(phrase: string, width: number, height: number): Phr
 export function allocateButterfliesToPhrase(
   butterflyCount: number, 
   points: PhraseGlyphPoint[]
-) {
+): Map<number, PhraseGlyphPoint[]> {
   // Simplified allocation: map butterflies evenly across x-coordinates
   const sortedPoints = [...points].sort((a, b) => a.x - b.x);
   
