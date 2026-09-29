@@ -7,7 +7,7 @@
 import { ARRIVAL, OPEN_WINDOW, RIG } from './config';
 import { clamp01, smoothstep } from '../model-core/canvasUtils';
 import type { StarTarget } from './starfield';
-import type { ButterflyRig } from './butterflySprite';
+import type { ButterflyRig } from './animatedButterfly';
 import type { CocoonSlot } from './cocoonSlots';
 import { allocateButterfliesToPhrase, type PhraseGlyphPoint, type PhraseLayout } from './phrases';
 
@@ -19,6 +19,25 @@ function randRange(min: number, max: number, seed: number) {
 
 function easeInOutCubic(x: number): number {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+
+/**
+ * Converts a linear progress-of-flight `t` (0..1) into an eased, *continuous*
+ * path parameter. The velocity is never zero: it accelerates away from the
+ * start, eases through the middle and smoothly accelerates again into the
+ * target, so butterflies flow instead of stopping and starting.
+ */
+function flightParam(t: number): number {
+  const c = clamp01(t);
+  // Blend a smooth ease with a gentle mid-flight surge, then renormalise so it
+  // still starts at 0 and ends at 1.
+  const surge = Math.sin(c * Math.PI) * RIG.surgeAmount;
+  return clamp01(easeInOutCubic(c) * (1 - RIG.surgeAmount * 0.5) + surge * (0.5 + 0.5 * easeInOutCubic(c)));
+}
+
+/** Wingbeat phase that always advances, regardless of flight state. */
+function flapPhase(time: number, hz: number, offset: number) {
+  return time * hz * Math.PI * 2 + offset;
 }
 
 export interface ArrivalButterfly {
@@ -65,7 +84,7 @@ export class ArrivalSwarm {
       const jitter = randRange(-0.012, 0.012, i + 1.7);
       const pStart = clamp01(base + jitter);
       const pEnd = Math.min(ARRIVAL.end, pStart + ARRIVAL.flightP);
-      const pFade = Math.min(ARRIVAL.end + 0.05, pEnd + 0.04);
+      const pFade = Math.min(ARRIVAL.end + 0.02, pEnd + ARRIVAL.convertP);
       const fromLeft = i % 2 === 0;
       const seed = target.id * 3.1 + i * 0.37;
 
@@ -94,7 +113,7 @@ export class ArrivalSwarm {
 
   /** Position on the curved entry path at progress `t` (0..1 along the flight). */
   private posAt(b: ArrivalButterfly, t: number) {
-    const e = easeInOutCubic(clamp01(t));
+    const e = flightParam(t);
     const wob = 1 - e;
     const x =
       b.startX + (b.targetX - b.startX) * e + Math.sin(b.phaseOffset + e * Math.PI * 2.2) * this.width * 0.04 * wob;
@@ -125,10 +144,10 @@ export class ArrivalSwarm {
         px: b.px * (1 - 0.55 * convert),
         alpha,
         heading,
-        flapPhase: time * b.flapHz * Math.PI * 2 + b.phaseOffset,
+        flapPhase: flapPhase(time, b.flapHz, b.phaseOffset),
         bank: b.bank,
         isFlipped: isFlipping,
-        glowAlpha: 0.5 + 0.5 * Math.cos(time * b.flapHz * Math.PI * 2 + b.phaseOffset),
+        glowAlpha: 0.5 + 0.5 * Math.cos(flapPhase(time, b.flapHz, b.phaseOffset)),
       });
     }
     return rigs;
@@ -138,7 +157,7 @@ export class ArrivalSwarm {
   getStarPulse(target: StarTarget, p: number): number {
     const startP = this.starP.get(target.id);
     if (startP === undefined) return 0;
-    return 1 - clamp01((p - startP) / 0.06);
+    return 1 - clamp01((p - startP) / ARRIVAL.pulseP);
   }
 }
 
@@ -258,7 +277,7 @@ export class EmergenceSwarm {
 
     if (p < writeStart) {
       // Fly from the slot to the first point of the slice.
-      const t = easeInOutCubic(clamp01((p - popEnd) / Math.max(0.0001, writeStart - popEnd)));
+      const t = flightParam((p - popEnd) / Math.max(0.0001, writeStart - popEnd));
       const wob = 1 - t;
       return {
         x: b.startX + (first.x - b.startX) * t + Math.sin(b.phaseOffset + t * Math.PI * 1.6) * this.width * 0.025 * wob,
@@ -296,7 +315,7 @@ export class EmergenceSwarm {
         px: b.px * grow,
         alpha,
         heading,
-        flapPhase: time * b.flapHz * Math.PI * 2 + b.phaseOffset,
+        flapPhase: flapPhase(time, b.flapHz, b.phaseOffset),
         bank: b.bank,
         isFlipped: false,
         glowAlpha: 0.8,

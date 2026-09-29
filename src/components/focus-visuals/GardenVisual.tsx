@@ -19,7 +19,6 @@ import type { FocusVisualProps } from './types';
 import { COCOON_SLOTS, COCOON_PHASES } from './garden/cocoonSlots';
 import {
   ASSETS,
-  BUTTERFLY_STYLE,
   COCOON,
   GARDEN_PLACEMENT,
   MOON,
@@ -30,7 +29,6 @@ import {
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
 import { generateSky, type SkyLayer } from './garden/sky';
-import { ButterflyRenderer, type ButterflyRig } from './garden/butterflySprite';
 import { AnimatedButterflyRenderer } from './garden/animatedButterfly';
 import { generateMoon, type MoonSprite } from './garden/moon';
 import { generateStarfield } from './garden/starfield';
@@ -43,22 +41,6 @@ import { useReducedMotion } from './model-core/useReducedMotion';
 function rand01(seed: number) {
   const x = Math.sin(seed * 9999.9999) * 10000;
   return x - Math.floor(x);
-}
-
-/** Minimal shared shape of the two butterfly renderers (see BUTTERFLY_STYLE). */
-interface ButterflyDrawer {
-  readonly ready: boolean;
-  draw: (ctx: CanvasRenderingContext2D, rig: ButterflyRig) => void;
-}
-
-function createButterflyRenderer(
-  hue: number,
-  core: string,
-  glow: string,
-): ButterflyDrawer {
-  return BUTTERFLY_STYLE === 'sprite'
-    ? new ButterflyRenderer(hue)
-    : new AnimatedButterflyRenderer(hue, core, glow);
 }
 
 export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
@@ -91,7 +73,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const effectsCanvasRef = useRef<HTMLCanvasElement>(null);
   const skyLayerRef = useRef<SkyLayer | null>(null);
   const moonRef = useRef<MoonSprite | null>(null);
-  const rendererRef = useRef<ButterflyDrawer | null>(null);
+  const rendererRef = useRef<AnimatedButterflyRenderer | null>(null);
   const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
 
   // Open schedule is precomputed once per session and stable across re-renders.
@@ -241,7 +223,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   // value (so 1 Hz timer ticks look smooth) while always finishing exactly on
   // the target. Dev seeking / reduced motion snap instantly.
   useEffect(() => {
-    rendererRef.current = createButterflyRenderer(palette.hue, palette.core, palette.glow);
+    rendererRef.current = new AnimatedButterflyRenderer(palette.hue, palette.core, palette.glow);
     swarmsRef.current = null;
     let frame = 0;
     let last = performance.now();
@@ -300,17 +282,32 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
                 pointerEvents: 'none',
               }}
             >
+              {/* Base sprite (unlit). */}
               <img src={ASSETS.cocoon} alt="" className="absolute inset-0 h-full w-full object-contain" />
+              {/* Wide outer bloom — soft, always present. */}
               <img
                 src={ASSETS.cocoon}
                 alt=""
                 className="absolute inset-0 h-full w-full object-contain"
                 style={{
-                  filter: `drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.glow})`,
+                  filter: `blur(${COCOON.bloomRadius / 2}px) drop-shadow(0 0 ${COCOON.bloomRadius}px ${palette.glow})`,
                   mixBlendMode: 'screen',
-                  opacity: targetGlow,
+                  opacity: targetGlow * 0.85,
                   animation: running ? `garden-breathe ${period}s ease-in-out infinite alternate` : 'none',
                   animationDelay: `-${COCOON_PHASES[i]}s`,
+                }}
+              />
+              {/* Vibrant core glow — brighter, tighter, offset phase. */}
+              <img
+                src={ASSETS.cocoon}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain"
+                style={{
+                  filter: `brightness(1.35) drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.glow}) drop-shadow(0 0 ${COCOON.glowRadius}px ${palette.core})`,
+                  mixBlendMode: 'screen',
+                  opacity: targetGlow,
+                  animation: running ? `garden-breathe ${period * 0.8}s ease-in-out infinite alternate` : 'none',
+                  animationDelay: `-${COCOON_PHASES[i] * 1.4}s`,
                 }}
               />
             </div>

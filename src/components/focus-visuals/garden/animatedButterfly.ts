@@ -4,11 +4,24 @@
  * textures (built once), then every butterfly is animated by flapping the
  * wings around their root hinge and orienting the body along its heading.
  *
- * It exposes the same `{ ready, draw }` shape as the sprite rig, so the two
- * can be swapped with a single constant (see BUTTERFLY_STYLE in config.ts).
+ * Butterflies are the only butterfly implementation in the app — there is no
+ * image-based rig.
  */
 import { RIG } from './config';
-import type { ButterflyRig } from './butterflySprite';
+
+/** Everything the renderer needs to place and animate one butterfly. */
+export interface ButterflyRig {
+  x: number;
+  y: number;
+  /** Nominal on-screen width of the whole butterfly, in CSS px. */
+  px: number;
+  alpha: number;
+  heading: number; // radians
+  flapPhase: number; // radians
+  bank: number; // radians
+  isFlipped: boolean;
+  glowAlpha: number;
+}
 
 interface HexRgb {
   r: number;
@@ -269,7 +282,7 @@ export class AnimatedButterflyRenderer {
   draw(ctx: CanvasRenderingContext2D, rig: ButterflyRig) {
     const scale = rig.px / Math.max(1, this.totalWidth);
     const flap = Math.cos(rig.flapPhase);
-    const wingScaleX = 0.26 + 0.74 * (0.5 + 0.5 * flap);
+    const wingScaleX = RIG.flapClose + (1 - RIG.flapClose) * (0.5 + 0.5 * flap);
     const hingeY = -this.wing.extentH * RIG.wingRootY;
     const wingDrawY = hingeY - this.wing.rootY;
     const wingDrawX = -this.wing.rootX;
