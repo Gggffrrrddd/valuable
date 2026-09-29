@@ -24,7 +24,6 @@ import {
   SKY,
   COCOON_COUNT,
   STARFIELD,
-  PHRASE,
   OPEN_WINDOW,
 } from './garden/config';
 import { resolveSessionPalette } from './garden/palette';
@@ -32,7 +31,7 @@ import { generateSky, type SkyLayer } from './garden/sky';
 import { ButterflyRenderer } from './garden/butterflySprite';
 import { generateStarfield } from './garden/starfield';
 import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule } from './garden/butterflySwarm';
-import { samplePhrase, resolveSessionPhrase } from './garden/phrases';
+import { layoutPhrase, resolveSessionPhrase } from './garden/phrases';
 import { clamp01, smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
 
@@ -103,13 +102,10 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         }
 
         const targets = generateStarfield(w, h);
-        // The sampler centres its text, so a canvas twice as tall as the
-        // desired centre offset places the phrase at `PHRASE.centerY`.
-        const phraseCanvasH = Math.max(1, Math.round(h * PHRASE.centerY * 2));
-        const phrasePoints = samplePhrase(phrase, w, phraseCanvasH);
+        const layout = layoutPhrase(phrase, w, h);
         swarmsRef.current = {
           arrival: new ArrivalSwarm(targets, w, h),
-          emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, openSchedule, phrasePoints),
+          emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, openSchedule, layout),
         };
       }
 
@@ -139,24 +135,20 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         ctx.beginPath();
         ctx.arc(target.x, target.y, radius, 0, Math.PI * 2);
         ctx.fill();
+
+        // Bright pulse as a butterfly lands and becomes the star.
+        const pulse = swarms.arrival.getStarPulse(target, p);
+        if (pulse > 0.001) {
+          ctx.globalAlpha = pulse * 0.9;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, radius + 3.5 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.restore();
 
-      // --- Phrase (accent-coloured), traced by the emergence butterflies ---
-      const writeAlpha = smoothstep(0.6, 0.98, p);
-      if (writeAlpha > 0.001) {
-        ctx.save();
-        ctx.font = `bold ${PHRASE.fontPx}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.globalAlpha = writeAlpha * 0.85;
-        ctx.fillStyle = palette.glow;
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = palette.glow;
-        ctx.fillText(phrase, w / 2, h * PHRASE.centerY);
-        ctx.restore();
-      }
-
+      // --- Phrase, built one letter at a time by the butterflies ---
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (const b of swarms.emergence.butterflies) {

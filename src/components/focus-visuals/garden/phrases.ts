@@ -1,4 +1,4 @@
-import { PARTICLE_POOL, GARDEN_PHRASE_BAG_KEY } from './config';
+import { PARTICLE_POOL, PHRASE, GARDEN_PHRASE_BAG_KEY } from './config';
 import { SESSION_PHRASE_KEY } from '@/lib/localSession';
 
 export const PHRASE_POOL = [
@@ -16,74 +16,235 @@ export const PHRASE_POOL = [
 export interface PhraseGlyphPoint {
   x: number;
   y: number;
-  glyphIndex: number;
 }
 
-export function samplePhrase(phrase: string, width: number, height: number): PhraseGlyphPoint[] {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return [];
+/** One character of the phrase, with the particle points that make it up. */
+export interface PhraseGlyph {
+  index: number;
+  char: string;
+  /** Centre of the glyph (where its butterfly settles). */
+  x: number;
+  y: number;
+  points: PhraseGlyphPoint[];
+}
 
-  // Font setup matching "STAY FOCUSED" from circle-table
-  ctx.font = 'bold 48px serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  // Render phrase (simplified, without multi-line logic for now)
-  ctx.fillText(phrase, width / 2, height / 2);
+export interface PhraseLayout {
+  glyphs: PhraseGlyph[];
+  fontPx: number;
+  lines: string[];
+}
 
-  const imgData = ctx.getImageData(0, 0, width, height);
-  const data = imgData.data;
-  
+const LINE_HEIGHT = 1.28;
+const PAD = 3;
+
+function fontFor(px: number) {
+  return `bold ${px}px Georgia, 'Times New Roman', serif`;
+}
+
+function wrapLines(ctx: CanvasRenderingContext2D, words: string[], maxWidth: number): string[] {
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/** Pixel points for a single character, positioned in canvas space. */
+function rasterizeGlyph(
+  measure: CanvasRenderingContext2D,
+  scratch: CanvasRenderingContext2D,
+  char: string,
+  leftX: number,
+  midY: number,
+  fontPx: number,
+): PhraseGlyphPoint[] {
+  const w = Math.ceil(measure.measureText(char).width) + PAD * 2;
+  const h = Math.ceil(fontPx * 1.7);
+  if (scratch.canvas.width !== w || scratch.canvas.height !== h) {
+    scratch.canvas.width = w;
+    scratch.canvas.height = h;
+  }
+  scratch.clearRect(0, 0, w, h);
+  scratch.font = fontFor(fontPx);
+  scratch.textAlign = 'left';
+  scratch.textBaseline = 'middle';
+  scratch.fillStyle = '#ffffff';
+  scratch.fillText(char, PAD, h / 2);
+
+  let data: Uint8ClampedArray;
+  try {
+    data = scratch.getImageData(0, 0, w, h).data;
+  } catch {
+    return [];
+  }
+
   const points: PhraseGlyphPoint[] = [];
-  
-  for (let y = 0; y < height; y += 4) {
-    for (let x = 0; x < width; x += 4) {
-      const idx = (y * width + x) * 4;
-      if (data[idx + 3] > 128) {
-        // Estimate glyph index roughly by x position
-        // This is a simplified fallback if actual per-glyph rendering isn't done.
-        const glyphIndex = Math.floor((x / width) * phrase.length);
-        points.push({ x, y, glyphIndex });
+  // Step 2px horizontally, 3px vertically — dense enough to read the letter,
+  // sparse enough that 30 butterflies can visibly trace it.
+  for (let y = 0; y < h; y += 3) {
+    for (let x = 0; x < w; x += 2) {
+      if (data[(y * w + x) * 4 + 3] > 110) {
+        points.push({ x: leftX + x - PAD, y: midY + y - h / 2 });
       }
     }
   }
-
-  // Subsample to PARTICLE_POOL
-  if (points.length > PARTICLE_POOL) {
-    const step = points.length / PARTICLE_POOL;
-    const sampled = [];
-    for (let i = 0; i < PARTICLE_POOL; i++) {
-      sampled.push(points[Math.floor(i * step)]);
-    }
-    return sampled;
-  }
-  
   return points;
 }
 
-export function allocateButterfliesToPhrase(
-  butterflyCount: number, 
-  points: PhraseGlyphPoint[]
-): Map<number, PhraseGlyphPoint[]> {
-  // Simplified allocation: map butterflies evenly across x-coordinates
-  const sortedPoints = [...points].sort((a, b) => a.x - b.x);
-  
-  const allocation = new Map<number, PhraseGlyphPoint[]>();
-  for (let i = 0; i < butterflyCount; i++) {
-    allocation.set(i, []);
+/**
+ * Lay the phrase out inside a fixed box (which deliberately avoids the timer
+ * area), choosing the largest font size that fits. Points are tagged with the
+ * glyph they belong to, in reading order, so butterflies can write the phrase
+ * one letter at a time.
+ */
+export function layoutPhrase(phrase: string, width: number, height: number): PhraseLayout {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { glyphs: [], fontPx: 0, lines: [] };
+
+  const box = {
+    x: width * PHRASE.boxX,
+    y: height * PHRASE.boxY,
+    w: width * PHRASE.boxW,
+    h: height * PHRASE.boxH,
+  };
+  const words = phrase.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return { glyphs: [], fontPx: 0, lines: [] };
+
+  const fits = (px: number) => {
+    ctx.font = fontFor(px);
+    const lines = wrapLines(ctx, words, box.w);
+    return lines.length * px * LINE_HEIGHT <= box.h;
+  };
+
+  let lo: number = PHRASE.minFontPx;
+  let hi: number = PHRASE.maxFontPx;
+  if (!fits(lo)) {
+    // Box is very small on this viewport; keep the min size rather than nothing.
+    hi = lo;
+  } else {
+    while (hi - lo > 0.5) {
+      const mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+    hi = Math.floor(lo);
+  }
+  const fontPx = Math.max(1, Math.floor(hi));
+
+  ctx.font = fontFor(fontPx);
+  const lines = wrapLines(ctx, words, box.w);
+  const lineH = fontPx * LINE_HEIGHT;
+  const blockTop = box.y + Math.max(0, (box.h - lines.length * lineH) / 2);
+
+  const scratchCanvas = document.createElement('canvas');
+  const scratch = scratchCanvas.getContext('2d');
+  const glyphs: PhraseGlyph[] = [];
+  if (!scratch) return { glyphs, fontPx, lines };
+
+  let glyphIndex = 0;
+  lines.forEach((line, li) => {
+    const midY = blockTop + li * lineH + lineH / 2;
+    const lineWidth = ctx.measureText(line).width;
+    let cursor = box.x + Math.max(0, (box.w - lineWidth) / 2);
+    const tokens = line.split(' ');
+
+    tokens.forEach((token, ti) => {
+      if (ti > 0) cursor += ctx.measureText(' ').width;
+      for (const char of token) {
+        const charWidth = ctx.measureText(char).width;
+        const points = rasterizeGlyph(ctx, scratch, char, cursor, midY, fontPx);
+        if (points.length > 0) {
+          glyphs.push({
+            index: glyphIndex++,
+            char,
+            x: cursor + charWidth / 2,
+            y: midY,
+            points,
+          });
+        }
+        cursor += charWidth;
+      }
+    });
+  });
+
+  // Global cap on total particles, applied evenly and preserving write order.
+  const total = glyphs.reduce((sum, g) => sum + g.points.length, 0);
+  if (total > PARTICLE_POOL) {
+    const step = total / PARTICLE_POOL;
+    let seen = 0;
+    let next = 0;
+    for (const glyph of glyphs) {
+      const kept: PhraseGlyphPoint[] = [];
+      for (const pt of glyph.points) {
+        if (seen >= next) {
+          kept.push(pt);
+          next += step;
+        }
+        seen++;
+      }
+      glyph.points = kept;
+    }
   }
 
-  const chunk = sortedPoints.length / butterflyCount;
-  sortedPoints.forEach((p, idx) => {
-    const bId = Math.min(butterflyCount - 1, Math.floor(idx / chunk));
-    allocation.get(bId)?.push(p);
-  });
-  
-  return allocation;
+  return { glyphs, fontPx, lines };
+}
+
+/**
+ * Give every butterfly a slice of the phrase to write, in reading order.
+ *
+ * `orderedButterflyIds` must be sorted by the moment each butterfly starts
+ * writing, so the phrase is traced left-to-right: the earliest butterfly
+ * writes the first letter, the next the following letter, and so on. With
+ * fewer letters than butterflies, several butterflies share one letter
+ * (tracing it together); with more letters, one butterfly covers a run of
+ * consecutive letters.
+ */
+export function allocateButterfliesToPhrase(
+  orderedButterflyIds: number[],
+  layout: PhraseLayout,
+): Map<number, PhraseGlyphPoint[]> {
+  const map = new Map<number, PhraseGlyphPoint[]>();
+  const glyphs = layout.glyphs;
+  const butterflyCount = orderedButterflyIds.length;
+  if (glyphs.length === 0 || butterflyCount === 0) return map;
+
+  const groups = Math.min(glyphs.length, butterflyCount);
+  const glyphsPerGroup = Math.floor(glyphs.length / groups);
+  const extraGlyphs = glyphs.length % groups;
+  const butterfliesPerGroup = Math.floor(butterflyCount / groups);
+  const extraButterflies = butterflyCount % groups;
+
+  let glyphCursor = 0;
+  let butterflyCursor = 0;
+  for (let g = 0; g < groups; g++) {
+    const takeGlyphs = glyphsPerGroup + (g < extraGlyphs ? 1 : 0);
+    const points: PhraseGlyphPoint[] = [];
+    for (let k = 0; k < takeGlyphs; k++) {
+      const glyph = glyphs[glyphCursor + k];
+      if (glyph) points.push(...glyph.points);
+    }
+    glyphCursor += takeGlyphs;
+    // Stable order so a butterfly draws its letter as one continuous stroke.
+    points.sort((a, b) => (a.x - b.x) || (a.y - b.y));
+
+    const takeButterflies = butterfliesPerGroup + (g < extraButterflies ? 1 : 0);
+    for (let k = 0; k < takeButterflies && butterflyCursor < butterflyCount; k++, butterflyCursor++) {
+      map.set(orderedButterflyIds[butterflyCursor], points);
+    }
+  }
+
+  return map;
 }
 
 interface PhraseBagState {

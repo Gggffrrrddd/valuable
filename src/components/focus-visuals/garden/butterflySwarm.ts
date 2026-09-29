@@ -9,7 +9,7 @@ import { clamp01, smoothstep } from '../model-core/canvasUtils';
 import type { StarTarget } from './starfield';
 import type { ButterflyRig } from './butterflySprite';
 import type { CocoonSlot } from './cocoonSlots';
-import { allocateButterfliesToPhrase, type PhraseGlyphPoint } from './phrases';
+import { allocateButterfliesToPhrase, type PhraseGlyphPoint, type PhraseLayout } from './phrases';
 
 /** Deterministic pseudo-random in [min, max) from an integer seed. */
 function randRange(min: number, max: number, seed: number) {
@@ -26,8 +26,10 @@ export interface ArrivalButterfly {
   targetId: number;
   /** Progress at which this butterfly enters from a screen edge. */
   pStart: number;
-  /** Progress at which it dissolves into its star. */
+  /** Progress at which it reaches its star target and becomes a star. */
   pEnd: number;
+  /** Progress at which its body has fully faded into the star. */
+  pFade: number;
   startX: number;
   startY: number;
   phaseOffset: number;
@@ -37,6 +39,9 @@ export interface ArrivalButterfly {
   px: number;
   flipP: number;
   willFlip: boolean;
+  /** Star target position (cached for the settle/convert phase). */
+  targetX: number;
+  targetY: number;
 }
 
 /**
@@ -60,6 +65,7 @@ export class ArrivalSwarm {
       const jitter = randRange(-0.012, 0.012, i + 1.7);
       const pStart = clamp01(base + jitter);
       const pEnd = Math.min(ARRIVAL.end, pStart + ARRIVAL.flightP);
+      const pFade = Math.min(ARRIVAL.end + 0.05, pEnd + 0.04);
       const fromLeft = i % 2 === 0;
       const seed = target.id * 3.1 + i * 0.37;
 
@@ -68,6 +74,7 @@ export class ArrivalSwarm {
         targetId: target.id,
         pStart,
         pEnd,
+        pFade,
         startX: (fromLeft ? -0.06 : 1.06) * width,
         startY: randRange(ARRIVAL.entryTopY, ARRIVAL.entryBottomY, seed) * height,
         phaseOffset: randRange(0, Math.PI * 2, seed + 1.3),
@@ -76,6 +83,8 @@ export class ArrivalSwarm {
         px: randRange(ARRIVAL.minPx, ARRIVAL.maxPx, seed + 5.2),
         flipP: randRange(pStart, pEnd, seed + 6.5),
         willFlip: randRange(0, 1, seed + 7.8) < RIG.flipChance,
+        targetX: target.x,
+        targetY: target.y,
       });
 
       const prev = this.starP.get(target.id);
@@ -83,31 +92,29 @@ export class ArrivalSwarm {
     });
   }
 
-  private target(targetId: number): StarTarget {
-    return this.targets.find((t) => t.id === targetId) as StarTarget;
-  }
-
   /** Position on the curved entry path at progress `t` (0..1 along the flight). */
   private posAt(b: ArrivalButterfly, t: number) {
-    const target = this.target(b.targetId);
     const e = easeInOutCubic(clamp01(t));
     const wob = 1 - e;
     const x =
-      b.startX + (target.x - b.startX) * e + Math.sin(b.phaseOffset + e * Math.PI * 2.2) * this.width * 0.04 * wob;
+      b.startX + (b.targetX - b.startX) * e + Math.sin(b.phaseOffset + e * Math.PI * 2.2) * this.width * 0.04 * wob;
     const y =
-      b.startY + (target.y - b.startY) * e + Math.cos(b.phaseOffset * 1.3 + e * Math.PI * 1.7) * this.height * 0.025 * wob;
+      b.startY + (b.targetY - b.startY) * e + Math.cos(b.phaseOffset * 1.3 + e * Math.PI * 1.7) * this.height * 0.025 * wob;
     return { x, y };
   }
 
   getRenderData(p: number, time: number): ButterflyRig[] {
     const rigs: ButterflyRig[] = [];
     for (const b of this.butterflies) {
-      if (p < b.pStart || p >= b.pEnd) continue;
+      // The butterfly keeps flying right up to its target, then the body fades
+      // into the star it becomes — it never simply vanishes mid-flight.
+      if (p < b.pStart || p >= b.pFade) continue;
       const t = clamp01((p - b.pStart) / Math.max(0.0001, b.pEnd - b.pStart));
-      const alpha = smoothstep(0, 0.12, t) * (1 - smoothstep(0.86, 1, t));
+      const convert = smoothstep(b.pEnd, b.pFade, p);
+      const alpha = smoothstep(0, 0.12, t) * (1 - 0.85 * convert);
       if (alpha <= 0.001) continue;
 
-      const here = this.posAt(b, t);
+      const here = t >= 1 ? { x: b.targetX, y: b.targetY } : this.posAt(b, t);
       const next = this.posAt(b, Math.min(1, t + 0.02));
       const heading = Math.atan2(next.y - here.y, next.x - here.x) + Math.PI / 2;
       const isFlipping = b.willFlip && p > b.flipP && p < b.flipP + 0.02;
@@ -115,7 +122,7 @@ export class ArrivalSwarm {
       rigs.push({
         x: here.x,
         y: here.y,
-        px: b.px,
+        px: b.px * (1 - 0.55 * convert),
         alpha,
         heading,
         flapPhase: time * b.flapHz * Math.PI * 2 + b.phaseOffset,
@@ -126,6 +133,13 @@ export class ArrivalSwarm {
     }
     return rigs;
   }
+
+  /** A bright pulse that plays as a butterfly lands and becomes its star. */
+  getStarPulse(target: StarTarget, p: number): number {
+    const startP = this.starP.get(target.id);
+    if (startP === undefined) return 0;
+    return 1 - clamp01((p - startP) / 0.06);
+  }
 }
 
 export interface EmergenceButterfly {
@@ -134,6 +148,8 @@ export interface EmergenceButterfly {
   tOpen: number;
   /** Progress at which the butterfly starts tracing its slice. */
   writeStart: number;
+  /** Progress at which the trace finishes and it settles on its letter. */
+  writeEnd: number;
   startX: number;
   startY: number;
   phaseOffset: number;
@@ -191,17 +207,25 @@ export class EmergenceSwarm {
     private width: number,
     private height: number,
     openSchedule: number[],
-    phrasePoints: PhraseGlyphPoint[] = [],
+    layout: PhraseLayout,
   ) {
-    const allocation = allocateButterfliesToPhrase(this.cocoons.length, phrasePoints);
+    // Write in reading order: the butterfly that starts writing first takes the
+    // first letter, the next the following letter, and so on.
+    const orderedIds = this.cocoons
+      .map((_, i) => i)
+      .sort((a, b) => (openSchedule[a] ?? OPEN_WINDOW.start) - (openSchedule[b] ?? OPEN_WINDOW.start));
+    const allocation = allocateButterfliesToPhrase(orderedIds, layout);
 
     this.cocoons.forEach((c, i) => {
       const tOpen = openSchedule[i] ?? OPEN_WINDOW.start;
+      const writeStart = tOpen + OPEN_WINDOW.popP + OPEN_WINDOW.flyP;
+      const writeEnd = Math.min(1, writeStart + OPEN_WINDOW.settleP);
       const seed = i * 2.7;
       this.butterflies.push({
         id: i,
         tOpen,
-        writeStart: tOpen + OPEN_WINDOW.popP + OPEN_WINDOW.flyP,
+        writeStart,
+        writeEnd,
         startX: c.x * width,
         startY: c.y * height,
         phaseOffset: randRange(0, Math.PI * 2, seed),
@@ -216,7 +240,7 @@ export class EmergenceSwarm {
   /** How far along its own trace a butterfly is (0 before it starts writing). */
   getSliceProgress(b: EmergenceButterfly, p: number): number {
     if (p < b.writeStart) return 0;
-    return clamp01((p - b.writeStart) / Math.max(0.0001, 1 - b.writeStart));
+    return clamp01((p - b.writeStart) / Math.max(0.0001, b.writeEnd - b.writeStart));
   }
 
   private posAt(b: EmergenceButterfly, p: number) {
@@ -242,7 +266,7 @@ export class EmergenceSwarm {
       };
     }
 
-    // Trace the slice: walk its (x-sorted) points.
+    // Trace the slice, then settle on its final point (the butterfly stays).
     const localT = this.getSliceProgress(b, p);
     const last = slice.length - 1;
     const pos = localT * last;
@@ -256,7 +280,7 @@ export class EmergenceSwarm {
   getRenderData(p: number, time: number): ButterflyRig[] {
     const rigs: ButterflyRig[] = [];
     for (const b of this.butterflies) {
-      if (p < b.tOpen || p >= 1) continue;
+      if (p < b.tOpen) continue;
 
       const popEnd = b.tOpen + OPEN_WINDOW.popP;
       const popT = clamp01((p - b.tOpen) / OPEN_WINDOW.popP);

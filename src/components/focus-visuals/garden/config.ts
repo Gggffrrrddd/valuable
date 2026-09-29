@@ -113,14 +113,21 @@ export const STARFIELD = {
 } as const;
 
 /**
- * Phrase placement as a fraction of the viewport height. The sampler centres
- * text in the canvas it is handed, so it receives a canvas that is
- * `2 * centerY` tall — putting the phrase centre exactly at `centerY`.
+ * Phrase box, as fractions of the viewport. It is deliberately kept to the
+ * left/centre of the dark upper area so the written phrase never slides under
+ * the flip-clock timer, which sits vertically centred on the right.
  */
-export const PHRASE = { centerY: 0.6, fontPx: 42, maxAlpha: 0.92 } as const;
+export const PHRASE = {
+  boxX: 0.05,
+  boxW: 0.63,
+  boxY: 0.47,
+  boxH: 0.15,
+  maxFontPx: 40,
+  minFontPx: 22,
+} as const;
 
 /** Fixed letter-particle pool (subsample if the phrase is too dense). */
-export const PARTICLE_POOL = 700;
+export const PARTICLE_POOL = 1400;
 
 /** Generated premium night sky (written once to an offscreen canvas). */
 export const SKY = {
@@ -146,6 +153,8 @@ export const OPEN_WINDOW = {
   popP: 0.015,
   /** Flight from the slot to the first phrase point. */
   flyP: 0.05,
+  /** How long a butterfly takes to trace its slice before settling on it. */
+  settleP: 0.06,
   /** Particle burst duration when a cocoon opens. */
   burstP: 0.02,
 } as const;
