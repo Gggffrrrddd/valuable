@@ -11,7 +11,6 @@ import FriendsScreen from '@/screens/FriendsScreen';
 import StudyTableScreen from '@/screens/StudyTableScreen';
 import CompeteScreen from '@/screens/CompeteScreen';
 import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, Mountain } from 'lucide-react';
-import PenOverlay from '@/components/dev/PenOverlay';
 
 type Tab = 'home' | 'stats' | 'compete' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
@@ -280,7 +279,6 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
-      <PenOverlay />
     </AuthProvider>
   );
 }

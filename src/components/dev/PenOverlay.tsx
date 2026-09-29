@@ -1,10 +1,11 @@
 /**
- * Measuring pen — always available on every screen.
+ * Freehand measuring pen for the butterfly focus timer.
  *
- * Press the floating Pen button, drag to mark a straight line; the endpoints
- * are logged to the console in viewport pixels AND as fractions of the
- * viewport (the unit the garden config uses). Esc disarms, the marked line
- * stays on screen until the next stroke.
+ * Press the floating Pen button, then draw ANY shape (line, zig-zag,
+ * rectangle, arrows — whatever). On release the whole path is logged to the
+ * console in viewport pixels AND as viewport fractions (the unit the garden
+ * config uses), plus the bounding box. Esc disarms; a new stroke replaces
+ * the previous path.
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -13,16 +14,15 @@ interface Pt {
   y: number;
 }
 
+/** Minimum distance (px) between logged points while drawing. */
+const MIN_STEP = 5;
+
 export default function PenOverlay() {
   const [armed, setArmed] = useState(false);
-  const [line, setLine] = useState<{ a: Pt; b: Pt } | null>(null);
-  const startRef = useRef<Pt | null>(null);
+  const [path, setPath] = useState<Pt[]>([]);
+  const drawingRef = useRef(false);
 
   useEffect(() => {
-    console.log(
-      `[pen] ready — viewport ${window.innerWidth}x${window.innerHeight}. ` +
-        'Press the Pen button (bottom right), drag to mark a line, Esc to disarm.',
-    );
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setArmed(false);
     };
@@ -30,85 +30,97 @@ export default function PenOverlay() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const pointerPos = (e: React.PointerEvent): Pt => ({ x: e.clientX, y: e.clientY });
+  const toPoint = (e: React.PointerEvent): Pt => ({ x: e.clientX, y: e.clientY });
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    const p = pointerPos(e);
-    startRef.current = p;
-    setLine({ a: p, b: p });
+    drawingRef.current = true;
+    const p = toPoint(e);
+    setPath([p]);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    if (!start) return;
-    setLine({ a: start, b: pointerPos(e) });
+    if (!drawingRef.current) return;
+    const p = toPoint(e);
+    setPath((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) < MIN_STEP) return prev;
+      return [...prev, p];
+    });
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    startRef.current = null;
-    if (!start) return;
-    const end = pointerPos(e);
-    if (Math.abs(start.x - end.x) < 2 && Math.abs(start.y - end.y) < 2) return;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const len = Math.hypot(end.x - start.x, end.y - start.y);
-    const angle = (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI;
-    console.log(
-      `[pen] line (${start.x}, ${start.y}) -> (${end.x}, ${end.y}) px | ` +
-        `frac (${(start.x / w).toFixed(4)}, ${(start.y / h).toFixed(4)}) -> ` +
-        `(${(end.x / w).toFixed(4)}, ${(end.y / h).toFixed(4)}) | ` +
-        `len ${len.toFixed(1)}px angle ${angle.toFixed(1)}deg | viewport ${w}x${h}`,
-    );
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    const p = toPoint(e);
+    setPath((prev) => {
+      const last = prev[prev.length - 1];
+      const pts =
+        last && Math.hypot(p.x - last.x, p.y - last.y) >= 1 ? [...prev, p] : prev;
+      if (pts.length < 2) return prev;
+
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const xs = pts.map((q) => q.x);
+      const ys = pts.map((q) => q.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      console.log(
+        `[pen] path ${pts.length} pts | bbox (${Math.round(minX)}, ${Math.round(minY)}) - ` +
+          `(${Math.round(maxX)}, ${Math.round(maxY)}) px | viewport ${w}x${h}`,
+      );
+      console.log(
+        `[pen] px: ${pts.map((q) => `(${Math.round(q.x)},${Math.round(q.y)})`).join(' ')}`,
+      );
+      console.log(
+        `[pen] frac: ${pts
+          .map((q) => `(${(q.x / w).toFixed(3)},${(q.y / h).toFixed(3)})`)
+          .join(' ')}`,
+      );
+      return pts;
+    });
   };
 
-  let geometry: { left: number; top: number; width: number; rotate: number } | null = null;
-  if (line) {
-    const dx = line.b.x - line.a.x;
-    const dy = line.b.y - line.a.y;
-    geometry = {
-      left: line.a.x,
-      top: line.a.y,
-      width: Math.hypot(dx, dy),
-      rotate: (Math.atan2(dy, dx) * 180) / Math.PI,
-    };
-  }
+  const pointsAttr = path.map((q) => `${q.x},${q.y}`).join(' ');
 
   return (
     <>
       {/* Drawing surface — only interactive while armed. */}
-      <div
+      <svg
         className={`fixed inset-0 z-[9999] ${armed ? 'cursor-crosshair' : 'pointer-events-none'}`}
         style={{ touchAction: armed ? 'none' : 'auto' }}
         onPointerDown={armed ? onPointerDown : undefined}
         onPointerMove={armed ? onPointerMove : undefined}
         onPointerUp={armed ? onPointerUp : undefined}
       >
-        {line && geometry && (
+        {path.length > 1 && (
           <>
-            <div
-              className="absolute h-0.5 bg-[#ff3b6b] shadow-[0_0_8px_rgba(255,59,107,0.9)]"
-              style={{
-                left: geometry.left,
-                top: geometry.top - 1,
-                width: geometry.width,
-                transformOrigin: 'left center',
-                transform: `rotate(${geometry.rotate}deg)`,
-              }}
+            <polyline
+              points={pointsAttr}
+              fill="none"
+              stroke="#ff3b6b"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ filter: 'drop-shadow(0 0 6px rgba(255,59,107,0.9))' }}
             />
-            <div
-              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-[#ff3b6b]"
-              style={{ left: line.a.x, top: line.a.y }}
-            />
-            <div
-              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-[#ff3b6b]"
-              style={{ left: line.b.x, top: line.b.y }}
+            <circle cx={path[0].x} cy={path[0].y} r={4} fill="#ff3b6b" stroke="#fff" strokeWidth={1} />
+            <circle
+              cx={path[path.length - 1].x}
+              cy={path[path.length - 1].y}
+              r={4}
+              fill="#ff3b6b"
+              stroke="#fff"
+              strokeWidth={1}
             />
           </>
         )}
-      </div>
+      </svg>
 
       {/* Toggle */}
       <button
