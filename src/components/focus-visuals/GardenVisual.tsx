@@ -8,7 +8,7 @@ import { generateSky, type SkyLayer } from './garden/sky';
 import { ButterflyRenderer } from './garden/butterflySprite';
 import { generateConstellation } from './garden/constellation';
 import { ArrivalSwarm, EmergenceSwarm } from './garden/butterflySwarm';
-import { samplePhrase, PHRASE_POOL } from './garden/phrases';
+import { samplePhrase, resolveSessionPhrase } from './garden/phrases';
 import { smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
 
@@ -40,27 +40,12 @@ function interpolateCamera(tSec: number) {
 }
 
 export default function GardenVisual({ progress, running = false, onFinaleComplete }: FocusVisualProps) {
-  const palette = resolveSessionPalette();
-  const value = Math.max(0, Math.min(1, progress));
-  const complete = value >= 1;
-  const skyCanvasRef = useRef<HTMLCanvasElement>(null);
-  const effectsCanvasRef = useRef<HTMLCanvasElement>(null);
-  const skyLayerRef = useRef<SkyLayer | null>(null);
-  const rendererRef = useRef<ButterflyRenderer | null>(null);
-  const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
-  const lastTimeRef = useRef(0);
-  
-  // Timer for finale
-  const [finaleTime, setFinaleTime] = useState(0);
-  const gardenContainerRef = useRef<HTMLDivElement>(null);
-  const cocoonsContainerRef = useRef<HTMLDivElement>(null);
-  
   // Dev tools
   const devTools = useMemo(() => {
-    if (typeof window === 'undefined') return { speed: 1, startT: 0 };
+    if (typeof window === 'undefined') return { speed: 1, startT: 0, palette: null, phrase: null };
     const params = new URLSearchParams(window.location.search);
     const isFinale = params.get('garden') === 'finale';
-    if (!isFinale) return { speed: 1, startT: 0 };
+    if (!isFinale) return { speed: 1, startT: 0, palette: null, phrase: null };
     
     const act = params.get('act');
     let startT = Number(params.get('t')) || 0;
@@ -69,9 +54,28 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
     return {
       speed: Number(params.get('speed')) || 1,
       startT,
+      palette: params.get('palette'),
+      phrase: params.get('phrase'),
     };
   }, []);
 
+  const palette = resolveSessionPalette(devTools.palette);
+  const phrase = useMemo(() => resolveSessionPhrase(devTools.phrase), [devTools.phrase]);
+  const value = Math.max(0, Math.min(1, progress));
+  const complete = value >= 1;
+  const skyCanvasRef = useRef<HTMLCanvasElement>(null);
+  const effectsCanvasRef = useRef<HTMLCanvasElement>(null);
+  const skyLayerRef = useRef<SkyLayer | null>(null);
+  const rendererRef = useRef<ButterflyRenderer | null>(null);
+  const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
+  const lastTimeRef = useRef(0);
+  const skippedRef = useRef(false);
+  
+  // Timer for finale
+  const [finaleTime, setFinaleTime] = useState(0);
+  const gardenContainerRef = useRef<HTMLDivElement>(null);
+  const cocoonsContainerRef = useRef<HTMLDivElement>(null);
+  
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -91,7 +95,10 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
     lastTimeRef.current = devTools.startT;
     let frame: number;
     const loop = (now: number) => {
-      const t = devTools.startT + ((now - start) / 1000) * devTools.speed;
+      let t = devTools.startT + ((now - start) / 1000) * devTools.speed;
+      if (skippedRef.current) {
+        t = Math.max(t, T.dollyEnd);
+      }
       lastTimeRef.current = t;
       setFinaleTime(t);
       
@@ -151,7 +158,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       if (sctx) sctx.drawImage(skyLayerRef.current.canvas, 0, 0);
       
       const targets = generateConstellation(w, skyH);
-      const pPoints = samplePhrase(PHRASE_POOL[0], w, h);
+      const pPoints = samplePhrase(phrase, w, h);
       
       swarmsRef.current = {
         arrival: new ArrivalSwarm(targets, w, h),
@@ -233,7 +240,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
        ctx.font = 'bold 32px serif';
        ctx.textAlign = 'center';
        ctx.textBaseline = 'middle';
-       ctx.fillText(PHRASE_POOL[0], w / 2, h * 0.32 - panPx); // adjusted for translate center
+       ctx.fillText(phrase, w / 2, h * 0.32 - panPx); // adjusted for translate center
     }
     
     // Draw butterflies
@@ -272,15 +279,17 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   
   const handleSkip = () => {
     if (complete && finaleTime < T.dollyEnd) {
+      skippedRef.current = true;
       setFinaleTime(T.dollyEnd);
     }
   };
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden" aria-hidden="true" onClick={handleSkip}>
+    <div className="absolute inset-0 z-0 bg-[#090b0a] overflow-hidden" onClick={handleSkip}>
       {/* 1. Generated Sky Layer (behind everything, panning) */}
       <div 
         className="absolute inset-0 w-full h-full"
+        aria-hidden="true"
         style={{
           transform: `scale(${cam.zoom}) translateY(${panPx}px)`,
           transformOrigin: 'center center'
@@ -296,6 +305,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       {/* 2 & 3. Garden Image + Cocoons (panning together with sky) */}
       <div 
         className="absolute inset-0 w-full h-full"
+        aria-hidden="true"
         style={{
           transform: `scale(${cam.zoom}) translateY(${panPx}px)`,
           transformOrigin: 'center center'
@@ -356,8 +366,16 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       {/* 4. Effects Canvas */}
       <canvas 
         ref={effectsCanvasRef}
+        aria-hidden="true"
         className="absolute inset-0 z-10 w-full h-full pointer-events-none"
       />
+
+      {/* Screen-reader only phrase announcement */}
+      {complete && finaleTime >= T.writeStart && (
+        <div aria-live="polite" className="sr-only">
+          {phrase}
+        </div>
+      )}
 
       {/* Continue button at the very end */}
       {complete && finaleTime >= T.dollyEnd && (

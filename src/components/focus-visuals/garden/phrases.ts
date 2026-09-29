@@ -1,4 +1,5 @@
-import { PARTICLE_POOL } from './config';
+import { PARTICLE_POOL, GARDEN_PHRASE_BAG_KEY } from './config';
+import { SESSION_PHRASE_KEY } from '@/lib/localSession';
 
 export const PHRASE_POOL = [
   "Stay motivated", "Be strong", "Let's go up", "Stay focused", "Keep going",
@@ -83,4 +84,70 @@ export function allocateButterfliesToPhrase(
   });
   
   return allocation;
+}
+
+interface PhraseBagState {
+  remaining: string[];
+  last: string | null;
+}
+
+function readPhraseBag(): PhraseBagState {
+  try {
+    const raw = localStorage.getItem(GARDEN_PHRASE_BAG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as PhraseBagState;
+      if (Array.isArray(parsed.remaining) && typeof parsed.last === 'string') return parsed;
+      if (Array.isArray(parsed.remaining)) return { remaining: parsed.remaining, last: null };
+    }
+  } catch {
+    /* ignore malformed bag */
+  }
+  return { remaining: [], last: null };
+}
+
+function writePhraseBag(state: PhraseBagState) {
+  try {
+    localStorage.setItem(GARDEN_PHRASE_BAG_KEY, JSON.stringify(state));
+  } catch {
+    /* storage unavailable — bag simply restarts */
+  }
+}
+
+/**
+ * Shuffle-bag pick: never repeats until every phrase has been used, and never
+ * returns the same phrase twice in a row.
+ */
+export function pickPhrase(): string {
+  const bag = readPhraseBag();
+  let remaining = bag.remaining.filter((p) => PHRASE_POOL.includes(p));
+  if (remaining.length === 0) {
+    remaining = [...PHRASE_POOL];
+  }
+  const pool = remaining.length > 1 ? remaining.filter((p) => p !== bag.last) : remaining;
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  writePhraseBag({
+    remaining: remaining.filter((p) => p !== chosen),
+    last: chosen,
+  });
+  return chosen;
+}
+
+/** Resolve the phrase for a session; `forced` accepts a pool index or exact phrase text (dev tools). */
+export function resolveSessionPhrase(forced?: string | null): string {
+  if (forced) {
+    const asIndex = Number(forced);
+    if (Number.isInteger(asIndex) && asIndex >= 0 && asIndex < PHRASE_POOL.length) {
+      return PHRASE_POOL[asIndex];
+    }
+    if (PHRASE_POOL.includes(forced)) return forced;
+  }
+  const stored = sessionStorage.getItem(SESSION_PHRASE_KEY);
+  if (stored && PHRASE_POOL.includes(stored)) return stored;
+  const picked = pickPhrase();
+  try {
+    sessionStorage.setItem(SESSION_PHRASE_KEY, picked);
+  } catch {
+    /* ignore */
+  }
+  return picked;
 }

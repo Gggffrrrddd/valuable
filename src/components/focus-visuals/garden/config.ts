@@ -136,3 +136,4 @@ export const SKY = {
 
 /** Session storage keys for palette/phrase persistence. */
 export const GARDEN_BAG_KEY = 'valuable-garden-bag';
+export const GARDEN_PHRASE_BAG_KEY = 'valuable-garden-phrase-bag';
