@@ -74,7 +74,8 @@ function rasterizeGlyph(
   midY: number,
   fontPx: number,
 ): PhraseGlyphPoint[] {
-  const w = Math.ceil(measure.measureText(char).width) + PAD * 2;
+  const scaleX = 0.85;
+  const w = Math.ceil(measure.measureText(char).width * scaleX) + PAD * 2;
   const h = Math.ceil(fontPx * 1.7);
   if (scratch.canvas.width !== w || scratch.canvas.height !== h) {
     scratch.canvas.width = w;
@@ -85,7 +86,11 @@ function rasterizeGlyph(
   scratch.textAlign = 'left';
   scratch.textBaseline = 'middle';
   scratch.fillStyle = '#ffffff';
-  scratch.fillText(char, PAD, h / 2);
+  
+  scratch.save();
+  scratch.scale(scaleX, 1);
+  scratch.fillText(char, PAD / scaleX, h / 2);
+  scratch.restore();
   scratch.fillText(char, PAD, h / 2);
 
   let data: Uint8ClampedArray;
@@ -129,9 +134,9 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
   const fontPx = Math.max(16, Math.round(PHRASE.fontVh * height));
   ctx.font = fontFor(fontPx);
 
-  // Letters keep their natural width; only the wrap width (line length) is
-  // narrowed so the phrase reads as compact, airy lines.
-  const scaleX = 1;
+  // Letters are drawn slightly condensed (thinner) with airy spacing so the
+  // phrase reads open rather than cramped.
+  const scaleX = 0.85;
   const letterSpacing = fontPx * 0.15;
   const measureChar = (char: string) => ctx.measureText(char).width * scaleX;
 
