@@ -153,17 +153,20 @@ export const STARFIELD = {
 } as const;
 
 /**
- * Phrase box, as fractions of the viewport. It is deliberately kept to the
- * left/centre of the dark upper area so the written phrase never slides under
- * the flip-clock timer, which sits vertically centred on the right.
+ * Phrase placement, as fractions of the viewport — tuned live with the
+ * PhraseTuner (zoom / left-right / up-down sliders).
+ *
+ *   centerX/centerY: centre of the FIRST letter of the phrase (where the
+ *                    tuner's preview letter sits);
+ *   fontVh:          font size as a fraction of the viewport height;
+ *   rightLimit:      right edge the text may reach, kept clear of the
+ *                    flip-clock timer on the right.
  */
 export const PHRASE = {
-  boxX: 0.05,
-  boxW: 0.63,
-  boxY: 0.47,
-  boxH: 0.15,
-  maxFontPx: 40,
-  minFontPx: 22,
+  centerX: 0.185,
+  centerY: 0.42,
+  fontVh: 0.058,
+  rightLimit: 0.68,
 } as const;
 
 /** Fixed letter-particle pool (subsample if the phrase is too dense). */

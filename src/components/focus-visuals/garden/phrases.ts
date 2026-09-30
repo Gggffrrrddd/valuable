@@ -100,8 +100,9 @@ function rasterizeGlyph(
 }
 
 /**
- * Lay the phrase out inside a fixed box (which deliberately avoids the timer
- * area), choosing the largest font size that fits. Points are tagged with the
+ * Lay the phrase out starting at the tuned first-letter position (PHRASE
+ * config, set with the PhraseTuner): fixed font size, left-aligned flow from
+ * the tuned X, first line centred on the tuned Y. Points are tagged with the
  * glyph they belong to, in reading order, so butterflies can write the phrase
  * one letter at a time.
  */
@@ -112,40 +113,25 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
   const ctx = canvas.getContext('2d');
   if (!ctx) return { glyphs: [], fontPx: 0, lines: [] };
 
-  const box = {
-    x: width * PHRASE.boxX,
-    y: height * PHRASE.boxY,
-    w: width * PHRASE.boxW,
-    h: height * PHRASE.boxH,
-  };
   const words = phrase.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return { glyphs: [], fontPx: 0, lines: [] };
 
-  const fits = (px: number) => {
-    ctx.font = fontFor(px);
-    const lines = wrapLines(ctx, words, box.w);
-    return lines.length * px * LINE_HEIGHT <= box.h;
-  };
-
-  let lo: number = PHRASE.minFontPx;
-  let hi: number = PHRASE.maxFontPx;
-  if (!fits(lo)) {
-    // Box is very small on this viewport; keep the min size rather than nothing.
-    hi = lo;
-  } else {
-    while (hi - lo > 0.5) {
-      const mid = (lo + hi) / 2;
-      if (fits(mid)) lo = mid;
-      else hi = mid;
-    }
-    hi = Math.floor(lo);
-  }
-  const fontPx = Math.max(1, Math.floor(hi));
-
+  // Tuned font size: fraction of the viewport height (same unit the tuner shows).
+  const fontPx = Math.max(16, Math.round(PHRASE.fontVh * height));
   ctx.font = fontFor(fontPx);
-  const lines = wrapLines(ctx, words, box.w);
+
+  // Wrap width runs from the tuned start point to the right-hand limit
+  // (the timer area stays clear of the text).
+  const startX = width * PHRASE.centerX;
+  const maxWidth = Math.max(1, width * PHRASE.rightLimit - startX);
+  const lines = wrapLines(ctx, words, maxWidth);
   const lineH = fontPx * LINE_HEIGHT;
-  const blockTop = box.y + Math.max(0, (box.h - lines.length * lineH) / 2);
+
+  // First line is centred vertically on the tuned Y; extra lines grow down.
+  const blockTop = height * PHRASE.centerY - lineH / 2;
+
+  // The phrase starts at the tuned letter: its centre sits on centerX.
+  const originX = startX - ctx.measureText(words[0].charAt(0)).width / 2;
 
   const scratchCanvas = document.createElement('canvas');
   const scratch = scratchCanvas.getContext('2d');
@@ -155,8 +141,7 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
   let glyphIndex = 0;
   lines.forEach((line, li) => {
     const midY = blockTop + li * lineH + lineH / 2;
-    const lineWidth = ctx.measureText(line).width;
-    let cursor = box.x + Math.max(0, (box.w - lineWidth) / 2);
+    let cursor = originX;
     const tokens = line.split(' ');
 
     tokens.forEach((token, ti) => {

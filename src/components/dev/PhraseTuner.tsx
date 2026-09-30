@@ -27,7 +27,7 @@ function toNum(raw: string, fallback: number) {
  * "Save" prints the values to the console.
  */
 export default function PhraseTuner() {
-  const [state, setState] = useState<PhraseTunerState>({ zoom: '0.050', x: '0.100', y: '0.500' });
+  const [state, setState] = useState<PhraseTunerState>({ zoom: '0.058', x: '0.185', y: '0.420' });
 
   const num = (key: keyof PhraseTunerState) => {
     const row = ROWS.find((r) => r.key === key)!;
