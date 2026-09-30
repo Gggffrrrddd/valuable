@@ -59,7 +59,7 @@ export class WaterLayer {
     s.y = initY;
     s.w = 0.02 + Math.random() * 0.08; 
     s.h = 0.4 + Math.random() * 0.6; // Increased streak flow length (taller)
-    s.speed = 0.01 + Math.random() * 0.02; // Slower drift downwards
+    s.speed = 0.015 + Math.random() * 0.025; // Slightly faster so right side feels alive
     s.alpha = 0.04 + Math.random() * 0.08; 
     s.offset = Math.random() * 100;
   }
@@ -145,13 +145,13 @@ export class WaterLayer {
     const startY = Math.floor((this.boundsMinY * h) / this.STRIP_HEIGHT) * this.STRIP_HEIGHT;
     
     for (let sy = startY; sy < h; sy += this.STRIP_HEIGHT) {
-      // Perspective factor: 0 at the far edge, 1 at the near edge (bottom of screen)
+      // Perspective factor: 0 at the far edge (top right), 1 at the near edge (bottom left)
       const pz = clamp01((sy - startY) / (h - startY));
       
-      // Far ripples are small and high frequency; near ripples are larger and slower.
-      const amp = lerp(0.8, 3.8, pz); 
-      const freq = lerp(0.04, 0.008, pz); // Lower frequency for longer flow length
-      const speed = lerp(0.5, 1.4, pz); // Slower, relaxed movement
+      // Balanced perspective: keeping the far (right) water lively while maintaining depth.
+      const amp = lerp(2.0, 3.8, pz); // Increased far amplitude (was 0.8) so it doesn't look dead
+      const freq = lerp(0.025, 0.008, pz); 
+      const speed = lerp(1.0, 1.4, pz); // Speed is more uniform (was 0.5 at the back)
       
       // Complex waveform for organic water feel
       const phase1 = sy * freq - time * speed;
