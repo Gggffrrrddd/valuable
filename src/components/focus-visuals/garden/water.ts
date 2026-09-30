@@ -58,9 +58,9 @@ export class WaterLayer {
     s.x = 0.5 + Math.random() * 0.5; 
     s.y = initY;
     s.w = 0.02 + Math.random() * 0.08; 
-    s.h = 0.2 + Math.random() * 0.4; 
-    s.speed = 0.02 + Math.random() * 0.04; // Faster drift downwards
-    s.alpha = 0.04 + Math.random() * 0.08; // Slightly more visible
+    s.h = 0.4 + Math.random() * 0.6; // Increased streak flow length (taller)
+    s.speed = 0.01 + Math.random() * 0.02; // Slower drift downwards
+    s.alpha = 0.04 + Math.random() * 0.08; 
     s.offset = Math.random() * 100;
   }
 
@@ -145,9 +145,9 @@ export class WaterLayer {
       const pz = clamp01((sy - startY) / (h - startY));
       
       // Far ripples are small and high frequency; near ripples are larger and slower.
-      const amp = lerp(1.0, 5.0, pz); // More movement amplitude
-      const freq = lerp(0.12, 0.02, pz); // Slightly higher frequency
-      const speed = lerp(1.5, 3.0, pz); // Faster flowing ripples
+      const amp = lerp(0.8, 3.8, pz); 
+      const freq = lerp(0.04, 0.008, pz); // Lower frequency for longer flow length
+      const speed = lerp(0.5, 1.4, pz); // Slower, relaxed movement
       
       // Complex waveform for organic water feel
       const phase1 = sy * freq - time * speed;
@@ -168,8 +168,8 @@ export class WaterLayer {
       
       // Caustic Streaks (soft, slow-moving light rays)
       for (const s of this.streaks) {
-        s.y += s.speed * 0.05; // Drift faster
-        if (s.y > 1.2) this.resetStreak(s, -0.2);
+        s.y += s.speed * 0.025; // Drift slower
+        if (s.y > 1.2) this.resetStreak(s, -0.4);
         
         // Complex fade: edges + sine pulse
         let a = s.alpha * (0.6 + 0.4 * Math.sin(time * 3 + s.offset));
