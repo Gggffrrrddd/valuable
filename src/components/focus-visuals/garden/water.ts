@@ -136,6 +136,10 @@ export class WaterLayer {
     this.buildClipPath(ctx, w, h);
     ctx.clip();
     
+    // Draw the unshifted base image first. This completely eliminates "blackish" seams 
+    // caused by sub-pixel rendering/anti-aliasing between the strips on a transparent canvas.
+    ctx.drawImage(this.baseCanvas, 0, 0);
+    
     // 2. Draw perspective ripples (horizontal strips)
     // Using 2px strips for high quality without destroying frame rate.
     const startY = Math.floor((this.boundsMinY * h) / this.STRIP_HEIGHT) * this.STRIP_HEIGHT;
