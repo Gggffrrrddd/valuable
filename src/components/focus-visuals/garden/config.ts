@@ -165,7 +165,7 @@ export const STARFIELD = {
 export const PHRASE = {
   centerX: 0.185,
   centerY: 0.42,
-  fontVh: 0.064,
+  fontVh: 0.058,
   rightLimit: 0.68,
 } as const;
 

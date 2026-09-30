@@ -151,7 +151,7 @@ export class WaterLayer {
       // Balanced perspective: keeping the far (right) water lively while maintaining depth.
       const amp = lerp(2.0, 3.8, pz); // Increased far amplitude (was 0.8) so it doesn't look dead
       const freq = lerp(0.025, 0.008, pz); 
-      const speed = lerp(1.3, 1.8, pz); // Slightly livelier flow
+      const speed = lerp(1.0, 1.4, pz); // Speed is more uniform (was 0.5 at the back)
       
       // Complex waveform for organic water feel
       const phase1 = sy * freq - time * speed;

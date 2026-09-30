@@ -38,23 +38,15 @@ const LINE_HEIGHT = 1.28;
 const PAD = 3;
 
 function fontFor(px: number) {
-  return `${px}px Georgia, 'Times New Roman', serif`;
+  return `bold ${px}px Georgia, 'Times New Roman', serif`;
 }
 
 function wrapLines(ctx: CanvasRenderingContext2D, words: string[], maxWidth: number): string[] {
   const lines: string[] = [];
   let current = '';
-  // Letter spacing and horizontal scale affect the measured width
-  const scaleX = 0.85;
-  const letterSpacing = Number(ctx.font.match(/\d+/)?.[0] ?? 0) * 0.15;
-  
-  const measure = (text: string) => {
-    return ctx.measureText(text).width * scaleX + (text.length > 1 ? (text.length - 1) * letterSpacing : 0);
-  };
-
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    if (current && measure(candidate) > maxWidth) {
+    if (current && ctx.measureText(candidate).width > maxWidth) {
       lines.push(current);
       current = word;
     } else {
@@ -74,8 +66,7 @@ function rasterizeGlyph(
   midY: number,
   fontPx: number,
 ): PhraseGlyphPoint[] {
-  const scaleX = 0.85;
-  const w = Math.ceil(measure.measureText(char).width * scaleX) + PAD * 2;
+  const w = Math.ceil(measure.measureText(char).width) + PAD * 2;
   const h = Math.ceil(fontPx * 1.7);
   if (scratch.canvas.width !== w || scratch.canvas.height !== h) {
     scratch.canvas.width = w;
@@ -86,11 +77,6 @@ function rasterizeGlyph(
   scratch.textAlign = 'left';
   scratch.textBaseline = 'middle';
   scratch.fillStyle = '#ffffff';
-  
-  scratch.save();
-  scratch.scale(scaleX, 1);
-  scratch.fillText(char, PAD / scaleX, h / 2);
-  scratch.restore();
   scratch.fillText(char, PAD, h / 2);
 
   let data: Uint8ClampedArray;
@@ -134,12 +120,6 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
   const fontPx = Math.max(16, Math.round(PHRASE.fontVh * height));
   ctx.font = fontFor(fontPx);
 
-  // Letters are drawn slightly condensed (thinner) with airy spacing so the
-  // phrase reads open rather than cramped.
-  const scaleX = 0.85;
-  const letterSpacing = fontPx * 0.15;
-  const measureChar = (char: string) => ctx.measureText(char).width * scaleX;
-
   // Wrap width runs from the tuned start point to the right-hand limit
   // (the timer area stays clear of the text).
   const startX = width * PHRASE.centerX;
@@ -151,7 +131,7 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
   const blockTop = height * PHRASE.centerY - lineH / 2;
 
   // The phrase starts at the tuned letter: its centre sits on centerX.
-  const originX = startX - measureChar(words[0].charAt(0)) / 2;
+  const originX = startX - ctx.measureText(words[0].charAt(0)).width / 2;
 
   const scratchCanvas = document.createElement('canvas');
   const scratch = scratchCanvas.getContext('2d');
@@ -165,9 +145,9 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
     const tokens = line.split(' ');
 
     tokens.forEach((token, ti) => {
-      if (ti > 0) cursor += measureChar(' ') + letterSpacing;
+      if (ti > 0) cursor += ctx.measureText(' ').width;
       for (const char of token) {
-        const charWidth = measureChar(char);
+        const charWidth = ctx.measureText(char).width;
         const points = rasterizeGlyph(ctx, scratch, char, cursor, midY, fontPx);
         if (points.length > 0) {
           glyphs.push({
@@ -178,7 +158,7 @@ export function layoutPhrase(phrase: string, width: number, height: number): Phr
             points,
           });
         }
-        cursor += charWidth + letterSpacing;
+        cursor += charWidth;
       }
     });
   });
