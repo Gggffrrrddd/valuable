@@ -1,14 +1,17 @@
 /**
- * Water region animation.
+ * Premium Water region animation.
  * 
- * Draws a flowing-water effect clipped to a user-drawn boundary polygon over
- * the base garden image. Designed to be lightweight: pre-renders the base
- * image region, then per-frame draws horizontally-wobbling strips, additive
- * vertical streaks, and glints.
+ * Draws a flowing-water effect clipped to the user-drawn boundary polygon over
+ * the base garden image. Features perspective-corrected ripples, additive
+ * surface glints, and smooth caustics/streaks.
  */
 import { clamp01 } from '../model-core/canvasUtils';
 import { ASSETS } from './config';
 import { WATER_BOUNDARIES } from './water_boundaries';
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
 
 export class WaterLayer {
   private baseCanvas: HTMLCanvasElement | null = null;
@@ -16,29 +19,29 @@ export class WaterLayer {
   private width = 0;
   private height = 0;
   
-  // Ripple parameters
-  private readonly STRIP_HEIGHT = 4;
-  private readonly RIPPLE_FREQ = 0.05; // Spatial frequency (multiplier for y)
-  private readonly RIPPLE_SPEED = 1.2; // Time multiplier
-  private readonly RIPPLE_AMP = 2.5;   // Pixels of horizontal shift
+  private readonly STRIP_HEIGHT = 2; // Fine resolution for premium feel
+  private mainBoundary: {x: number, y: number}[] = [];
+  private boundsMinY = 0;
   
-  // Drifting streaks (vertical, top -> bottom)
-  private streaks = Array.from({ length: 3 }, () => ({
+  // Drifting surface glints (sparkles on the water)
+  private glints = Array.from({ length: 15 }, () => ({
     x: 0,
     y: 0,
     w: 0,
     h: 0,
     speed: 0,
-    alpha: 0
+    alphaMult: 0,
+    offset: 0
   }));
   
-  // Drifting glints (vertical, top -> bottom)
-  private glints = Array.from({ length: 8 }, () => ({
+  // Drifting streaks (light rays / caustics)
+  private streaks = Array.from({ length: 4 }, () => ({
     x: 0,
     y: 0,
-    size: 0,
+    w: 0,
+    h: 0,
     speed: 0,
-    alphaMult: 0,
+    alpha: 0,
     offset: 0
   }));
 
@@ -46,29 +49,40 @@ export class WaterLayer {
     this.width = width;
     this.height = height;
     
-    // Initialize particles with randomized values
+    // Pick the main continuous path (the longest one provided, 162 pts)
+    // This avoids overlapping sub-paths causing blocky clipping artifacts.
+    let longest = WATER_BOUNDARIES[0] || [];
+    for (const b of WATER_BOUNDARIES) {
+      if (b.length > longest.length) longest = b;
+    }
+    this.mainBoundary = longest;
+    
+    // Find highest point of the water for perspective calculations
+    this.boundsMinY = longest.reduce((min, p) => Math.min(min, p.y), 1.0);
+    
     for (const s of this.streaks) this.resetStreak(s, Math.random());
     for (const g of this.glints) this.resetGlint(g, Math.random());
     
-    // Pre-render the base water region once
     this.initBaseLayer();
   }
 
-  private resetStreak(s: { x: number, y: number, w: number, h: number, speed: number, alpha: number }, initY: number = 0) {
-    s.x = 0.5 + Math.random() * 0.5; // Mostly on the right side
-    s.y = initY; // 0..1
-    s.w = 0.01 + Math.random() * 0.05; // Thin width
-    s.h = 0.1 + Math.random() * 0.2; // Tall height
-    s.speed = 0.02 + Math.random() * 0.03; // Slow drift downwards
-    s.alpha = 0.08 + Math.random() * 0.07; // 0.08 - 0.15
+  private resetStreak(s: { x: number, y: number, w: number, h: number, speed: number, alpha: number, offset: number }, initY: number = 0) {
+    s.x = 0.5 + Math.random() * 0.5; 
+    s.y = initY;
+    s.w = 0.02 + Math.random() * 0.08; 
+    s.h = 0.2 + Math.random() * 0.4; 
+    s.speed = 0.01 + Math.random() * 0.02; 
+    s.alpha = 0.03 + Math.random() * 0.05; // Very soft
+    s.offset = Math.random() * 100;
   }
 
-  private resetGlint(g: { x: number, y: number, size: number, speed: number, alphaMult: number, offset: number }, initY: number = 0) {
-    g.x = 0.5 + Math.random() * 0.5;
+  private resetGlint(g: { x: number, y: number, w: number, h: number, speed: number, alphaMult: number, offset: number }, initY: number = 0) {
+    g.x = 0.4 + Math.random() * 0.6;
     g.y = initY;
-    g.size = 1 + Math.random(); // 1-2px
-    g.speed = 0.03 + Math.random() * 0.04;
-    g.alphaMult = 0.4 + Math.random() * 0.6;
+    g.w = 2 + Math.random() * 4; // Horizontal stretch for water sparkles
+    g.h = 1 + Math.random() * 1;
+    g.speed = 0.02 + Math.random() * 0.04;
+    g.alphaMult = 0.3 + Math.random() * 0.5;
     g.offset = Math.random() * 100;
   }
 
@@ -84,8 +98,6 @@ export class WaterLayer {
       const ctx = cvs.getContext('2d');
       if (!ctx) return;
       
-      // Draw the garden image exactly as GardenVisual does
-      // scale 1.05, translate(-0.5%, 2.5%) (CSS absolute inset-0)
       const scale = 1.05; 
       const tx = -0.005 * this.width; 
       const ty = 0.025 * this.height; 
@@ -107,11 +119,9 @@ export class WaterLayer {
       }
       
       ctx.save();
-      // Apply the CSS-equivalent transform (center origin)
       ctx.translate(this.width / 2 + tx, this.height / 2 + ty);
       ctx.scale(scale, scale);
       ctx.translate(-this.width / 2, -this.height / 2);
-      
       ctx.drawImage(img, offX, offY, drawW, drawH);
       ctx.restore();
       
@@ -121,57 +131,51 @@ export class WaterLayer {
   }
 
   private buildClipPath(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    ctx.beginPath();
+    if (this.mainBoundary.length === 0) return;
     
-    // The water is to the right and bottom of the drawn paths.
-    // We close each path against the bottom-right corner.
-    for (const pts of WATER_BOUNDARIES) {
-      if (pts.length === 0) continue;
-      ctx.moveTo(pts[0].x * w, pts[0].y * h);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x * w, pts[i].y * h);
-      }
-      // Close the polygon enclosing the bottom-right
-      ctx.lineTo(w, pts[pts.length - 1].y * h); // Straight to the right edge
-      ctx.lineTo(w, h); // Down to bottom right corner
-      ctx.lineTo(pts[0].x * w, h); // Left along the bottom edge to start X
-      ctx.closePath();
+    ctx.beginPath();
+    const pts = this.mainBoundary;
+    ctx.moveTo(pts[0].x * w, pts[0].y * h);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x * w, pts[i].y * h);
     }
+    // Close the polygon enclosing the bottom-right completely
+    ctx.lineTo(w, pts[pts.length - 1].y * h); 
+    ctx.lineTo(w, h); 
+    ctx.lineTo(pts[0].x * w, h); 
+    ctx.closePath();
   }
 
   public draw(ctx: CanvasRenderingContext2D, time: number, performanceDrop: boolean) {
-    if (!this.isReady || !this.baseCanvas) return;
+    if (!this.isReady || !this.baseCanvas || this.mainBoundary.length === 0) return;
     
     const w = this.width;
     const h = this.height;
     
     ctx.save();
     
-    // 1. Clip to water boundary
+    // 1. Clip exactly to the main boundary
     this.buildClipPath(ctx, w, h);
     ctx.clip();
     
-    // 2. Draw ripples (horizontal strips)
-    const strips = Math.ceil(h / this.STRIP_HEIGHT);
-    // Optimization: only process strips in the lower half where water actually is (y > 0.4)
-    const startStrip = Math.floor((h * 0.4) / this.STRIP_HEIGHT);
+    // 2. Draw perspective ripples (horizontal strips)
+    // Using 2px strips for high quality without destroying frame rate.
+    const startY = Math.floor((this.boundsMinY * h) / this.STRIP_HEIGHT) * this.STRIP_HEIGHT;
     
-    for (let i = startStrip; i < strips; i++) {
-      const sy = i * this.STRIP_HEIGHT;
+    for (let sy = startY; sy < h; sy += this.STRIP_HEIGHT) {
+      // Perspective factor: 0 at the far edge, 1 at the near edge (bottom of screen)
+      const pz = clamp01((sy - startY) / (h - startY));
       
-      // CORRECTION: Ripple phase moves crests downward (far to near). 
-      // phase = strip.y * frequency - time * speed
-      const phase = sy * this.RIPPLE_FREQ - time * this.RIPPLE_SPEED;
-      const xOffset = Math.sin(phase) * this.RIPPLE_AMP;
+      // Far ripples are small and high frequency; near ripples are larger and slower.
+      const amp = lerp(0.5, 3.5, pz);
+      const freq = lerp(0.08, 0.015, pz);
+      const speed = lerp(0.8, 1.8, pz);
       
-      // ±4% reflection flicker shimmer derived from ripple phase
-      const shimmer = 1 + Math.sin(phase * 1.5) * 0.04;
+      // Complex waveform for organic water feel
+      const phase1 = sy * freq - time * speed;
+      const phase2 = sy * freq * 0.6 + time * speed * 0.8;
       
-      if (Math.abs(shimmer - 1) > 0.01) {
-          ctx.filter = `brightness(${shimmer})`;
-      } else {
-          ctx.filter = 'none';
-      }
+      const xOffset = Math.sin(phase1) * Math.cos(phase2) * amp;
       
       ctx.drawImage(
         this.baseCanvas,
@@ -179,21 +183,20 @@ export class WaterLayer {
         xOffset, sy, w, this.STRIP_HEIGHT
       );
     }
-    ctx.filter = 'none'; // reset
     
-    // If frame time is bad, drop streaks and glints
+    // 3. Premium Surface Layers
     if (!performanceDrop) {
-      // 3. Vertical streaks
-      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalCompositeOperation = 'screen';
+      
+      // Caustic Streaks (soft, slow-moving light rays)
       for (const s of this.streaks) {
-        // Drift downwards
-        s.y += s.speed * 0.03; // roughly per frame delta
+        s.y += s.speed * 0.03; 
         if (s.y > 1.2) this.resetStreak(s, -0.2);
         
-        // Edge fade in/out
-        let a = s.alpha;
-        if (s.y < 0) a *= clamp01(1 - (0 - s.y) * 5); // fade in at top
-        if (s.y > 1) a *= clamp01(1 - (s.y - 1) * 5); // fade out at bottom
+        // Complex fade: edges + sine pulse
+        let a = s.alpha * (0.6 + 0.4 * Math.sin(time * 2 + s.offset));
+        if (s.y < this.boundsMinY) a *= clamp01(1 - (this.boundsMinY - s.y) * 5); 
+        if (s.y > 1) a *= clamp01(1 - (s.y - 1) * 5); 
         
         const px = s.x * w;
         const py = s.y * h;
@@ -201,32 +204,48 @@ export class WaterLayer {
         const ph = s.h * h;
         
         const grad = ctx.createLinearGradient(0, py, 0, py + ph);
-        grad.addColorStop(0, `rgba(255,255,255,0)`);
-        grad.addColorStop(0.5, `rgba(255,255,255,${a})`);
-        grad.addColorStop(1, `rgba(255,255,255,0)`);
+        grad.addColorStop(0, `rgba(180, 220, 255, 0)`);
+        grad.addColorStop(0.5, `rgba(180, 220, 255, ${a})`);
+        grad.addColorStop(1, `rgba(180, 220, 255, 0)`);
         
         ctx.fillStyle = grad;
-        ctx.fillRect(px, py, pw, ph);
+        // Skew the streak slightly for perspective
+        ctx.save();
+        ctx.translate(px + pw/2, py);
+        ctx.transform(1, 0, -0.3, 1, 0, 0);
+        ctx.fillRect(-pw/2, 0, pw, ph);
+        ctx.restore();
       }
       
-      // 4. Glints
+      // Surface Glints (sparkling reflections)
+      ctx.fillStyle = '#ffffff';
       for (const g of this.glints) {
         g.y += g.speed * 0.03;
-        if (g.y > 1.1) this.resetGlint(g, -0.1);
+        if (g.y > 1.1) this.resetGlint(g, this.boundsMinY - 0.1);
         
-        let a = g.alphaMult * (0.5 + 0.5 * Math.sin(time * 3 + g.offset));
-        if (g.y < 0) a *= clamp01(1 - (0 - g.y) * 10);
+        // Twinkle
+        let a = g.alphaMult * (0.2 + 0.8 * Math.pow(Math.sin(time * 4 + g.offset), 2));
+        if (g.y < this.boundsMinY) a *= clamp01(1 - (this.boundsMinY - g.y) * 10);
         if (g.y > 1) a *= clamp01(1 - (g.y - 1) * 10);
+        
+        // Perspective scaling for glints
+        const pz = clamp01((g.y - this.boundsMinY) / (1 - this.boundsMinY));
+        const scale = lerp(0.5, 1.8, pz);
         
         const px = g.x * w;
         const py = g.y * h;
+        const gw = g.w * scale;
+        const gh = g.h * scale;
         
         ctx.globalAlpha = a;
-        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 4 * scale;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+        
         ctx.beginPath();
-        ctx.arc(px, py, g.size, 0, Math.PI * 2);
+        ctx.ellipse(px, py, gw, gh, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.shadowBlur = 0; // reset
     }
     
     ctx.restore();
