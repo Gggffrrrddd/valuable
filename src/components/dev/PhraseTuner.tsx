@@ -24,7 +24,7 @@ function toNum(raw: string, fallback: number) {
 /**
  * Phrase placement tuner (MountainTuner style): zoom, left/right, up/down.
  * Sliders for quick moves + editable number boxes for precise values.
- * "Save" prints the values to the console.
+ * Tuned values are hardcoded in garden/config.ts (PHRASE).
  */
 export default function PhraseTuner() {
   const [state, setState] = useState<PhraseTunerState>({ zoom: '0.058', x: '0.185', y: '0.420' });
@@ -93,16 +93,6 @@ export default function PhraseTuner() {
             />
           </label>
         ))}
-        <button
-          onClick={() => {
-            console.log(
-              `[phrase tuner] zoom: ${num('zoom').toFixed(4)}, x: ${num('x').toFixed(4)}, y: ${num('y').toFixed(4)}`,
-            );
-          }}
-          className="w-full rounded-xl bg-lime-300 py-2 text-xs font-bold text-[#11130f] transition hover:bg-lime-200"
-        >
-          Save
-        </button>
       </div>
     </>
   );

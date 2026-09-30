@@ -260,7 +260,10 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         
         <div className="butterfly-focus-layout relative z-10 h-full w-full">
           <div />
-          <div className="pointer-events-none transition-opacity duration-700 ease-out invisible">
+          <div
+            className="pointer-events-none transition-opacity duration-700 ease-out"
+            style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}
+          >
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
