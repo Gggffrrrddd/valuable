@@ -7,6 +7,7 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import PhraseTuner from '@/components/dev/PhraseTuner';
 import {
   SESSION_START_KEY,
   SESSION_DURATION_KEY,
@@ -259,13 +260,13 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         
         <div className="butterfly-focus-layout relative z-10 h-full w-full">
           <div />
-          <div
-            className="pointer-events-none transition-opacity duration-700 ease-out"
-            style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}
-          >
+          <div className="pointer-events-none transition-opacity duration-700 ease-out invisible">
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
+
+        {/* Phrase placement tuner (dev) */}
+        <PhraseTuner />
 
         {/* Session controls — same as jar/tree */}
         {phase !== 'completing' && (

@@ -38,7 +38,6 @@ import { layoutPhrase, resolveSessionPhrase } from './garden/phrases';
 import { clamp01, smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
 import { WaterLayer } from './garden/water';
-import PhraseTuner from '../dev/PhraseTuner';
 
 /** Deterministic pseudo-random in [0, 1) from a numeric seed. */
 function rand01(seed: number) {
@@ -463,9 +462,6 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           {phrase}
         </div>
       )}
-
-      {/* Live phrase placement tuner (MountainTuner style) */}
-      <PhraseTuner />
 
       {/* Continue button once the session is truly complete. */}
       {complete && (

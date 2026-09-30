@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
 interface PhraseTunerState {
-  zoom: number;
-  x: number;
-  y: number;
+  zoom: string;
+  x: string;
+  y: string;
 }
 
 const ROWS: { key: keyof PhraseTunerState; label: string; min: number; max: number; step: number }[] = [
@@ -12,29 +12,48 @@ const ROWS: { key: keyof PhraseTunerState; label: string; min: number; max: numb
   { key: 'y', label: 'Up / Down', min: 0, max: 1, step: 0.005 },
 ];
 
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
+function toNum(raw: string, fallback: number) {
+  const v = Number(raw);
+  return Number.isFinite(v) ? v : fallback;
+}
+
 /**
- * Phrase placement tuner (MountainTuner style): zoom, left/right, up/down
- * sliders over a live letter preview. "Save" prints the values to console.
+ * Phrase placement tuner (MountainTuner style): zoom, left/right, up/down.
+ * Sliders for quick moves + editable number boxes for precise values.
+ * "Save" prints the values to the console.
  */
 export default function PhraseTuner() {
-  const [transform, setTransform] = useState<PhraseTunerState>({
-    zoom: 0.05,
-    x: 0.1,
-    y: 0.5,
-  });
+  const [state, setState] = useState<PhraseTunerState>({ zoom: '0.050', x: '0.100', y: '0.500' });
 
-  const onChange = (patch: Partial<PhraseTunerState>) =>
-    setTransform((t) => ({ ...t, ...patch }));
+  const num = (key: keyof PhraseTunerState) => {
+    const row = ROWS.find((r) => r.key === key)!;
+    return clamp(toNum(state[key], row.min), row.min, row.max);
+  };
+
+  const setSlider = (key: keyof PhraseTunerState, v: number) =>
+    setState((s) => ({ ...s, [key]: v.toFixed(3) }));
+
+  const setBox = (key: keyof PhraseTunerState, raw: string) =>
+    setState((s) => ({ ...s, [key]: raw }));
+
+  const normalize = (key: keyof PhraseTunerState) => {
+    const row = ROWS.find((r) => r.key === key)!;
+    setState((s) => ({ ...s, [key]: clamp(toNum(s[key], row.min), row.min, row.max).toFixed(3) }));
+  };
 
   return (
     <>
       {/* Live letter preview */}
       <div
-        className="pointer-events-none absolute z-[9999] font-serif italic text-yellow-300 drop-shadow-[0_0_8px_rgba(255,200,0,.8)]"
+        className="pointer-events-none fixed z-[100] font-serif italic text-yellow-300 drop-shadow-[0_0_8px_rgba(255,200,0,.8)]"
         style={{
-          left: `${transform.x * 100}%`,
-          top: `${transform.y * 100}%`,
-          fontSize: `${transform.zoom * 100}vh`,
+          left: `${num('x') * 100}%`,
+          top: `${num('y') * 100}%`,
+          fontSize: `${num('zoom') * 100}vh`,
           transform: 'translate(-50%, -50%)',
         }}
         aria-hidden="true"
@@ -43,7 +62,7 @@ export default function PhraseTuner() {
       </div>
 
       {/* Tuner panel */}
-      <div className="absolute bottom-32 right-4 z-[10000] w-56 max-h-[60vh] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/[.07] bg-black/60 p-4 backdrop-blur-xl">
+      <div className="fixed bottom-32 right-4 z-[100] w-60 space-y-3 rounded-[1.2rem] border border-white/[.07] bg-black/70 p-4 backdrop-blur-xl">
         <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
           Phrase tuner
         </div>
@@ -51,17 +70,25 @@ export default function PhraseTuner() {
           <label key={row.key} className="block">
             <span className="flex items-center justify-between text-xs font-bold text-stone-300">
               {row.label}
-              <span className="font-mono text-[10px] text-stone-500">
-                {transform[row.key].toFixed(3)}
-              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={state[row.key]}
+                onChange={(e) => setBox(row.key, e.target.value)}
+                onBlur={() => normalize(row.key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') normalize(row.key);
+                }}
+                className="w-16 rounded-md border border-white/15 bg-black/60 px-1.5 py-0.5 text-right font-mono text-[10px] text-lime-200 outline-none focus:border-lime-300"
+              />
             </span>
             <input
               type="range"
               min={row.min}
               max={row.max}
               step={row.step}
-              value={transform[row.key]}
-              onChange={(e) => onChange({ [row.key]: Number(e.target.value) })}
+              value={num(row.key)}
+              onChange={(e) => setSlider(row.key, Number(e.target.value))}
               className="mt-1.5 w-full accent-lime-300"
             />
           </label>
@@ -69,7 +96,7 @@ export default function PhraseTuner() {
         <button
           onClick={() => {
             console.log(
-              `[phrase tuner] zoom: ${transform.zoom.toFixed(4)}, x: ${transform.x.toFixed(4)}, y: ${transform.y.toFixed(4)}`,
+              `[phrase tuner] zoom: ${num('zoom').toFixed(4)}, x: ${num('x').toFixed(4)}, y: ${num('y').toFixed(4)}`,
             );
           }}
           className="w-full rounded-xl bg-lime-300 py-2 text-xs font-bold text-[#11130f] transition hover:bg-lime-200"
