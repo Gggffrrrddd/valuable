@@ -166,7 +166,7 @@ export const PHRASE = {
   centerX: 0.185,
   centerY: 0.42,
   fontVh: 0.064,
-  rightLimit: 0.68,
+  rightLimit: 0.6,
 } as const;
 
 /** Fixed letter-particle pool (subsample if the phrase is too dense). */
