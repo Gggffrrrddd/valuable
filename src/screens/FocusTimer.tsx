@@ -7,6 +7,7 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import PenOverlay from '@/components/dev/PenOverlay';
 import {
   SESSION_START_KEY,
   SESSION_DURATION_KEY,
@@ -321,6 +322,9 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             </div>
           </div>
         )}
+
+        {/* Freehand measuring pen (butterfly sessions only) */}
+        <PenOverlay />
       </div>
     );
   }
