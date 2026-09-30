@@ -37,6 +37,7 @@ import { ArrivalSwarm, EmergenceSwarm, createOpenSchedule, type EmergenceButterf
 import { layoutPhrase, resolveSessionPhrase } from './garden/phrases';
 import { clamp01, smoothstep } from './model-core/canvasUtils';
 import { useReducedMotion } from './model-core/useReducedMotion';
+import { WaterLayer } from './garden/water';
 
 /** Deterministic pseudo-random in [0, 1) from a numeric seed. */
 function rand01(seed: number) {
@@ -106,6 +107,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   const moonRef = useRef<MoonSprite | null>(null);
   const rendererRef = useRef<AnimatedButterflyRenderer | null>(null);
   const swarmsRef = useRef<{ arrival: ArrivalSwarm; emergence: EmergenceSwarm } | null>(null);
+  const waterLayerRef = useRef<WaterLayer | null>(null);
   // Phrase dots are stamped into an offscreen canvas once, then blitted —
   // never re-drawn — so a full phrase costs one drawImage per frame instead
   // of thousands of shadowed arcs.
@@ -126,8 +128,8 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
   // Open schedule is precomputed once per session and stable across re-renders.
   const openSchedule = useMemo(() => createOpenSchedule(COCOON_COUNT), []);
 
-  const renderCanvasFrame = useCallback(
-    (p: number, time: number) => {
+    const renderCanvasFrame = useCallback(
+    (p: number, time: number, dt: number) => {
       const effCvs = effectsCanvasRef.current;
       const skyCvs = skyCanvasRef.current;
       if (!effCvs || !skyCvs) return;
@@ -166,6 +168,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           arrival: new ArrivalSwarm(targets, w, h),
           emergence: new EmergenceSwarm(COCOON_SLOTS, w, h, openSchedule, layout),
         };
+        waterLayerRef.current = new WaterLayer(w, h);
       }
 
       const swarms = swarmsRef.current;
@@ -173,6 +176,12 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       if (!swarms || !ctx) return;
 
       ctx.clearRect(0, 0, w, h);
+
+      // --- Water Layer (background of effects canvas) ---
+      if (waterLayerRef.current) {
+        // If the frame dt is larger than ~66ms (missed a 30fps tick badly), drop extra effects
+        waterLayerRef.current.draw(ctx, time, dt > 0.06);
+      }
 
       // --- Stars the arrivals dissolve into (no figure, just a scatter) ---
       // Drawn from a pre-rendered glow sprite: one drawImage per star instead
@@ -354,7 +363,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
       // Cap drawing at ~30fps — plenty for this scene, half the GPU cost.
       if (now - lastDraw >= 33) {
         lastDraw = now;
-        renderCanvasFrame(displayed, now / 1000);
+        renderCanvasFrame(displayed, now / 1000, dt);
       }
       frame = requestAnimationFrame(loop);
     };
