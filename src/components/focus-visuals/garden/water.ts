@@ -23,17 +23,6 @@ export class WaterLayer {
   private mainBoundary: {x: number, y: number}[] = [];
   private boundsMinY = 0;
   
-  // Drifting surface glints (sparkles on the water)
-  private glints = Array.from({ length: 15 }, () => ({
-    x: 0,
-    y: 0,
-    w: 0,
-    h: 0,
-    speed: 0,
-    alphaMult: 0,
-    offset: 0
-  }));
-  
   // Drifting streaks (light rays / caustics)
   private streaks = Array.from({ length: 4 }, () => ({
     x: 0,
@@ -61,7 +50,6 @@ export class WaterLayer {
     this.boundsMinY = longest.reduce((min, p) => Math.min(min, p.y), 1.0);
     
     for (const s of this.streaks) this.resetStreak(s, Math.random());
-    for (const g of this.glints) this.resetGlint(g, Math.random());
     
     this.initBaseLayer();
   }
@@ -71,19 +59,9 @@ export class WaterLayer {
     s.y = initY;
     s.w = 0.02 + Math.random() * 0.08; 
     s.h = 0.2 + Math.random() * 0.4; 
-    s.speed = 0.01 + Math.random() * 0.02; 
-    s.alpha = 0.03 + Math.random() * 0.05; // Very soft
+    s.speed = 0.02 + Math.random() * 0.04; // Faster drift downwards
+    s.alpha = 0.04 + Math.random() * 0.08; // Slightly more visible
     s.offset = Math.random() * 100;
-  }
-
-  private resetGlint(g: { x: number, y: number, w: number, h: number, speed: number, alphaMult: number, offset: number }, initY: number = 0) {
-    g.x = 0.4 + Math.random() * 0.6;
-    g.y = initY;
-    g.w = 2 + Math.random() * 4; // Horizontal stretch for water sparkles
-    g.h = 1 + Math.random() * 1;
-    g.speed = 0.02 + Math.random() * 0.04;
-    g.alphaMult = 0.3 + Math.random() * 0.5;
-    g.offset = Math.random() * 100;
   }
 
   private initBaseLayer() {
@@ -167,9 +145,9 @@ export class WaterLayer {
       const pz = clamp01((sy - startY) / (h - startY));
       
       // Far ripples are small and high frequency; near ripples are larger and slower.
-      const amp = lerp(0.5, 3.5, pz);
-      const freq = lerp(0.08, 0.015, pz);
-      const speed = lerp(0.8, 1.8, pz);
+      const amp = lerp(1.0, 5.0, pz); // More movement amplitude
+      const freq = lerp(0.12, 0.02, pz); // Slightly higher frequency
+      const speed = lerp(1.5, 3.0, pz); // Faster flowing ripples
       
       // Complex waveform for organic water feel
       const phase1 = sy * freq - time * speed;
@@ -190,11 +168,11 @@ export class WaterLayer {
       
       // Caustic Streaks (soft, slow-moving light rays)
       for (const s of this.streaks) {
-        s.y += s.speed * 0.03; 
+        s.y += s.speed * 0.05; // Drift faster
         if (s.y > 1.2) this.resetStreak(s, -0.2);
         
         // Complex fade: edges + sine pulse
-        let a = s.alpha * (0.6 + 0.4 * Math.sin(time * 2 + s.offset));
+        let a = s.alpha * (0.6 + 0.4 * Math.sin(time * 3 + s.offset));
         if (s.y < this.boundsMinY) a *= clamp01(1 - (this.boundsMinY - s.y) * 5); 
         if (s.y > 1) a *= clamp01(1 - (s.y - 1) * 5); 
         
@@ -216,36 +194,6 @@ export class WaterLayer {
         ctx.fillRect(-pw/2, 0, pw, ph);
         ctx.restore();
       }
-      
-      // Surface Glints (sparkling reflections)
-      ctx.fillStyle = '#ffffff';
-      for (const g of this.glints) {
-        g.y += g.speed * 0.03;
-        if (g.y > 1.1) this.resetGlint(g, this.boundsMinY - 0.1);
-        
-        // Twinkle
-        let a = g.alphaMult * (0.2 + 0.8 * Math.pow(Math.sin(time * 4 + g.offset), 2));
-        if (g.y < this.boundsMinY) a *= clamp01(1 - (this.boundsMinY - g.y) * 10);
-        if (g.y > 1) a *= clamp01(1 - (g.y - 1) * 10);
-        
-        // Perspective scaling for glints
-        const pz = clamp01((g.y - this.boundsMinY) / (1 - this.boundsMinY));
-        const scale = lerp(0.5, 1.8, pz);
-        
-        const px = g.x * w;
-        const py = g.y * h;
-        const gw = g.w * scale;
-        const gh = g.h * scale;
-        
-        ctx.globalAlpha = a;
-        ctx.shadowBlur = 4 * scale;
-        ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-        
-        ctx.beginPath();
-        ctx.ellipse(px, py, gw, gh, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.shadowBlur = 0; // reset
     }
     
     ctx.restore();
