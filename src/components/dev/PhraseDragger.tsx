@@ -1,47 +1,29 @@
-import { useState, useRef, useEffect } from 'react';
-import { PHRASE } from '../focus-visuals/garden/config';
+import { useState, useEffect } from 'react';
 
 export function PhraseDragger() {
-  const [box, setBox] = useState({ 
-    x: PHRASE.boxX, 
-    y: PHRASE.boxY, 
-    w: PHRASE.boxW, 
-    h: PHRASE.boxH 
-  });
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Dragging state
-  const dragStart = useRef<{x: number, y: number, boxX: number, boxY: number} | null>(null);
-  const resizeStart = useRef<{x: number, y: number, boxW: number, boxH: number} | null>(null);
+  const [pos, setPos] = useState({ x: 0.1, y: 0.5, size: 0.05 }); // size in viewport height
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      
-      if (dragStart.current) {
-        const dx = (e.clientX - dragStart.current.x) / rect.width;
-        const dy = (e.clientY - dragStart.current.y) / rect.height;
-        setBox(b => ({
-          ...b,
-          x: Math.max(0, Math.min(1 - b.w, dragStart.current!.boxX + dx)),
-          y: Math.max(0, Math.min(1 - b.h, dragStart.current!.boxY + dy))
+      if (isDragging) {
+        setPos(p => ({
+          ...p,
+          x: Math.max(0, Math.min(1, e.clientX / window.innerWidth)),
+          y: Math.max(0, Math.min(1, e.clientY / window.innerHeight))
         }));
-      } else if (resizeStart.current) {
-        const dx = (e.clientX - resizeStart.current.x) / rect.width;
-        const dy = (e.clientY - resizeStart.current.y) / rect.height;
-        setBox(b => ({
-          ...b,
-          w: Math.max(0.1, Math.min(1 - b.x, resizeStart.current!.boxW + dx)),
-          h: Math.max(0.05, Math.min(1 - b.y, resizeStart.current!.boxH + dy))
+      } else if (isResizing) {
+        setPos(p => ({
+          ...p,
+          size: Math.max(0.01, Math.min(0.2, Math.abs(e.clientY - p.y * window.innerHeight) / window.innerHeight))
         }));
       }
     };
     
     const handleUp = () => {
-      dragStart.current = null;
-      resizeStart.current = null;
+      setIsDragging(false);
+      setIsResizing(false);
     };
 
     window.addEventListener('pointermove', handleMove);
@@ -50,54 +32,59 @@ export function PhraseDragger() {
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
     };
-  }, []);
+  }, [isDragging, isResizing]);
 
   return (
-    <div 
-      ref={containerRef}
-      className="absolute inset-0 z-[9999] pointer-events-none"
-    >
-      {/* The Draggable Box */}
+    <div className="absolute inset-0 z-[99999] pointer-events-none">
+      {/* The Draggable Letter */}
       <div 
-        className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/20 pointer-events-auto flex items-center justify-center cursor-move"
+        className="absolute pointer-events-auto cursor-move flex items-center justify-center font-serif italic text-yellow-300 drop-shadow-[0_0_8px_rgba(255,200,0,0.8)]"
         style={{
-          left: `${box.x * 100}%`,
-          top: `${box.y * 100}%`,
-          width: `${box.w * 100}%`,
-          height: `${box.h * 100}%`,
+          left: `${pos.x * 100}%`,
+          top: `${pos.y * 100}%`,
+          fontSize: `${pos.size * 100}vh`,
+          transform: 'translate(-50%, -50%)',
+          userSelect: 'none',
+          touchAction: 'none' // Crucial for touch dragging!
         }}
         onPointerDown={(e) => {
-          e.stopPropagation();
-          dragStart.current = { x: e.clientX, y: e.clientY, boxX: box.x, boxY: box.y };
+          e.preventDefault();
+          setIsDragging(true);
         }}
       >
-        <span className="text-yellow-200 font-serif italic text-2xl px-4 text-center pointer-events-none drop-shadow-md">
-          Sample Phrase Text Looks Like This
-        </span>
-        
-        {/* Resize Handle */}
-        <div 
-          className="absolute bottom-0 right-0 w-8 h-8 bg-yellow-500 cursor-se-resize translate-x-1/2 translate-y-1/2 rounded-full border-2 border-white"
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            resizeStart.current = { x: e.clientX, y: e.clientY, boxW: box.w, boxH: box.h };
-          }}
-        />
+        A
       </div>
 
+      {/* Resize Handle (below the letter) */}
+      <div 
+        className="absolute pointer-events-auto cursor-ns-resize bg-white rounded-full border-4 border-yellow-500 shadow-xl"
+        style={{
+          left: `${pos.x * 100}%`,
+          top: `${pos.y * 100 + pos.size * 50 + 2}%`,
+          width: '30px',
+          height: '30px',
+          transform: 'translate(-50%, -50%)',
+          touchAction: 'none'
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          setIsResizing(true);
+        }}
+      />
+
       {/* Coordinates Display */}
-      <div className="absolute top-4 left-4 bg-black/80 text-white font-mono p-4 rounded-lg text-lg pointer-events-auto shadow-xl border border-yellow-500/30">
-        <div className="text-yellow-400 font-bold mb-2">Phrase Coordinates:</div>
-        <div>boxX: {box.x.toFixed(4)}</div>
-        <div>boxY: {box.y.toFixed(4)}</div>
-        <div>boxW: {box.w.toFixed(4)}</div>
-        <div>boxH: {box.h.toFixed(4)}</div>
-        <div className="text-gray-400 text-sm mt-2">
-          Drag the box to move.<br/>
-          Drag the circle to resize.<br/>
-          Copy these 4 values!
+      <div className="absolute top-4 left-4 bg-black/90 text-white font-mono p-4 rounded-lg text-xl pointer-events-auto shadow-2xl border-2 border-yellow-500">
+        <div className="text-yellow-400 font-bold mb-2">Letter 'A' position:</div>
+        <div>X: {pos.x.toFixed(4)}</div>
+        <div>Y: {pos.y.toFixed(4)}</div>
+        <div>Size: {pos.size.toFixed(4)}</div>
+        <div className="text-gray-300 text-sm mt-3 leading-relaxed">
+          - Drag the letter "A" to set the start position.<br/>
+          - Drag the white circle below it to change size.<br/>
+          - Copy these 3 values and send them to me!
         </div>
       </div>
     </div>
   );
 }
+
