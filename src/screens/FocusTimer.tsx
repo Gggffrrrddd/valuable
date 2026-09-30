@@ -15,6 +15,7 @@ import {
   SESSION_SUBJECT_KEY,
   SESSION_BREAK_KEY,
   SESSION_PHRASE_KEY,
+  SESSION_PALETTE_KEY,
 } from '@/lib/localSession';
 
 interface FocusTimerProps {
@@ -201,6 +202,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     // New session, new phrase: clear the cached pick so the garden draws a
     // fresh one (GardenVisual mounts after this, once phase becomes 'focus').
     sessionStorage.removeItem(SESSION_PHRASE_KEY);
+    // New session, new glow colour: force a fresh palette pick too.
+    sessionStorage.removeItem(SESSION_PALETTE_KEY);
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
