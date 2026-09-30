@@ -7,7 +7,6 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
-import PhraseTuner from '@/components/dev/PhraseTuner';
 import {
   SESSION_START_KEY,
   SESSION_DURATION_KEY,
@@ -267,9 +266,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
-
-        {/* Phrase placement tuner (dev) */}
-        <PhraseTuner />
 
         {/* Session controls — same as jar/tree */}
         {phase !== 'completing' && (
