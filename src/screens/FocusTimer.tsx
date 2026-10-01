@@ -25,7 +25,8 @@ interface FocusTimerProps {
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
 
 const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
-const BFTUNE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bftune');
+const BFTUNE = typeof window !== 'undefined'
+  && (new URLSearchParams(window.location.search).has('bftune') || window.location.hash.includes('bftune'));
 
 interface StoredSession {
   startMs: number;

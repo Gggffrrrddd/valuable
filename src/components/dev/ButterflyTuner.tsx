@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+
 interface ButterflyTunerProps {
   shine: number;
   onShine: (v: number) => void;
@@ -6,8 +8,8 @@ interface ButterflyTunerProps {
 }
 
 export default function ButterflyTuner({ shine, onShine, size, onSize }: ButterflyTunerProps) {
-  return (
-    <div className="fixed bottom-4 right-4 z-[60] w-60 rounded-2xl border border-white/10 bg-black/90 p-4 shadow-[0_18px_50px_rgba(0,0,0,.5)] backdrop-blur-xl">
+  return createPortal(
+    <div className="fixed bottom-4 right-4 z-[100] w-60 rounded-2xl border border-white/10 bg-black/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,.6)] backdrop-blur-xl">
       <div className="text-[10px] font-bold uppercase tracking-[.2em] text-[#c9a24a]">Butterfly thumb tuner</div>
       <div className="mt-3 flex items-center justify-between text-xs font-bold text-stone-300">
         <label htmlFor="bft-shine">Shine</label>
@@ -44,6 +46,7 @@ export default function ButterflyTuner({ shine, onShine, size, onSize }: Butterf
       >
         Reset
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
