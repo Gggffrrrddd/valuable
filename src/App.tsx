@@ -136,12 +136,12 @@ function AppContent() {
             <SideNavButton active={tab === 'friends' && screen === 'tab'} onClick={() => { setTab('friends'); setScreen('tab'); }} icon={<Users className="h-[18px] w-[18px]" />} label="Circle" />
           </nav>
 
-          <button onClick={() => setScreen('premium')} className="group relative mt-8 overflow-hidden rounded-[1.5rem] border border-lime-300/15 bg-lime-300/[.06] p-4 text-left transition hover:border-lime-300/30 hover:bg-lime-300/[.09]">
-            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-lime-300/10 blur-2xl" />
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6e3ba] text-[#11130f]"><Crown className="h-4 w-4" /></div>
+          <button onClick={() => setScreen('premium')} className="group relative mt-8 overflow-hidden rounded-[1.5rem] border border-[#c9a24a]/25 bg-[#1a1613] p-4 text-left transition hover:border-[#c9a24a]/40 hover:bg-[#201c17]">
+            <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#c9a24a]/10 blur-2xl" />
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#c9a24a] text-[#11130f]"><Crown className="h-4 w-4" /></div>
             <div className="relative mt-4 font-display text-sm font-bold text-stone-100">Unlock your full potential</div>
             <div className="relative mt-1 text-xs leading-5 text-stone-500">Deeper insights and unlimited content.</div>
-            <div className="relative mt-4 flex items-center gap-1 text-xs font-bold text-[#f6e3ba] transition-colors group-hover:text-[#fffdf7]">Explore Premium <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
+            <div className="relative mt-4 flex items-center gap-1 text-xs font-bold text-[#c9a24a] transition-colors group-hover:text-[#d4b05f]">Explore Premium <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
           </button>
 
           <div className="mt-auto border-t border-white/[.06] pt-4">
