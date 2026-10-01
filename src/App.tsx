@@ -275,14 +275,7 @@ function NavButton({
   );
 }
 
-import { ProceduralTreeDemo } from '@/components/compete/ProceduralTreeVisual';
-
 export default function App() {
-  const competeTreeDemo = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('competeTree') === 'demo';
-  if (competeTreeDemo) {
-    return <ProceduralTreeDemo />;
-  }
-
   return (
     <AuthProvider>
       <AppContent />
