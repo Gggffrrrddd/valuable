@@ -5,6 +5,7 @@ import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
 import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
+import ButterflyTuner from '@/components/dev/ButterflyTuner';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 import {
@@ -24,6 +25,7 @@ interface FocusTimerProps {
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
 
 const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
+const BFTUNE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bftune');
 
 interface StoredSession {
   startMs: number;
@@ -106,6 +108,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
+  const [bftShine, setBftShine] = useState(1);
+  const [bftSize, setBftSize] = useState(100);
 
   function selectLeaf(asset: string) {
     setSelectedLeaf(asset);
@@ -425,6 +429,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   return (
     <div className="w-full pt-5 sm:pt-6">
+      {BFTUNE && <ButterflyTuner shine={bftShine} onShine={setBftShine} size={bftSize} onSize={setBftSize} />}
       <div className="surface relative overflow-visible p-4 sm:p-7 lg:p-8">
       <div className="pointer-events-none absolute right-8 top-0 hidden h-px w-48 bg-gradient-to-r from-transparent via-lime-300/50 to-transparent lg:block" />
       <div className="mb-5 flex items-center justify-between px-1">
@@ -474,7 +479,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             return (
               <div key={theme.id} className="relative">
                 <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={BFTUNE ? { filter: `brightness(${bftShine})`, transform: `scale(${bftSize / 100})`, transition: 'transform 120ms ease-out' } : undefined} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
                   <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
                 </button>
               </div>
