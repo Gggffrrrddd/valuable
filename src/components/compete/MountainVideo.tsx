@@ -1,6 +1,6 @@
-import type { VideoTransform } from './videoConfig';
+import type { PlacementTransform } from './placementConfig';
 
-export default function MountainVideo({ transform }: { transform: VideoTransform }) {
+export default function MountainVideo({ transform }: { transform: PlacementTransform }) {
   return (
     <video
       src="/visuals/compete/everest.mp4"

@@ -1,32 +1,44 @@
-import { DEFAULT_VIDEO_TRANSFORM, VIDEO_SLIDER_ROWS, type VideoTransform } from './videoConfig';
+import type { PlacementTransform, SliderRow } from './placementConfig';
 
-interface VideoTunerProps {
-  transform: VideoTransform;
-  onChange: (patch: Partial<VideoTransform>) => void;
+interface PlacementTunerProps {
+  title: string;
+  /** Console log tag, e.g. "compete-video". */
+  logTag: string;
+  transform: PlacementTransform;
+  rows: SliderRow[];
+  defaults: PlacementTransform;
+  onChange: (patch: Partial<PlacementTransform>) => void;
 }
 
-function logTransform(t: VideoTransform) {
+function logTransform(logTag: string, t: PlacementTransform) {
   const line = `{ x: ${t.x}, y: ${t.y}, zoom: ${t.zoom} }`;
-  console.log('[compete-video]', line, t);
+  console.log(`[${logTag}]`, line, t);
 }
 
-/** Live placement tuner for the Compete video: zoom, left/right, up/down. */
-export default function VideoTuner({ transform, onChange }: VideoTunerProps) {
-  const update = (patch: Partial<VideoTransform>) => {
+/** Live placement tuner: zoom, left/right, up/down — used for video and image. */
+export default function PlacementTuner({
+  title,
+  logTag,
+  transform,
+  rows,
+  defaults,
+  onChange,
+}: PlacementTunerProps) {
+  const update = (patch: Partial<PlacementTransform>) => {
     onChange(patch);
-    logTransform({ ...transform, ...patch });
+    logTransform(logTag, { ...transform, ...patch });
   };
 
   const reset = () => {
-    onChange(DEFAULT_VIDEO_TRANSFORM);
-    logTransform(DEFAULT_VIDEO_TRANSFORM);
+    onChange(defaults);
+    logTransform(logTag, defaults);
   };
 
   return (
     <div className="max-h-[70vh] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
       <div className="flex items-center justify-between">
         <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-          Video tuner
+          {title}
         </div>
         <button
           type="button"
@@ -36,7 +48,7 @@ export default function VideoTuner({ transform, onChange }: VideoTunerProps) {
           Reset
         </button>
       </div>
-      {VIDEO_SLIDER_ROWS.map((row) => (
+      {rows.map((row) => (
         <label key={row.key} className="block">
           <span className="flex items-center justify-between text-xs font-bold text-stone-300">
             {row.label}

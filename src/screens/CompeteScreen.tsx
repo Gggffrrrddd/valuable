@@ -11,8 +11,15 @@ import {
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
 import MountainVideo from '@/components/compete/MountainVideo';
-import { DEFAULT_VIDEO_TRANSFORM, type VideoTransform } from '@/components/compete/videoConfig';
-import VideoTuner from '@/components/compete/VideoTuner';
+import MountainImage from '@/components/compete/MountainImage';
+import PlacementTuner from '@/components/compete/PlacementTuner';
+import {
+  DEFAULT_VIDEO_TRANSFORM,
+  DEFAULT_IMAGE_TRANSFORM,
+  VIDEO_SLIDER_ROWS,
+  IMAGE_SLIDER_ROWS,
+  type PlacementTransform,
+} from '@/components/compete/placementConfig';
 
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -20,8 +27,11 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayHours, setTodayHours] = useState(0);
-  const [videoTransform, setVideoTransform] = useState<VideoTransform>(
+  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(
     DEFAULT_VIDEO_TRANSFORM,
+  );
+  const [imageTransform, setImageTransform] = useState<PlacementTransform>(
+    DEFAULT_IMAGE_TRANSFORM,
   );
 
   useEffect(() => {
@@ -144,16 +154,29 @@ export default function CompeteScreen() {
     );
   }
 
-  // The opened view is the mountain video only — nothing else.
+  // The opened view is the mountain video with the image overlay — nothing else.
   return (
     <ClimbShell onBack={() => setOpen(false)}>
       <div className="absolute inset-0 overflow-hidden bg-[#090b0a]">
         <MountainVideo transform={videoTransform} />
+        <MountainImage transform={imageTransform} />
       </div>
-      <div className="absolute bottom-4 right-4 z-20 w-60">
-        <VideoTuner
+      <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3">
+        <PlacementTuner
+          title="Video tuner"
+          logTag="compete-video"
+          rows={VIDEO_SLIDER_ROWS}
+          defaults={DEFAULT_VIDEO_TRANSFORM}
           transform={videoTransform}
           onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
+        />
+        <PlacementTuner
+          title="Image tuner"
+          logTag="compete-image"
+          rows={IMAGE_SLIDER_ROWS}
+          defaults={DEFAULT_IMAGE_TRANSFORM}
+          transform={imageTransform}
+          onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
         />
       </div>
     </ClimbShell>
