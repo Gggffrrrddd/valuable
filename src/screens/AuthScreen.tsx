@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { ArrowRight, Check, Eye, EyeOff, Timer } from 'lucide-react';
+import { RESTRICTION_ENABLED, RESTRICTION_MESSAGE } from '@/lib/restriction';
+import { ArrowRight, Check, Eye, EyeOff, Lock, Timer } from 'lucide-react';
 
 export default function AuthScreen() {
   const { signIn, signUp } = useAuth();
@@ -41,6 +42,12 @@ export default function AuthScreen() {
         </section>
         <section className="flex items-center justify-center px-6 py-10 sm:px-12">
           <div className="w-full max-w-sm">
+            {RESTRICTION_ENABLED && (
+              <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold leading-5 text-amber-300">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{RESTRICTION_MESSAGE}</span>
+              </div>
+            )}
             <div className="mb-10 lg:hidden"><div className="mb-7 flex items-center gap-2"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f]"><Timer className="h-4 w-4" /></div><span className="font-display text-xl font-extrabold">Valuable<span className="text-lime-300">.</span></span></div></div>
             <div className="mb-8">
               <div className="page-kicker">Welcome {mode === 'signin' ? 'back' : 'in'}</div>

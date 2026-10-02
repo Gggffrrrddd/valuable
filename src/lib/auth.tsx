@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { RESTRICTION_ENABLED, RESTRICTION_MESSAGE, isAllowedUser } from './restriction';
 import type { Profile } from '../types';
 
 interface AuthContextValue {
@@ -102,6 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signUp(email: string, password: string, displayName: string) {
+    if (!isAllowedUser(displayName)) {
+      return { error: RESTRICTION_MESSAGE };
+    }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -115,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       if (error.message.toLowerCase().includes('invalid login credentials')) {
         return { error: 'Email or password is incorrect. If you just signed up, confirm your email first.' };
@@ -124,6 +128,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: 'Confirm your email from the Supabase verification message, then sign in.' };
       }
       return { error: error.message };
+    }
+    // Owner-only gate: sign in succeeds only for the allowed username.
+    if (RESTRICTION_ENABLED && data.user) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (!isAllowedUser(prof?.display_name)) {
+        await supabase.auth.signOut();
+        return { error: RESTRICTION_MESSAGE };
+      }
     }
     return { error: null };
   }
