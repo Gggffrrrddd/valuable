@@ -60,6 +60,26 @@ export interface Payment {
   created_at: string;
 }
 
+export interface CompeteGoal {
+  id: string;
+  user_id: string;
+  exam_date: string;
+  daily_target_hours: number;
+  total_steps: number;
+  current_step: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompeteDailyProgress {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  date: string;
+  hours_completed: number;
+  step_awarded: boolean;
+}
+
 export interface TimerPreset {
   label: string;
   focusMinutes: number;
