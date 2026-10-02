@@ -9,16 +9,15 @@ import BreakScreen from '@/screens/BreakScreen';
 import PremiumScreen from '@/screens/PremiumScreen';
 import FriendsScreen from '@/screens/FriendsScreen';
 import StudyTableScreen from '@/screens/StudyTableScreen';
-import CompeteScreen from '@/screens/CompeteScreen';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, Mountain } from 'lucide-react';
+import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command } from 'lucide-react';
 
-type Tab = 'home' | 'stats' | 'compete' | 'friends';
+type Tab = 'home' | 'stats' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
 
 const SCREEN_STORAGE_KEY = 'valuable-app-screen';
 const TAB_STORAGE_KEY = 'valuable-app-tab';
 
-const VALID_TABS: Tab[] = ['home', 'stats', 'compete', 'friends'];
+const VALID_TABS: Tab[] = ['home', 'stats', 'friends'];
 const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium', 'table'];
 
 function AppContent() {
@@ -132,7 +131,6 @@ function AppContent() {
           <nav className="mt-3 space-y-1.5">
             <SideNavButton active={tab === 'home' && screen === 'tab'} onClick={() => { setTab('home'); setScreen('tab'); }} icon={<Home className="h-[18px] w-[18px]" />} label="Focus space" />
             <SideNavButton active={tab === 'stats' && screen === 'tab'} onClick={() => { setTab('stats'); setScreen('tab'); }} icon={<BarChart3 className="h-[18px] w-[18px]" />} label="Performance" />
-            <SideNavButton active={tab === 'compete' && screen === 'tab'} onClick={() => { setTab('compete'); setScreen('tab'); }} icon={<Mountain className="h-[18px] w-[18px]" />} label="Compete" />
             <SideNavButton active={tab === 'friends' && screen === 'tab'} onClick={() => { setTab('friends'); setScreen('tab'); }} icon={<Users className="h-[18px] w-[18px]" />} label="Circle" />
           </nav>
 
@@ -195,9 +193,6 @@ function AppContent() {
               onUpgrade={() => setScreen('premium')}
             />
           )}
-          {tab === 'compete' && (
-            <CompeteScreen />
-          )}
           {tab === 'friends' && (
             <FriendsScreen onOpenStudyTable={() => setScreen('table')} />
           )}
@@ -215,12 +210,6 @@ function AppContent() {
             onClick={() => setTab('stats')}
             icon={<BarChart3 className="w-5 h-5" />}
             label="Stats"
-          />
-          <NavButton
-            active={tab === 'compete'}
-            onClick={() => setTab('compete')}
-            icon={<Mountain className="w-5 h-5" />}
-            label="Compete"
           />
           <NavButton
             active={tab === 'friends'}
