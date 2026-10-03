@@ -1,6 +1,7 @@
 /**
- * Shared placement config for the Compete climb view: hardcoded video,
- * image and mask placement for the climb visuals.
+ * Shared placement config for the Compete daily-tree view: hardcoded video
+ * and soil-image transforms (still adjustable via the tuner sliders), plus
+ * the video's geometric fade mask.
  */
 
 /** Placement transform — shifts are in % of the element box. */
@@ -10,6 +11,14 @@ export interface PlacementTransform {
   /** Vertical shift (negative = up). */
   y: number;
   zoom: number;
+}
+
+export interface SliderRow<T extends { [K in keyof T]: number } = PlacementTransform> {
+  key: keyof T & string;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
 }
 
 /**
@@ -34,6 +43,18 @@ export interface VideoMask {
 export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 0.8 };
 /** Hardcoded soil-image placement (read off the Image tuner). */
 export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: -4, zoom: 1 };
+
+export const VIDEO_SLIDER_ROWS: SliderRow[] = [
+  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
+  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
+];
+
+export const IMAGE_SLIDER_ROWS: SliderRow[] = [
+  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
+  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
+  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
+];
 
 /** Hardcoded mask calibration for the video (tuned in the Mask tuner). */
 export const DEFAULT_VIDEO_MASK: VideoMask = {

@@ -60,6 +60,28 @@ export interface Payment {
   created_at: string;
 }
 
+/** One active goal per user (latest row wins client-side). */
+export interface CompeteGoal {
+  id: string;
+  user_id: string;
+  exam_date: string;
+  daily_target_hours: number;
+  /** Day the daily-tree ritual began; each day restarts from a seedling. */
+  start_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One row per goal per day — single source of truth for the heatmap. */
+export interface CompeteDailyProgress {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  date: string;
+  minutes_completed: number;
+  target_met: boolean;
+}
+
 export interface TimerPreset {
   label: string;
   focusMinutes: number;

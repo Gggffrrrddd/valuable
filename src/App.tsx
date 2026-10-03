@@ -12,7 +12,7 @@ import StudyTableScreen from '@/screens/StudyTableScreen';
 import CompeteScreen from '@/screens/CompeteScreen';
 import RestrictedScreen from '@/screens/RestrictedScreen';
 import { isAllowedUser } from '@/lib/restriction';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, Mountain } from 'lucide-react';
+import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, TreePine } from 'lucide-react';
 
 type Tab = 'home' | 'stats' | 'compete' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
@@ -139,7 +139,7 @@ function AppContent() {
           <nav className="mt-3 space-y-1.5">
             <SideNavButton active={tab === 'home' && screen === 'tab'} onClick={() => { setTab('home'); setScreen('tab'); }} icon={<Home className="h-[18px] w-[18px]" />} label="Focus space" />
             <SideNavButton active={tab === 'stats' && screen === 'tab'} onClick={() => { setTab('stats'); setScreen('tab'); }} icon={<BarChart3 className="h-[18px] w-[18px]" />} label="Performance" />
-            <SideNavButton active={tab === 'compete' && screen === 'tab'} onClick={() => { setTab('compete'); setScreen('tab'); }} icon={<Mountain className="h-[18px] w-[18px]" />} label="Compete" />
+            <SideNavButton active={tab === 'compete' && screen === 'tab'} onClick={() => { setTab('compete'); setScreen('tab'); }} icon={<TreePine className="h-[18px] w-[18px]" />} label="Compete" />
             <SideNavButton active={tab === 'friends' && screen === 'tab'} onClick={() => { setTab('friends'); setScreen('tab'); }} icon={<Users className="h-[18px] w-[18px]" />} label="Circle" />
           </nav>
 
@@ -232,7 +232,7 @@ function AppContent() {
           <NavButton
             active={tab === 'compete'}
             onClick={() => setTab('compete')}
-            icon={<Mountain className="w-5 h-5" />}
+            icon={<TreePine className="w-5 h-5" />}
             label="Compete"
           />
           <NavButton

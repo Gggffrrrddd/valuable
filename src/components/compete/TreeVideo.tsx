@@ -7,14 +7,18 @@ import {
 } from './placementConfig';
 
 /**
- * Background video for the Compete view.
+ * Daily-tree background video for the Compete view.
  *
- * Instead of chroma-keying the background out by colour (which can leave a
+ * The boy-watering-tree clip is a DAILY ritual: `progress` (0..1) is today's
+ * tracked focus vs the daily target, and the video seeks to the matching
+ * frame — 0 = bare seedling, 1 = fully grown tree with fruit.
+ *
+ * Instead of chroma-keying the background by colour (which can leave a
  * fringe / colour shift), the background is handled with a purely geometric
  * CSS mask: an opaque safe zone covers the tree and the top/sides fade out
  * to the box edges. No pixel of the video is ever recoloured.
  */
-export default function MountainVideo({
+export default function TreeVideo({
   transform,
   mask = DEFAULT_VIDEO_MASK,
   progress = 1,
@@ -48,7 +52,7 @@ export default function MountainVideo({
   return (
     <video
       ref={videoRef}
-      src="/visuals/compete/everest.mp4"
+      src="/visuals/compete/tree-growth.mp4"
       muted
       playsInline
       className="absolute inset-0 h-full w-full object-cover"
