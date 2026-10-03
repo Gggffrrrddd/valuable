@@ -53,9 +53,9 @@ export const PROGRESS_SLIDER_ROWS: SliderRow<ProgressTune>[] = [
   { key: 'progress', label: 'Progress (today vs target)', min: 0, max: 1, step: 0.01 },
 ];
 
-/** Default mask — Mask tuner starting values / Reset target. */
+/** Default mask — hardcoded halo calibration. */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
-  safeW: 26,
+  safeW: 50,
   safeH: 31.5,
   fadeW: 35,
   fadeH: 50,
