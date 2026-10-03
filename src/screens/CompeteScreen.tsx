@@ -10,6 +10,7 @@ import {
   DEFAULT_IMAGE_TRANSFORM,
   VIDEO_SLIDER_ROWS,
   IMAGE_SLIDER_ROWS,
+  PROGRESS_SLIDER_ROWS,
   type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
@@ -41,6 +42,7 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
   const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
+  const [progressOverride, setProgressOverride] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -113,24 +115,15 @@ export default function CompeteScreen() {
   const today = dateKey(new Date());
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
-  const progress = Math.min(1, todayMinutes / targetMinutes);
+  const autoProgress = Math.min(1, todayMinutes / targetMinutes);
+  const progress = progressOverride ?? autoProgress;
   const complete = progress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Long-term growth calendar (top) ─────────────────────────────── */}
-      <div className="px-4 pb-8 pt-6 sm:px-6 lg:px-10">
-        <GoalHeatmap
-          startDate={goal.start_date || goal.created_at.slice(0, 10)}
-          examDate={goal.exam_date}
-          targetHours={Number(goal.daily_target_hours)}
-          records={records}
-        />
-      </div>
-
-      {/* ── Daily tree stage (below, full-bleed, tuner-calibrated) ──────── */}
-      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden border-t border-white/[.06] bg-[#090b0a]">
+      {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         <TreeVideo transform={videoTransform} progress={progress} />
         <SoilOverlay transform={imageTransform} />
 
@@ -158,8 +151,19 @@ export default function CompeteScreen() {
           </div>
         </div>
 
-        {/* Calibration: Video + Image tuners, exactly as before */}
+        {/* Calibration: Progress, Video and Image tuners */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
+          <PlacementTuner
+            title="Progress tuner"
+            logTag="compete-progress"
+            rows={PROGRESS_SLIDER_ROWS}
+            defaults={{ progress: autoProgress }}
+            transform={{ progress }}
+            onChange={(patch) => {
+              const v = patch.progress ?? autoProgress;
+              setProgressOverride(v === autoProgress ? null : v);
+            }}
+          />
           <PlacementTuner
             title="Video tuner"
             logTag="compete-video"
@@ -179,6 +183,15 @@ export default function CompeteScreen() {
         </div>
       </div>
 
+      {/* ── Long-term growth calendar (below) ───────────────────────────── */}
+      <div className="px-4 pb-28 pt-6 sm:px-6 lg:px-10">
+        <GoalHeatmap
+          startDate={goal.start_date || goal.created_at.slice(0, 10)}
+          examDate={goal.exam_date}
+          targetHours={Number(goal.daily_target_hours)}
+          records={records}
+        />
+      </div>
     </div>
   );
 }

@@ -44,6 +44,15 @@ export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 0
 /** Hardcoded soil-image placement (read off the Image tuner). */
 export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: -4, zoom: 1 };
 
+/** Progress tuner row: scrub today's growth (0 = seedling, 1 = full bloom). */
+export interface ProgressTune {
+  progress: number;
+}
+
+export const PROGRESS_SLIDER_ROWS: SliderRow<ProgressTune>[] = [
+  { key: 'progress', label: 'Progress (today vs target)', min: 0, max: 1, step: 0.01 },
+];
+
 export const VIDEO_SLIDER_ROWS: SliderRow[] = [
   { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
   { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
