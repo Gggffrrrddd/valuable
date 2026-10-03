@@ -123,8 +123,25 @@ export default function CompeteScreen() {
         <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Today's status */}
-        <div className="absolute left-4 top-4 z-20 w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl sm:left-6 sm:top-6">
+        {/* Calibration: Progress tuner (video/image placement is hardcoded) */}
+        <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
+          <PlacementTuner
+            title="Progress tuner"
+            logTag="compete-progress"
+            rows={PROGRESS_SLIDER_ROWS}
+            defaults={{ progress: autoProgress }}
+            transform={{ progress }}
+            onChange={(patch) => {
+              const v = patch.progress ?? autoProgress;
+              setProgressOverride(v === autoProgress ? null : v);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ── Today's status card (just below the scene) ──────────────────── */}
+      <div className="px-4 pt-5 sm:px-6 lg:px-10">
+        <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
           <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
             Today's tree
           </div>
@@ -144,25 +161,10 @@ export default function CompeteScreen() {
               : `${remaining}m to full bloom · resets at midnight`}
           </div>
         </div>
-
-        {/* Calibration: Progress tuner (video/image placement is hardcoded) */}
-        <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
-          <PlacementTuner
-            title="Progress tuner"
-            logTag="compete-progress"
-            rows={PROGRESS_SLIDER_ROWS}
-            defaults={{ progress: autoProgress }}
-            transform={{ progress }}
-            onChange={(patch) => {
-              const v = patch.progress ?? autoProgress;
-              setProgressOverride(v === autoProgress ? null : v);
-            }}
-          />
-        </div>
       </div>
 
-      {/* ── Long-term growth calendar (below) ───────────────────────────── */}
-      <div className="px-4 pb-28 pt-6 sm:px-6 lg:px-10">
+      {/* ── Long-term growth calendar (below the card) ──────────────────── */}
+      <div className="px-4 pb-28 pt-5 sm:px-6 lg:px-10">
         <GoalHeatmap
           startDate={goal.start_date || goal.created_at.slice(0, 10)}
           examDate={goal.exam_date}
