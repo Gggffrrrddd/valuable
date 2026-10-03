@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Sparkles, Sprout } from 'lucide-react';
+import { Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
@@ -8,7 +8,10 @@ import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
+  VIDEO_SLIDER_ROWS,
+  IMAGE_SLIDER_ROWS,
   PROGRESS_SLIDER_ROWS,
+  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -28,7 +31,7 @@ import type { CompeteGoal } from '@/types';
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
  * - The tree view: the boy-watering-tree video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
- *   bare seedling. Soil overlay + placement are hardcoded (values below);
+ *   bare seedling. Soil overlay + Video/Image tuner calibration stay fixed;
  *   a Progress tuner scrubs the video for previews.
  * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
  *   the same per-day records persisted to compete_daily_progress.
@@ -38,6 +41,8 @@ export default function CompeteScreen() {
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
+  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
+  const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -118,12 +123,10 @@ export default function CompeteScreen() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (top, full-bleed, hardcoded placement) ─────── */}
+      {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
-
-        {complete && <DayCompleteGlow />}
+        <TreeVideo transform={videoTransform} progress={progress} />
+        <SoilOverlay transform={imageTransform} />
 
         {/* Today's status */}
         <div className="absolute left-4 top-4 z-20 w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl sm:left-6 sm:top-6">
@@ -147,7 +150,7 @@ export default function CompeteScreen() {
           </div>
         </div>
 
-        {/* Calibration: Progress tuner (video/image placement is hardcoded) */}
+        {/* Calibration: Progress, Video and Image tuners */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -160,6 +163,22 @@ export default function CompeteScreen() {
               setProgressOverride(v === autoProgress ? null : v);
             }}
           />
+          <PlacementTuner
+            title="Video tuner"
+            logTag="compete-video"
+            rows={VIDEO_SLIDER_ROWS}
+            defaults={DEFAULT_VIDEO_TRANSFORM}
+            transform={videoTransform}
+            onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
+          />
+          <PlacementTuner
+            title="Image tuner"
+            logTag="compete-image"
+            rows={IMAGE_SLIDER_ROWS}
+            defaults={DEFAULT_IMAGE_TRANSFORM}
+            transform={imageTransform}
+            onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
+          />
         </div>
       </div>
 
@@ -171,27 +190,6 @@ export default function CompeteScreen() {
           targetHours={Number(goal.daily_target_hours)}
           records={records}
         />
-      </div>
-    </div>
-  );
-}
-
-/** Soft gold glow + sparkles marking a completed day. */
-function DayCompleteGlow() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-10 animate-pulse-soft"
-      style={{
-        background:
-          'radial-gradient(ellipse at 50% 58%, rgba(246,227,186,0.18), rgba(246,227,186,0.05) 38%, transparent 66%)',
-      }}
-    >
-      <span className="absolute left-[32%] top-[30%] h-1.5 w-1.5 animate-ping rounded-full bg-[#f6e3ba]" />
-      <span className="absolute left-[64%] top-[26%] h-1 w-1 animate-ping rounded-full bg-[#f6e3ba] [animation-delay:300ms]" />
-      <span className="absolute left-[54%] top-[48%] h-1 w-1 animate-ping rounded-full bg-white [animation-delay:600ms]" />
-      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#f6e3ba]/30 bg-[#1a1613]/85 px-4 py-2 text-xs font-bold text-[#f6e3ba] backdrop-blur">
-        <Sparkles className="h-3.5 w-3.5" />
-        Today's tree is fully grown
       </div>
     </div>
   );
