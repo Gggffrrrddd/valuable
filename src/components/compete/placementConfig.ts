@@ -1,7 +1,7 @@
 /**
- * Shared placement config for the Compete daily-tree view: hardcoded video,
- * soil-image transforms and the video's geometric fade mask (halo). Slider
- * rows stay here so tuners can be re-enabled without re-deriving them.
+ * Shared placement config for the Compete daily-tree view: hardcoded video
+ * and soil-image transforms, the video's geometric fade mask (halo — still
+ * tunable), and the Progress tuner rows.
  */
 
 /** Placement transform — shifts are in % of the element box. */
@@ -53,9 +53,9 @@ export const PROGRESS_SLIDER_ROWS: SliderRow<ProgressTune>[] = [
   { key: 'progress', label: 'Progress (today vs target)', min: 0, max: 1, step: 0.01 },
 ];
 
-/** Default mask — hardcoded halo calibration. */
+/** Default mask — Mask tuner starting values / Reset target. */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
-  safeW: 50,
+  safeW: 26,
   safeH: 31.5,
   fadeW: 35,
   fadeH: 50,

@@ -3,10 +3,15 @@ import { Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
+import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
+  DEFAULT_VIDEO_MASK,
+  MASK_SLIDER_ROWS,
+  PROGRESS_SLIDER_ROWS,
+  type VideoMask,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -26,7 +31,8 @@ import type { CompeteGoal } from '@/types';
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
  * - The tree view: the boy-watering-tree video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
- *   bare seedling. Soil overlay + placement are hardcoded (values below).
+ *   bare seedling. Soil overlay + placement are hardcoded (values below);
+ *   tuners: Progress (scrub) and Mask (video halo shape).
  * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
  *   the same per-day records persisted to compete_daily_progress.
  */
@@ -35,6 +41,8 @@ export default function CompeteScreen() {
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
+  const [videoMask, setVideoMask] = useState<VideoMask>(DEFAULT_VIDEO_MASK);
+  const [progressOverride, setProgressOverride] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -107,20 +115,44 @@ export default function CompeteScreen() {
   const today = dateKey(new Date());
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
-  const progress = Math.min(1, todayMinutes / targetMinutes);
+  const autoProgress = Math.min(1, todayMinutes / targetMinutes);
+  const progress = progressOverride ?? autoProgress;
   const complete = progress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (top, full-bleed, hardcoded placement) ─────── */}
-      <div className="relative h-[62vh] min-h-[420px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
+      {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={videoMask} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+
+        {/* Calibration: Progress + Mask (halo) tuners; placement hardcoded */}
+        <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
+          <PlacementTuner
+            title="Progress tuner"
+            logTag="compete-progress"
+            rows={PROGRESS_SLIDER_ROWS}
+            defaults={{ progress: autoProgress }}
+            transform={{ progress }}
+            onChange={(patch) => {
+              const v = patch.progress ?? autoProgress;
+              setProgressOverride(v === autoProgress ? null : v);
+            }}
+          />
+          <PlacementTuner
+            title="Mask tuner (halo)"
+            logTag="compete-mask"
+            rows={MASK_SLIDER_ROWS}
+            defaults={DEFAULT_VIDEO_MASK}
+            transform={videoMask}
+            onChange={(patch) => setVideoMask((m) => ({ ...m, ...patch }))}
+          />
+        </div>
       </div>
 
-      {/* ── Today's status card (right below the scene) ─────────────────── */}
-      <div className="px-4 pt-4 sm:px-6 lg:px-10">
+      {/* ── Today's status card (just below the scene) ──────────────────── */}
+      <div className="px-4 pt-5 sm:px-6 lg:px-10">
         <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
           <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
             Today's tree
@@ -143,8 +175,8 @@ export default function CompeteScreen() {
         </div>
       </div>
 
-      {/* ── Long-term growth calendar (right below the card) ────────────── */}
-      <div className="px-4 pb-28 pt-4 sm:px-6 lg:px-10">
+      {/* ── Long-term growth calendar (below the card) ──────────────────── */}
+      <div className="px-4 pb-28 pt-5 sm:px-6 lg:px-10">
         <GoalHeatmap
           startDate={goal.start_date || goal.created_at.slice(0, 10)}
           examDate={goal.exam_date}
