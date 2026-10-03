@@ -67,6 +67,8 @@ export const MASK_SLIDER_ROWS: SliderRow<VideoMask>[] = [
   { key: 'safeW', label: 'Safe zone width', min: 10, max: 50, step: 0.5 },
   { key: 'safeH', label: 'Safe zone height', min: 10, max: 50, step: 0.5 },
   { key: 'fadeW', label: 'Fade radius (width)', min: 30, max: 70, step: 0.5 },
+  { key: 'fadeH', label: 'Fade radius (height)', min: 30, max: 70, step: 0.5 },
+  { key: 'bottomKeep', label: 'Bottom opaque from (%)', min: 0, max: 100, step: 0.5 },
 ];
 
 /**
