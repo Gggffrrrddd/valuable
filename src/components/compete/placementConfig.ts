@@ -45,9 +45,9 @@ export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: -4, zoom: 
 
 /** Hardcoded mask calibration for the video (tuned in the Mask tuner). */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
-  safeW: 10,
-  safeH: 35.5,
-  fadeW: 50,
+  safeW: 26,
+  safeH: 31.5,
+  fadeW: 35,
   fadeH: 50,
   bottomKeep: 100,
 };
