@@ -1,7 +1,7 @@
 /**
  * Shared placement config for the Compete daily-tree view: hardcoded video
- * and soil-image transforms (still adjustable via the tuner sliders), plus
- * the video's geometric fade mask.
+ * and soil-image transforms, the video's geometric fade mask, and the
+ * Progress tuner rows.
  */
 
 /** Placement transform — shifts are in % of the element box. */
@@ -51,18 +51,6 @@ export interface ProgressTune {
 
 export const PROGRESS_SLIDER_ROWS: SliderRow<ProgressTune>[] = [
   { key: 'progress', label: 'Progress (today vs target)', min: 0, max: 1, step: 0.01 },
-];
-
-export const VIDEO_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
-];
-
-export const IMAGE_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
 ];
 
 /** Hardcoded mask calibration for the video (tuned in the Mask tuner). */

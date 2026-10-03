@@ -8,10 +8,7 @@ import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
-  VIDEO_SLIDER_ROWS,
-  IMAGE_SLIDER_ROWS,
   PROGRESS_SLIDER_ROWS,
-  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -31,7 +28,8 @@ import type { CompeteGoal } from '@/types';
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
  * - The tree view: the boy-watering-tree video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
- *   bare seedling. Soil overlay + Video/Image tuner calibration stay fixed.
+ *   bare seedling. Soil overlay + placement are hardcoded (values below);
+ *   a Progress tuner scrubs the video for previews.
  * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
  *   the same per-day records persisted to compete_daily_progress.
  */
@@ -40,8 +38,6 @@ export default function CompeteScreen() {
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
-  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -122,10 +118,10 @@ export default function CompeteScreen() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
+      {/* ── Daily tree stage (top, full-bleed, hardcoded placement) ─────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={videoTransform} progress={progress} />
-        <SoilOverlay transform={imageTransform} />
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
         {complete && <DayCompleteGlow />}
 
@@ -151,7 +147,7 @@ export default function CompeteScreen() {
           </div>
         </div>
 
-        {/* Calibration: Progress, Video and Image tuners */}
+        {/* Calibration: Progress tuner (video/image placement is hardcoded) */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -163,22 +159,6 @@ export default function CompeteScreen() {
               const v = patch.progress ?? autoProgress;
               setProgressOverride(v === autoProgress ? null : v);
             }}
-          />
-          <PlacementTuner
-            title="Video tuner"
-            logTag="compete-video"
-            rows={VIDEO_SLIDER_ROWS}
-            defaults={DEFAULT_VIDEO_TRANSFORM}
-            transform={videoTransform}
-            onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
-          />
-          <PlacementTuner
-            title="Image tuner"
-            logTag="compete-image"
-            rows={IMAGE_SLIDER_ROWS}
-            defaults={DEFAULT_IMAGE_TRANSFORM}
-            transform={imageTransform}
-            onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
           />
         </div>
       </div>
