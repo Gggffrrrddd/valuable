@@ -8,7 +8,10 @@ import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
+  DEFAULT_VIDEO_MASK,
+  MASK_SLIDER_ROWS,
   PROGRESS_SLIDER_ROWS,
+  type VideoMask,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -29,7 +32,7 @@ import type { CompeteGoal } from '@/types';
  * - The tree view: the boy-watering-tree video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling. Soil overlay + placement are hardcoded (values below);
- *   only the Progress tuner remains.
+ *   tuners: Progress (scrub) and Mask (video halo shape).
  * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
  *   the same per-day records persisted to compete_daily_progress.
  */
@@ -38,6 +41,7 @@ export default function CompeteScreen() {
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
+  const [videoMask, setVideoMask] = useState<VideoMask>(DEFAULT_VIDEO_MASK);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -120,10 +124,10 @@ export default function CompeteScreen() {
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={videoMask} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Calibration: Progress tuner (video/image placement is hardcoded) */}
+        {/* Calibration: Progress + Mask (halo) tuners; placement hardcoded */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -135,6 +139,14 @@ export default function CompeteScreen() {
               const v = patch.progress ?? autoProgress;
               setProgressOverride(v === autoProgress ? null : v);
             }}
+          />
+          <PlacementTuner
+            title="Mask tuner (halo)"
+            logTag="compete-mask"
+            rows={MASK_SLIDER_ROWS}
+            defaults={DEFAULT_VIDEO_MASK}
+            transform={videoMask}
+            onChange={(patch) => setVideoMask((m) => ({ ...m, ...patch }))}
           />
         </div>
       </div>
