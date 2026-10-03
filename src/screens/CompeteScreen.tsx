@@ -29,7 +29,7 @@ export default function CompeteScreen() {
     <div className="relative h-full w-full overflow-hidden">
       <MountainVideo transform={videoTransform} progress={progress} />
       <MountainImage transform={imageTransform} />
-      <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
+      <div className="absolute bottom-24 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
         <div className="rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
           <label className="block">
             <span className="flex items-center justify-between text-xs font-bold text-stone-300">

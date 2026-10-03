@@ -45,8 +45,8 @@ export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 1
 export const DEFAULT_VIDEO_MASK: VideoMask = {
   safeW: 10,
   safeH: 35.5,
-  fadeW: 32,
-  fadeH: 44.5,
+  fadeW: 50,
+  fadeH: 50,
   bottomKeep: 100,
 };
 

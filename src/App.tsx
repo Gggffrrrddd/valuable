@@ -176,7 +176,13 @@ function AppContent() {
           </div>
         </header>
 
-        <main className="app-main lg:px-10 lg:pb-12 xl:px-16">
+        <main
+          className={
+            tab === 'compete'
+              ? 'app-main overflow-hidden p-0'
+              : 'app-main lg:px-10 lg:pb-12 xl:px-16'
+          }
+        >
           {tab === 'home' && (
             <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
               <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
