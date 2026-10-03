@@ -1,37 +1,39 @@
-import type { PlacementTransform, SliderRow } from './placementConfig';
+import type { SliderRow } from './placementConfig';
 
-interface PlacementTunerProps {
+interface PlacementTunerProps<T extends { [K in keyof T]: number }> {
   title: string;
   /** Console log tag, e.g. "compete-video". */
   logTag: string;
-  transform: PlacementTransform;
-  rows: SliderRow[];
-  defaults: PlacementTransform;
-  onChange: (patch: Partial<PlacementTransform>) => void;
+  transform: T;
+  rows: SliderRow<T>[];
+  defaults: T;
+  onChange: (patch: Partial<T>) => void;
 }
 
-function logTransform(logTag: string, t: PlacementTransform) {
-  const line = `{ x: ${t.x}, y: ${t.y}, zoom: ${t.zoom} }`;
-  console.log(`[${logTag}]`, line, t);
+function logValues<T extends { [K in keyof T]: number }>(logTag: string, t: T) {
+  const line = Object.entries(t)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(', ');
+  console.log(`[${logTag}]`, `{ ${line} }`, t);
 }
 
 /** Live placement tuner: zoom, left/right, up/down — used for video and image. */
-export default function PlacementTuner({
+export default function PlacementTuner<T extends { [K in keyof T]: number }>({
   title,
   logTag,
   transform,
   rows,
   defaults,
   onChange,
-}: PlacementTunerProps) {
-  const update = (patch: Partial<PlacementTransform>) => {
+}: PlacementTunerProps<T>) {
+  const update = (patch: Partial<T>) => {
     onChange(patch);
-    logTransform(logTag, { ...transform, ...patch });
+    logValues(logTag, { ...transform, ...patch });
   };
 
   const reset = () => {
     onChange(defaults);
-    logTransform(logTag, defaults);
+    logValues(logTag, defaults);
   };
 
   return (
@@ -62,7 +64,7 @@ export default function PlacementTuner({
             max={row.max}
             step={row.step}
             value={transform[row.key]}
-            onChange={(e) => update({ [row.key]: Number(e.target.value) })}
+            onChange={(e) => update({ [row.key]: Number(e.target.value) } as Partial<T>)}
             className="mt-1.5 w-full accent-lime-300"
           />
         </label>
