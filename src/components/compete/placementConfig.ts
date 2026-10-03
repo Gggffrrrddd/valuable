@@ -1,6 +1,6 @@
 /**
- * Shared placement config for the Compete climb view: the background video
- * and the image overlay each get their own transform + tuner rows.
+ * Shared placement config for the Compete climb view: hardcoded video and
+ * image transforms, plus the still-tunable video mask rows.
  */
 
 /** Placement transform — shifts are in % of the element box. */
@@ -38,8 +38,10 @@ export interface VideoMask {
   bottomKeep: number;
 }
 
-export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 1 };
-export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 1 };
+/** Hardcoded video placement (read off the Video tuner). */
+export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 0.8 };
+/** Hardcoded soil-image placement (read off the Image tuner). */
+export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: -4, zoom: 1 };
 
 /** Hardcoded mask calibration for the video (tuned in the Mask tuner). */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
@@ -50,16 +52,11 @@ export const DEFAULT_VIDEO_MASK: VideoMask = {
   bottomKeep: 100,
 };
 
-export const VIDEO_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
-];
-
-export const IMAGE_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
+export const MASK_SLIDER_ROWS: SliderRow<VideoMask>[] = [
+  { key: 'safeW', label: 'Safe zone width', min: 10, max: 50, step: 0.5 },
+  { key: 'safeH', label: 'Safe zone height', min: 10, max: 50, step: 0.5 },
+  { key: 'fadeW', label: 'Fade radius (width)', min: 30, max: 70, step: 0.5 },
+  { key: 'fadeH', label: 'Fade radius (height)', min: 30, max: 70, step: 0.5 },
 ];
 
 /**
