@@ -119,8 +119,18 @@ export default function CompeteScreen() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (full-bleed, tuner-calibrated) ─────────────── */}
-      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+      {/* ── Long-term growth calendar (top) ─────────────────────────────── */}
+      <div className="px-4 pb-8 pt-6 sm:px-6 lg:px-10">
+        <GoalHeatmap
+          startDate={goal.start_date || goal.created_at.slice(0, 10)}
+          examDate={goal.exam_date}
+          targetHours={Number(goal.daily_target_hours)}
+          records={records}
+        />
+      </div>
+
+      {/* ── Daily tree stage (below, full-bleed, tuner-calibrated) ──────── */}
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden border-t border-white/[.06] bg-[#090b0a]">
         <TreeVideo transform={videoTransform} progress={progress} />
         <SoilOverlay transform={imageTransform} />
 
@@ -169,15 +179,6 @@ export default function CompeteScreen() {
         </div>
       </div>
 
-      {/* ── Long-term growth calendar ───────────────────────────────────── */}
-      <div className="px-4 pb-28 pt-6 sm:px-6 lg:px-10">
-        <GoalHeatmap
-          startDate={goal.start_date || goal.created_at.slice(0, 10)}
-          examDate={goal.exam_date}
-          targetHours={Number(goal.daily_target_hours)}
-          records={records}
-        />
-      </div>
     </div>
   );
 }
