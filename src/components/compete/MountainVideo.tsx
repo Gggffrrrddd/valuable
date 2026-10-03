@@ -54,6 +54,9 @@ export default function MountainVideo({
       className="absolute inset-0 h-full w-full object-cover"
       style={{
         transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
+        // screen blend: the video's near-black background becomes exactly the
+        // app background behind it, so no dark halo is visible in the fade zone
+        mixBlendMode: 'screen',
         maskImage: image,
         WebkitMaskImage: image,
         maskSize: size,
