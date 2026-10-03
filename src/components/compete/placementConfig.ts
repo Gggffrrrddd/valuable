@@ -40,9 +40,9 @@ export interface VideoMask {
 }
 
 /** Hardcoded video placement (read off the Video tuner). */
-export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 0.8 };
+export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: -2, y: -14, zoom: 0.54 };
 /** Hardcoded soil-image placement (read off the Image tuner). */
-export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: -4, zoom: 1 };
+export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 1, y: -16, zoom: 1.03 };
 
 /** Progress tuner row: scrub today's growth (0 = seedling, 1 = full bloom). */
 export interface ProgressTune {
@@ -51,18 +51,6 @@ export interface ProgressTune {
 
 export const PROGRESS_SLIDER_ROWS: SliderRow<ProgressTune>[] = [
   { key: 'progress', label: 'Progress (today vs target)', min: 0, max: 1, step: 0.01 },
-];
-
-export const VIDEO_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
-];
-
-export const IMAGE_SLIDER_ROWS: SliderRow[] = [
-  { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
-  { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
-  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
 ];
 
 /** Hardcoded mask calibration for the video (tuned in the Mask tuner). */
