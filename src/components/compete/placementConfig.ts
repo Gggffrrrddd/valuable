@@ -41,12 +41,13 @@ export interface VideoMask {
 export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 1 };
 export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 0, y: 0, zoom: 1 };
 
+/** Hardcoded mask calibration for the video (tuned in the Mask tuner). */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
-  safeW: 44,
-  safeH: 38,
-  fadeW: 50,
-  fadeH: 50,
-  bottomKeep: 72,
+  safeW: 10,
+  safeH: 35.5,
+  fadeW: 32,
+  fadeH: 44.5,
+  bottomKeep: 100,
 };
 
 export const VIDEO_SLIDER_ROWS: SliderRow[] = [
@@ -59,14 +60,6 @@ export const IMAGE_SLIDER_ROWS: SliderRow[] = [
   { key: 'zoom', label: 'Zoom', min: 0.5, max: 3, step: 0.01 },
   { key: 'x', label: 'Move X (left / right)', min: -100, max: 100, step: 1 },
   { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
-];
-
-export const MASK_SLIDER_ROWS: SliderRow<VideoMask>[] = [
-  { key: 'safeW', label: 'Safe zone width', min: 10, max: 50, step: 0.5 },
-  { key: 'safeH', label: 'Safe zone height', min: 10, max: 50, step: 0.5 },
-  { key: 'fadeW', label: 'Fade radius (width)', min: 30, max: 70, step: 0.5 },
-  { key: 'fadeH', label: 'Fade radius (height)', min: 30, max: 70, step: 0.5 },
-  { key: 'bottomKeep', label: 'Bottom opaque from (%)', min: 0, max: 95, step: 0.5 },
 ];
 
 /**
