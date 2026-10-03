@@ -1,6 +1,6 @@
 /**
- * Shared placement config for the Compete climb view: hardcoded video and
- * image transforms, plus the still-tunable video mask rows.
+ * Shared placement config for the Compete climb view: hardcoded video,
+ * image and mask placement for the climb visuals.
  */
 
 /** Placement transform — shifts are in % of the element box. */
@@ -10,14 +10,6 @@ export interface PlacementTransform {
   /** Vertical shift (negative = up). */
   y: number;
   zoom: number;
-}
-
-export interface SliderRow<T extends { [K in keyof T]: number } = PlacementTransform> {
-  key: keyof T & string;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
 }
 
 /**
@@ -51,13 +43,6 @@ export const DEFAULT_VIDEO_MASK: VideoMask = {
   fadeH: 50,
   bottomKeep: 100,
 };
-
-export const MASK_SLIDER_ROWS: SliderRow<VideoMask>[] = [
-  { key: 'safeW', label: 'Safe zone width', min: 10, max: 50, step: 0.5 },
-  { key: 'safeH', label: 'Safe zone height', min: 10, max: 50, step: 0.5 },
-  { key: 'fadeW', label: 'Fade radius (width)', min: 30, max: 70, step: 0.5 },
-  { key: 'fadeH', label: 'Fade radius (height)', min: 30, max: 70, step: 0.5 },
-];
 
 /**
  * Builds the two mask layers:
