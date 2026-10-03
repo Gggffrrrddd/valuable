@@ -6,6 +6,8 @@ const T1 = 35; // distance fully background
 const T2 = 70; // distance fully subject (narrow falloff band)
 const ERODE_PASSES = 1; // matte choke: contract opaque boundary 1px
 const EDGE = 5; // sample patch size per point
+const NEAR_R = 3; // opaque pixels within this many px of a gap also get despill
+const SPILL = 0.65; // despill strength (0 = none, 1 = full pull to min(r,g))
 
 export default function MountainVideo({
   transform,
@@ -132,10 +134,6 @@ export default function MountainVideo({
         let a = 0;
         if (dist > T1) a = dist >= T2 ? 255 : Math.round(((dist - T1) / (T2 - T1)) * 255);
         alpha[p] = a;
-        if (a > 0) {
-          const m = r < g ? r : g;
-          if (b > m) data[i + 2] = m; // pull blue down toward min(red, green)
-        }
       }
 
       // --- alpha erosion (matte choke): shrink opaque region inward ---
@@ -161,6 +159,51 @@ export default function MountainVideo({
         }
         cur = next;
       }
+      // --- halo: opaque pixels within NEAR_R px of a background gap (BFS) ---
+      const near = new Uint8Array(w * h);
+      const depth = new Int16Array(w * h).fill(-2); // -2 unvisited, 0 = gap source
+      const queue = new Int32Array(w * h);
+      let qh = 0;
+      let qt = 0;
+      for (let p = 0; p < w * h; p++) {
+        if (cur[p] < 255) {
+          depth[p] = 0; // source: a gap / falloff pixel
+          queue[qt++] = p;
+        }
+      }
+      while (qh < qt) {
+        const p = queue[qh++];
+        const d = depth[p] + 1;
+        if (d > NEAR_R) continue;
+        const x = p % w;
+        const y = (p / w) | 0;
+        const nb = [
+          x > 0 ? p - 1 : -1,
+          x < w - 1 ? p + 1 : -1,
+          y > 0 ? p - w : -1,
+          y < h - 1 ? p + w : -1,
+        ];
+        for (const np of nb) {
+          if (np < 0 || depth[np] !== -2 || cur[np] !== 255) continue;
+          depth[np] = d;
+          near[np] = 1;
+          queue[qt++] = np;
+        }
+      }
+
+      // --- narrowed despill: only the falloff band + the NEAR_R halo ---
+      for (let p = 0, i = 3; p < w * h; p++, i += 4) {
+        const a = cur[p];
+        if (a === 0) continue;
+        if (a < 255 || near[p]) {
+          const r = data[i - 3];
+          const g = data[i - 2];
+          const b = data[i - 1];
+          const m = r < g ? r : g;
+          if (b > m) data[i - 1] = Math.round(b - SPILL * (b - m));
+        }
+      }
+
       for (let p = 0, i = 3; p < w * h; p++, i += 4) data[i] = cur[p];
 
       ctx.putImageData(frame, 0, 0);
