@@ -4,17 +4,10 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import PlacementTuner from '@/components/compete/PlacementTuner';
-import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
-  DEFAULT_VIDEO_MASK,
-  VIDEO_SLIDER_ROWS,
-  IMAGE_SLIDER_ROWS,
-  MASK_SLIDER_ROWS,
   PROGRESS_SLIDER_ROWS,
-  type VideoMask,
-  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -34,20 +27,26 @@ import type { CompeteGoal } from '@/types';
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
- *   bare seedling, over a static soil overlay.
- * - Tuners: Progress (scrub), Video / Image (placement), Mask (halo).
- * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
- *   the same per-day records persisted to compete_daily_progress.
+ *   bare seedling, over a static soil overlay. Video / image / mask
+ *   placement is hardcoded; only the Progress tuner stays for scrubbing.
+ * - The growth calendar and Today's tree card are temporarily hidden
+ *   (restore on request).
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
-  const [progressOverride, setProgressOverride] = useState<number | null>(null);
-  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
-  const [videoMask, setVideoMask] = useState<VideoMask>(DEFAULT_VIDEO_MASK);
+  /**
+   * Drag-preview for the Progress tuner, tagged with the real progress it
+   * was scrubbed from. The moment tracked minutes move the real progress
+   * (new session, midnight reset), the preview is stale and auto wins —
+   * the slider can never leave the video stuck off-data.
+   */
+  const [progressPreview, setProgressPreview] = useState<{
+    value: number;
+    base: number;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -121,18 +120,17 @@ export default function CompeteScreen() {
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
-  const progress = progressOverride ?? autoProgress;
-  const complete = progress >= 1;
-  const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
+  const progress =
+    progressPreview && progressPreview.base === autoProgress ? progressPreview.value : autoProgress;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
+      {/* ── Daily tree stage (full-bleed, hardcoded placement) ──────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={videoTransform} mask={videoMask} progress={progress} />
-        <SoilOverlay transform={imageTransform} />
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Calibration: Progress, Video, Image and Mask tuners */}
+        {/* Calibration: Progress tuner only (placement + halo hardcoded) */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -142,68 +140,12 @@ export default function CompeteScreen() {
             transform={{ progress }}
             onChange={(patch) => {
               const v = patch.progress ?? autoProgress;
-              setProgressOverride(v === autoProgress ? null : v);
+              setProgressPreview(
+                v === autoProgress ? null : { value: v, base: autoProgress },
+              );
             }}
           />
-          <PlacementTuner
-            title="Video tuner"
-            logTag="compete-video"
-            rows={VIDEO_SLIDER_ROWS}
-            defaults={DEFAULT_VIDEO_TRANSFORM}
-            transform={videoTransform}
-            onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
-          />
-          <PlacementTuner
-            title="Image tuner"
-            logTag="compete-image"
-            rows={IMAGE_SLIDER_ROWS}
-            defaults={DEFAULT_IMAGE_TRANSFORM}
-            transform={imageTransform}
-            onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
-          />
-          <PlacementTuner
-            title="Mask tuner (halo)"
-            logTag="compete-mask"
-            rows={MASK_SLIDER_ROWS}
-            defaults={DEFAULT_VIDEO_MASK}
-            transform={videoMask}
-            onChange={(patch) => setVideoMask((m) => ({ ...m, ...patch }))}
-          />
         </div>
-      </div>
-
-      {/* ── Today's status card (just below the scene) ──────────────────── */}
-      <div className="px-4 pt-5 sm:px-6 lg:px-10">
-        <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
-          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-            Today's tree
-          </div>
-          <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
-            {(todayMinutes / 60).toFixed(1)}
-            <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
-          </div>
-          <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
-          <div className="mt-2 text-[11px] leading-4 text-stone-500">
-            {complete
-              ? 'Fully grown — target met.'
-              : `${remaining}m to full bloom · resets at midnight`}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Long-term growth calendar (below the card) ──────────────────── */}
-      <div className="px-4 pb-28 pt-5 sm:px-6 lg:px-10">
-        <GoalHeatmap
-          startDate={goal.start_date || goal.created_at.slice(0, 10)}
-          examDate={goal.exam_date}
-          targetHours={Number(goal.daily_target_hours)}
-          records={records}
-        />
       </div>
     </div>
   );
