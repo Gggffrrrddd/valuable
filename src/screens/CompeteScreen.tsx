@@ -4,12 +4,11 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
-import PlacementTuner from '@/components/compete/PlacementTuner';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
-  type SliderRow,
+  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -31,15 +30,12 @@ const SHOW_PROGRESS_SLIDER = false;
 /** Scrub cap: the slider never goes past 97%. */
 const PROGRESS_CAP = 0.97;
 
-/**
- * Dream tuner: independent zoom / move X / move Y per circle (0..2).
- * Identity until tuned — calibration only, values get hardcoded once final.
- */
-const DREAM_TUNE_DEFAULTS: Record<string, number> = {
-  d0zoom: 1, d0x: 0, d0y: 0,
-  d1zoom: 1, d1x: 0, d1y: 0,
-  d2zoom: 1, d2x: 0, d2y: 0,
-};
+/** Hardcoded per-circle placement (read off the Dream tuner). */
+const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
+  { x: -281, y: 195, zoom: 1.5 },
+  { x: 2, y: 108, zoom: 1.545 },
+  { x: 238, y: 195, zoom: 1.5 },
+];
 
 /**
  * Compete: the daily-tree ritual.
@@ -48,9 +44,9 @@ const DREAM_TUNE_DEFAULTS: Record<string, number> = {
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
- * - Dream circles crown the tree (max 3) with a per-circle Dream tuner.
- *   Placement + progress are hardcoded (progress static 97%, slider hidden).
- *   Card + heatmap + other tuner panels stay hidden.
+ * - Dream circles crown the tree (max 3), placement hardcoded per circle.
+ *   Video / image placement + progress are hardcoded too (progress static
+ *   97%, slider hidden). Card + heatmap + all tuner panels stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -59,7 +55,6 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
-  const [dreamTune, setDreamTune] = useState<Record<string, number>>(DREAM_TUNE_DEFAULTS);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -169,24 +164,6 @@ export default function CompeteScreen() {
   const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
   const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
 
-  // Dream tuner: one zoom/X/Y group per existing circle, all independent.
-  // Move range is huge (±4000% of the circle's own size ≈ ±2560px) so a
-  // circle can be slid anywhere across the whole screen.
-  const dreamCount = Math.min((goal.dream_images ?? []).length, 3);
-  const dreamRows: SliderRow<Record<string, number>>[] = [];
-  for (let i = 0; i < dreamCount; i++) {
-    dreamRows.push(
-      { key: `d${i}zoom`, label: `Circle ${i + 1} · Zoom`, min: 0.5, max: 3, step: 0.01 },
-      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -4000, max: 4000, step: 1 },
-      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -4000, max: 4000, step: 1 },
-    );
-  }
-  const dreamTransforms = [0, 1, 2].map((i) => ({
-    x: dreamTune[`d${i}x`] ?? 0,
-    y: dreamTune[`d${i}y`] ?? 0,
-    zoom: dreamTune[`d${i}zoom`] ?? 1,
-  }));
-
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
@@ -197,7 +174,7 @@ export default function CompeteScreen() {
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
           images={goal.dream_images ?? []}
-          transforms={dreamTransforms}
+          transforms={DREAM_CIRCLE_TRANSFORMS}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
@@ -222,28 +199,6 @@ export default function CompeteScreen() {
                 setProgressOverride(v === autoProgress ? null : v);
               }}
               className="mt-1.5 w-full accent-lime-300"
-            />
-          </div>
-        )}
-
-        {/* Dream tuner: per-circle zoom / move (visible once a circle exists) */}
-        {dreamCount > 0 && (
-          <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
-            <PlacementTuner
-              title="Dream tuner (per circle)"
-              logTag="compete-dream"
-              rows={dreamRows}
-              defaults={DREAM_TUNE_DEFAULTS}
-              transform={dreamTune}
-              onChange={(patch) =>
-                setDreamTune((t) => {
-                  const next = { ...t };
-                  for (const [k, v] of Object.entries(patch)) {
-                    if (typeof v === 'number') next[k] = v;
-                  }
-                  return next;
-                })
-              }
             />
           </div>
         )}
