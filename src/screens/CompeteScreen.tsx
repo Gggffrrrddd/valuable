@@ -46,7 +46,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *   bare seedling, over a static soil overlay.
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
- *   97%, slider hidden). Card + heatmap + all tuner panels stay hidden.
+ *   97%, slider hidden). Small Today's-tree card sits top-left; heatmap +
+ *   all tuner panels stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -163,6 +164,8 @@ export default function CompeteScreen() {
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
   const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
+  const complete = autoProgress >= 1;
+  const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
@@ -170,6 +173,28 @@ export default function CompeteScreen() {
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+
+        {/* Today's tree card — small + light, top-left corner */}
+        <div className="absolute left-4 top-4 z-20 w-44 rounded-[1rem] border border-white/[.07] bg-black/40 p-3 backdrop-blur-xl sm:left-6 sm:top-6">
+          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+            Today's tree
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-1.5 font-display text-2xl font-extrabold tracking-[-.03em] text-stone-50">
+            {(todayMinutes / 60).toFixed(1)}
+            <span className="text-sm text-stone-500">/ {goal.daily_target_hours}h</span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
+              style={{ width: `${Math.round(autoProgress * 100)}%` }}
+            />
+          </div>
+          <div className="mt-1.5 text-[11px] leading-4 text-stone-500">
+            {complete
+              ? 'Fully grown — target met.'
+              : `${remaining}m to full bloom · resets at midnight`}
+          </div>
+        </div>
 
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
