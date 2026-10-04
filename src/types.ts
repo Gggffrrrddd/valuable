@@ -68,6 +68,8 @@ export interface CompeteGoal {
   daily_target_hours: number;
   /** Day the daily-tree ritual began; each day restarts from a seedling. */
   start_date: string;
+  /** Up to 3 public-URLs of uploaded dream images crowning the tree. */
+  dream_images?: string[] | null;
   created_at: string;
   updated_at: string;
 }

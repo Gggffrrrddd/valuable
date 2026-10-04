@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import PlacementTuner from '@/components/compete/PlacementTuner';
+import DreamPicker from '@/components/compete/DreamPicker';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
@@ -16,6 +17,9 @@ import {
   fetchMinutesByDate,
   buildDayRecords,
   persistDayRecords,
+  uploadDreamImage,
+  saveDreamImages,
+  deleteDreamImage,
   dateKey,
   daysBetween,
   type DayRecord,
@@ -39,6 +43,7 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
+  const [dreamBusy, setDreamBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -60,6 +65,39 @@ export default function CompeteScreen() {
       console.error('Compete load error:', e);
     }
   }, [session]);
+
+  // Dream images: upload → optimistic row update → persist (max 3).
+  const addDream = async (file: File) => {
+    if (!session || !goal || dreamBusy) return;
+    const current = goal.dream_images ?? [];
+    if (current.length >= 3) return;
+    setDreamBusy(true);
+    try {
+      const url = await uploadDreamImage(session.user.id, file);
+      const next = [...current, url];
+      setGoal({ ...goal, dream_images: next });
+      await saveDreamImages(goal.id, next);
+    } catch (e) {
+      console.error('Dream image upload failed:', e);
+    } finally {
+      setDreamBusy(false);
+    }
+  };
+
+  const removeDream = async (index: number) => {
+    if (!session || !goal) return;
+    const current = goal.dream_images ?? [];
+    const target = current[index];
+    if (!target) return;
+    const next = current.filter((_, i) => i !== index);
+    setGoal({ ...goal, dream_images: next });
+    try {
+      await saveDreamImages(goal.id, next);
+      void deleteDreamImage(target);
+    } catch (e) {
+      console.error('Dream image remove failed:', e);
+    }
+  };
 
   useEffect(() => {
     if (!session) return;
@@ -122,6 +160,14 @@ export default function CompeteScreen() {
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+
+        {/* Dream images: bare glow circles crowning the tree */}
+        <DreamPicker
+          images={goal.dream_images ?? []}
+          busy={dreamBusy}
+          onAdd={addDream}
+          onRemove={removeDream}
+        />
 
         {/* Calibration: Progress tuner only (placement + halo hardcoded) */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">

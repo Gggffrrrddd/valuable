@@ -151,3 +151,42 @@ export async function fetchDayRecords(goalId: string): Promise<DayRecord[] | nul
     targetMet: Boolean(r.target_met),
   }));
 }
+
+/** Public bucket holding the Compete dream-image uploads. */
+const DREAM_BUCKET = 'dream-images';
+
+/** Upload a dream image to storage; resolves to its public URL. */
+export async function uploadDreamImage(userId: string, file: File): Promise<string> {
+  const extRaw = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const ext = extRaw || 'jpg';
+  const path = `${userId}/dream_${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(DREAM_BUCKET)
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from(DREAM_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/** Persist the dream-image list on the goal row (UI enforces the max of 3). */
+export async function saveDreamImages(goalId: string, images: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('compete_goals')
+    .update({ dream_images: images.slice(0, 3) })
+    .eq('id', goalId);
+  if (error) throw error;
+}
+
+/** Best-effort storage cleanup when a dream circle is deleted. */
+export async function deleteDreamImage(url: string): Promise<void> {
+  const marker = `/object/public/${DREAM_BUCKET}/`;
+  const i = url.indexOf(marker);
+  if (i === -1) return;
+  const path = url.slice(i + marker.length).split('?')[0];
+  if (!path) return;
+  try {
+    await supabase.storage.from(DREAM_BUCKET).remove([path]);
+  } catch {
+    // orphaned objects are harmless; the row is already updated
+  }
+}
