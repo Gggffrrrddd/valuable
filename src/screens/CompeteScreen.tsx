@@ -3,14 +3,10 @@ import { Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
-import PlacementTuner from '@/components/compete/PlacementTuner';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
-  VIDEO_SLIDER_ROWS,
-  IMAGE_SLIDER_ROWS,
-  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -36,10 +32,10 @@ const PROGRESS_CAP = 0.97;
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
- * - Calibration controls: two light placement tuners (Video / Image).
- *   The slim Progress slider is hidden for now — the tree sits at a static
- *   97% (scrub cap 0.97 whenever it is re-enabled). Card + heatmap + mask
- *   tuner stay hidden.
+ * - No on-screen controls: placement + progress are hardcoded (tuners kept
+ *   in the repo for restore). Progress sits at a static 97% (scrub cap 0.97
+ *   when the hidden slider is re-enabled). Card + heatmap + tuner panels
+ *   stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -47,8 +43,6 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
-  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -129,8 +123,8 @@ export default function CompeteScreen() {
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed, tuner-calibrated) ─────────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={videoTransform} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={imageTransform} />
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
         {/* Slim progress slider — hidden for now, capped at 97% */}
         {SHOW_PROGRESS_SLIDER && (
@@ -154,25 +148,6 @@ export default function CompeteScreen() {
             />
           </div>
         )}
-        {/* Calibration: Video + Image tuners */}
-        <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
-          <PlacementTuner
-            title="Video tuner"
-            logTag="compete-video"
-            rows={VIDEO_SLIDER_ROWS}
-            defaults={DEFAULT_VIDEO_TRANSFORM}
-            transform={videoTransform}
-            onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
-          />
-          <PlacementTuner
-            title="Image tuner"
-            logTag="compete-image"
-            rows={IMAGE_SLIDER_ROWS}
-            defaults={DEFAULT_IMAGE_TRANSFORM}
-            transform={imageTransform}
-            onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
-          />
-        </div>
       </div>
     </div>
   );
