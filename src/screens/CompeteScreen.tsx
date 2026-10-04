@@ -46,8 +46,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *   bare seedling, over a static soil overlay.
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
- *   97%, slider hidden). Small Today's-tree card sits top-left with a slim
- *   Card-zoom slider (bottom-left). Heatmap + all tuner panels stay hidden.
+ *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
+ *   to 84% size. Heatmap + all tuner panels stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -56,7 +56,6 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
-  const [cardZoom, setCardZoom] = useState(1);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -178,7 +177,7 @@ export default function CompeteScreen() {
         {/* Today's status */}
         <div
           className="absolute left-4 top-4 z-20 w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl sm:left-6 sm:top-6"
-          style={{ transform: `scale(${cardZoom})`, transformOrigin: 'top left' }}
+          style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
         >
           <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
             Today's tree
@@ -208,27 +207,6 @@ export default function CompeteScreen() {
           onAdd={addDream}
           onRemove={removeDream}
         />
-
-        {/* Card zoom slider — scales the Today's tree card in/out */}
-        <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-            <span>Card zoom</span>
-            <span className="font-mono text-stone-400">{cardZoom.toFixed(2)}×</span>
-          </div>
-          <input
-            type="range"
-            min={0.5}
-            max={3}
-            step={0.01}
-            value={cardZoom}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              console.log('[compete-card]', `{ zoom: ${v.toFixed(2)} }`);
-              setCardZoom(v);
-            }}
-            className="mt-1.5 w-full accent-lime-300"
-          />
-        </div>
 
         {/* Slim progress slider — hidden for now, capped at 97% */}
         {SHOW_PROGRESS_SLIDER && (
