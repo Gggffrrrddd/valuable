@@ -36,13 +36,17 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        <img
-          src={src}
-          alt=""
-          draggable={false}
-          className="h-full w-full rounded-full object-cover"
-          style={{ boxShadow: GLOW }}
-        />
+        {/* Glossy sphere shell: clips the circle and sweeps the shine over a
+            perfectly static photo. The gold glow lives here as this element's
+            own box-shadow, so overflow clipping never eats it. */}
+        <div className="sphere-shine h-full w-full" style={{ boxShadow: GLOW }}>
+          <img
+            src={src}
+            alt=""
+            draggable={false}
+            className="h-full w-full rounded-full object-cover"
+          />
+        </div>
         <button
           type="button"
           onClick={onRemove}
