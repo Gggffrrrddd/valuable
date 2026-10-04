@@ -24,6 +24,11 @@ import {
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
 
+/** Slim Progress slider is hidden for now — the tree sits at a static 97%. */
+const SHOW_PROGRESS_SLIDER = false;
+/** Scrub cap: the slider never goes past 97%. */
+const PROGRESS_CAP = 0.97;
+
 /**
  * Compete: the daily-tree ritual.
  *
@@ -31,8 +36,10 @@ import type { CompeteGoal } from '@/types';
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
- * - Calibration controls: one slim Progress slider (scrub) + Video / Image
- *   placement tuners. The card, heatmap and mask tuner stay hidden.
+ * - Calibration controls: two light placement tuners (Video / Image).
+ *   The slim Progress slider is hidden for now — the tree sits at a static
+ *   97% (scrub cap 0.97 whenever it is re-enabled). Card + heatmap + mask
+ *   tuner stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -115,7 +122,8 @@ export default function CompeteScreen() {
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
-  const progress = progressOverride ?? autoProgress;
+  const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
+  const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
@@ -124,28 +132,29 @@ export default function CompeteScreen() {
         <TreeVideo transform={videoTransform} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={imageTransform} />
 
-        {/* Single slim progress slider — the only loose control on screen */}
-        <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-            <span>Progress</span>
-            <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
+        {/* Slim progress slider — hidden for now, capped at 97% */}
+        {SHOW_PROGRESS_SLIDER && (
+          <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+              <span>Progress</span>
+              <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={PROGRESS_CAP}
+              step={0.01}
+              value={scrubbed}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
+                setProgressOverride(v === autoProgress ? null : v);
+              }}
+              className="mt-1.5 w-full accent-lime-300"
+            />
           </div>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={progress}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
-              setProgressOverride(v === autoProgress ? null : v);
-            }}
-            className="mt-1.5 w-full accent-lime-300"
-          />
-        </div>
-
-        {/* Calibration: Video + Image tuners (mask + placement defaults) */}
+        )}
+        {/* Calibration: Video + Image tuners */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Video tuner"
