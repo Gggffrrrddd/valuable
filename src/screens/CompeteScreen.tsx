@@ -3,10 +3,13 @@ import { Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
+import DreamPicker from '@/components/compete/DreamPicker';
+import PlacementTuner from '@/components/compete/PlacementTuner';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
+  type SliderRow,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -14,6 +17,9 @@ import {
   fetchMinutesByDate,
   buildDayRecords,
   persistDayRecords,
+  uploadDreamImage,
+  saveDreamImages,
+  deleteDreamImage,
   dateKey,
   daysBetween,
   type DayRecord,
@@ -26,17 +32,25 @@ const SHOW_PROGRESS_SLIDER = false;
 const PROGRESS_CAP = 0.97;
 
 /**
+ * Dream tuner: independent zoom / move X / move Y per circle (0..2).
+ * Identity until tuned — calibration only, values get hardcoded once final.
+ */
+const DREAM_TUNE_DEFAULTS: Record<string, number> = {
+  d0zoom: 1, d0x: 0, d0y: 0,
+  d1zoom: 1, d1x: 0, d1y: 0,
+  d2zoom: 1, d2x: 0, d2y: 0,
+};
+
+/**
  * Compete: the daily-tree ritual.
  *
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
- * - No on-screen controls: placement + progress are hardcoded (tuners kept
- *   in the repo for restore). Progress sits at a static 97% (scrub cap 0.97
- *   when the hidden slider is re-enabled). Card + heatmap + tuner panels
- *   stay hidden. A vertical screen slider on the right edge slides the
- *   whole section up/down (±40px, subtle).
+ * - Dream circles crown the tree (max 3) with a per-circle Dream tuner.
+ *   Placement + progress are hardcoded (progress static 97%, slider hidden).
+ *   Card + heatmap + other tuner panels stay hidden.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -44,7 +58,8 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
-  const [sectionSlide, setSectionSlide] = useState(0);
+  const [dreamBusy, setDreamBusy] = useState(false);
+  const [dreamTune, setDreamTune] = useState<Record<string, number>>(DREAM_TUNE_DEFAULTS);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -66,6 +81,39 @@ export default function CompeteScreen() {
       console.error('Compete load error:', e);
     }
   }, [session]);
+
+  // Dream images: upload → optimistic row update → persist (max 3).
+  const addDream = async (file: File) => {
+    if (!session || !goal || dreamBusy) return;
+    const current = goal.dream_images ?? [];
+    if (current.length >= 3) return;
+    setDreamBusy(true);
+    try {
+      const url = await uploadDreamImage(session.user.id, file);
+      const next = [...current, url];
+      setGoal({ ...goal, dream_images: next });
+      await saveDreamImages(goal.id, next);
+    } catch (e) {
+      console.error('Dream image upload failed:', e);
+    } finally {
+      setDreamBusy(false);
+    }
+  };
+
+  const removeDream = async (index: number) => {
+    if (!session || !goal) return;
+    const current = goal.dream_images ?? [];
+    const target = current[index];
+    if (!target) return;
+    const next = current.filter((_, i) => i !== index);
+    setGoal({ ...goal, dream_images: next });
+    try {
+      await saveDreamImages(goal.id, next);
+      void deleteDreamImage(target);
+    } catch (e) {
+      console.error('Dream image remove failed:', e);
+    }
+  };
 
   useEffect(() => {
     if (!session) return;
@@ -121,65 +169,82 @@ export default function CompeteScreen() {
   const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
   const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
 
+  // Dream tuner: one zoom/X/Y group per existing circle, all independent.
+  const dreamCount = Math.min((goal.dream_images ?? []).length, 3);
+  const dreamRows: SliderRow<Record<string, number>>[] = [];
+  for (let i = 0; i < dreamCount; i++) {
+    dreamRows.push(
+      { key: `d${i}zoom`, label: `Circle ${i + 1} · Zoom`, min: 0.5, max: 3, step: 0.01 },
+      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -100, max: 100, step: 1 },
+      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -100, max: 100, step: 1 },
+    );
+  }
+  const dreamTransforms = [0, 1, 2].map((i) => ({
+    x: dreamTune[`d${i}x`] ?? 0,
+    y: dreamTune[`d${i}y`] ?? 0,
+    zoom: dreamTune[`d${i}zoom`] ?? 1,
+  }));
+
   return (
-    <div className="relative h-full w-full">
-      {/* ── Daily tree stage (full-bleed) — the whole section slides ────── */}
-      <div
-        className="relative flex h-full w-full flex-col overflow-y-auto"
-        style={{ transform: `translateY(${sectionSlide}px)` }}
-      >
-        <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-          <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-          <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+    <div className="relative flex h-full w-full flex-col overflow-y-auto">
+      {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-          {/* Slim progress slider — hidden for now, capped at 97% */}
-          {SHOW_PROGRESS_SLIDER && (
-            <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-                <span>Progress</span>
-                <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={PROGRESS_CAP}
-                step={0.01}
-                value={scrubbed}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
-                  setProgressOverride(v === autoProgress ? null : v);
-                }}
-                className="mt-1.5 w-full accent-lime-300"
-              />
+        {/* Dream images: bare glow circles crowning the tree */}
+        <DreamPicker
+          images={goal.dream_images ?? []}
+          transforms={dreamTransforms}
+          busy={dreamBusy}
+          onAdd={addDream}
+          onRemove={removeDream}
+        />
+
+        {/* Slim progress slider — hidden for now, capped at 97% */}
+        {SHOW_PROGRESS_SLIDER && (
+          <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+              <span>Progress</span>
+              <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
             </div>
-          )}
-        </div>
-      </div>
+            <input
+              type="range"
+              min={0}
+              max={PROGRESS_CAP}
+              step={0.01}
+              value={scrubbed}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
+                setProgressOverride(v === autoProgress ? null : v);
+              }}
+              className="mt-1.5 w-full accent-lime-300"
+            />
+          </div>
+        )}
 
-      {/* Vertical screen slider (right edge): slides the whole section up/down */}
-      <div className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-2 sm:right-6">
-        <div className="flex w-24 items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-          <span>Slide</span>
-          <span className="font-mono text-stone-400">
-            {sectionSlide > 0 ? `+${sectionSlide}` : sectionSlide}px
-          </span>
-        </div>
-        <div className="relative h-40 w-4">
-          <input
-            type="range"
-            min={-40}
-            max={40}
-            step={1}
-            value={sectionSlide}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              console.log('[compete-slide]', `{ slide: ${v} }`);
-              setSectionSlide(v);
-            }}
-            className="absolute left-1/2 top-1/2 h-4 w-40 -translate-x-1/2 -translate-y-1/2 rotate-90 accent-lime-300"
-          />
-        </div>
+        {/* Dream tuner: per-circle zoom / move (visible once a circle exists) */}
+        {dreamCount > 0 && (
+          <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
+            <PlacementTuner
+              title="Dream tuner (per circle)"
+              logTag="compete-dream"
+              rows={dreamRows}
+              defaults={DREAM_TUNE_DEFAULTS}
+              transform={dreamTune}
+              onChange={(patch) =>
+                setDreamTune((t) => {
+                  const next = { ...t };
+                  for (const [k, v] of Object.entries(patch)) {
+                    if (typeof v === 'number') next[k] = v;
+                  }
+                  return next;
+                })
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );
