@@ -52,7 +52,7 @@ export default function TreeVideo({
   return (
     <video
       ref={videoRef}
-      src="/visuals/compete/tree-growth.mp4"
+      src="/visuals/compete/tree-growth-2.mp4"
       muted
       playsInline
       className="absolute inset-0 h-full w-full object-cover"

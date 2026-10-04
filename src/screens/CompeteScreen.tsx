@@ -4,13 +4,17 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import PlacementTuner from '@/components/compete/PlacementTuner';
-import DreamPicker from '@/components/compete/DreamPicker';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
+  DEFAULT_VIDEO_MASK,
+  VIDEO_SLIDER_ROWS,
+  IMAGE_SLIDER_ROWS,
+  MASK_SLIDER_ROWS,
   PROGRESS_SLIDER_ROWS,
-  type SliderRow,
+  type VideoMask,
+  type PlacementTransform,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -18,9 +22,6 @@ import {
   fetchMinutesByDate,
   buildDayRecords,
   persistDayRecords,
-  uploadDreamImage,
-  saveDreamImages,
-  deleteDreamImage,
   dateKey,
   daysBetween,
   type DayRecord,
@@ -28,23 +29,13 @@ import {
 import type { CompeteGoal } from '@/types';
 
 /**
- * Dream tuner: independent zoom / move X / move Y per circle (0..2).
- * Identity until tuned — calibration only, values get hardcoded once final.
- */
-const DREAM_TUNE_DEFAULTS: Record<string, number> = {
-  d0zoom: 1, d0x: 0, d0y: 0,
-  d1zoom: 1, d1x: 0, d1y: 0,
-  d2zoom: 1, d2x: 0, d2y: 0,
-};
-
-/**
  * Compete: the daily-tree ritual.
  *
  * - Setup (tree wording) until a goal exists: exam date + daily hours.
- * - The tree view: the boy-watering-tree video seeks with today's tracked
+ * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
- *   bare seedling. Soil overlay + placement are hardcoded (values below);
- *   tuner: Progress (scrub).
+ *   bare seedling, over a static soil overlay.
+ * - Tuners: Progress (scrub), Video / Image (placement), Mask (halo).
  * - Below it: the long-term growth calendar (heatmap + stat chips), fed by
  *   the same per-day records persisted to compete_daily_progress.
  */
@@ -54,8 +45,9 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
-  const [dreamBusy, setDreamBusy] = useState(false);
-  const [dreamTune, setDreamTune] = useState<Record<string, number>>(DREAM_TUNE_DEFAULTS);
+  const [videoTransform, setVideoTransform] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
+  const [imageTransform, setImageTransform] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
+  const [videoMask, setVideoMask] = useState<VideoMask>(DEFAULT_VIDEO_MASK);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -77,39 +69,6 @@ export default function CompeteScreen() {
       console.error('Compete load error:', e);
     }
   }, [session]);
-
-  // Dream images: upload → optimistic row update → persist (max 3).
-  const addDream = async (file: File) => {
-    if (!session || !goal || dreamBusy) return;
-    const current = goal.dream_images ?? [];
-    if (current.length >= 3) return;
-    setDreamBusy(true);
-    try {
-      const url = await uploadDreamImage(session.user.id, file);
-      const next = [...current, url];
-      setGoal({ ...goal, dream_images: next });
-      await saveDreamImages(goal.id, next);
-    } catch (e) {
-      console.error('Dream image upload failed:', e);
-    } finally {
-      setDreamBusy(false);
-    }
-  };
-
-  const removeDream = async (index: number) => {
-    if (!session || !goal) return;
-    const current = goal.dream_images ?? [];
-    const target = current[index];
-    if (!target) return;
-    const next = current.filter((_, i) => i !== index);
-    setGoal({ ...goal, dream_images: next });
-    try {
-      await saveDreamImages(goal.id, next);
-      void deleteDreamImage(target);
-    } catch (e) {
-      console.error('Dream image remove failed:', e);
-    }
-  };
 
   useEffect(() => {
     if (!session) return;
@@ -166,39 +125,14 @@ export default function CompeteScreen() {
   const complete = progress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
-  // Dream tuner: one zoom/X/Y group per existing circle, all independent.
-  const dreamCount = Math.min((goal.dream_images ?? []).length, 3);
-  const dreamRows: SliderRow<Record<string, number>>[] = [];
-  for (let i = 0; i < dreamCount; i++) {
-    dreamRows.push(
-      { key: `d${i}zoom`, label: `Circle ${i + 1} · Zoom`, min: 0.5, max: 3, step: 0.01 },
-      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -100, max: 100, step: 1 },
-      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -100, max: 100, step: 1 },
-    );
-  }
-  const dreamTransforms = [0, 1, 2].map((i) => ({
-    x: dreamTune[`d${i}x`] ?? 0,
-    y: dreamTune[`d${i}y`] ?? 0,
-    zoom: dreamTune[`d${i}zoom`] ?? 1,
-  }));
-
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+        <TreeVideo transform={videoTransform} mask={videoMask} progress={progress} />
+        <SoilOverlay transform={imageTransform} />
 
-        {/* Dream images: bare glow circles crowning the tree */}
-        <DreamPicker
-          images={goal.dream_images ?? []}
-          transforms={dreamTransforms}
-          busy={dreamBusy}
-          onAdd={addDream}
-          onRemove={removeDream}
-        />
-
-        {/* Calibration: Progress + Dream tuners (placement hardcoded) */}
+        {/* Calibration: Progress, Video, Image and Mask tuners */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -211,24 +145,30 @@ export default function CompeteScreen() {
               setProgressOverride(v === autoProgress ? null : v);
             }}
           />
-          {dreamCount > 0 && (
-            <PlacementTuner
-              title="Dream tuner (per circle)"
-              logTag="compete-dream"
-              rows={dreamRows}
-              defaults={DREAM_TUNE_DEFAULTS}
-              transform={dreamTune}
-              onChange={(patch) =>
-                setDreamTune((t) => {
-                  const next = { ...t };
-                  for (const [k, v] of Object.entries(patch)) {
-                    if (typeof v === 'number') next[k] = v;
-                  }
-                  return next;
-                })
-              }
-            />
-          )}
+          <PlacementTuner
+            title="Video tuner"
+            logTag="compete-video"
+            rows={VIDEO_SLIDER_ROWS}
+            defaults={DEFAULT_VIDEO_TRANSFORM}
+            transform={videoTransform}
+            onChange={(patch) => setVideoTransform((t) => ({ ...t, ...patch }))}
+          />
+          <PlacementTuner
+            title="Image tuner"
+            logTag="compete-image"
+            rows={IMAGE_SLIDER_ROWS}
+            defaults={DEFAULT_IMAGE_TRANSFORM}
+            transform={imageTransform}
+            onChange={(patch) => setImageTransform((t) => ({ ...t, ...patch }))}
+          />
+          <PlacementTuner
+            title="Mask tuner (halo)"
+            logTag="compete-mask"
+            rows={MASK_SLIDER_ROWS}
+            defaults={DEFAULT_VIDEO_MASK}
+            transform={videoMask}
+            onChange={(patch) => setVideoMask((m) => ({ ...m, ...patch }))}
+          />
         </div>
       </div>
 
