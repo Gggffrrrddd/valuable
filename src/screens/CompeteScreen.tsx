@@ -174,22 +174,22 @@ export default function CompeteScreen() {
         <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Today's tree card — small + light, top-left corner */}
-        <div className="absolute left-4 top-4 z-20 w-44 rounded-[1rem] border border-white/[.07] bg-black/40 p-3 backdrop-blur-xl sm:left-6 sm:top-6">
+        {/* Today's status */}
+        <div className="absolute left-4 top-4 z-20 w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl sm:left-6 sm:top-6">
           <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
             Today's tree
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1.5 font-display text-2xl font-extrabold tracking-[-.03em] text-stone-50">
+          <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
             {(todayMinutes / 60).toFixed(1)}
-            <span className="text-sm text-stone-500">/ {goal.daily_target_hours}h</span>
+            <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
-              style={{ width: `${Math.round(autoProgress * 100)}%` }}
+              style={{ width: `${Math.round(progress * 100)}%` }}
             />
           </div>
-          <div className="mt-1.5 text-[11px] leading-4 text-stone-500">
+          <div className="mt-2 text-[11px] leading-4 text-stone-500">
             {complete
               ? 'Fully grown — target met.'
               : `${remaining}m to full bloom · resets at midnight`}
