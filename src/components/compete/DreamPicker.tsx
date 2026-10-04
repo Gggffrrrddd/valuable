@@ -1,9 +1,13 @@
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Plus, X } from 'lucide-react';
+import type { PlacementTransform } from './placementConfig';
 
 /** Up to 3 dream circles crown the tree. */
 const MAX_DREAM_IMAGES = 3;
+
+/** No-op transform for circles without a tuner entry. */
+const IDENTITY: PlacementTransform = { x: 0, y: 0, zoom: 1 };
 
 /**
  * Ambient gold glow behind each circle: soft radial falloff extending past
@@ -14,30 +18,40 @@ const GLOW = '0 0 40px 12px rgba(246, 227, 186, 0.25)';
 function DreamCircle({
   src,
   offsetClass = '',
+  transform,
   onRemove,
 }: {
   src: string;
   /** Arc offset, e.g. sides sit lower than the centre circle. */
   offsetClass?: string;
+  /** Per-circle tuner transform (zoom / move X / move Y). */
+  transform: PlacementTransform;
   onRemove: () => void;
 }) {
   return (
     <div className={`group relative h-14 w-14 shrink-0 sm:h-16 sm:w-16 ${offsetClass}`}>
-      <img
-        src={src}
-        alt=""
-        draggable={false}
-        className="h-full w-full rounded-full object-cover"
-        style={{ boxShadow: GLOW }}
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Remove dream image"
-        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-black/75 text-stone-300 transition hover:border-[#f6e3ba]/60 hover:text-[#f6e3ba] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      <div
+        className="relative h-full w-full"
+        style={{
+          transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
+        }}
       >
-        <X className="h-3 w-3" />
-      </button>
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          className="h-full w-full rounded-full object-cover"
+          style={{ boxShadow: GLOW }}
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove dream image"
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-black/75 text-stone-300 transition hover:border-[#f6e3ba]/60 hover:text-[#f6e3ba] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -49,11 +63,14 @@ function DreamCircle({
  */
 export default function DreamPicker({
   images,
+  transforms,
   busy = false,
   onAdd,
   onRemove,
 }: {
   images: string[];
+  /** Per-index transform (zoom / move X / move Y); missing entries = identity. */
+  transforms?: PlacementTransform[];
   busy?: boolean;
   onAdd: (file: File) => void;
   onRemove: (index: number) => void;
@@ -84,6 +101,7 @@ export default function DreamPicker({
       key={`dream-${i}`}
       src={images[i]}
       offsetClass={offsetClass}
+      transform={transforms?.[i] ?? IDENTITY}
       onRemove={() => onRemove(i)}
     />
   );

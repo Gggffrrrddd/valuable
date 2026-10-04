@@ -10,6 +10,7 @@ import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   PROGRESS_SLIDER_ROWS,
+  type SliderRow,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -25,6 +26,16 @@ import {
   type DayRecord,
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
+
+/**
+ * Dream tuner: independent zoom / move X / move Y per circle (0..2).
+ * Identity until tuned — calibration only, values get hardcoded once final.
+ */
+const DREAM_TUNE_DEFAULTS: Record<string, number> = {
+  d0zoom: 1, d0x: 0, d0y: 0,
+  d1zoom: 1, d1x: 0, d1y: 0,
+  d2zoom: 1, d2x: 0, d2y: 0,
+};
 
 /**
  * Compete: the daily-tree ritual.
@@ -44,6 +55,7 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
+  const [dreamTune, setDreamTune] = useState<Record<string, number>>(DREAM_TUNE_DEFAULTS);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -154,6 +166,22 @@ export default function CompeteScreen() {
   const complete = progress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
+  // Dream tuner: one zoom/X/Y group per existing circle, all independent.
+  const dreamCount = Math.min((goal.dream_images ?? []).length, 3);
+  const dreamRows: SliderRow<Record<string, number>>[] = [];
+  for (let i = 0; i < dreamCount; i++) {
+    dreamRows.push(
+      { key: `d${i}zoom`, label: `Circle ${i + 1} · Zoom`, min: 0.5, max: 3, step: 0.01 },
+      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -100, max: 100, step: 1 },
+      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -100, max: 100, step: 1 },
+    );
+  }
+  const dreamTransforms = [0, 1, 2].map((i) => ({
+    x: dreamTune[`d${i}x`] ?? 0,
+    y: dreamTune[`d${i}y`] ?? 0,
+    zoom: dreamTune[`d${i}zoom`] ?? 1,
+  }));
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (top, full-bleed, tuner-calibrated) ────────── */}
@@ -164,12 +192,13 @@ export default function CompeteScreen() {
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
           images={goal.dream_images ?? []}
+          transforms={dreamTransforms}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
         />
 
-        {/* Calibration: Progress tuner only (placement + halo hardcoded) */}
+        {/* Calibration: Progress + Dream tuners (placement hardcoded) */}
         <div className="absolute bottom-4 right-4 z-20 flex w-60 flex-col gap-3 sm:bottom-6 sm:right-6">
           <PlacementTuner
             title="Progress tuner"
@@ -182,6 +211,24 @@ export default function CompeteScreen() {
               setProgressOverride(v === autoProgress ? null : v);
             }}
           />
+          {dreamCount > 0 && (
+            <PlacementTuner
+              title="Dream tuner (per circle)"
+              logTag="compete-dream"
+              rows={dreamRows}
+              defaults={DREAM_TUNE_DEFAULTS}
+              transform={dreamTune}
+              onChange={(patch) =>
+                setDreamTune((t) => {
+                  const next = { ...t };
+                  for (const [k, v] of Object.entries(patch)) {
+                    if (typeof v === 'number') next[k] = v;
+                  }
+                  return next;
+                })
+              }
+            />
+          )}
         </div>
       </div>
 
