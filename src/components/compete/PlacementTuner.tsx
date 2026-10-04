@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { SliderRow } from './placementConfig';
 
 interface PlacementTunerProps<T extends { [K in keyof T]: number }> {
@@ -15,6 +16,34 @@ function logValues<T extends { [K in keyof T]: number }>(logTag: string, t: T) {
     .map(([k, v]) => `${k}: ${v}`)
     .join(', ');
   console.log(`[${logTag}]`, `{ ${line} }`, t);
+}
+
+/** Editable value box: type a precise value — stays in sync with the slider. */
+function NumberBox({
+  value,
+  step,
+  onCommit,
+}: {
+  value: number;
+  step: number;
+  onCommit: (v: number) => void;
+}) {
+  const [edit, setEdit] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      step={step}
+      value={edit ?? String(value)}
+      onFocus={() => setEdit(String(value))}
+      onChange={(e) => {
+        setEdit(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value.trim() !== '' && Number.isFinite(n)) onCommit(n);
+      }}
+      onBlur={() => setEdit(null)}
+      className="w-20 rounded-md border border-white/10 bg-black/50 px-1.5 py-0.5 text-right font-mono text-[10px] text-stone-200 outline-none focus:border-lime-300/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+    />
+  );
 }
 
 /** Live placement tuner: zoom, left/right, up/down — used for video and image. */
@@ -54,9 +83,11 @@ export default function PlacementTuner<T extends { [K in keyof T]: number }>({
         <label key={row.key} className="block">
           <span className="flex items-center justify-between text-xs font-bold text-stone-300">
             {row.label}
-            <span className="font-mono text-[10px] text-stone-500">
-              {transform[row.key].toFixed(2)}
-            </span>
+            <NumberBox
+              value={transform[row.key]}
+              step={row.step}
+              onCommit={(n) => update({ [row.key]: n } as Partial<T>)}
+            />
           </span>
           <input
             type="range"
