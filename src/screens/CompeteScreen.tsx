@@ -35,7 +35,7 @@ const PROGRESS_CAP = 0.97;
  * - No on-screen controls: placement + progress are hardcoded (tuners kept
  *   in the repo for restore). Progress sits at a static 97% (scrub cap 0.97
  *   when the hidden slider is re-enabled). Card + heatmap + tuner panels
- *   stay hidden.
+ *   stay hidden. One slim screen slider nudges the whole section ±40px.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -43,6 +43,7 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
+  const [sectionSlide, setSectionSlide] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -120,34 +121,62 @@ export default function CompeteScreen() {
   const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (full-bleed, tuner-calibrated) ─────────────── */}
-      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+    <div className="relative h-full w-full">
+      {/* ── Daily tree stage (full-bleed) — the whole section slides ────── */}
+      <div
+        className="relative flex h-full w-full flex-col overflow-y-auto"
+        style={{ transform: `translateX(${sectionSlide}px)` }}
+      >
+        <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+          <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+          <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Slim progress slider — hidden for now, capped at 97% */}
-        {SHOW_PROGRESS_SLIDER && (
-          <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-              <span>Progress</span>
-              <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
+          {/* Slim progress slider — hidden for now, capped at 97% */}
+          {SHOW_PROGRESS_SLIDER && (
+            <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+                <span>Progress</span>
+                <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={PROGRESS_CAP}
+                step={0.01}
+                value={scrubbed}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
+                  setProgressOverride(v === autoProgress ? null : v);
+                }}
+                className="mt-1.5 w-full accent-lime-300"
+              />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={PROGRESS_CAP}
-              step={0.01}
-              value={scrubbed}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
-                setProgressOverride(v === autoProgress ? null : v);
-              }}
-              className="mt-1.5 w-full accent-lime-300"
-            />
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+
+      {/* Screen slider: nudges the entire Compete section (±40px, subtle) */}
+      <div className="absolute bottom-4 left-4 z-30 w-44 sm:bottom-6 sm:left-6">
+        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+          <span>Slide</span>
+          <span className="font-mono text-stone-400">
+            {sectionSlide > 0 ? `+${sectionSlide}` : sectionSlide}px
+          </span>
+        </div>
+        <input
+          type="range"
+          min={-40}
+          max={40}
+          step={1}
+          value={sectionSlide}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            console.log('[compete-slide]', `{ slide: ${v} }`);
+            setSectionSlide(v);
+          }}
+          className="mt-1.5 w-full accent-lime-300"
+        />
       </div>
     </div>
   );
