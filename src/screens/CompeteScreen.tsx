@@ -170,13 +170,15 @@ export default function CompeteScreen() {
   const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
 
   // Dream tuner: one zoom/X/Y group per existing circle, all independent.
+  // Move range is huge (±4000% of the circle's own size ≈ ±2560px) so a
+  // circle can be slid anywhere across the whole screen.
   const dreamCount = Math.min((goal.dream_images ?? []).length, 3);
   const dreamRows: SliderRow<Record<string, number>>[] = [];
   for (let i = 0; i < dreamCount; i++) {
     dreamRows.push(
       { key: `d${i}zoom`, label: `Circle ${i + 1} · Zoom`, min: 0.5, max: 3, step: 0.01 },
-      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -100, max: 100, step: 1 },
-      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -100, max: 100, step: 1 },
+      { key: `d${i}x`, label: `Circle ${i + 1} · Move X (left / right)`, min: -4000, max: 4000, step: 1 },
+      { key: `d${i}y`, label: `Circle ${i + 1} · Move Y (up / down)`, min: -4000, max: 4000, step: 1 },
     );
   }
   const dreamTransforms = [0, 1, 2].map((i) => ({
