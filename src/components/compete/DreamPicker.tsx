@@ -11,6 +11,13 @@ const MAX_DREAM_IMAGES = 3;
 const IDENTITY: PlacementTransform = { x: 0, y: 0, zoom: 1 };
 
 /**
+ * TEMPORARY switch: false = original simple flat circles (photo badge,
+ * halo on the img itself); flip on to restore the 3D rotating spheres
+ * (DreamSphere) with the hardcoded stretch.
+ */
+const USE_DREAM_SPHERE = false;
+
+/**
  * Ambient gold glow behind each circle: soft radial falloff extending past
  * the edge — light from behind, not a drawn ring. No border on the circle.
  */
@@ -28,7 +35,7 @@ function DreamCircle({
   offsetClass?: string;
   /** Per-circle tuner transform (zoom / move X / move Y). */
   transform: PlacementTransform;
-  /** Texture stretch (temporary tuner) for this sphere. */
+  /** Texture stretch — only used when USE_DREAM_SPHERE is on. */
   stretch: DreamStretch;
   onRemove: () => void;
 }) {
@@ -40,10 +47,23 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        {/* Soft gold halo — stays outside the 3D scene, unchanged */}
-        <div className="absolute inset-0 rounded-full" style={{ boxShadow: GLOW }} />
-        {/* Real 3D sphere: photo wrapped around geometry, slow Y spin */}
-        <DreamSphere src={src} stretch={stretch} />
+        {USE_DREAM_SPHERE ? (
+          <>
+            {/* Soft gold halo — stays outside the 3D scene, unchanged */}
+            <div className="absolute inset-0 rounded-full" style={{ boxShadow: GLOW }} />
+            {/* Real 3D sphere: photo wrapped around geometry, slow Y spin */}
+            <DreamSphere src={src} stretch={stretch} />
+          </>
+        ) : (
+          /* Original simple circle: flat photo, halo on the img itself. */
+          <img
+            src={src}
+            alt=""
+            draggable={false}
+            className="h-full w-full rounded-full object-cover"
+            style={{ boxShadow: GLOW }}
+          />
+        )}
         <button
           type="button"
           onClick={onRemove}
@@ -58,10 +78,11 @@ function DreamCircle({
 }
 
 /**
- * Dream circles above the tree — each badge is a real 3D sphere (photo
- * wrapped on geometry, slow Y spin) with a soft gold halo, no cards or
- * labels. Add button sits in the gap while under the max; at 3 images the
- * circles arc around the top of the tree instead of forming a flat row.
+ * Dream circles above the tree — currently the original simple flat
+ * photo circles with a soft gold halo, no cards or labels (USE_DREAM_SPHERE
+ * flag restores the 3D spinning spheres). Add button sits in the gap while
+ * under the max; at 3 images the circles arc around the top of the tree
+ * instead of forming a flat row.
  */
 export default function DreamPicker({
   images,

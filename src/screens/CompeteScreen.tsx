@@ -56,8 +56,9 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
- *   to 84% size. Heatmap + other tuner panels stay hidden; dream stretch
- *   is hardcoded (x 4, y 1.9), its tuner off behind a flag.
+ *   to 84% size. Heatmap + other tuner panels stay hidden; dream circles
+ *   are the original flat photo circles (3D sphere behind USE_DREAM_SPHERE
+ *   flag; stretch hardcoded x 4, y 1.9, its tuner off).
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
