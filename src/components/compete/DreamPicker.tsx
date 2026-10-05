@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { PlacementTransform } from './placementConfig';
+import DreamSphere from './DreamSphere';
 
 /** Up to 3 dream circles crown the tree. */
 const MAX_DREAM_IMAGES = 3;
@@ -36,17 +37,10 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        {/* Glossy sphere shell: clips the circle and sweeps the shine over a
-            perfectly static photo. The gold glow lives here as this element's
-            own box-shadow, so overflow clipping never eats it. */}
-        <div className="sphere-shine h-full w-full" style={{ boxShadow: GLOW }}>
-          <img
-            src={src}
-            alt=""
-            draggable={false}
-            className="h-full w-full rounded-full object-cover"
-          />
-        </div>
+        {/* Soft gold halo — stays outside the 3D scene, unchanged */}
+        <div className="absolute inset-0 rounded-full" style={{ boxShadow: GLOW }} />
+        {/* Real 3D sphere: photo wrapped around geometry, slow Y spin */}
+        <DreamSphere src={src} />
         <button
           type="button"
           onClick={onRemove}
@@ -61,7 +55,8 @@ function DreamCircle({
 }
 
 /**
- * Bare circular dream images above the tree — soft gold halo, no cards or
+ * Dream circles above the tree — each badge is a real 3D sphere (photo
+ * wrapped on geometry, slow Y spin) with a soft gold halo, no cards or
  * labels. Add button sits in the gap while under the max; at 3 images the
  * circles arc around the top of the tree instead of forming a flat row.
  */
