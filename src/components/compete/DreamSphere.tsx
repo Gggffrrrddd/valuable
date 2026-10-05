@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { SRGBColorSpace, MirroredRepeatWrapping, ClampToEdgeWrapping } from 'three';
+import { SRGBColorSpace, RepeatWrapping, ClampToEdgeWrapping } from 'three';
 import type { Mesh, Texture } from 'three';
 import { useTextureLoader } from '@/components/focus-visuals/model-core';
 
@@ -13,16 +13,17 @@ const MAX_STEP = 0.1;
 function SpinSphere({ texture }: { texture: Texture }) {
   const ref = useRef<Mesh>(null);
   texture.colorSpace = SRGBColorSpace;
-  // Dual-sided photo mapping: repeat.x = 2 + mirrored S-wrap is exactly
-  // equivalent to a [original | mirror] strip with standard UVs — the
-  // FRONT hemisphere shows the full original, the BACK hemisphere the same
-  // image horizontally mirrored (so it reads correctly once rotated 180°).
-  // Both joins are perfect mirror creases: each image edge meets its own
-  // edge, so content is continuous — no overlap, no blend, no tear.
+  // Dual-copy mapping, BOTH UPRIGHT: repeat.x = 2 puts a full copy of the
+  // photo on the front hemisphere AND an identical (non-mirrored) copy on
+  // the back. Turning the ball around to the back shows the same upright
+  // picture — viewing the back after a 180° turn is geometrically the same
+  // as walking around to it, so no flip. Trade-off vs mirroring: each
+  // join is a right-edge→left-edge seam (a thin line only while that
+  // seamline rotates through view; invisible head-on at 0°/180°).
   // Full image maps to full latitude/longitude: nothing is cropped, so
   // no contain-padding is needed; only the outermost ~5% at each rim sits
   // just past the silhouette (hidden around the corner, not cut).
-  texture.wrapS = MirroredRepeatWrapping;
+  texture.wrapS = RepeatWrapping;
   texture.wrapT = ClampToEdgeWrapping;
   texture.repeat.set(2, 1);
   useFrame((_state, delta) => {
@@ -68,9 +69,9 @@ function useTabVisible() {
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
  * Framing: camera z = 2.59 makes the silhouette meet the circular glow's
- * inner edge with zero gap (see camera comment). Texture: dual-sided
- * [original | mirrored] mapping — one full readable copy per hemisphere,
- * mirror creases at both joins.
+ * inner edge with zero gap (see camera comment). Texture: two upright
+ * copies (front + back) via repeat.x = 2 — the same readable photo greets
+ * you from either side, no mirroring.
  * Sizing: resize.offsetSize keeps the canvas CSS box equal to the layout
  * box even under the wrapper's scale() transform (see the comment on
  * <Canvas>) — without it the render is cropped by the overflow:hidden
