@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Sprout } from 'lucide-react';
+import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
 import PlacementTuner from '@/components/compete/PlacementTuner';
+import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
@@ -42,10 +43,10 @@ const PROGRESS_CAP = 0.97;
  */
 const SHOW_DREAM_STRETCH_TUNER = false;
 /**
- * TEMPORARY gold-ring width tuner — tune live, then hardcode the value
- * into DEFAULT_RING and flip this off.
+ * Gold-ring width tuner is HIDDEN — width is hardcoded (0.55 base px);
+ * flip this on to re-tune live (rows stay in placementConfig).
  */
-const SHOW_RING_TUNER = true;
+const SHOW_RING_TUNER = false;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -64,9 +65,10 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
- *   to 84% size. Heatmap + other tuner panels stay hidden; dream circles
- *   are flat photo circles with a premium gold ring + rose-pink glow
- *   (ring width tuned live bottom-right while its flag is on).
+ *   to 84% size, with a small "See overall tracker" text link under it
+ *   that opens the growth-calendar module (overlay, not a page). Heatmap
+ *   inline + other tuner panels stay hidden; dream circles are flat photo
+ *   circles with a premium gold ring (hardcoded 0.55) + rose-pink glow.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -79,6 +81,8 @@ export default function CompeteScreen() {
   const [dreamStretch, setDreamStretch] = useState<DreamStretch>(DEFAULT_DREAM_STRETCH);
   /** TEMPORARY: live gold-ring width (base px) on the dream circles. */
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
+  /** Overall-tracker module (growth calendar) open state. */
+  const [trackerOpen, setTrackerOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -158,6 +162,16 @@ export default function CompeteScreen() {
     };
   }, [session, refresh]);
 
+  // Tracker module: Escape closes it.
+  useEffect(() => {
+    if (!trackerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTrackerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [trackerOpen]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-stone-500">
@@ -197,29 +211,38 @@ export default function CompeteScreen() {
         <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
-        {/* Today's status */}
+        {/* Today's status (+ overall-tracker text link underneath) */}
         <div
-          className="absolute left-4 top-4 z-20 w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl sm:left-6 sm:top-6"
+          className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
           style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
         >
-          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-            Today's tree
+          <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
+            <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+              Today's tree
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
+              {(todayMinutes / 60).toFixed(1)}
+              <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
+            </div>
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+            <div className="mt-2 text-[11px] leading-4 text-stone-500">
+              {complete
+                ? 'Fully grown — target met.'
+                : `${remaining}m to full bloom · resets at midnight`}
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
-            {(todayMinutes / 60).toFixed(1)}
-            <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
-          </div>
-          <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
-          <div className="mt-2 text-[11px] leading-4 text-stone-500">
-            {complete
-              ? 'Fully grown — target met.'
-              : `${remaining}m to full bloom · resets at midnight`}
-          </div>
+          <button
+            type="button"
+            onClick={() => setTrackerOpen(true)}
+            className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
+          >
+            See overall tracker
+          </button>
         </div>
 
         {/* Dream images: bare glow circles crowning the tree */}
@@ -284,6 +307,40 @@ export default function CompeteScreen() {
           </div>
         )}
       </div>
+
+      {/* Overall tracker module — big overlay with the growth calendar
+          (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
+      {trackerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setTrackerOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Overall tracker"
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="max-h-[86vh] overflow-y-auto">
+              <GoalHeatmap
+                startDate={goal.start_date || goal.created_at.slice(0, 10)}
+                examDate={goal.exam_date}
+                targetHours={Number(goal.daily_target_hours)}
+                records={records}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setTrackerOpen(false)}
+              aria-label="Close tracker"
+              className="absolute -top-4 right-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/75 text-stone-300 transition hover:border-[#f6e3ba]/60 hover:text-[#f6e3ba]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
