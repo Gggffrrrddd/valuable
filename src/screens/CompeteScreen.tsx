@@ -34,10 +34,11 @@ const SHOW_PROGRESS_SLIDER = false;
 /** Scrub cap: the slider never goes past 97%. */
 const PROGRESS_CAP = 0.97;
 /**
- * TEMPORARY dream-stretch tuner — values are HARDCODED in
- * DEFAULT_DREAM_STRETCH (x 4, y 1.9); flip this on to re-tune live.
+ * TEMPORARY dream-stretch tuner for the flat circles — values start
+ * neutral; tune live, then hardcode them into DEFAULT_DREAM_STRETCH
+ * and flip this off.
  */
-const SHOW_DREAM_STRETCH_TUNER = false;
+const SHOW_DREAM_STRETCH_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -57,8 +58,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
  *   to 84% size. Heatmap + other tuner panels stay hidden; dream circles
- *   are the original flat photo circles (3D sphere behind USE_DREAM_SPHERE
- *   flag; stretch hardcoded x 4, y 1.9, its tuner off).
+ *   are flat photo circles with a live stretch tuner (bottom-right,
+ *   temporary — hardcode + flip its flag off when final).
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -67,7 +68,7 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
-  /** TEMPORARY: live stretch of the photo on the dream spheres. */
+  /** TEMPORARY: live CSS stretch of the photo on the dream circles. */
   const [dreamStretch, setDreamStretch] = useState<DreamStretch>(DEFAULT_DREAM_STRETCH);
 
   const refresh = useCallback(async () => {

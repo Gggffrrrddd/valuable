@@ -2,20 +2,12 @@ import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import { DEFAULT_DREAM_STRETCH, type PlacementTransform, type DreamStretch } from './placementConfig';
-import DreamSphere from './DreamSphere';
 
 /** Up to 3 dream circles crown the tree. */
 const MAX_DREAM_IMAGES = 3;
 
 /** No-op transform for circles without a tuner entry. */
 const IDENTITY: PlacementTransform = { x: 0, y: 0, zoom: 1 };
-
-/**
- * TEMPORARY switch: false = original simple flat circles (photo badge,
- * halo on the img itself); flip on to restore the 3D rotating spheres
- * (DreamSphere) with the hardcoded stretch.
- */
-const USE_DREAM_SPHERE = false;
 
 /**
  * Ambient gold glow behind each circle: soft radial falloff extending past
@@ -35,7 +27,7 @@ function DreamCircle({
   offsetClass?: string;
   /** Per-circle tuner transform (zoom / move X / move Y). */
   transform: PlacementTransform;
-  /** Texture stretch — only used when USE_DREAM_SPHERE is on. */
+  /** Stretch tuner scale for the flat photo (CSS scale inside the clip). */
   stretch: DreamStretch;
   onRemove: () => void;
 }) {
@@ -47,23 +39,17 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        {USE_DREAM_SPHERE ? (
-          <>
-            {/* Soft gold halo — stays outside the 3D scene, unchanged */}
-            <div className="absolute inset-0 rounded-full" style={{ boxShadow: GLOW }} />
-            {/* Real 3D sphere: photo wrapped around geometry, slow Y spin */}
-            <DreamSphere src={src} stretch={stretch} />
-          </>
-        ) : (
-          /* Original simple circle: flat photo, halo on the img itself. */
+        {/* Simple flat circle: gold halo on the clip wrapper, photo scaled
+            live by the stretch tuner inside the fixed circular clip. */}
+        <div className="absolute inset-0 overflow-hidden rounded-full" style={{ boxShadow: GLOW }}>
           <img
             src={src}
             alt=""
             draggable={false}
-            className="h-full w-full rounded-full object-cover"
-            style={{ boxShadow: GLOW }}
+            className="h-full w-full object-cover"
+            style={{ transform: `scale(${stretch.x}, ${stretch.y})` }}
           />
-        )}
+        </div>
         <button
           type="button"
           onClick={onRemove}
@@ -78,11 +64,10 @@ function DreamCircle({
 }
 
 /**
- * Dream circles above the tree — currently the original simple flat
- * photo circles with a soft gold halo, no cards or labels (USE_DREAM_SPHERE
- * flag restores the 3D spinning spheres). Add button sits in the gap while
- * under the max; at 3 images the circles arc around the top of the tree
- * instead of forming a flat row.
+ * Dream circles above the tree — simple flat photo circles with a soft
+ * gold halo, no cards or labels; the photo scales live with the stretch
+ * tuner. Add button sits in the gap while under the max; at 3 images the
+ * circles arc around the top of the tree instead of forming a flat row.
  */
 export default function DreamPicker({
   images,

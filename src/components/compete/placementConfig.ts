@@ -66,19 +66,19 @@ export const IMAGE_SLIDER_ROWS: SliderRow[] = [
 ];
 
 /**
- * Dream-image stretch on the sphere (texture repeat). Values hardcoded
- * from the live tuner; DREAM_STRETCH_SLIDER_ROWS stays here so the
- * tuner can be restored instantly (flip SHOW_DREAM_STRETCH_TUNER on).
+ * Flat-circle photo stretch: CSS scale of the image inside its fixed
+ * circular clip. 1 = original fit; tuned live via SHOW_DREAM_STRETCH_TUNER,
+ * then hardcoded here when final.
  */
 export interface DreamStretch {
-  /** Horizontal: longitude the photo spans (2 = one full copy per hemisphere). */
+  /** Horizontal scale (1 = original, >1 = stretched wider). */
   x: number;
-  /** Vertical: latitude the photo spans (1 = pole-to-pole, centred). */
+  /** Vertical scale (1 = original, >1 = stretched taller). */
   y: number;
 }
 
-/** Hardcoded stretch (read off the Dream stretch tuner). */
-export const DEFAULT_DREAM_STRETCH: DreamStretch = { x: 4, y: 1.9 };
+/** Starting values — neutral; tune live and hardcode when final. */
+export const DEFAULT_DREAM_STRETCH: DreamStretch = { x: 1, y: 1 };
 
 export const DREAM_STRETCH_SLIDER_ROWS: SliderRow<DreamStretch>[] = [
   { key: 'x', label: 'Stretch X (horizontal)', min: 0.5, max: 4, step: 0.01 },
