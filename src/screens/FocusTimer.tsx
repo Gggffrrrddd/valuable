@@ -353,7 +353,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-[#030408]' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
@@ -372,8 +372,8 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
         <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
-          <div className={visualTheme === 'solar-system' ? 'flex w-full flex-1 items-center justify-center' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
-            <div className={visualTheme === 'solar-system' ? 'relative flex aspect-square w-full max-w-2xl items-center justify-center sm:aspect-[4/3] md:aspect-[16/10] lg:max-h-[78vh] lg:max-w-4xl' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
+          <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
+            <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
               <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
               {visualTheme === 'solar-system' && (
                 <SolarTimerDigits

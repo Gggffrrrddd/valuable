@@ -950,15 +950,7 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
     !!neptuneTex;
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/5 bg-black/40 shadow-2xl backdrop-blur-sm">
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 70% at 50% 42%, rgba(48,64,140,.20) 0%, rgba(88,60,180,.08) 45%, transparent 70%), radial-gradient(ellipse 120% 100% at 50% 110%, rgba(10,14,34,.55) 0%, transparent 60%)',
-        }}
-      />
+    <div className="relative h-full w-full overflow-hidden bg-black">
       <Canvas
         camera={{ position: [0, 8.5, 13], fov: 40, near: 0.1, far: 120 }}
         dpr={[1, 1.75]}
@@ -1017,7 +1009,7 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
         aria-hidden="true"
         style={{
           background:
-            'radial-gradient(ellipse at center, transparent 52%, rgba(2,4,10,.42) 82%, rgba(1,2,6,.78) 100%)',
+            'radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,.5) 82%, rgba(0,0,0,1) 100%)',
         }}
       />
     </div>
