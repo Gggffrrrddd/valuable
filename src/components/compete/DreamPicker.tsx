@@ -52,7 +52,7 @@ function DreamCircle({
           style={{
             inset: '-1.5px',
             background:
-              'linear-gradient(145deg, #faf1d4 0%, #f3e0ab 30%, #ebd093 55%, #f8ecc8 80%, #fffcf2 100%)',
+              'linear-gradient(145deg, #fdf0cd 0%, #f0d089 22%, #cf9f3a 50%, #a87b25 68%, #f2d48f 88%, #fff8e6 100%)',
             boxShadow: GLOW,
           }}
         />
