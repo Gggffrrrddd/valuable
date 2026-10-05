@@ -1,48 +1,144 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { SRGBColorSpace, MirroredRepeatWrapping, ClampToEdgeWrapping } from 'three';
-import type { Mesh, Texture } from 'three';
+import { AdditiveBlending, Color, FrontSide, SRGBColorSpace } from 'three';
+import type { Group, Mesh, Texture } from 'three';
 import { useTextureLoader } from '@/components/focus-visuals/model-core';
 
-/** One full Y rotation every 15 s — slow, constant, no easing. */
+/** One full revolution every 15 s — slow, constant, no easing. */
 const SPIN_RAD_PER_SEC = (Math.PI * 2) / 15;
-/** Clamp so waking the tab never causes a giant rotation jump. */
+/** Clamp so waking the tab never causes a giant jump. */
 const MAX_STEP = 0.1;
+/** Keep the photo's corners this far inside the shell radius (1). */
+const PLANE_RADIUS = 0.95;
 
-/** Y-axis spinner: the photo is genuinely wrapped around 3D geometry. */
-function SpinSphere({ texture }: { texture: Texture }) {
-  const ref = useRef<Mesh>(null);
+/**
+ * Layer 2 — static billboard photo. Contain-fit: the rectangle of the
+ * image's own aspect inscribed inside a circle of PLANE_RADIUS, so the
+ * FULL uploaded image is visible (no crop, no stretch) and its corners
+ * never poke through the glass shell. The mesh carries no rotation at
+ * all — camera is static, so the picture is pixel-stable forever.
+ */
+function PhotoPlane({ texture }: { texture: Texture }) {
   texture.colorSpace = SRGBColorSpace;
-  // Dual-sided photo mapping: repeat.x = 2 + mirrored S-wrap is exactly
-  // equivalent to a [original | mirror] strip with standard UVs — the
-  // FRONT hemisphere shows the full original, the BACK hemisphere the same
-  // image horizontally mirrored (so it reads correctly once rotated 180°).
-  // Both joins are perfect mirror creases: each image edge meets its own
-  // edge, so content is continuous — no overlap, no blend, no tear.
-  // Full image maps to full latitude/longitude: nothing is cropped, so
-  // no contain-padding is needed; only the outermost ~5% at each rim sits
-  // just past the silhouette (hidden around the corner, not cut).
-  texture.wrapS = MirroredRepeatWrapping;
-  texture.wrapT = ClampToEdgeWrapping;
-  texture.repeat.set(2, 1);
-  useFrame((_state, delta) => {
-    if (!ref.current) return;
-    ref.current.rotation.y += Math.min(delta, MAX_STEP) * SPIN_RAD_PER_SEC;
-  });
+  const [w, h] = useMemo(() => {
+    const img = texture.image as
+      | { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number }
+      | undefined;
+    const iw = img?.naturalWidth || img?.width || 1;
+    const ih = img?.naturalHeight || img?.height || 1;
+    const aspect = iw / ih;
+    // Corner distance from centre = sqrt((a·t)² + t²) = t·sqrt(a²+1) ≤ R.
+    const halfH = PLANE_RADIUS / Math.sqrt(aspect * aspect + 1);
+    return [aspect * halfH * 2, halfH * 2] as const;
+  }, [texture]);
   return (
-    <mesh ref={ref}>
+    <mesh>
+      <planeGeometry args={[w, h]} />
+      {/* toneMapped:false → colours exactly as uploaded (renderer ACES
+          would otherwise mute them). Opaque → renders before the glass. */}
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** Fresnel rim shell: brightens toward the silhouette (glass edge glow). */
+const RIM_VERT = /* glsl */ `
+  varying vec3 vNormalV;
+  varying vec3 vViewPos;
+  void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vNormalV = normalize(normalMatrix * normal);
+    vViewPos = mv.xyz;
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const RIM_FRAG = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uPower;
+  uniform float uIntensity;
+  varying vec3 vNormalV;
+  varying vec3 vViewPos;
+  void main() {
+    vec3 viewDir = normalize(-vViewPos);
+    float fres = 1.0 - abs(dot(normalize(vNormalV), viewDir));
+    fres = pow(clamp(fres, 0.0, 1.0), uPower);
+    gl_FragColor = vec4(uColor * uIntensity, fres);
+  }
+`;
+
+function GlassRim() {
+  const uniforms = useMemo(
+    () => ({
+      uColor: { value: new Color('#f6e3ba') },
+      uPower: { value: 2.4 },
+      uIntensity: { value: 1.2 },
+    }),
+    [],
+  );
+  return (
+    // 1.005: sits just outside the shell so the two never z-fight.
+    <mesh scale={1.005} renderOrder={2}>
       <sphereGeometry args={[1, 32, 32]} />
-      {/* emissiveMap keeps the photo itself visible everywhere, so the
-          shadow side can never fall to black — lighting only shades it. */}
-      <meshStandardMaterial
-        map={texture}
-        emissiveMap={texture}
-        emissive="#ffffff"
-        emissiveIntensity={0.5}
-        roughness={0.6}
-        metalness={0}
+      <shaderMaterial
+        vertexShader={RIM_VERT}
+        fragmentShader={RIM_FRAG}
+        uniforms={uniforms}
+        transparent
+        depthWrite={false}
+        blending={AdditiveBlending}
+        side={FrontSide}
       />
     </mesh>
+  );
+}
+
+/**
+ * Full scene: static photo (layer 2) inside the rotating glass shell
+ * (layer 1). The shell itself is untextured — its rotation reads through
+ * an orbiting point-light glint sweeping across the clearcoat, plus the
+ * fresnel rim. Opacity-only translucency (no `transmission`) so the photo
+ * behind it is never refracted or distorted.
+ */
+function OrbScene({ texture }: { texture: Texture }) {
+  const shellRef = useRef<Mesh>(null);
+  const glintRef = useRef<Group>(null);
+  useFrame((_state, delta) => {
+    const step = Math.min(delta, MAX_STEP) * SPIN_RAD_PER_SEC;
+    if (shellRef.current) shellRef.current.rotation.y += step;
+    if (glintRef.current) glintRef.current.rotation.y += step;
+  });
+  return (
+    <>
+      <ambientLight intensity={1.6} />
+      <directionalLight position={[2, 2, 3]} intensity={1.3} />
+      <directionalLight position={[-2.5, -1.5, -2]} intensity={0.7} />
+      {/* Orbiting highlight: this is what makes the spin visible. */}
+      <group ref={glintRef}>
+        <pointLight position={[2.4, 2.8, 3.2]} intensity={40} color="#ffffff" />
+      </group>
+
+      <PhotoPlane texture={texture} />
+
+      {/* Layer 1 — rotating glass shell, no texture, near-side only so a
+          single thin veil passes in front of the photo (crisp centre,
+          glassy edges). depthWrite off → blends over the photo cleanly. */}
+      <mesh ref={shellRef} renderOrder={1}>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshPhysicalMaterial
+          color="#e8f0ff"
+          transparent
+          opacity={0.16}
+          roughness={0.05}
+          metalness={0}
+          clearcoat={1}
+          clearcoatRoughness={0.05}
+          depthWrite={false}
+          side={FrontSide}
+        />
+      </mesh>
+
+      <GlassRim />
+    </>
   );
 }
 
@@ -58,19 +154,16 @@ function useTabVisible() {
 }
 
 /**
- * A tiny 3D sphere for one dream circle: the uploaded image is texture-mapped
- * onto real geometry and slowly spins on Y — it foreshortens and curves at
- * the edges like a real ball. Brightness is guaranteed two ways: strong
- * ambient + an opposite-side fill light (soft shading, no dark crescent),
- * and the photo also feeds the emissive channel so no surface area can ever
- * render black. No CSS rotate/perspective transforms anywhere, so it never
- * flattens.
+ * A dream circle rendered as a two-layer orb: a STATIC, contain-fit flat
+ * photo (pixel-exact, never rotates → always sharp and undistorted)
+ * inside a SLOWLY ROTATING glass shell (clearcoat sheen + orbiting
+ * glint + additive fresnel rim) so the badge still reads as a living,
+ * premium 3D bubble. The old wrapped-texture sphere (front + mirrored
+ * back) is gone — no seam, no pole pinch, no cropping, by construction.
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
- * Framing: camera z = 2.59 makes the silhouette meet the circular glow's
- * inner edge with zero gap (see camera comment). Texture: dual-sided
- * [original | mirrored] mapping — one full readable copy per hemisphere,
- * mirror creases at both joins.
+ * Framing: camera z = 2.59 → the shell silhouette meets the circular
+ * glow's inner edge with zero gap.
  * Sizing: resize.offsetSize keeps the canvas CSS box equal to the layout
  * box even under the wrapper's scale() transform (see the comment on
  * <Canvas>) — without it the render is cropped by the overflow:hidden
@@ -112,12 +205,7 @@ export default function DreamSphere({ src }: { src: string }) {
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        {/* Key from the front-right + low ambient + a fill from the opposite
-            side: the shadow side stays dimly visible, never pitch black. */}
-        <ambientLight intensity={1.6} />
-        <directionalLight position={[2, 2, 3]} intensity={1.3} />
-        <directionalLight position={[-2.5, -1.5, -2]} intensity={0.7} />
-        <SpinSphere texture={texture} />
+        <OrbScene texture={texture} />
       </Canvas>
     </div>
   );
