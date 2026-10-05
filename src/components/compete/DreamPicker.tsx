@@ -45,9 +45,18 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        {/* Flat circle: rose-pink halo on the clip wrapper, photo scaled
-            live by the stretch tuner inside the fixed circular clip. */}
-        <div className="absolute inset-0 overflow-hidden rounded-full" style={{ boxShadow: GLOW }}>
+        {/* Premium gold gradient ring (rose-pink glow radiates from it)
+            behind the flat photo circle; both scale with the transform. */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            inset: '-3px',
+            background:
+              'linear-gradient(145deg, #fdf0cd 0%, #f0d089 22%, #cf9f3a 50%, #a87b25 68%, #f2d48f 88%, #fff8e6 100%)',
+            boxShadow: GLOW,
+          }}
+        />
+        <div className="absolute inset-0 overflow-hidden rounded-full">
           <img
             src={src}
             alt=""
@@ -58,7 +67,7 @@ function DreamCircle({
         </div>
         {/* Name pill, centred directly under the circle (scales with it). */}
         {name.trim() && (
-          <span className="absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#f5ede0] px-2.5 py-[3px] text-[8px] font-bold uppercase leading-none tracking-[0.05em] text-[#8a6a3a]">
+          <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#f5ede0] px-2.5 py-[3px] text-[8px] font-bold uppercase leading-none tracking-[0.05em] text-[#8a6a3a]">
             {name.trim()}
           </span>
         )}
@@ -76,8 +85,9 @@ function DreamCircle({
 }
 
 /**
- * Dream circles above the tree — flat photo circles with a soft rose-pink
- * halo and a cream name pill under each, no cards or labels. Upload flow:
+ * Dream circles above the tree — flat photo circles with a premium gold
+ * gradient ring, a soft rose-pink halo and a cream name pill under each,
+ * no cards or labels. Upload flow:
  * add button opens a small panel with a required name input (max 18
  * chars, live counter), then the file picker. Add button sits in the gap
  * while under the max; at 3 images the circles arc around the top of the
