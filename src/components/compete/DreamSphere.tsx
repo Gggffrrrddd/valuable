@@ -20,7 +20,16 @@ function SpinSphere({ texture }: { texture: Texture }) {
   return (
     <mesh ref={ref}>
       <sphereGeometry args={[1, 32, 32]} />
-      <meshStandardMaterial map={texture} roughness={0.55} metalness={0} />
+      {/* emissiveMap keeps the photo itself visible everywhere, so the
+          shadow side can never fall to black — lighting only shades it. */}
+      <meshStandardMaterial
+        map={texture}
+        emissiveMap={texture}
+        emissive="#ffffff"
+        emissiveIntensity={0.5}
+        roughness={0.6}
+        metalness={0}
+      />
     </mesh>
   );
 }
@@ -39,8 +48,11 @@ function useTabVisible() {
 /**
  * A tiny 3D sphere for one dream circle: the uploaded image is texture-mapped
  * onto real geometry and slowly spins on Y — it foreshortens and curves at
- * the edges like a real ball. Shading comes from the lights below; no CSS
- * rotate/perspective transforms anywhere, so it never flattens.
+ * the edges like a real ball. Brightness is guaranteed two ways: strong
+ * ambient + an opposite-side fill light (soft shading, no dark crescent),
+ * and the photo also feeds the emissive channel so no surface area can ever
+ * render black. No CSS rotate/perspective transforms anywhere, so it never
+ * flattens.
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
  * Perf note: 3 tiny canvases is cheap; if circles ever scale past ~3,
@@ -64,8 +76,11 @@ export default function DreamSphere({ src }: { src: string }) {
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <ambientLight intensity={0.35} />
-        <directionalLight position={[2, 2, 3]} intensity={1.1} />
+        {/* Key from the front-right + low ambient + a fill from the opposite
+            side: the shadow side stays dimly visible, never pitch black. */}
+        <ambientLight intensity={1.6} />
+        <directionalLight position={[2, 2, 3]} intensity={1.3} />
+        <directionalLight position={[-2.5, -1.5, -2]} intensity={0.7} />
         <SpinSphere texture={texture} />
       </Canvas>
     </div>
