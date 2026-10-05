@@ -6,7 +6,7 @@
 export const RESTRICTION_ENABLED = true;
 
 /** Only this display name (case/space-insensitive) may use the app. */
-export const ALLOWED_USERNAME = 'Naman';
+export const ALLOWED_USERNAME = 'Nice';
 
 export const RESTRICTION_MESSAGE =
   'The owner has restricted everyone from use of this app';
