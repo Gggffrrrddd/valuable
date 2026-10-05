@@ -14,13 +14,14 @@ const MAX_STEP = 0.1;
 function SpinSphere({ texture, stretch }: { texture: Texture; stretch: DreamStretch }) {
   const ref = useRef<Mesh>(null);
   texture.colorSpace = SRGBColorSpace;
-  // Stretch (temporary tuner): repeat sets how much of the photo covers
-  // one hemisphere horizontally / pole-to-pole vertically; the offsets
-  // keep the photo's centre in the middle of the visible hemisphere, so
-  // stretching never drifts the subject off to the side.
-  //   x = 2 → one upright copy per hemisphere (default);
+  // Stretch (hardcoded off the tuner): repeat sets how much of the photo
+  // covers one hemisphere horizontally / pole-to-pole vertically; the
+  // offsets keep the photo's centre in the middle of the visible
+  // hemisphere, so stretching never drifts the subject off to the side.
+  //   x = 2 → one upright copy per hemisphere; hardcoded default is x 4
+  //           (two copies side-by-side across the visible face);
   //   x < 2 → magnified horizontally, x > 2 → compressed/tiled;
-  //   y < 1 → magnified vertically,   y > 1 → compressed/tiled.
+  //   y < 1 → magnified vertically,   y > 1 → compressed/tiled (y 1.9).
   // Repeat wrap on both axes so tuner values beyond 1 tile instead of
   // smearing the edge texel. Back copy = SAME upright image (no mirror).
   texture.wrapS = texture.wrapT = RepeatWrapping;
@@ -84,7 +85,7 @@ export default function DreamSphere({
   stretch,
 }: {
   src: string;
-  /** Texture stretch (temporary tuner); identity default = upright copy. */
+  /** Texture stretch — defaults to the hardcoded DEFAULT_DREAM_STRETCH. */
   stretch?: DreamStretch;
 }) {
   const { texture } = useTextureLoader(src);

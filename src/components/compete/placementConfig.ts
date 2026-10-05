@@ -66,8 +66,9 @@ export const IMAGE_SLIDER_ROWS: SliderRow[] = [
 ];
 
 /**
- * Dream-image stretch on the sphere (texture repeat). Temporary tuner —
- * once the values are read off and hardcoded, this goes away.
+ * Dream-image stretch on the sphere (texture repeat). Values hardcoded
+ * from the live tuner; DREAM_STRETCH_SLIDER_ROWS stays here so the
+ * tuner can be restored instantly (flip SHOW_DREAM_STRETCH_TUNER on).
  */
 export interface DreamStretch {
   /** Horizontal: longitude the photo spans (2 = one full copy per hemisphere). */
@@ -76,8 +77,8 @@ export interface DreamStretch {
   y: number;
 }
 
-/** Current mapping — one upright copy per hemisphere, full height. */
-export const DEFAULT_DREAM_STRETCH: DreamStretch = { x: 2, y: 1 };
+/** Hardcoded stretch (read off the Dream stretch tuner). */
+export const DEFAULT_DREAM_STRETCH: DreamStretch = { x: 4, y: 1.9 };
 
 export const DREAM_STRETCH_SLIDER_ROWS: SliderRow<DreamStretch>[] = [
   { key: 'x', label: 'Stretch X (horizontal)', min: 0.5, max: 4, step: 0.01 },

@@ -33,8 +33,11 @@ import type { CompeteGoal } from '@/types';
 const SHOW_PROGRESS_SLIDER = false;
 /** Scrub cap: the slider never goes past 97%. */
 const PROGRESS_CAP = 0.97;
-/** TEMPORARY: dream-image stretch tuner panel (flip off once hardcoded). */
-const SHOW_DREAM_STRETCH_TUNER = true;
+/**
+ * TEMPORARY dream-stretch tuner — values are HARDCODED in
+ * DEFAULT_DREAM_STRETCH (x 4, y 1.9); flip this on to re-tune live.
+ */
+const SHOW_DREAM_STRETCH_TUNER = false;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -53,8 +56,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
- *   to 84% size. Heatmap + other tuner panels stay hidden; a TEMPORARY
- *   dream-stretch tuner sits bottom-right while its values are being set.
+ *   to 84% size. Heatmap + other tuner panels stay hidden; dream stretch
+ *   is hardcoded (x 4, y 1.9), its tuner off behind a flag.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
