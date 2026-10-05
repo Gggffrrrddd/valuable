@@ -75,6 +75,32 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
+/**
+ * Solar-system countdown: plain glowing digits over the Sun (no card, no
+ * flip motion). `key` re-triggers the soft cross-fade/scale pulse on each
+ * digit change; the 4s glow pulse matches the Sun's emissive pulse period.
+ */
+function SolarTimerDigits({ secondsLeft, dimmed }: { secondsLeft: number; dimmed: boolean }) {
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+  const label = `${mm}:${ss}`;
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-700 ease-out"
+      style={{ opacity: dimmed ? 0 : 1 }}
+    >
+      <div
+        key={label}
+        className="solar-digits font-display"
+        role="timer"
+        aria-label={`${mm} minutes ${ss} seconds remaining`}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
@@ -343,21 +369,29 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           </div>
         )}
 
-        {/* Premium split-layout: hourglass left/center, flip-clock right */}
+        {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
         <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
-          <div className="flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20">
-            <div className="relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl">
+          <div className={visualTheme === 'solar-system' ? 'flex w-full flex-1 items-center justify-center' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
+            <div className={visualTheme === 'solar-system' ? 'relative flex max-h-[52vh] w-full max-w-2xl items-center justify-center lg:max-h-[78vh] lg:max-w-4xl' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
               <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
+              {visualTheme === 'solar-system' && (
+                <SolarTimerDigits
+                  secondsLeft={secondsLeft}
+                  dimmed={activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0}
+                />
+              )}
             </div>
           </div>
 
-          {/* Right zone: flip-clock timer */}
-          <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
-            <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
-              <FlipClock secondsLeft={secondsLeft} />
+          {/* Right zone: flip-clock timer (suppressed for solar-system — digits live on the Sun) */}
+          {visualTheme !== 'solar-system' && (
+            <div className="mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14">
+              <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+                <FlipClock secondsLeft={secondsLeft} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Session status */}
@@ -469,18 +503,19 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           <div><div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">Choose your focus visual</div><p className="mt-1 text-xs text-stone-600">Your visual unfolds as the session progresses.</p></div>
           <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">Saved automatically</span>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {FOCUS_VISUAL_THEMES.map((theme, index) => {
             return (
               <div key={theme.id} className="relative">
                 <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="relative block h-20 w-20 transition-transform duration-500 group-hover:scale-[1.1] sm:h-24 sm:w-24" aria-hidden="true"><span className="absolute left-1/2 top-1/2 block h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9fc0ff]/25" /><span className="absolute left-1/2 top-1/2 block h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9fc0ff]/15 sm:h-20 sm:w-20" /><span className="absolute left-1/2 top-1/2 block h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: 'radial-gradient(circle at 35% 35%, #fff6e0 0%, #bcd2ff 45%, #4a6db3 75%, #1c2c5e 100%)', boxShadow: '0 0 18px rgba(150,190,255,.55)' }} /><span className="absolute block h-1.5 w-1.5 rounded-full bg-[#9fc8ff]" style={{ left: '72%', top: '30%', boxShadow: '0 0 6px rgba(159,200,255,.9)' }} /><span className="absolute block h-1 w-1 rounded-full bg-[#c9d6ff]" style={{ left: '22%', top: '66%', boxShadow: '0 0 5px rgba(201,214,255,.8)' }} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
                   <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
                 </button>
               </div>
             );
           })}
         </div>
+        <p className="mt-2 px-1 text-[10px] leading-4 text-stone-600">Planet textures: Solar System Scope · CC BY 4.0</p>
       </div>
 
       {isCustom && (
