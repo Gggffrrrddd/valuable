@@ -36,6 +36,8 @@ interface Tip {
 export default function GoalHeatmap({ startDate, examDate, targetHours, records }: Props) {
   const [tip, setTip] = useState<Tip | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
+  /** Which 5-month window is on screen (0 = first). */
+  const [page, setPage] = useState(0);
 
   const today = dateKey(new Date());
   const targetMinutes = targetHours * 60;
@@ -46,9 +48,41 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
     return m;
   }, [records]);
 
-  const { columns, cells, monthLabels, stats } = useMemo(() => {
-    const totalDays = Math.max(1, daysBetween(startDate, examDate) + 1);
-    const offset = parseDay(startDate).getUTCDay();
+  // 2-year cap: never track more than 24 months — the window ends on exam
+  // day and reaches back at most 2 years (older history is not shown).
+  const cappedStart = useMemo(() => {
+    const exam = parseDay(examDate);
+    const earliest = dateKey(
+      new Date(Date.UTC(exam.getUTCFullYear() - 2, exam.getUTCMonth(), exam.getUTCDate())),
+    );
+    return startDate > earliest ? startDate : earliest;
+  }, [startDate, examDate]);
+
+  // One module shows at most 5 calendar months → page count for the range.
+  const pageCount = useMemo(() => {
+    const s = parseDay(cappedStart);
+    const e = parseDay(examDate);
+    const months =
+      (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + (e.getUTCMonth() - s.getUTCMonth()) + 1;
+    return Math.max(1, Math.ceil(months / 5));
+  }, [cappedStart, examDate]);
+
+  const safePage = Math.min(page, pageCount - 1);
+
+  const { pageStart, pageEnd } = useMemo(() => {
+    const anchor = parseDay(cappedStart);
+    const startOf = (m: number) =>
+      dateKey(new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + m, 1)));
+    const endOf = (m: number) =>
+      dateKey(new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + m + 1, 0)));
+    const s = safePage === 0 ? cappedStart : startOf(safePage * 5);
+    const rawEnd = endOf(safePage * 5 + 4);
+    return { pageStart: s, pageEnd: rawEnd < examDate ? rawEnd : examDate };
+  }, [cappedStart, examDate, safePage]);
+
+  const { columns, cells, monthLabels } = useMemo(() => {
+    const totalDays = Math.max(1, daysBetween(pageStart, pageEnd) + 1);
+    const offset = parseDay(pageStart).getUTCDay();
     const columns = Math.max(1, Math.ceil((offset + totalDays) / 7));
 
     const cells: (string | null)[] = [];
@@ -58,14 +92,14 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
         continue;
       }
       const idx = i - offset;
-      cells.push(idx < totalDays ? addDays(startDate, idx) : null);
+      cells.push(idx < totalDays ? addDays(pageStart, idx) : null);
     }
 
     const monthLabels: (string | null)[] = [];
     for (let c = 0; c < columns; c++) {
       let label: string | null = null;
       if (c === 0) {
-        label = MONTHS[parseDay(startDate).getUTCMonth()];
+        label = MONTHS[parseDay(pageStart).getUTCMonth()];
       } else {
         for (let r = 0; r < 7; r++) {
           const d = cells[c * 7 + r];
@@ -78,8 +112,15 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
       monthLabels.push(label);
     }
 
+    return { columns, cells, monthLabels };
+  }, [pageStart, pageEnd]);
+
+  const stats = useMemo(() => {
+    // Stats cover the whole (capped) range, not just the visible page.
     let daysCompleted = 0;
-    for (const r of records) if (r.targetMet) daysCompleted++;
+    for (const r of records) {
+      if (r.targetMet && r.date >= cappedStart && r.date <= examDate) daysCompleted++;
+    }
 
     let streak = 0;
     let cursor = byDate.get(today)?.targetMet ? today : addDays(today, -1);
@@ -88,15 +129,14 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
       cursor = addDays(cursor, -1);
     }
 
-    const stats = {
+    const totalDays = Math.max(1, daysBetween(cappedStart, examDate) + 1);
+    return {
       daysCompleted,
       totalDays,
       streak,
       daysLeft: Math.max(0, daysBetween(today, examDate)),
     };
-
-    return { columns, cells, monthLabels, stats };
-  }, [startDate, examDate, records, byDate, today]);
+  }, [cappedStart, examDate, records, byDate, today]);
 
   const showTip = (date: string, el: HTMLElement) => {
     const r = el.getBoundingClientRect();
@@ -141,11 +181,12 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
           <div>
             <div className="page-kicker">Daily tree</div>
             <h3 className="font-display text-2xl font-extrabold tracking-[-.02em] text-stone-50 sm:text-3xl">
-              Growth calendar
+              Discipline tracker
             </h3>
             <p className="mt-1 max-w-lg text-sm leading-6 text-stone-500">
-              Every tended day, from {startDate} through exam day on {examDate}. One square per
-              day — the fuller the gold, the closer you were to your daily target.
+              Every tended day, from {cappedStart} through exam day on {examDate}. One square per
+              day — the fuller the gold, the closer you were to your daily target. Shows 5 months
+              at a time, up to 2 years of history.
             </p>
           </div>
 
@@ -236,6 +277,31 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
             </div>
           </div>
         </div>
+
+        {/* 5-month pagination: gold "Next" like the tracker link, a smaller
+            "Previous" beside it; hidden while there is nowhere to go. */}
+        {pageCount > 1 && (
+          <div className="mt-4 flex items-center gap-5">
+            {safePage > 0 && (
+              <button
+                type="button"
+                onClick={() => setPage(safePage - 1)}
+                className="text-[10px] font-semibold uppercase tracking-[.14em] text-stone-500 transition hover:text-stone-300"
+              >
+                Previous
+              </button>
+            )}
+            {safePage < pageCount - 1 && (
+              <button
+                type="button"
+                onClick={() => setPage(safePage + 1)}
+                className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
+              >
+                Next
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[.18em] text-stone-600">
           <span className="flex items-center gap-2">
