@@ -65,6 +65,25 @@ export const IMAGE_SLIDER_ROWS: SliderRow[] = [
   { key: 'y', label: 'Move Y (up / down)', min: -100, max: 100, step: 1 },
 ];
 
+/**
+ * Dream-image stretch on the sphere (texture repeat). Temporary tuner —
+ * once the values are read off and hardcoded, this goes away.
+ */
+export interface DreamStretch {
+  /** Horizontal: longitude the photo spans (2 = one full copy per hemisphere). */
+  x: number;
+  /** Vertical: latitude the photo spans (1 = pole-to-pole, centred). */
+  y: number;
+}
+
+/** Current mapping — one upright copy per hemisphere, full height. */
+export const DEFAULT_DREAM_STRETCH: DreamStretch = { x: 2, y: 1 };
+
+export const DREAM_STRETCH_SLIDER_ROWS: SliderRow<DreamStretch>[] = [
+  { key: 'x', label: 'Stretch X (horizontal)', min: 0.5, max: 4, step: 0.01 },
+  { key: 'y', label: 'Stretch Y (vertical)', min: 0.25, max: 2, step: 0.01 },
+];
+
 /** Default mask — hardcoded halo calibration. */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
   safeW: 50,

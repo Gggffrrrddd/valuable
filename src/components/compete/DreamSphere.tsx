@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { SRGBColorSpace, RepeatWrapping, ClampToEdgeWrapping } from 'three';
+import { SRGBColorSpace, RepeatWrapping } from 'three';
 import type { Mesh, Texture } from 'three';
 import { useTextureLoader } from '@/components/focus-visuals/model-core';
+import { DEFAULT_DREAM_STRETCH, type DreamStretch } from './placementConfig';
 
 /** One full Y rotation every 15 s — slow, constant, no easing. */
 const SPIN_RAD_PER_SEC = (Math.PI * 2) / 15;
@@ -10,22 +11,21 @@ const SPIN_RAD_PER_SEC = (Math.PI * 2) / 15;
 const MAX_STEP = 0.1;
 
 /** Y-axis spinner: the photo is genuinely wrapped around 3D geometry. */
-function SpinSphere({ texture }: { texture: Texture }) {
+function SpinSphere({ texture, stretch }: { texture: Texture; stretch: DreamStretch }) {
   const ref = useRef<Mesh>(null);
   texture.colorSpace = SRGBColorSpace;
-  // Dual-copy mapping, BOTH UPRIGHT: repeat.x = 2 puts a full copy of the
-  // photo on the front hemisphere AND an identical (non-mirrored) copy on
-  // the back. Turning the ball around to the back shows the same upright
-  // picture — viewing the back after a 180° turn is geometrically the same
-  // as walking around to it, so no flip. Trade-off vs mirroring: each
-  // join is a right-edge→left-edge seam (a thin line only while that
-  // seamline rotates through view; invisible head-on at 0°/180°).
-  // Full image maps to full latitude/longitude: nothing is cropped, so
-  // no contain-padding is needed; only the outermost ~5% at each rim sits
-  // just past the silhouette (hidden around the corner, not cut).
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = ClampToEdgeWrapping;
-  texture.repeat.set(2, 1);
+  // Stretch (temporary tuner): repeat sets how much of the photo covers
+  // one hemisphere horizontally / pole-to-pole vertically; the offsets
+  // keep the photo's centre in the middle of the visible hemisphere, so
+  // stretching never drifts the subject off to the side.
+  //   x = 2 → one upright copy per hemisphere (default);
+  //   x < 2 → magnified horizontally, x > 2 → compressed/tiled;
+  //   y < 1 → magnified vertically,   y > 1 → compressed/tiled.
+  // Repeat wrap on both axes so tuner values beyond 1 tile instead of
+  // smearing the edge texel. Back copy = SAME upright image (no mirror).
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.set(stretch.x, stretch.y);
+  texture.offset.set(0.5 - stretch.x / 4, (1 - stretch.y) / 2);
   useFrame((_state, delta) => {
     if (!ref.current) return;
     ref.current.rotation.y += Math.min(delta, MAX_STEP) * SPIN_RAD_PER_SEC;
@@ -69,9 +69,9 @@ function useTabVisible() {
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
  * Framing: camera z = 2.59 makes the silhouette meet the circular glow's
- * inner edge with zero gap (see camera comment). Texture: two upright
- * copies (front + back) via repeat.x = 2 — the same readable photo greets
- * you from either side, no mirroring.
+ * inner edge with zero gap (see camera comment). Texture: upright copies
+ * front + back, horizontal/vertical stretch adjustable via the temporary
+ * DreamStretch tuner (centred by texture offset).
  * Sizing: resize.offsetSize keeps the canvas CSS box equal to the layout
  * box even under the wrapper's scale() transform (see the comment on
  * <Canvas>) — without it the render is cropped by the overflow:hidden
@@ -79,7 +79,14 @@ function useTabVisible() {
  * circles ever scale past ~3, switch to one shared Canvas with multiple
  * meshes.
  */
-export default function DreamSphere({ src }: { src: string }) {
+export default function DreamSphere({
+  src,
+  stretch,
+}: {
+  src: string;
+  /** Texture stretch (temporary tuner); identity default = upright copy. */
+  stretch?: DreamStretch;
+}) {
   const { texture } = useTextureLoader(src);
   const visible = useTabVisible();
 
@@ -118,7 +125,7 @@ export default function DreamSphere({ src }: { src: string }) {
         <ambientLight intensity={1.6} />
         <directionalLight position={[2, 2, 3]} intensity={1.3} />
         <directionalLight position={[-2.5, -1.5, -2]} intensity={0.7} />
-        <SpinSphere texture={texture} />
+        <SpinSphere texture={texture} stretch={stretch ?? DEFAULT_DREAM_STRETCH} />
       </Canvas>
     </div>
   );

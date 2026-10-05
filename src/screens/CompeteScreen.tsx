@@ -4,11 +4,15 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
+import PlacementTuner from '@/components/compete/PlacementTuner';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
+  DEFAULT_DREAM_STRETCH,
+  DREAM_STRETCH_SLIDER_ROWS,
   type PlacementTransform,
+  type DreamStretch,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -29,6 +33,8 @@ import type { CompeteGoal } from '@/types';
 const SHOW_PROGRESS_SLIDER = false;
 /** Scrub cap: the slider never goes past 97%. */
 const PROGRESS_CAP = 0.97;
+/** TEMPORARY: dream-image stretch tuner panel (flip off once hardcoded). */
+const SHOW_DREAM_STRETCH_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -47,7 +53,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
- *   to 84% size. Heatmap + all tuner panels stay hidden.
+ *   to 84% size. Heatmap + other tuner panels stay hidden; a TEMPORARY
+ *   dream-stretch tuner sits bottom-right while its values are being set.
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -56,6 +63,8 @@ export default function CompeteScreen() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
+  /** TEMPORARY: live stretch of the photo on the dream spheres. */
+  const [dreamStretch, setDreamStretch] = useState<DreamStretch>(DEFAULT_DREAM_STRETCH);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -203,10 +212,25 @@ export default function CompeteScreen() {
         <DreamPicker
           images={goal.dream_images ?? []}
           transforms={DREAM_CIRCLE_TRANSFORMS}
+          stretch={dreamStretch}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
         />
+
+        {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
+        {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
+          <div className="absolute bottom-4 right-4 z-30 w-60">
+            <PlacementTuner
+              title="Dream stretch (temp)"
+              logTag="compete-dream-stretch"
+              transform={dreamStretch}
+              rows={DREAM_STRETCH_SLIDER_ROWS}
+              defaults={DEFAULT_DREAM_STRETCH}
+              onChange={(patch) => setDreamStretch((t) => ({ ...t, ...patch }))}
+            />
+          </div>
+        )}
 
         {/* Slim progress slider — hidden for now, capped at 97% */}
         {SHOW_PROGRESS_SLIDER && (

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Plus, X } from 'lucide-react';
-import type { PlacementTransform } from './placementConfig';
+import { DEFAULT_DREAM_STRETCH, type PlacementTransform, type DreamStretch } from './placementConfig';
 import DreamSphere from './DreamSphere';
 
 /** Up to 3 dream circles crown the tree. */
@@ -20,6 +20,7 @@ function DreamCircle({
   src,
   offsetClass = '',
   transform,
+  stretch,
   onRemove,
 }: {
   src: string;
@@ -27,6 +28,8 @@ function DreamCircle({
   offsetClass?: string;
   /** Per-circle tuner transform (zoom / move X / move Y). */
   transform: PlacementTransform;
+  /** Texture stretch (temporary tuner) for this sphere. */
+  stretch: DreamStretch;
   onRemove: () => void;
 }) {
   return (
@@ -40,7 +43,7 @@ function DreamCircle({
         {/* Soft gold halo — stays outside the 3D scene, unchanged */}
         <div className="absolute inset-0 rounded-full" style={{ boxShadow: GLOW }} />
         {/* Real 3D sphere: photo wrapped around geometry, slow Y spin */}
-        <DreamSphere src={src} />
+        <DreamSphere src={src} stretch={stretch} />
         <button
           type="button"
           onClick={onRemove}
@@ -63,6 +66,7 @@ function DreamCircle({
 export default function DreamPicker({
   images,
   transforms,
+  stretch,
   busy = false,
   onAdd,
   onRemove,
@@ -70,6 +74,8 @@ export default function DreamPicker({
   images: string[];
   /** Per-index transform (zoom / move X / move Y); missing entries = identity. */
   transforms?: PlacementTransform[];
+  /** Texture stretch (temporary tuner) applied to every sphere. */
+  stretch?: DreamStretch;
   busy?: boolean;
   onAdd: (file: File) => void;
   onRemove: (index: number) => void;
@@ -101,6 +107,7 @@ export default function DreamPicker({
       src={images[i]}
       offsetClass={offsetClass}
       transform={transforms?.[i] ?? IDENTITY}
+      stretch={stretch ?? DEFAULT_DREAM_STRETCH}
       onRemove={() => onRemove(i)}
     />
   );
