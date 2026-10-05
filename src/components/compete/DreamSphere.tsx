@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { SRGBColorSpace } from 'three';
+import { SRGBColorSpace, RepeatWrapping } from 'three';
 import type { Mesh, Texture } from 'three';
 import { useTextureLoader } from '@/components/focus-visuals/model-core';
 
@@ -13,6 +13,9 @@ const MAX_STEP = 0.1;
 function SpinSphere({ texture }: { texture: Texture }) {
   const ref = useRef<Mesh>(null);
   texture.colorSpace = SRGBColorSpace;
+  // Repeat (not clamp) so the u=0/1 join wraps instead of smearing the
+  // edge texel into a visible column on the surface.
+  texture.wrapS = texture.wrapT = RepeatWrapping;
   useFrame((_state, delta) => {
     if (!ref.current) return;
     ref.current.rotation.y += Math.min(delta, MAX_STEP) * SPIN_RAD_PER_SEC;
@@ -55,8 +58,12 @@ function useTabVisible() {
  * flattens.
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
- * Perf note: 3 tiny canvases is cheap; if circles ever scale past ~3,
- * switch to one shared Canvas with multiple meshes.
+ * Sizing: resize.offsetSize keeps the canvas CSS box equal to the layout
+ * box even under the wrapper's scale() transform (see the comment on
+ * <Canvas>) — without it the render is cropped by the overflow:hidden
+ * wrapper into a straight edge. Perf note: 3 tiny canvases is cheap; if
+ * circles ever scale past ~3, switch to one shared Canvas with multiple
+ * meshes.
  */
 export default function DreamSphere({ src }: { src: string }) {
   const { texture } = useTextureLoader(src);
@@ -73,6 +80,15 @@ export default function DreamSphere({ src }: { src: string }) {
         camera={{ position: [0, 0, 2.7], fov: 45 }}
         dpr={[1, 1.5]}
         frameloop={visible ? 'always' : 'never'}
+        // BUG FIX: the circle wrapper carries a CSS scale() transform, and
+        // useMeasure's default getBoundingClientRect() reports the SCALED
+        // box (e.g. 56px × 1.5 = 84px). R3F then wrote that 84px onto the
+        // canvas style while its layout box is still 56px inside an
+        // overflow:hidden container → the render was cropped
+        // asymmetrically (straight edge + empty patch, same on all three
+        // circles). offsetSize measures layout px (offsetWidth/Height),
+        // which ignores transforms, so canvas CSS == wrapper exactly.
+        resize={{ offsetSize: true }}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
