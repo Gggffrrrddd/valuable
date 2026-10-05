@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { SRGBColorSpace, RepeatWrapping } from 'three';
+import { SRGBColorSpace, MirroredRepeatWrapping, ClampToEdgeWrapping } from 'three';
 import type { Mesh, Texture } from 'three';
 import { useTextureLoader } from '@/components/focus-visuals/model-core';
 
@@ -13,9 +13,18 @@ const MAX_STEP = 0.1;
 function SpinSphere({ texture }: { texture: Texture }) {
   const ref = useRef<Mesh>(null);
   texture.colorSpace = SRGBColorSpace;
-  // Repeat (not clamp) so the u=0/1 join wraps instead of smearing the
-  // edge texel into a visible column on the surface.
-  texture.wrapS = texture.wrapT = RepeatWrapping;
+  // Dual-sided photo mapping: repeat.x = 2 + mirrored S-wrap is exactly
+  // equivalent to a [original | mirror] strip with standard UVs — the
+  // FRONT hemisphere shows the full original, the BACK hemisphere the same
+  // image horizontally mirrored (so it reads correctly once rotated 180°).
+  // Both joins are perfect mirror creases: each image edge meets its own
+  // edge, so content is continuous — no overlap, no blend, no tear.
+  // Full image maps to full latitude/longitude: nothing is cropped, so
+  // no contain-padding is needed; only the outermost ~5% at each rim sits
+  // just past the silhouette (hidden around the corner, not cut).
+  texture.wrapS = MirroredRepeatWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.repeat.set(2, 1);
   useFrame((_state, delta) => {
     if (!ref.current) return;
     ref.current.rotation.y += Math.min(delta, MAX_STEP) * SPIN_RAD_PER_SEC;
@@ -58,6 +67,10 @@ function useTabVisible() {
  * flattens.
  *
  * Rendering pauses entirely (frameloop: never) while the tab is hidden.
+ * Framing: camera z = 2.59 makes the silhouette meet the circular glow's
+ * inner edge with zero gap (see camera comment). Texture: dual-sided
+ * [original | mirrored] mapping — one full readable copy per hemisphere,
+ * mirror creases at both joins.
  * Sizing: resize.offsetSize keeps the canvas CSS box equal to the layout
  * box even under the wrapper's scale() transform (see the comment on
  * <Canvas>) — without it the render is cropped by the overflow:hidden
@@ -77,7 +90,14 @@ export default function DreamSphere({ src }: { src: string }) {
   return (
     <div className="absolute inset-0" aria-hidden>
       <Canvas
-        camera={{ position: [0, 0, 2.7], fov: 45 }}
+        // ZERO-MARGIN FRAMING: canvas is square (aspect 1), so the
+        // silhouette angular radius α (sin α = r/z) must equal the 22.5°
+        // half-FOV → z = 1/sin(22.5°) = 2.6131 = exact tangency (hairline
+        // AA gap risk at the 4 tangent points). z = 2.59 overfills by
+        // ~1% (≈0.3px on a 56px circle): sphere edge always covers the
+        // full disc out to the glow's inner edge — no gap line at any
+        // rotation — while the clipped flats stay sub-pixel invisible.
+        camera={{ position: [0, 0, 2.59], fov: 45 }}
         dpr={[1, 1.5]}
         frameloop={visible ? 'always' : 'never'}
         // BUG FIX: the circle wrapper carries a CSS scale() transform, and
