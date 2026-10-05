@@ -70,6 +70,8 @@ export interface CompeteGoal {
   start_date: string;
   /** Up to 3 public-URLs of uploaded dream images crowning the tree. */
   dream_images?: string[] | null;
+  /** Dream names shown in the pills, index-aligned with dream_images. */
+  dream_names?: string[] | null;
   created_at: string;
   updated_at: string;
 }

@@ -22,6 +22,7 @@ import {
   persistDayRecords,
   uploadDreamImage,
   saveDreamImages,
+  saveDreamNames,
   deleteDreamImage,
   dateKey,
   daysBetween,
@@ -34,11 +35,10 @@ const SHOW_PROGRESS_SLIDER = false;
 /** Scrub cap: the slider never goes past 97%. */
 const PROGRESS_CAP = 0.97;
 /**
- * TEMPORARY dream-stretch tuner for the flat circles — values start
- * neutral; tune live, then hardcode them into DEFAULT_DREAM_STRETCH
- * and flip this off.
+ * Dream-stretch tuner is HIDDEN — circles sit at the neutral scale;
+ * flip this on to re-tune live (rows stay in placementConfig).
  */
-const SHOW_DREAM_STRETCH_TUNER = true;
+const SHOW_DREAM_STRETCH_TUNER = false;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -58,8 +58,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
  *   to 84% size. Heatmap + other tuner panels stay hidden; dream circles
- *   are flat photo circles with a live stretch tuner (bottom-right,
- *   temporary — hardcode + flip its flag off when final).
+ *   are flat photo circles with a rose-pink glow and a cream name pill
+ *   under each (name captured in the upload flow, max 18 chars).
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -92,8 +92,18 @@ export default function CompeteScreen() {
     }
   }, [session]);
 
+  // Dream names persist on their own column — best-effort, so a missing
+  // dream_names migration never breaks the image upload itself.
+  const persistNames = async (goalId: string, next: string[]) => {
+    try {
+      await saveDreamNames(goalId, next);
+    } catch (e) {
+      console.warn('dream_names not persisted (run dream_names migration):', e);
+    }
+  };
+
   // Dream images: upload → optimistic row update → persist (max 3).
-  const addDream = async (file: File) => {
+  const addDream = async (file: File, name: string) => {
     if (!session || !goal || dreamBusy) return;
     const current = goal.dream_images ?? [];
     if (current.length >= 3) return;
@@ -101,8 +111,10 @@ export default function CompeteScreen() {
     try {
       const url = await uploadDreamImage(session.user.id, file);
       const next = [...current, url];
-      setGoal({ ...goal, dream_images: next });
+      const nextNames = [...(goal.dream_names ?? []), name].slice(0, 3);
+      setGoal({ ...goal, dream_images: next, dream_names: nextNames });
       await saveDreamImages(goal.id, next);
+      await persistNames(goal.id, nextNames);
     } catch (e) {
       console.error('Dream image upload failed:', e);
     } finally {
@@ -116,9 +128,11 @@ export default function CompeteScreen() {
     const target = current[index];
     if (!target) return;
     const next = current.filter((_, i) => i !== index);
-    setGoal({ ...goal, dream_images: next });
+    const nextNames = (goal.dream_names ?? []).filter((_, i) => i !== index);
+    setGoal({ ...goal, dream_images: next, dream_names: nextNames });
     try {
       await saveDreamImages(goal.id, next);
+      void persistNames(goal.id, nextNames);
       void deleteDreamImage(target);
     } catch (e) {
       console.error('Dream image remove failed:', e);
@@ -216,6 +230,7 @@ export default function CompeteScreen() {
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
           images={goal.dream_images ?? []}
+          names={goal.dream_names ?? []}
           transforms={DREAM_CIRCLE_TRANSFORMS}
           stretch={dreamStretch}
           busy={dreamBusy}
