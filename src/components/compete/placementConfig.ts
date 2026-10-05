@@ -85,6 +85,18 @@ export const DREAM_STRETCH_SLIDER_ROWS: SliderRow<DreamStretch>[] = [
   { key: 'y', label: 'Stretch Y (vertical)', min: 0.25, max: 2, step: 0.01 },
 ];
 
+/** Gold ring thickness around each dream circle (base px, pre-scale). */
+export interface RingTune {
+  ring: number;
+}
+
+/** Current ring width — tuned live while the tuner flag is on. */
+export const DEFAULT_RING: RingTune = { ring: 3 };
+
+export const RING_SLIDER_ROWS: SliderRow<RingTune>[] = [
+  { key: 'ring', label: 'Gold ring width', min: 0, max: 6, step: 0.05 },
+];
+
 /** Default mask — hardcoded halo calibration. */
 export const DEFAULT_VIDEO_MASK: VideoMask = {
   safeW: 50,

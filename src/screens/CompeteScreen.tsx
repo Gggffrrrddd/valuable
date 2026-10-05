@@ -11,8 +11,11 @@ import {
   DEFAULT_VIDEO_MASK,
   DEFAULT_DREAM_STRETCH,
   DREAM_STRETCH_SLIDER_ROWS,
+  DEFAULT_RING,
+  RING_SLIDER_ROWS,
   type PlacementTransform,
   type DreamStretch,
+  type RingTune,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -22,7 +25,6 @@ import {
   persistDayRecords,
   uploadDreamImage,
   saveDreamImages,
-  saveDreamNames,
   deleteDreamImage,
   dateKey,
   daysBetween,
@@ -39,6 +41,11 @@ const PROGRESS_CAP = 0.97;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_DREAM_STRETCH_TUNER = false;
+/**
+ * TEMPORARY gold-ring width tuner — tune live, then hardcode the value
+ * into DEFAULT_RING and flip this off.
+ */
+const SHOW_RING_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -58,8 +65,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *   Video / image placement + progress are hardcoded too (progress static
  *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
  *   to 84% size. Heatmap + other tuner panels stay hidden; dream circles
- *   are flat photo circles with a rose-pink glow and a cream name pill
- *   under each (name captured in the upload flow, max 18 chars).
+ *   are flat photo circles with a premium gold ring + rose-pink glow
+ *   (ring width tuned live bottom-right while its flag is on).
  */
 export default function CompeteScreen() {
   const { session } = useAuth();
@@ -70,6 +77,8 @@ export default function CompeteScreen() {
   const [dreamBusy, setDreamBusy] = useState(false);
   /** TEMPORARY: live CSS stretch of the photo on the dream circles. */
   const [dreamStretch, setDreamStretch] = useState<DreamStretch>(DEFAULT_DREAM_STRETCH);
+  /** TEMPORARY: live gold-ring width (base px) on the dream circles. */
+  const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -92,18 +101,8 @@ export default function CompeteScreen() {
     }
   }, [session]);
 
-  // Dream names persist on their own column — best-effort, so a missing
-  // dream_names migration never breaks the image upload itself.
-  const persistNames = async (goalId: string, next: string[]) => {
-    try {
-      await saveDreamNames(goalId, next);
-    } catch (e) {
-      console.warn('dream_names not persisted (run dream_names migration):', e);
-    }
-  };
-
   // Dream images: upload → optimistic row update → persist (max 3).
-  const addDream = async (file: File, name: string) => {
+  const addDream = async (file: File) => {
     if (!session || !goal || dreamBusy) return;
     const current = goal.dream_images ?? [];
     if (current.length >= 3) return;
@@ -111,10 +110,8 @@ export default function CompeteScreen() {
     try {
       const url = await uploadDreamImage(session.user.id, file);
       const next = [...current, url];
-      const nextNames = [...(goal.dream_names ?? []), name].slice(0, 3);
-      setGoal({ ...goal, dream_images: next, dream_names: nextNames });
+      setGoal({ ...goal, dream_images: next });
       await saveDreamImages(goal.id, next);
-      await persistNames(goal.id, nextNames);
     } catch (e) {
       console.error('Dream image upload failed:', e);
     } finally {
@@ -128,11 +125,9 @@ export default function CompeteScreen() {
     const target = current[index];
     if (!target) return;
     const next = current.filter((_, i) => i !== index);
-    const nextNames = (goal.dream_names ?? []).filter((_, i) => i !== index);
-    setGoal({ ...goal, dream_images: next, dream_names: nextNames });
+    setGoal({ ...goal, dream_images: next });
     try {
       await saveDreamImages(goal.id, next);
-      void persistNames(goal.id, nextNames);
       void deleteDreamImage(target);
     } catch (e) {
       console.error('Dream image remove failed:', e);
@@ -230,9 +225,9 @@ export default function CompeteScreen() {
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
           images={goal.dream_images ?? []}
-          names={goal.dream_names ?? []}
           transforms={DREAM_CIRCLE_TRANSFORMS}
           stretch={dreamStretch}
+          ringWidth={ring.ring}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
@@ -248,6 +243,20 @@ export default function CompeteScreen() {
               rows={DREAM_STRETCH_SLIDER_ROWS}
               defaults={DEFAULT_DREAM_STRETCH}
               onChange={(patch) => setDreamStretch((t) => ({ ...t, ...patch }))}
+            />
+          </div>
+        )}
+
+        {/* TEMPORARY — gold-ring width tuner (hardcode + flip off when final). */}
+        {SHOW_RING_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
+          <div className="absolute bottom-4 right-4 z-30 w-60">
+            <PlacementTuner
+              title="Gold ring (temp)"
+              logTag="compete-ring"
+              transform={ring}
+              rows={RING_SLIDER_ROWS}
+              defaults={DEFAULT_RING}
+              onChange={(patch) => setRing((t) => ({ ...t, ...patch }))}
             />
           </div>
         )}

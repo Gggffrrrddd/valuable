@@ -177,15 +177,6 @@ export async function saveDreamImages(goalId: string, images: string[]): Promise
   if (error) throw error;
 }
 
-/** Persist the dream-name pills (index-aligned with dream_images). */
-export async function saveDreamNames(goalId: string, names: string[]): Promise<void> {
-  const { error } = await supabase
-    .from('compete_goals')
-    .update({ dream_names: names.slice(0, 3) })
-    .eq('id', goalId);
-  if (error) throw error;
-}
-
 /** Best-effort storage cleanup when a dream circle is deleted. */
 export async function deleteDreamImage(url: string): Promise<void> {
   const marker = `/object/public/${DREAM_BUCKET}/`;
