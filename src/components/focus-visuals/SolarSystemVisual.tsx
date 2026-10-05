@@ -950,7 +950,7 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
     !!neptuneTex;
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/5 bg-black/40 shadow-2xl backdrop-blur-sm">
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
