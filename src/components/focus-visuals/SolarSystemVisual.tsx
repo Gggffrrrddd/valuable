@@ -3,12 +3,8 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import {
   AdditiveBlending,
   BackSide,
-  BufferAttribute,
-  BufferGeometry,
   Color,
   DoubleSide,
-  Line,
-  LineBasicMaterial,
   MeshBasicMaterial,
   MeshStandardMaterial,
   RingGeometry,
@@ -68,6 +64,8 @@ const TEX = {
   saturnRing: `${TEX_BASE}/2k_saturn_ring_alpha.png`,
   uranus: `${TEX_BASE}/2k_uranus.jpg`,
   neptune: `${TEX_BASE}/2k_neptune.jpg`,
+  galaxyWhirlpool: `${TEX_BASE}/galaxies/whirlpool-galaxy-tilted.png`,
+  galaxyAndromeda: `${TEX_BASE}/galaxies/andromeda-galaxy-tilted.png`,
 };
 
 /** Sun pulse period (seconds) ΓÇö the timer-digit CSS pulse uses this same period. */
@@ -83,18 +81,17 @@ interface PlanetCfg {
   size: number;
   spin: number;
   roughness: number;
-  trailColor: string;
 }
 
 const PLANETS: PlanetCfg[] = [
-  { key: 'mercury', orbitR: 1.8, size: 0.12, spin: 0.1, roughness: 0.95, trailColor: '#9aa8c8' },
-  { key: 'venus', orbitR: 2.5, size: 0.2, spin: 0.06, roughness: 0.8, trailColor: '#c8c4e8' },
-  { key: 'earth', orbitR: 3.2, size: 0.23, spin: 0.22, roughness: 0.9, trailColor: '#9fc8ff' },
-  { key: 'mars', orbitR: 3.9, size: 0.17, spin: 0.2, roughness: 0.95, trailColor: '#d8b8a8' },
-  { key: 'jupiter', orbitR: 5.2, size: 0.58, spin: 0.5, roughness: 0.7, trailColor: '#d8ccf0' },
-  { key: 'saturn', orbitR: 6.8, size: 0.48, spin: 0.45, roughness: 0.7, trailColor: '#e0d4b8' },
-  { key: 'uranus', orbitR: 8.2, size: 0.34, spin: 0.35, roughness: 0.75, trailColor: '#a8d8e8' },
-  { key: 'neptune', orbitR: 9.4, size: 0.32, spin: 0.33, roughness: 0.75, trailColor: '#90a8f0' },
+  { key: 'mercury', orbitR: 1.8, size: 0.12, spin: 0.1, roughness: 0.95 },
+  { key: 'venus', orbitR: 2.5, size: 0.2, spin: 0.06, roughness: 0.8 },
+  { key: 'earth', orbitR: 3.2, size: 0.23, spin: 0.22, roughness: 0.9 },
+  { key: 'mars', orbitR: 3.9, size: 0.17, spin: 0.2, roughness: 0.95 },
+  { key: 'jupiter', orbitR: 5.2, size: 0.58, spin: 0.5, roughness: 0.7 },
+  { key: 'saturn', orbitR: 6.8, size: 0.48, spin: 0.45, roughness: 0.7 },
+  { key: 'uranus', orbitR: 8.2, size: 0.34, spin: 0.35, roughness: 0.75 },
+  { key: 'neptune', orbitR: 9.4, size: 0.32, spin: 0.33, roughness: 0.75 },
 ];
 
 function orbitSpeed(orbitR: number): number {
@@ -154,7 +151,7 @@ function useTiffTexture(url: string | null): {
 /** Sparse cold background starfield, reusing the shared reveal engine. */
 function BackgroundStars({ progress, reducedMotion }: { progress: number; reducedMotion: boolean }) {
   const stars = useMemo((): SurfacePoint[] => {
-    const count = 220;
+    const count = 60; // Less dense
     const ranks = Array.from({ length: count }, (_, i) => i);
     for (let i = ranks.length - 1; i > 0; i -= 1) {
       const swap = Math.floor(Math.random() * (i + 1));
@@ -163,7 +160,7 @@ function BackgroundStars({ progress, reducedMotion }: { progress: number; reduce
     return ranks.map((rank) => {
       const theta = Math.random() * Math.PI * 2;
       const z = Math.random() * 2 - 1;
-      const shell = 15 + Math.random() * 10;
+      const shell = 35 + Math.random() * 20; // Push them further back behind galaxies
       const xy = Math.sqrt(Math.max(0, 1 - z * z));
       return {
         position: new Vector3(Math.cos(theta) * xy * shell, z * shell * 0.6, Math.sin(theta) * xy * shell),
@@ -172,7 +169,7 @@ function BackgroundStars({ progress, reducedMotion }: { progress: number; reduce
         revealRank: rank,
         heightRank: 0,
         twinklePhase: Math.random() * Math.PI * 2,
-        twinkleSpeed: 0.0009 + Math.random() * 0.00085,
+        twinkleSpeed: 0.0003 + Math.random() * 0.0002, // Slower twinkling
       };
     });
   }, []);
@@ -180,12 +177,63 @@ function BackgroundStars({ progress, reducedMotion }: { progress: number; reduce
     <ConstellationPoints
       points={stars}
       progress={clamp01(progress * 2)}
-      color="#8fb4ff"
-      accentColor="#eaf2ff"
-      size={0.11}
+      color="#fcfdff" // mostly white
+      accentColor="#ffe8dc" // slight warm variants
+      size={0.06} // Smaller stars
       staticMode={reducedMotion}
-      opacity={0.85}
+      opacity={0.35} // Low opacity
     />
+  );
+}
+
+/** 
+ * Two real spiral galaxies far in the background. Rendered on flat planes.
+ * (Images already contain perspective tilt and transparent background).
+ */
+function FarBackgroundGalaxies({
+  texWhirlpool,
+  texAndromeda,
+  reducedMotion,
+}: {
+  texWhirlpool: Texture;
+  texAndromeda: Texture;
+  reducedMotion: boolean;
+}) {
+  const refLeft = useRef<ThreeMesh>(null);
+  const refCenter = useRef<ThreeMesh>(null);
+
+  useFrame((_state, delta) => {
+    if (!reducedMotion) {
+      // Extremely subtle rotation
+      if (refLeft.current) refLeft.current.rotation.z -= delta * 0.005;
+      if (refCenter.current) refCenter.current.rotation.z += delta * 0.003;
+    }
+  });
+
+  return (
+    <group position={[0, 0, -40]}>
+      {/* Larger left galaxy (Whirlpool) */}
+      <mesh ref={refLeft} position={[-25, 8, -10]} rotation={[0, 0, 0.2]}>
+        <planeGeometry args={[35, 35]} />
+        <meshBasicMaterial
+          map={texWhirlpool}
+          transparent
+          opacity={0.12}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Smaller center-right galaxy (Andromeda) */}
+      <mesh ref={refCenter} position={[12, -6, -20]} rotation={[0, 0, -0.1]}>
+        <planeGeometry args={[20, 20]} />
+        <meshBasicMaterial
+          map={texAndromeda}
+          transparent
+          opacity={0.08}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }
 
@@ -279,89 +327,9 @@ function Sun({
   );
 }
 
-/** Faint fading trail behind an orbiting planet (short comet-tail look). */
-const TRAIL_N = 48;
-
-function Trail({
-  orbitR,
-  angleRef,
-  color,
-  progressRef,
-  revealAt,
-}: {
-  orbitR: number;
-  angleRef: React.MutableRefObject<number>;
-  color: string;
-  progressRef: React.MutableRefObject<number>;
-  revealAt: [number, number];
-}) {
-  const histRef = useRef<Float32Array | null>(null);
-  const frameRef = useRef(0);
-  const scratch = useMemo(() => new Vector3(), []);
-
-  const trail = useMemo(() => {
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new BufferAttribute(new Float32Array(TRAIL_N * 3), 3));
-    const mat = new LineBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0,
-      blending: AdditiveBlending,
-      depthWrite: false,
-    });
-    const line = new Line(geo, mat);
-    line.frustumCulled = false;
-    line.visible = false;
-    return line;
-  }, [color]);
-
-  useEffect(
-    () => () => {
-      trail.geometry.dispose();
-      (trail.material as LineBasicMaterial).dispose();
-    },
-    [trail],
-  );
-
-  useFrame(() => {
-    const reveal = smoothstep(revealAt[0], revealAt[1], progressRef.current);
-    const mat = trail.material as LineBasicMaterial;
-    mat.opacity = 0.38 * reveal;
-    trail.visible = reveal > 0.02;
-    if (!trail.visible) return;
-    orbitPos(orbitR, angleRef.current, scratch);
-    if (!histRef.current) {
-      histRef.current = new Float32Array(TRAIL_N * 3);
-      for (let i = 0; i < TRAIL_N; i += 1) {
-        histRef.current[i * 3] = scratch.x;
-        histRef.current[i * 3 + 1] = scratch.y;
-        histRef.current[i * 3 + 2] = scratch.z;
-      }
-    }
-    frameRef.current += 1;
-    if (frameRef.current % 2 === 0) {
-      const h = histRef.current;
-      h.copyWithin(0, 3);
-      h[(TRAIL_N - 1) * 3] = scratch.x;
-      h[(TRAIL_N - 1) * 3 + 1] = scratch.y;
-      h[(TRAIL_N - 1) * 3 + 2] = scratch.z;
-    }
-    const attr = trail.geometry.getAttribute('position') as BufferAttribute;
-    const arr = attr.array as Float32Array;
-    const h = histRef.current;
-    for (let i = 0; i < TRAIL_N; i += 1) {
-      arr[i * 3] = h[i * 3] - scratch.x;
-      arr[i * 3 + 1] = h[i * 3 + 1] - scratch.y;
-      arr[i * 3 + 2] = h[i * 3 + 2] - scratch.z;
-    }
-    attr.needsUpdate = true;
-  });
-
-  return <primitive object={trail} />;
-}
-
 function SaturnRing({ inner, outer, map, opacityRef }: { inner: number; outer: number; map: Texture; opacityRef: React.MutableRefObject<number> }) {
   const meshRef = useRef<ThreeMesh>(null);
+
   const geometry = useMemo(() => {
     const geo = new RingGeometry(inner, outer, 160, 1);
     // Radial UVs: u runs innerΓåÆouter rim so the alpha strip maps correctly
@@ -695,7 +663,6 @@ function Planet({
             <SaturnRing inner={cfg.size * 1.28} outer={cfg.size * 2.15} map={textures.saturnRing} opacityRef={opacityRef} />
           )}
         </group>
-        <Trail orbitR={cfg.orbitR} angleRef={angleRef} color={cfg.trailColor} progressRef={progressRef} revealAt={revealAt} />
       </group>
       {/* Orbit ring stays centered on the Sun (outside the planet's moving group). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} material={orbitMat}>
@@ -743,6 +710,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const { texture: ringTex, error: ringError, isLoading: ringLoading } = useTextureLoader(TEX.saturnRing);
   const { texture: uranusTex, error: uranusError, isLoading: uranusLoading } = useTextureLoader(TEX.uranus);
   const { texture: neptuneTex, error: neptuneError, isLoading: neptuneLoading } = useTextureLoader(TEX.neptune);
+  const { texture: galaxyWhirlpoolTex } = useTextureLoader(TEX.galaxyWhirlpool);
+  const { texture: galaxyAndromedaTex } = useTextureLoader(TEX.galaxyAndromeda);
 
   const firstError =
     sunError ??
@@ -777,6 +746,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         ringTex,
         uranusTex,
         neptuneTex,
+        galaxyWhirlpoolTex,
+        galaxyAndromedaTex,
       ].filter((t): t is Texture => !!t),
     [
       sunTex,
@@ -791,6 +762,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       ringTex,
       uranusTex,
       neptuneTex,
+      galaxyWhirlpoolTex,
+      galaxyAndromedaTex,
     ],
   );
   useEffect(() => {
@@ -871,6 +844,13 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         style={{ position: 'absolute', inset: 0 }}
       >
         <ambientLight intensity={0.38} color="#8fa8d8" />
+        {galaxyWhirlpoolTex && galaxyAndromedaTex ? (
+          <FarBackgroundGalaxies
+            texWhirlpool={galaxyWhirlpoolTex}
+            texAndromeda={galaxyAndromedaTex}
+            reducedMotion={reducedMotion}
+          />
+        ) : null}
         <BackgroundStars progress={p} reducedMotion={reducedMotion} />
         {ready && sunTex ? (
           <>
@@ -949,4 +929,6 @@ preloadAssets(
   TEX.saturnRing,
   TEX.uranus,
   TEX.neptune,
+  TEX.galaxyWhirlpool,
+  TEX.galaxyAndromeda,
 );
