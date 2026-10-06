@@ -148,8 +148,8 @@ function useTiffTexture(url: string | null): {
   return state;
 }
 
-/** Sparse cold background starfield, reusing the shared reveal engine. */
-function BackgroundStars({ progress, reducedMotion }: { progress: number; reducedMotion: boolean }) {
+/** Sparse cold background starfield, always on (ambient backdrop, not progress-gated). */
+function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
   const stars = useMemo((): SurfacePoint[] => {
     const count = 60; // Less dense
     const ranks = Array.from({ length: count }, (_, i) => i);
@@ -176,12 +176,12 @@ function BackgroundStars({ progress, reducedMotion }: { progress: number; reduce
   return (
     <ConstellationPoints
       points={stars}
-      progress={clamp01(progress * 2)}
+      progress={1}
       color="#fcfdff" // mostly white
       accentColor="#ffe8dc" // slight warm variants
-      size={0.06} // Smaller stars
+      size={0.2}
       staticMode={reducedMotion}
-      opacity={0.35} // Low opacity
+      opacity={0.55}
     />
   );
 }
@@ -197,61 +197,6 @@ interface GalaxyPlacement {
   z: number;
   size: number;
   opacity: number;
-}
-
-function GalSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="flex items-center gap-1">
-      <span className="w-7 shrink-0 text-white/70">{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-sky-300"
-      />
-      <span className="w-11 shrink-0 text-right tabular-nums text-white">
-        {step < 0.1 ? value.toFixed(2) : value.toFixed(1)}
-      </span>
-    </label>
-  );
-}
-
-function GalaxyTuner({
-  title,
-  placement,
-  onPatch,
-}: {
-  title: string;
-  placement: GalaxyPlacement;
-  onPatch: (patch: Partial<GalaxyPlacement>) => void;
-}) {
-  return (
-    <div>
-      <div className="mb-0.5 mt-1.5 font-semibold tracking-wide text-white first:mt-0">{title}</div>
-      <GalSlider label="X" value={placement.x} min={-45} max={45} step={0.5} onChange={(v) => onPatch({ x: v })} />
-      <GalSlider label="Y" value={placement.y} min={-45} max={25} step={0.5} onChange={(v) => onPatch({ y: v })} />
-      <GalSlider label="Z" value={placement.z} min={-80} max={-5} step={1} onChange={(v) => onPatch({ z: v })} />
-      <GalSlider label="Size" value={placement.size} min={5} max={60} step={1} onChange={(v) => onPatch({ size: v })} />
-      <GalSlider label="Op" value={placement.opacity} min={0} max={0.5} step={0.01} onChange={(v) => onPatch({ opacity: v })} />
-    </div>
-  );
 }
 
 function FarBackgroundGalaxies({
@@ -758,12 +703,9 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   activeRef.current = running || complete;
 
   const [loop, setLoop] = useState(true);
-  // Temporary galaxy placement tuner (hardcode + remove panel once placed).
-  const [galLeft, setGalLeft] = useState<GalaxyPlacement>({ x: -15, y: -8, z: -30, size: 26, opacity: 0.15 });
-  const [galCenter, setGalCenter] = useState<GalaxyPlacement>({ x: 10, y: -14, z: -35, size: 20, opacity: 0.12 });
-  const [showTuner, setShowTuner] = useState(true);
-  const patchLeft = (patch: Partial<GalaxyPlacement>) => setGalLeft((g) => ({ ...g, ...patch }));
-  const patchCenter = (patch: Partial<GalaxyPlacement>) => setGalCenter((g) => ({ ...g, ...patch }));
+  // Background galaxy placement (tuned via temporary panel, now hardcoded).
+  const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
+  const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -35, size: 20, opacity: 0.33 };
   useEffect(() => {
     const onVis = () => setLoop(!document.hidden);
     document.addEventListener('visibilitychange', onVis);
@@ -927,7 +869,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             center={galCenter}
           />
         ) : null}
-        <BackgroundStars progress={p} reducedMotion={reducedMotion} />
+        <BackgroundStars reducedMotion={reducedMotion} />
         {ready && sunTex ? (
           <>
             <Sun
@@ -975,30 +917,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             'radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,.5) 82%, rgba(0,0,0,1) 100%)',
         }}
       />
-      {showTuner ? (
-        <div className="absolute left-3 top-3 z-50 max-h-[70%] w-60 overflow-y-auto rounded-md border border-white/15 bg-black/70 p-2 text-[10px] leading-tight text-white/90 backdrop-blur-sm">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-semibold tracking-wide text-white">GALAXIES (temp)</span>
-            <button
-              type="button"
-              onClick={() => setShowTuner(false)}
-              className="rounded border border-white/20 px-1.5 py-0.5 text-white/70 hover:text-white"
-            >
-              hide
-            </button>
-          </div>
-          <GalaxyTuner title="L · whirlpool (left)" placement={galLeft} onPatch={patchLeft} />
-          <GalaxyTuner title="C · andromeda (middle)" placement={galCenter} onPatch={patchCenter} />
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowTuner(true)}
-          className="absolute left-3 top-3 z-50 rounded border border-white/20 bg-black/70 px-2 py-1 text-[10px] text-white/70 hover:text-white"
-        >
-          galaxies
-        </button>
-      )}
     </div>
   );
 }
