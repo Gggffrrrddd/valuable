@@ -296,7 +296,7 @@ function Trail({
   revealAt: [number, number];
 }) {
   const histRef = useRef<Float32Array | null>(null);
-  const lastAngleRef = useRef<number | null>(null);
+  const frameRef = useRef(0);
   const scratch = useMemo(() => new Vector3(), []);
 
   const trail = useMemo(() => {
@@ -337,18 +337,14 @@ function Trail({
         histRef.current[i * 3 + 1] = scratch.y;
         histRef.current[i * 3 + 2] = scratch.z;
       }
-      lastAngleRef.current = angleRef.current;
     }
-    // Only sample new trail points while the planet is actually orbiting;
-    // when it stops, the tail keeps its last shape instead of collapsing.
-    const moved = lastAngleRef.current !== angleRef.current;
-    if (moved) {
+    frameRef.current += 1;
+    if (frameRef.current % 2 === 0) {
       const h = histRef.current;
       h.copyWithin(0, 3);
       h[(TRAIL_N - 1) * 3] = scratch.x;
       h[(TRAIL_N - 1) * 3 + 1] = scratch.y;
       h[(TRAIL_N - 1) * 3 + 2] = scratch.z;
-      lastAngleRef.current = angleRef.current;
     }
     const attr = trail.geometry.getAttribute('position') as BufferAttribute;
     const arr = attr.array as Float32Array;
