@@ -8,6 +8,15 @@ interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
 }
 
+// TEMPORARY demo friends for UI preview — remove before release.
+const TEMP_FRIENDS: FriendStat[] = [
+  { profile: { id: 'temp-1', display_name: 'Aarav', friend_code: 'ARV001' }, todayMinutes: 30, currentStreak: 12 },
+  { profile: { id: 'temp-2', display_name: 'Diya', friend_code: 'DIYA02' }, todayMinutes: 30, currentStreak: 7 },
+  { profile: { id: 'temp-3', display_name: 'Kabir', friend_code: 'KBR003' }, todayMinutes: 30, currentStreak: 21 },
+  { profile: { id: 'temp-4', display_name: 'Meera', friend_code: 'MRA004' }, todayMinutes: 30, currentStreak: 5 },
+  { profile: { id: 'temp-5', display_name: 'Rohan', friend_code: 'RHN005' }, todayMinutes: 30, currentStreak: 9 },
+];
+
 export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
   const { profile, session } = useAuth();
   const [codeInput, setCodeInput] = useState('');
@@ -38,7 +47,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       const friendIds = accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id));
       const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
       const stats = await Promise.all(statsPromises);
-      setFriends(stats.filter((s): s is FriendStat => s !== null));
+      setFriends([...TEMP_FRIENDS, ...stats.filter((s): s is FriendStat => s !== null)]);
 
       const pendingPromises = pending.map(async (p) => {
         const { data } = await supabase
