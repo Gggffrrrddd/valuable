@@ -15,5 +15,5 @@ export const FOCUS_VISUAL_THEMES: { id: FocusVisualTheme; label: string; descrip
   { id: 'jar', label: 'Water Jar', description: 'Fill the vessel slowly' },
   { id: 'butterfly', label: 'Starlight Butterfly', description: 'Butterflies write your phrase in the stars' },
   { id: 'blade', label: 'Spin Blade', description: 'Let momentum carry the session' },
-  { id: 'solar-system', label: 'Starlight Solar System', description: 'A cold, awe-inspiring cosmic void' },
+  { id: 'solar-system', label: 'Solar System', description: 'A cold, awe-inspiring cosmic void' },
 ];
