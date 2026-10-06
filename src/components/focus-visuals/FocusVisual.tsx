@@ -15,7 +15,7 @@ const SolarSystemVisual = lazy(() => import('./SolarSystemVisual'));
  * unexpected render crash still degrades to the Hourglass instead of taking
  * down the focus session UI.
  */
-export default function FocusVisual({ theme, progress, duration, running, leafAsset }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
+export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
@@ -23,7 +23,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
     return (
       <ModelVisualErrorBoundary visualLabel="Solar System" progress={progress} running={running} duration={duration ?? 0}>
         <Suspense fallback={<ModelLoadingShimmer label="Solar System" />}>
-          <SolarSystemVisual progress={progress} running={running} />
+          <SolarSystemVisual progress={progress} running={running} depth={depth} />
         </Suspense>
       </ModelVisualErrorBoundary>
     );

@@ -3,6 +3,8 @@ export interface FocusVisualProps {
   running?: boolean;
   leafAsset?: string;
   onFinaleComplete?: () => void;
+  /** Solar System only: 0 = pushed front (close), 1 = pushed back (far). */
+  depth?: number;
 }
 
 export type FocusVisualTheme = 'hourglass' | 'tree' | 'jar' | 'blade' | 'butterfly' | 'solar-system';

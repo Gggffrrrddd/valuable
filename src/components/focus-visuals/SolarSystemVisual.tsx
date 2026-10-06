@@ -234,7 +234,6 @@ function Sun({
     const lit = smoothstep(0.12, 0.45, p);
     const core = smoothstep(0.2, 0.5, p);
 
-    if (groupRef.current) groupRef.current.scale.setScalar(Math.max(0.0001, lit));
     const basic = matRef.current?.material as unknown as { color: Color } | undefined;
     if (basic) {
       const heat = 1 + 0.09 * pulse * core + flash * 0.9;
@@ -250,7 +249,7 @@ function Sun({
   });
 
   return (
-    <group ref={groupRef} scale={0.0001}>
+    <group ref={groupRef} scale={1}>
       <mesh ref={matRef}>
         <sphereGeometry args={[1, 48, 48]} />
         <meshBasicMaterial map={map} toneMapped={false} />
@@ -405,6 +404,7 @@ function EarthBody({
   specTex,
   spinRef,
   rimOpacityRef,
+  opacityRef,
 }: {
   size: number;
   dayTex: Texture;
@@ -414,13 +414,14 @@ function EarthBody({
   specTex: Texture | null;
   spinRef: React.MutableRefObject<{ base: number; clouds: number }>;
   rimOpacityRef: React.MutableRefObject<number>;
+  opacityRef: React.MutableRefObject<number>;
 }) {
   const baseRef = useRef<ThreeMesh>(null);
   const cloudsRef = useRef<ThreeMesh>(null);
   const rimMatRef = useRef<ShaderMaterial>(null);
 
   const earthMat = useMemo(() => {
-    const m = new MeshStandardMaterial({ map: dayTex, roughness: 0.9, metalness: 0 });
+    const m = new MeshStandardMaterial({ map: dayTex, roughness: 0.9, metalness: 0, transparent: true });
     m.emissive = new Color('#ffffff');
     m.emissiveMap = nightTex;
     m.emissiveIntensity = 1.15;
@@ -535,6 +536,8 @@ function EarthBody({
     if (rimMatRef.current) {
       rimMatRef.current.uniforms.uOpacity.value = rimOpacityRef.current;
     }
+    earthMat.opacity = opacityRef.current;
+    cloudMat.opacity = opacityRef.current * 0.88;
   });
 
   return (
@@ -608,7 +611,7 @@ function Planet({
   );
 
   const mat = useMemo(
-    () => new MeshStandardMaterial({ map, roughness: cfg.roughness, metalness: 0 }),
+    () => new MeshStandardMaterial({ map, roughness: cfg.roughness, metalness: 0, transparent: true }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [map],
   );
@@ -625,12 +628,13 @@ function Planet({
     const reveal = smoothstep(revealAt[0], revealAt[1], p);
     opacityRef.current = reveal;
     rimOpacityRef.current = 0.8 * reveal;
+    mat.opacity = reveal;
     if (activeRef.current && !reducedMotion) {
       angleRef.current += orbitSpeed(cfg.orbitR) * delta;
     }
     orbitPos(cfg.orbitR, angleRef.current, scratch);
     if (posRef.current) posRef.current.position.copy(scratch);
-    if (scaleRef.current) scaleRef.current.scale.setScalar(Math.max(0.0001, reveal));
+    if (scaleRef.current) scaleRef.current.scale.setScalar(1);
     if (spinRef.current && activeRef.current && !reducedMotion) {
       spinRef.current.rotation.y += cfg.spin * delta;
       earthSpin.current.base += cfg.spin * delta;
@@ -643,7 +647,7 @@ function Planet({
 
   return (
     <group ref={posRef}>
-      <group ref={scaleRef} scale={0.0001}>
+      <group ref={scaleRef} scale={1}>
         <group ref={spinRef}>
           {isEarth && textures.earthDay && textures.earthNight && textures.earthClouds ? (
             <EarthBody
@@ -655,6 +659,7 @@ function Planet({
               specTex={textures.earthSpec}
               spinRef={earthSpin}
               rimOpacityRef={rimOpacityRef}
+              opacityRef={opacityRef}
             />
           ) : (
             <mesh material={mat}>
@@ -672,15 +677,10 @@ function Planet({
 }
 
 function LoadingSun() {
-  return (
-    <mesh>
-      <sphereGeometry args={[1, 24, 24]} />
-      <meshBasicMaterial color="#223355" wireframe />
-    </mesh>
-  );
+  return null;
 }
 
-export default function SolarSystemVisual({ progress, running = false }: FocusVisualProps) {
+export default function SolarSystemVisual({ progress, running = false, depth = 0.5 }: FocusVisualProps & { depth?: number }) {
   const reducedMotion = useReducedMotion();
   const value = clamp01(progress);
   const complete = value >= 1;
@@ -688,6 +688,8 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
   const p = reducedMotion ? 1 : value;
   const progressRef = useRef(p);
   progressRef.current = p;
+  const depthRef = useRef(0.5);
+  depthRef.current = depth;
   const activeRef = useRef(running || complete);
   activeRef.current = running || complete;
 
@@ -894,7 +896,7 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
               );
             })}
             <OrbitGuides progressRef={progressRef} material={ringGuideMat} />
-            <CameraRig progressRef={progressRef} />
+            <CameraRig depthRef={depthRef} />
           </>
         ) : (
           <LoadingSun />
@@ -934,15 +936,14 @@ function OrbitGuides({
   );
 }
 
-/** Camera eases to its final framing (subtle zoom-out) at 95ΓÇô100%. */
-function CameraRig({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
+/** Keeps the system framed at a constant distance; `depth` (0..1) lets the
+ *  user push the whole system back or pull it front. No progress-driven zoom. */
+function CameraRig({ depthRef }: { depthRef: React.MutableRefObject<number> }) {
   const base = useMemo(() => new Vector3(0, 8.5, 13), []);
-  const final = useMemo(() => new Vector3(0, 10, 15.5), []);
-  const target = useMemo(() => new Vector3(), []);
   useFrame(({ camera }) => {
-    const k = smoothstep(0.95, 1, progressRef.current);
-    target.lerpVectors(base, final, k);
-    camera.position.copy(target);
+    // depth 0 = close/front (x0.65), 0.5 = default (x1), 1 = far/back (x1.6)
+    const k = 0.65 + depthRef.current * 1.9;
+    camera.position.copy(base).multiplyScalar(k);
     camera.lookAt(0, 0, 0);
   });
   return null;
