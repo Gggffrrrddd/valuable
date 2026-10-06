@@ -730,9 +730,13 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
   const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
   // Temporary star tuner (hardcode + remove panel once locked).
-  const [starSize, setStarSize] = useState(0.4);
-  const [starOpacity, setStarOpacity] = useState(0.6);
+  const [starSize, setStarSize] = useState(0.65);
+  const [starOpacity, setStarOpacity] = useState(0.85);
   const [showStarTuner, setShowStarTuner] = useState(true);
+  // CameraRig multiplies the base position by this factor every frame — the
+  // Canvas camera must start pre-corrected, otherwise the first frame renders
+  // uncorrected and the whole scene visibly jumps once ("shift at start").
+  const camK = 0.65 + depth * 1.9;
   useEffect(() => {
     const onVis = () => setLoop(!document.hidden);
     document.addEventListener('visibilitychange', onVis);
@@ -877,7 +881,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
       <Canvas
-        camera={{ position: [0, 8.5, 13], fov: 40, near: 0.1, far: 120 }}
+        camera={{ position: [0, 8.5 * camK, 13 * camK], fov: 40, near: 0.1, far: 120 }}
         dpr={[1, 1.75]}
         frameloop={loop ? 'always' : 'never'}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
@@ -940,7 +944,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         aria-hidden="true"
         style={{
           background:
-            'radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,.5) 82%, rgba(0,0,0,1) 100%)',
+            'radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.35) 85%, rgba(0,0,0,1) 100%)',
         }}
       />
       {showStarTuner ? (
