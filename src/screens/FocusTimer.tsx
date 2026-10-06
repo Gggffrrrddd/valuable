@@ -97,7 +97,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
     return s ? s.durationMs / 1000 : 0;
   });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-  const [solarDepth, setSolarDepth] = useState(0.5);
+  const SOLAR_DEPTH = 0.2;
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
@@ -356,7 +356,7 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           {/* Left / center zone: hourglass visual */}
           <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
-              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={solarDepth} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
             </div>
           </div>
 
@@ -374,34 +374,6 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
           {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
-
-        {/* Solar System depth control: push the whole system front / back */}
-        {visualTheme === 'solar-system' && (
-          <div className="absolute bottom-12 left-4 z-20 flex flex-col gap-1.5 rounded-2xl border border-white/[.08] bg-black/40 px-4 py-3 backdrop-blur-xl sm:left-6">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[9px] font-bold uppercase tracking-[.18em] text-stone-500">Depth</span>
-              <span className="font-mono text-[10px] font-bold text-lime-300/90 tabular-nums">{solarDepth.toFixed(2)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-stone-500">Front</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.02}
-                value={solarDepth}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setSolarDepth(v);
-                  console.log(`[SolarSystem] depth → ${v.toFixed(2)} (${v < 0.4 ? 'front/close' : v > 0.6 ? 'back/far' : 'default'})`);
-                }}
-                className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/15 accent-lime-300 sm:w-32"
-                aria-label="Solar system depth"
-              />
-              <span className="text-[9px] text-stone-500">Back</span>
-            </div>
-          </div>
-        )}
 
         {/* Session controls */}
         {phase !== 'completing' && (
