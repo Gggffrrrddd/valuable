@@ -189,6 +189,8 @@ const OPEN_BOOK_TRANSFORMS: ObjectTransform[] = (() => {
 
 interface StudyTableScreenProps {
   onBack: () => void;
+  /** Top-left back affordance. 'Circle' pill by default; 'Go back' text when returning to a live timer. */
+  backLabel?: string;
 }
 
 interface CircleFriend {
@@ -216,7 +218,7 @@ async function fetchCircleFriends(userId: string): Promise<CircleFriend[]> {
   return ((profiles || []) as CircleFriend[]).sort((a, b) => a.id.localeCompare(b.id));
 }
 
-export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
+export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: StudyTableScreenProps) {
   const { profile, session } = useAuth();
   const [friends, setFriends] = useState<CircleFriend[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CirclePresenceStatus>>({});
@@ -322,14 +324,24 @@ export default function StudyTableScreen({ onBack }: StudyTableScreenProps) {
 
       {/* Chrome floats over the full-bleed scene */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4 sm:p-6">
-        <button
-          onClick={onBack}
-          className="icon-button pointer-events-auto flex h-10 items-center gap-2 px-3.5 text-xs font-bold"
-          aria-label="Back to Circle"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Circle
-        </button>
+        {backLabel === 'Go back' ? (
+          <button
+            onClick={onBack}
+            className="pointer-events-auto px-1 py-2 text-xs font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+            aria-label="Go back to focus timer"
+          >
+            ← go back
+          </button>
+        ) : (
+          <button
+            onClick={onBack}
+            className="icon-button pointer-events-auto flex h-10 items-center gap-2 px-3.5 text-xs font-bold"
+            aria-label="Back to Circle"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Circle
+          </button>
+        )}
 
         <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/[.07] bg-black/30 px-4 py-2 text-[11px] font-bold tracking-wide text-stone-400 backdrop-blur-xl">
           <span className="relative flex h-2 w-2">

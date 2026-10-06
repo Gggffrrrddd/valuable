@@ -34,6 +34,10 @@ function AppContent() {
     return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : 'tab';
   });
   const [breakMinutes, setBreakMinutes] = useState(5);
+  // True when the study table was opened mid-session: the wall-clock timer
+  // lives in sessionStorage, so the table unmounts FocusTimer safely and
+  // "go back" remounts it into the same running session.
+  const [tableFromTimer, setTableFromTimer] = useState(false);
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);
@@ -111,7 +115,15 @@ function AppContent() {
   }
 
   if (screen === 'timer') {
-    return <FocusTimer onComplete={handleSessionComplete} />;
+    return (
+      <FocusTimer
+        onComplete={handleSessionComplete}
+        onOpenStudyTable={() => {
+          setTableFromTimer(true);
+          setScreen('table');
+        }}
+      />
+    );
   }
 
   if (screen === 'break') {
@@ -123,7 +135,19 @@ function AppContent() {
   }
 
   if (screen === 'table') {
-    return <StudyTableScreen onBack={() => setScreen('tab')} />;
+    return (
+      <StudyTableScreen
+        onBack={() => {
+          if (tableFromTimer) {
+            setTableFromTimer(false);
+            setScreen('timer');
+          } else {
+            setScreen('tab');
+          }
+        }}
+        backLabel={tableFromTimer ? 'Go back' : 'Circle'}
+      />
+    );
   }
 
   return (
@@ -199,7 +223,13 @@ function AppContent() {
                   <div className="mt-1 text-xs leading-5 text-stone-600">Your session will be quietly logged when you finish.</div>
                 </div>
               </div>
-              <FocusTimer onComplete={handleSessionComplete} />
+              <FocusTimer
+                onComplete={handleSessionComplete}
+                onOpenStudyTable={() => {
+                  setTableFromTimer(true);
+                  setScreen('table');
+                }}
+              />
             </div>
           )}
           {tab === 'stats' && (
@@ -213,7 +243,12 @@ function AppContent() {
             <CompeteScreen />
           )}
           {tab === 'friends' && (
-            <FriendsScreen onOpenStudyTable={() => setScreen('table')} />
+            <FriendsScreen
+              onOpenStudyTable={() => {
+                setTableFromTimer(false);
+                setScreen('table');
+              }}
+            />
           )}
         </main>
 

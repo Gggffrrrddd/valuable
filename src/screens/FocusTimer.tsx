@@ -19,6 +19,8 @@ import {
 
 interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, delayNavigation?: boolean) => Promise<() => void> | void;
+  /** Peek at the study table mid-session. The wall-clock timer keeps running; visuals rehydrate on return. */
+  onOpenStudyTable?: () => void;
 }
 
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
@@ -75,7 +77,7 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-export default function FocusTimer({ onComplete }: FocusTimerProps) {
+export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
@@ -369,6 +371,17 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
             </div>
           )}
         </div>
+
+        {/* See your friends — peeks at the study table while the timer runs on */}
+        {onOpenStudyTable && phase !== 'completing' && (
+          <button
+            type="button"
+            onClick={onOpenStudyTable}
+            className="absolute bottom-6 right-5 z-20 text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+          >
+            see your friends →
+          </button>
+        )}
 
         {/* Session status */}
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
