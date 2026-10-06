@@ -91,7 +91,7 @@ export interface RingTune {
 }
 
 /** Hardcoded ring width (read off the Gold-ring tuner) — base px. */
-export const DEFAULT_RING: RingTune = { ring: 3 };
+export const DEFAULT_RING: RingTune = { ring: 1 };
 
 export const RING_SLIDER_ROWS: SliderRow<RingTune>[] = [
   { key: 'ring', label: 'Gold ring width', min: 0, max: 6, step: 0.05 },
