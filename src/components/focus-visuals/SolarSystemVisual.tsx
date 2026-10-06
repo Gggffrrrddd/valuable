@@ -623,11 +623,25 @@ function Planet({
     [map],
   );
 
+  // Orbit ring appears instantly the moment this planet arrives (no delayed global fade).
+  const orbitMat = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: '#5f7fc9',
+        transparent: true,
+        opacity: 0,
+        side: DoubleSide,
+        depthWrite: false,
+      }),
+    [],
+  );
+
   useEffect(
     () => () => {
       mat.dispose();
+      orbitMat.dispose();
     },
-    [mat],
+    [mat, orbitMat],
   );
 
   useFrame((_state, delta) => {
@@ -636,6 +650,7 @@ function Planet({
     opacityRef.current = reveal;
     rimOpacityRef.current = 0.8 * reveal;
     mat.opacity = reveal;
+    orbitMat.opacity = reveal > 0.02 ? 0.32 : 0;
     if (activeRef.current && !reducedMotion) {
       angleRef.current += orbitSpeed(cfg.orbitR) * delta;
     }
@@ -654,33 +669,39 @@ function Planet({
   const isSaturn = cfg.key === 'saturn';
 
   return (
-    <group ref={posRef}>
-      <group ref={scaleRef} scale={1}>
-        <group ref={spinRef}>
-          {isEarth && textures.earthDay && textures.earthNight && textures.earthClouds ? (
-            <EarthBody
-              size={cfg.size}
-              dayTex={textures.earthDay}
-              nightTex={textures.earthNight}
-              cloudTex={textures.earthClouds}
-              normalTex={textures.earthNormal}
-              specTex={textures.earthSpec}
-              spinRef={earthSpin}
-              rimOpacityRef={rimOpacityRef}
-              opacityRef={opacityRef}
-            />
-          ) : (
-            <mesh material={mat}>
-              <sphereGeometry args={[cfg.size, 48, 48]} />
-            </mesh>
+    <>
+      <group ref={posRef}>
+        <group ref={scaleRef} scale={0.0001}>
+          <group ref={spinRef}>
+            {isEarth && textures.earthDay && textures.earthNight && textures.earthClouds ? (
+              <EarthBody
+                size={cfg.size}
+                dayTex={textures.earthDay}
+                nightTex={textures.earthNight}
+                cloudTex={textures.earthClouds}
+                normalTex={textures.earthNormal}
+                specTex={textures.earthSpec}
+                spinRef={earthSpin}
+                rimOpacityRef={rimOpacityRef}
+                opacityRef={opacityRef}
+              />
+            ) : (
+              <mesh material={mat}>
+                <sphereGeometry args={[cfg.size, 48, 48]} />
+              </mesh>
+            )}
+          </group>
+          {isSaturn && textures.saturnRing && (
+            <SaturnRing inner={cfg.size * 1.28} outer={cfg.size * 2.15} map={textures.saturnRing} opacityRef={opacityRef} />
           )}
         </group>
-        {isSaturn && textures.saturnRing && (
-          <SaturnRing inner={cfg.size * 1.28} outer={cfg.size * 2.15} map={textures.saturnRing} opacityRef={opacityRef} />
-        )}
+        <Trail orbitR={cfg.orbitR} angleRef={angleRef} color={cfg.trailColor} progressRef={progressRef} revealAt={revealAt} />
       </group>
-      <Trail orbitR={cfg.orbitR} angleRef={angleRef} color={cfg.trailColor} progressRef={progressRef} revealAt={revealAt} />
-    </group>
+      {/* Orbit ring stays centered on the Sun (outside the planet's moving group). */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} material={orbitMat}>
+        <ringGeometry args={[cfg.orbitR - 0.012, cfg.orbitR + 0.012, 160]} />
+      </mesh>
+    </>
   );
 }
 
@@ -786,25 +807,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     [glowCool, glowHot],
   );
 
-  const ringGuideMat = useMemo(
-    () =>
-      new MeshBasicMaterial({
-        color: '#5f7fc9',
-        transparent: true,
-        opacity: 0,
-        side: DoubleSide,
-        depthWrite: false,
-      }),
-    [],
-  );
-
-  useEffect(
-    () => () => {
-      ringGuideMat.dispose();
-    },
-    [ringGuideMat],
-  );
-
   const mapsByKey: Record<string, Texture | null> = {
     mercury: mercuryTex,
     venus: venusTex,
@@ -903,7 +905,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
                 />
               );
             })}
-            <OrbitGuides progressRef={progressRef} material={ringGuideMat} />
             <CameraRig depthRef={depthRef} />
           </>
         ) : (
@@ -919,28 +920,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         }}
       />
     </div>
-  );
-}
-
-/** Faint orbit-ring guides that fade in as planets coalesce. */
-function OrbitGuides({
-  progressRef,
-  material,
-}: {
-  progressRef: React.MutableRefObject<number>;
-  material: MeshBasicMaterial;
-}) {
-  useFrame(() => {
-    material.opacity = 0.32 * smoothstep(0.5, 0.68, progressRef.current);
-  });
-  return (
-    <>
-      {PLANETS.map((cfg) => (
-        <mesh key={cfg.key} rotation={[-Math.PI / 2, 0, 0]} material={material}>
-          <ringGeometry args={[cfg.orbitR - 0.012, cfg.orbitR + 0.012, 160]} />
-        </mesh>
-      ))}
-    </>
   );
 }
 
