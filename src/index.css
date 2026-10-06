@@ -1256,35 +1256,4 @@ button .butterfly-constellation {
   to { transform: scale(1.05); filter: brightness(1.2); }
 }
 
-/* Solar-system countdown digits: plain glowing numerals over the Sun.
- * The 4s glow pulse matches the Sun's emissive pulse period so the numbers
- * feel made of the Sun's light. Digit changes re-trigger the soft in-pulse. */
-.solar-digits {
-  color: #eef4ff;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .05em;
-  font-weight: 800;
-  font-size: clamp(2.5rem, 7vw, 4.5rem);
-  line-height: 1;
-  text-shadow:
-    0 0 18px rgba(150, 190, 255, .9),
-    0 0 46px rgba(120, 160, 255, .55),
-    0 0 90px rgba(120, 160, 255, .35);
-  animation: solar-digit-in .5s ease-out, solar-digit-pulse 4s ease-in-out .5s infinite;
-}
-
-@keyframes solar-digit-in {
-  from { opacity: .25; transform: scale(.94); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes solar-digit-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .86; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .solar-digits { animation: none; }
-}
-
 

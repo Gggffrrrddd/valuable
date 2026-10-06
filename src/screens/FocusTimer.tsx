@@ -75,32 +75,6 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-/**
- * Solar-system countdown: plain glowing digits over the Sun (no card, no
- * flip motion). `key` re-triggers the soft cross-fade/scale pulse on each
- * digit change; the 4s glow pulse matches the Sun's emissive pulse period.
- */
-function SolarTimerDigits({ secondsLeft, dimmed }: { secondsLeft: number; dimmed: boolean }) {
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-  const ss = String(secondsLeft % 60).padStart(2, '0');
-  const label = `${mm}:${ss}`;
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center transition-opacity duration-700 ease-out"
-      style={{ opacity: dimmed ? 0 : 1 }}
-    >
-      <div
-        key={label}
-        className="solar-digits font-display"
-        role="timer"
-        aria-label={`${mm} minutes ${ss} seconds remaining`}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
 export default function FocusTimer({ onComplete }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
@@ -369,18 +343,19 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
           </div>
         )}
 
+        {/* Solar System Top-Right FlipClock */}
+        {visualTheme === 'solar-system' && (
+          <div className="absolute top-6 right-6 z-50 origin-top-right scale-50 sm:scale-50 md:scale-75 pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+            <FlipClock secondsLeft={secondsLeft} />
+          </div>
+        )}
+
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
         <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
           <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
               <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} />
-              {visualTheme === 'solar-system' && (
-                <SolarTimerDigits
-                  secondsLeft={secondsLeft}
-                  dimmed={activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0}
-                />
-              )}
             </div>
           </div>
 

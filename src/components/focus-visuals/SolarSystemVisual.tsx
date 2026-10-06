@@ -9,7 +9,6 @@ import {
   DoubleSide,
   Line,
   LineBasicMaterial,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   RingGeometry,
   ShaderMaterial,
@@ -19,7 +18,6 @@ import {
 import type {
   Group,
   Mesh as ThreeMesh,
-  Points as ThreePoints,
   PointLight as ThreePointLight,
   Sprite as ThreeSprite,
   Texture,
@@ -73,8 +71,6 @@ const TEX = {
 
 /** Sun pulse period (seconds) — the timer-digit CSS pulse uses this same period. */
 const SUN_PULSE_PERIOD = 4;
-/** Ignition flash fires when progress crosses this value upward. */
-const IGNITION_AT = 0.8;
 /** Kepler-ish constant: angular speed = K / orbitR^1.5. */
 const KEPLER_K = 0.85;
 
@@ -190,119 +186,15 @@ function BackgroundStars({ progress, reducedMotion }: { progress: number; reduce
   );
 }
 
-/** The diffuse nebula: scattered particles that converge, then fade away. */
-function Nebula({
-  progressRef,
-  activeRef,
-}: {
-  progressRef: React.MutableRefObject<number>;
-  activeRef: React.MutableRefObject<boolean>;
-}) {
-  const COUNT = 520;
-  const pointsRef = useRef<ThreePoints>(null);
-  const timeRef = useRef(0);
-
-  const data = useMemo(() => {
-    const scattered = new Float32Array(COUNT * 3);
-    const target = new Float32Array(COUNT * 3);
-    const phase = new Float32Array(COUNT);
-    const drift = new Float32Array(COUNT);
-    const colors = new Float32Array(COUNT * 3);
-    const palette = [new Color('#7fb2ff'), new Color('#b48cff'), new Color('#eef4ff')];
-    for (let i = 0; i < COUNT; i += 1) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(Math.random() * 2 - 1);
-      const shell = 3 + Math.random() * 7;
-      scattered[i * 3] = Math.sin(phi) * Math.cos(theta) * shell;
-      scattered[i * 3 + 1] = Math.cos(phi) * shell * 0.55;
-      scattered[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * shell;
-      // 70% collapse to the core, 30% seed the future orbit band.
-      if (Math.random() < 0.7) {
-        target[i * 3] = (Math.random() - 0.5) * 1.2;
-        target[i * 3 + 1] = (Math.random() - 0.5) * 0.8;
-        target[i * 3 + 2] = (Math.random() - 0.5) * 1.2;
-      } else {
-        const cfg = PLANETS[Math.floor(Math.random() * PLANETS.length)];
-        const a = Math.random() * Math.PI * 2;
-        target[i * 3] = Math.cos(a) * cfg.orbitR;
-        target[i * 3 + 1] = (Math.random() - 0.5) * 0.6;
-        target[i * 3 + 2] = Math.sin(a) * cfg.orbitR;
-      }
-      phase[i] = Math.random() * Math.PI * 2;
-      drift[i] = 0.2 + Math.random() * 0.5;
-      const c = palette[Math.floor(Math.random() * palette.length)];
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-    }
-    return { scattered, target, phase, drift, colors };
-  }, []);
-
-  const geometry = useMemo(() => {
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new BufferAttribute(data.scattered.slice(), 3));
-    geo.setAttribute('color', new BufferAttribute(data.colors, 3));
-    return geo;
-  }, [data]);
-
-  useEffect(
-    () => () => {
-      geometry.dispose();
-    },
-    [geometry],
-  );
-
-  useFrame((_state, delta) => {
-    const points = pointsRef.current;
-    if (!points) return;
-    const material = points.material as unknown as { opacity: number };
-    const p = progressRef.current;
-    const fade = 1 - smoothstep(0.8, 0.97, p);
-    material.opacity = fade * 0.9;
-    points.visible = fade > 0.003;
-    if (!points.visible) return;
-    if (activeRef.current) timeRef.current += delta;
-    const t = timeRef.current;
-    const converge = smoothstep(0.18, 0.85, p);
-    const attr = geometry.getAttribute('position') as BufferAttribute;
-    const arr = attr.array as Float32Array;
-    const { scattered, target, phase, drift } = data;
-    for (let i = 0; i < COUNT; i += 1) {
-      const w = Math.sin(t * drift[i] + phase[i]) * 0.18;
-      arr[i * 3] = scattered[i * 3] + (target[i * 3] - scattered[i * 3]) * converge + w;
-      arr[i * 3 + 1] =
-        scattered[i * 3 + 1] + (target[i * 3 + 1] - scattered[i * 3 + 1]) * converge + w * 0.6;
-      arr[i * 3 + 2] = scattered[i * 3 + 2] + (target[i * 3 + 2] - scattered[i * 3 + 2]) * converge - w;
-    }
-    attr.needsUpdate = true;
-  });
-
-  return (
-    <points ref={pointsRef} geometry={geometry} frustumCulled={false}>
-      <pointsMaterial
-        size={0.11}
-        vertexColors
-        transparent
-        opacity={0.9}
-        blending={AdditiveBlending}
-        depthWrite={false}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
-/** The Sun: textured emissive sphere + pulsing halo + ignition flash. */
+/** The Sun: textured emissive sphere + pulsing halo. */
 function Sun({
   map,
-  progressRef,
   activeRef,
   reducedMotion,
   glowCool,
   glowHot,
 }: {
   map: Texture;
-  progressRef: React.MutableRefObject<number>;
   activeRef: React.MutableRefObject<boolean>;
   reducedMotion: boolean;
   glowCool: Texture;
@@ -314,46 +206,29 @@ function Sun({
   const haloHotRef = useRef<ThreeSprite>(null);
   const lightRef = useRef<ThreePointLight>(null);
   const pulseT = useRef(0);
-  const flashT = useRef(99);
-  const flashArmed = useRef(true);
-  const prevP = useRef(0);
 
   useFrame((_state, delta) => {
-    const p = progressRef.current;
-    if (!reducedMotion) {
-      if (p >= IGNITION_AT && prevP.current < IGNITION_AT && flashArmed.current) {
-        flashT.current = 0;
-        flashArmed.current = false;
-      }
-      if (p < IGNITION_AT - 0.1) flashArmed.current = true;
-    }
-    prevP.current = p;
     if (activeRef.current && !reducedMotion) {
       pulseT.current += delta;
-      if (!flashArmed.current) flashT.current += delta;
     }
     const pulse = reducedMotion ? 0 : Math.sin((pulseT.current * Math.PI * 2) / SUN_PULSE_PERIOD);
-    const flash = !reducedMotion && !flashArmed.current ? Math.exp(-flashT.current * 1.7) : 0;
-    const lit = smoothstep(0.12, 0.45, p);
-    const core = smoothstep(0.2, 0.5, p);
 
-    if (groupRef.current) groupRef.current.scale.setScalar(Math.max(0.0001, lit));
     const basic = matRef.current?.material as unknown as { color: Color } | undefined;
     if (basic) {
-      const heat = 1 + 0.09 * pulse * core + flash * 0.9;
-      basic.color.setRGB(heat, heat * (1 - flash * 0.12), heat * (1 - flash * 0.22));
+      const heat = 1 + 0.09 * pulse;
+      basic.color.setRGB(heat, heat, heat);
     }
     if (lightRef.current) {
-      lightRef.current.intensity = (30 + 7 * pulse) * lit + flash * 260;
+      lightRef.current.intensity = 30 + 7 * pulse;
     }
     const hc = haloCoolRef.current?.material as unknown as { opacity: number } | undefined;
-    if (hc) hc.opacity = Math.min(1, (0.34 + 0.08 * pulse) * lit + flash * 0.5);
+    if (hc) hc.opacity = Math.min(1, 0.34 + 0.08 * pulse);
     const hh = haloHotRef.current?.material as unknown as { opacity: number } | undefined;
-    if (hh) hh.opacity = Math.min(1, (0.5 + 0.12 * pulse) * lit + flash * 0.6);
+    if (hh) hh.opacity = Math.min(1, 0.5 + 0.12 * pulse);
   });
 
   return (
-    <group ref={groupRef} scale={0.0001}>
+    <group ref={groupRef} scale={1}>
       <mesh ref={matRef}>
         <sphereGeometry args={[1, 48, 48]} />
         <meshBasicMaterial map={map} toneMapped={false} />
@@ -508,6 +383,7 @@ function EarthBody({
   specTex,
   spinRef,
   rimOpacityRef,
+  opacityRef,
 }: {
   size: number;
   dayTex: Texture;
@@ -517,13 +393,14 @@ function EarthBody({
   specTex: Texture | null;
   spinRef: React.MutableRefObject<{ base: number; clouds: number }>;
   rimOpacityRef: React.MutableRefObject<number>;
+  opacityRef: React.MutableRefObject<number>;
 }) {
   const baseRef = useRef<ThreeMesh>(null);
   const cloudsRef = useRef<ThreeMesh>(null);
   const rimMatRef = useRef<ShaderMaterial>(null);
 
   const earthMat = useMemo(() => {
-    const m = new MeshStandardMaterial({ map: dayTex, roughness: 0.9, metalness: 0 });
+    const m = new MeshStandardMaterial({ map: dayTex, roughness: 0.9, metalness: 0, transparent: true });
     m.emissive = new Color('#ffffff');
     m.emissiveMap = nightTex;
     m.emissiveIntensity = 1.15;
@@ -638,6 +515,8 @@ function EarthBody({
     if (rimMatRef.current) {
       rimMatRef.current.uniforms.uOpacity.value = rimOpacityRef.current;
     }
+    earthMat.opacity = opacityRef.current;
+    cloudMat.opacity = opacityRef.current * 0.88;
   });
 
   return (
@@ -698,20 +577,22 @@ function Planet({
   reducedMotion: boolean;
 }) {
   const posRef = useRef<Group>(null);
-  const scaleRef = useRef<Group>(null);
   const spinRef = useRef<Group>(null);
   const angleRef = useRef(Math.random() * Math.PI * 2);
   const earthSpin = useRef({ base: 0, clouds: 0 });
   const opacityRef = useRef(0);
   const rimOpacityRef = useRef(0);
   const scratch = useMemo(() => new Vector3(), []);
+
+  // Planets appear sequentially. First (0) starts at 0.1, Last (7) ends at 1.0.
+  const threshold = (index + 1) / 8; // 8 planets total
   const revealAt: [number, number] = useMemo(
-    () => [0.5 + index * 0.02, 0.75],
-    [index],
+    () => [Math.max(0, threshold - 0.05), threshold],
+    [threshold],
   );
 
   const mat = useMemo(
-    () => new MeshStandardMaterial({ map, roughness: cfg.roughness, metalness: 0 }),
+    () => new MeshStandardMaterial({ map, roughness: cfg.roughness, metalness: 0, transparent: true }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [map],
   );
@@ -728,12 +609,13 @@ function Planet({
     const reveal = smoothstep(revealAt[0], revealAt[1], p);
     opacityRef.current = reveal;
     rimOpacityRef.current = 0.8 * reveal;
+    mat.opacity = reveal;
+    
     if (activeRef.current && !reducedMotion) {
       angleRef.current += orbitSpeed(cfg.orbitR) * delta;
     }
     orbitPos(cfg.orbitR, angleRef.current, scratch);
     if (posRef.current) posRef.current.position.copy(scratch);
-    if (scaleRef.current) scaleRef.current.scale.setScalar(Math.max(0.0001, reveal));
     if (spinRef.current && activeRef.current && !reducedMotion) {
       spinRef.current.rotation.y += cfg.spin * delta;
       earthSpin.current.base += cfg.spin * delta;
@@ -746,7 +628,7 @@ function Planet({
 
   return (
     <group ref={posRef}>
-      <group ref={scaleRef} scale={0.0001}>
+      <group scale={1}>
         <group ref={spinRef}>
           {isEarth && textures.earthDay && textures.earthNight && textures.earthClouds ? (
             <EarthBody
@@ -758,6 +640,7 @@ function Planet({
               specTex={textures.earthSpec}
               spinRef={earthSpin}
               rimOpacityRef={rimOpacityRef}
+              opacityRef={opacityRef}
             />
           ) : (
             <mesh material={mat}>
@@ -770,6 +653,10 @@ function Planet({
         )}
       </group>
       <Trail orbitR={cfg.orbitR} angleRef={angleRef} color={cfg.trailColor} progressRef={progressRef} revealAt={revealAt} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[cfg.orbitR - 0.012, cfg.orbitR + 0.012, 160]} />
+        <meshBasicMaterial color="#5f7fc9" transparent opacity={0.32 * opacityRef.current} side={DoubleSide} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
@@ -879,25 +766,6 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
     [glowCool, glowHot],
   );
 
-  const ringGuideMat = useMemo(
-    () =>
-      new MeshBasicMaterial({
-        color: '#5f7fc9',
-        transparent: true,
-        opacity: 0,
-        side: DoubleSide,
-        depthWrite: false,
-      }),
-    [],
-  );
-
-  useEffect(
-    () => () => {
-      ringGuideMat.dispose();
-    },
-    [ringGuideMat],
-  );
-
   const mapsByKey: Record<string, Texture | null> = {
     mercury: mercuryTex,
     venus: venusTex,
@@ -963,12 +831,10 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
       >
         <ambientLight intensity={0.38} color="#8fa8d8" />
         <BackgroundStars progress={p} reducedMotion={reducedMotion} />
-        <Nebula progressRef={progressRef} activeRef={activeRef} />
         {ready && sunTex ? (
           <>
             <Sun
               map={sunTex}
-              progressRef={progressRef}
               activeRef={activeRef}
               reducedMotion={reducedMotion}
               glowCool={glowCool}
@@ -997,8 +863,6 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
                 />
               );
             })}
-            <OrbitGuides progressRef={progressRef} material={ringGuideMat} />
-            <CameraRig progressRef={progressRef} />
           </>
         ) : (
           <LoadingSun />
@@ -1014,42 +878,6 @@ export default function SolarSystemVisual({ progress, running = false }: FocusVi
       />
     </div>
   );
-}
-
-/** Faint orbit-ring guides that fade in as planets coalesce. */
-function OrbitGuides({
-  progressRef,
-  material,
-}: {
-  progressRef: React.MutableRefObject<number>;
-  material: MeshBasicMaterial;
-}) {
-  useFrame(() => {
-    material.opacity = 0.32 * smoothstep(0.5, 0.68, progressRef.current);
-  });
-  return (
-    <>
-      {PLANETS.map((cfg) => (
-        <mesh key={cfg.key} rotation={[-Math.PI / 2, 0, 0]} material={material}>
-          <ringGeometry args={[cfg.orbitR - 0.012, cfg.orbitR + 0.012, 160]} />
-        </mesh>
-      ))}
-    </>
-  );
-}
-
-/** Camera eases to its final framing (subtle zoom-out) at 95–100%. */
-function CameraRig({ progressRef }: { progressRef: React.MutableRefObject<number> }) {
-  const base = useMemo(() => new Vector3(0, 8.5, 13), []);
-  const final = useMemo(() => new Vector3(0, 10, 15.5), []);
-  const target = useMemo(() => new Vector3(), []);
-  useFrame(({ camera }) => {
-    const k = smoothstep(0.95, 1, progressRef.current);
-    target.lerpVectors(base, final, k);
-    camera.position.copy(target);
-    camera.lookAt(0, 0, 0);
-  });
-  return null;
 }
 
 preloadAssets(
