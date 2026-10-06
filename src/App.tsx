@@ -206,6 +206,7 @@ function AppContent() {
             <StatsScreen
               onStartTimer={() => setScreen('timer')}
               onUpgrade={() => setScreen('premium')}
+              onNavigateToCompete={() => setTab('compete')}
             />
           )}
           {tab === 'compete' && (
