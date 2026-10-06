@@ -378,7 +378,10 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
         {/* Solar System depth control: push the whole system front / back */}
         {visualTheme === 'solar-system' && (
           <div className="absolute bottom-12 left-4 z-20 flex flex-col gap-1.5 rounded-2xl border border-white/[.08] bg-black/40 px-4 py-3 backdrop-blur-xl sm:left-6">
-            <span className="text-[9px] font-bold uppercase tracking-[.18em] text-stone-500">Depth</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[9px] font-bold uppercase tracking-[.18em] text-stone-500">Depth</span>
+              <span className="font-mono text-[10px] font-bold text-lime-300/90 tabular-nums">{solarDepth.toFixed(2)}</span>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-stone-500">Front</span>
               <input
@@ -387,7 +390,11 @@ export default function FocusTimer({ onComplete }: FocusTimerProps) {
                 max={1}
                 step={0.02}
                 value={solarDepth}
-                onChange={(e) => setSolarDepth(Number(e.target.value))}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setSolarDepth(v);
+                  console.log(`[SolarSystem] depth → ${v.toFixed(2)} (${v < 0.4 ? 'front/close' : v > 0.6 ? 'back/far' : 'default'})`);
+                }}
                 className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-white/15 accent-lime-300 sm:w-32"
                 aria-label="Solar system depth"
               />

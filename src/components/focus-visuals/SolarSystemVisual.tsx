@@ -231,9 +231,11 @@ function Sun({
     }
     const pulse = reducedMotion ? 0 : Math.sin((pulseT.current * Math.PI * 2) / SUN_PULSE_PERIOD);
     const flash = !reducedMotion && !flashArmed.current ? Math.exp(-flashT.current * 1.7) : 0;
-    const lit = smoothstep(0.12, 0.45, p);
+    const lit = smoothstep(0.05, 0.15, p);
     const core = smoothstep(0.2, 0.5, p);
 
+    // Balloon growth: the Sun swells into place early, then stays constant.
+    if (groupRef.current) groupRef.current.scale.setScalar(Math.max(0.0001, lit));
     const basic = matRef.current?.material as unknown as { color: Color } | undefined;
     if (basic) {
       const heat = 1 + 0.09 * pulse * core + flash * 0.9;
@@ -294,7 +296,7 @@ function Trail({
   revealAt: [number, number];
 }) {
   const histRef = useRef<Float32Array | null>(null);
-  const frameRef = useRef(0);
+  const lastAngleRef = useRef<number | null>(null);
   const scratch = useMemo(() => new Vector3(), []);
 
   const trail = useMemo(() => {
@@ -335,14 +337,18 @@ function Trail({
         histRef.current[i * 3 + 1] = scratch.y;
         histRef.current[i * 3 + 2] = scratch.z;
       }
+      lastAngleRef.current = angleRef.current;
     }
-    frameRef.current += 1;
-    if (frameRef.current % 2 === 0) {
+    // Only sample new trail points while the planet is actually orbiting;
+    // when it stops, the tail keeps its last shape instead of collapsing.
+    const moved = lastAngleRef.current !== angleRef.current;
+    if (moved) {
       const h = histRef.current;
       h.copyWithin(0, 3);
       h[(TRAIL_N - 1) * 3] = scratch.x;
       h[(TRAIL_N - 1) * 3 + 1] = scratch.y;
       h[(TRAIL_N - 1) * 3 + 2] = scratch.z;
+      lastAngleRef.current = angleRef.current;
     }
     const attr = trail.geometry.getAttribute('position') as BufferAttribute;
     const arr = attr.array as Float32Array;
@@ -605,8 +611,13 @@ function Planet({
   const opacityRef = useRef(0);
   const rimOpacityRef = useRef(0);
   const scratch = useMemo(() => new Vector3(), []);
+  // One-by-one swift balloon growth: each planet gets its own short window,
+  // in order (Mercury → Neptune). Never reveals in batches/rounds.
   const revealAt: [number, number] = useMemo(
-    () => [0.5 + index * 0.02, 0.75],
+    () => {
+      const start = 0.18 + index * 0.075;
+      return [start, start + 0.05] as [number, number];
+    },
     [index],
   );
 
@@ -634,7 +645,8 @@ function Planet({
     }
     orbitPos(cfg.orbitR, angleRef.current, scratch);
     if (posRef.current) posRef.current.position.copy(scratch);
-    if (scaleRef.current) scaleRef.current.scale.setScalar(1);
+    // Balloon growth: swell from nothing to full size inside its own window.
+    if (scaleRef.current) scaleRef.current.scale.setScalar(Math.max(0.0001, reveal));
     if (spinRef.current && activeRef.current && !reducedMotion) {
       spinRef.current.rotation.y += cfg.spin * delta;
       earthSpin.current.base += cfg.spin * delta;
