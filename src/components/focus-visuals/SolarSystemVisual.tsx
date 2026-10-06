@@ -148,30 +148,72 @@ function useTiffTexture(url: string | null): {
   return state;
 }
 
+/** Camera basis mirror (depth 0.2 → k = 1.03) so stars sample inside the frustum. */
+const STAR_CAM_POS = new Vector3(0, 8.5 * 1.03, 13 * 1.03);
+const STAR_FORWARD = new Vector3(0, -8.5 * 1.03, -13 * 1.03).normalize();
+const STAR_RIGHT = new Vector3(1, 0, 0);
+const STAR_UP = new Vector3().crossVectors(STAR_RIGHT, STAR_FORWARD).normalize();
+
 /** Sparse cold background starfield, always on (ambient backdrop, not progress-gated). */
-function BackgroundStars({ reducedMotion, size, opacity }: { reducedMotion: boolean; size: number; opacity: number }) {
+function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
   const stars = useMemo((): SurfacePoint[] => {
-    const count = 100;
-    const ranks = Array.from({ length: count }, (_, i) => i);
+    const target = 100;
+    const ranks = Array.from({ length: target }, (_, i) => i);
     for (let i = ranks.length - 1; i > 0; i -= 1) {
       const swap = Math.floor(Math.random() * (i + 1));
       [ranks[i], ranks[swap]] = [ranks[swap], ranks[i]];
     }
-    return ranks.map((rank) => {
+    const pts: SurfacePoint[] = [];
+    const scratch = new Vector3();
+    let guard = 0;
+    // Rejection-sample the far shell against the real view frustum: a blind
+    // full-sphere field wastes ~95% of its stars outside the 40° fov cone.
+    while (pts.length < target && guard < 20000) {
+      guard += 1;
       const theta = Math.random() * Math.PI * 2;
       const z = Math.random() * 2 - 1;
-      const shell = 35 + Math.random() * 20; // Push them further back behind galaxies
+      const shell = 38 + Math.random() * 22;
       const xy = Math.sqrt(Math.max(0, 1 - z * z));
-      return {
-        position: new Vector3(Math.cos(theta) * xy * shell, z * shell * 0.6, Math.sin(theta) * xy * shell),
+      scratch.set(
+        Math.cos(theta) * xy * shell,
+        z * shell * 0.6,
+        Math.sin(theta) * xy * shell,
+      );
+      const cx = scratch.x - STAR_CAM_POS.x;
+      const cy = scratch.y - STAR_CAM_POS.y;
+      const cz = scratch.z - STAR_CAM_POS.z;
+      const zc = cx * STAR_FORWARD.x + cy * STAR_FORWARD.y + cz * STAR_FORWARD.z;
+      if (zc < 18 || zc > 80) continue;
+      const xc = cx * STAR_RIGHT.x + cy * STAR_RIGHT.y + cz * STAR_RIGHT.z;
+      const yc = cx * STAR_UP.x + cy * STAR_UP.y + cz * STAR_UP.z;
+      if (Math.abs(xc) / zc > 0.55 || Math.abs(yc) / zc > 0.3) continue;
+      pts.push({
+        position: scratch.clone(),
         normal: new Vector3(0, 1, 0),
         uv: undefined as never,
-        revealRank: rank,
+        revealRank: ranks[pts.length],
         heightRank: 0,
         twinklePhase: Math.random() * Math.PI * 2,
         twinkleSpeed: 0.0003 + Math.random() * 0.0002, // Slower twinkling
-      };
-    });
+      });
+    }
+    // Paranoid fallback (should never run): points on the view axis.
+    while (pts.length < target) {
+      pts.push({
+        position: new Vector3(
+          (Math.random() - 0.5) * 20,
+          -29 + (Math.random() - 0.5) * 10,
+          -(30 + Math.random() * 25),
+        ),
+        normal: new Vector3(0, 1, 0),
+        uv: undefined as never,
+        revealRank: ranks[pts.length],
+        heightRank: 0,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.0003 + Math.random() * 0.0002,
+      });
+    }
+    return pts;
   }, []);
   return (
     <ConstellationPoints
@@ -179,9 +221,9 @@ function BackgroundStars({ reducedMotion, size, opacity }: { reducedMotion: bool
       progress={1}
       color="#d4e6ff" // icy bluish-white
       accentColor="#ffffff" // pure white twinkle flash
-      size={size}
+      size={0.75}
       staticMode={reducedMotion}
-      opacity={opacity}
+      opacity={0.85}
     />
   );
 }
@@ -197,41 +239,6 @@ interface GalaxyPlacement {
   z: number;
   size: number;
   opacity: number;
-}
-
-/** Temporary tuner slider row (removed once values are locked). */
-function TunerSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="flex items-center gap-1">
-      <span className="w-7 shrink-0 text-white/70">{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-sky-300"
-      />
-      <span className="w-11 shrink-0 text-right tabular-nums text-white">
-        {step < 0.1 ? value.toFixed(2) : value.toFixed(1)}
-      </span>
-    </label>
-  );
 }
 
 function FarBackgroundGalaxies({
@@ -729,10 +736,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   // Background galaxy placement (tuned via temporary panel, now hardcoded).
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
   const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
-  // Temporary star tuner (hardcode + remove panel once locked).
-  const [starSize, setStarSize] = useState(0.75);
-  const [starOpacity, setStarOpacity] = useState(0.85);
-  const [showStarTuner, setShowStarTuner] = useState(true);
   // CameraRig multiplies the base position by this factor every frame — the
   // Canvas camera must start pre-corrected, otherwise the first frame renders
   // uncorrected and the whole scene visibly jumps once ("shift at start").
@@ -899,7 +902,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             center={galCenter}
           />
         ) : null}
-        <BackgroundStars reducedMotion={reducedMotion} size={starSize} opacity={starOpacity} />
+        <BackgroundStars reducedMotion={reducedMotion} />
         {ready && sunTex ? (
           <>
             <Sun
@@ -947,30 +950,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             'radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.35) 85%, rgba(0,0,0,1) 100%)',
         }}
       />
-      {showStarTuner ? (
-        <div className="absolute left-3 top-3 z-50 w-60 rounded-md border border-white/15 bg-black/70 p-2 text-[10px] leading-tight text-white/90 backdrop-blur-sm">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-semibold tracking-wide text-white">STARS (temp)</span>
-            <button
-              type="button"
-              onClick={() => setShowStarTuner(false)}
-              className="rounded border border-white/20 px-1.5 py-0.5 text-white/70 hover:text-white"
-            >
-              hide
-            </button>
-          </div>
-          <TunerSlider label="Px" value={starSize} min={0.1} max={1} step={0.02} onChange={setStarSize} />
-          <TunerSlider label="Op" value={starOpacity} min={0} max={1} step={0.01} onChange={setStarOpacity} />
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowStarTuner(true)}
-          className="absolute left-3 top-3 z-50 rounded border border-white/20 bg-black/70 px-2 py-1 text-[10px] text-white/70 hover:text-white"
-        >
-          stars
-        </button>
-      )}
     </div>
   );
 }
