@@ -151,7 +151,7 @@ function useTiffTexture(url: string | null): {
 /** Sparse cold background starfield, always on (ambient backdrop, not progress-gated). */
 function BackgroundStars({ reducedMotion, size, opacity }: { reducedMotion: boolean; size: number; opacity: number }) {
   const stars = useMemo((): SurfacePoint[] => {
-    const count = 60; // Less dense
+    const count = 100;
     const ranks = Array.from({ length: count }, (_, i) => i);
     for (let i = ranks.length - 1; i > 0; i -= 1) {
       const swap = Math.floor(Math.random() * (i + 1));
@@ -177,8 +177,8 @@ function BackgroundStars({ reducedMotion, size, opacity }: { reducedMotion: bool
     <ConstellationPoints
       points={stars}
       progress={1}
-      color="#fcfdff" // mostly white
-      accentColor="#ffe8dc" // slight warm variants
+      color="#d4e6ff" // icy bluish-white
+      accentColor="#ffffff" // pure white twinkle flash
       size={size}
       staticMode={reducedMotion}
       opacity={opacity}
@@ -730,7 +730,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
   const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
   // Temporary star tuner (hardcode + remove panel once locked).
-  const [starSize, setStarSize] = useState(0.65);
+  const [starSize, setStarSize] = useState(0.75);
   const [starOpacity, setStarOpacity] = useState(0.85);
   const [showStarTuner, setShowStarTuner] = useState(true);
   // CameraRig multiplies the base position by this factor every frame — the
