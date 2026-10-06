@@ -105,6 +105,22 @@ h1, h2, h3, .font-display {
 }
 .animate-pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }
 
+@keyframes tableKenburns {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+.table-kenburns { animation: tableKenburns 14s ease-in-out infinite alternate; }
+
+@keyframes tableShimmer {
+  0% { background-position: 130% 0; }
+  100% { background-position: -130% 0; }
+}
+.table-shimmer {
+  background: linear-gradient(105deg, transparent 42%, rgba(246,227,186,.13) 50%, transparent 58%);
+  background-size: 250% 100%;
+  animation: tableShimmer 6s ease-in-out infinite;
+}
+
 .focus-visual {
   width: 100%;
   height: 100%;

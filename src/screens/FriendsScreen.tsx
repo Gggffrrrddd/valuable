@@ -163,6 +163,11 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     setRefreshing(false);
   }
 
+  const topStreakFriend =
+    friends.length > 0 ? friends.reduce((a, b) => (b.currentStreak > a.currentStreak ? b : a)) : null;
+  const topTodayFriend =
+    friends.length > 0 ? friends.reduce((a, b) => (b.todayMinutes > a.todayMinutes ? b : a)) : null;
+
   return (
     <div className="page-wrap pb-24">
       <div className="page-kicker">Accountability circle</div>
@@ -172,18 +177,39 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       {onOpenStudyTable && (
         <button
           onClick={onOpenStudyTable}
-          className="group mb-8 flex w-full items-center justify-between rounded-[1.4rem] border border-lime-300/15 bg-lime-300/[.05] p-5 text-left transition hover:border-lime-300/35 hover:bg-lime-300/[.08] sm:p-6"
+          className="group relative mb-8 block w-full overflow-hidden rounded-[1.8rem] border border-[#f6e3ba]/25 text-left shadow-[0_20px_80px_rgba(0,0,0,.5)] transition hover:border-[#f6e3ba]/50"
         >
-          <span className="flex items-center gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime-300/10 text-lime-300">
-              <BookOpen className="h-5 w-5" />
-            </span>
-            <span>
-              <span className="font-display block text-sm font-bold text-stone-100">The study table</span>
-              <span className="mt-0.5 block text-xs leading-5 text-stone-500">See who's at the table right now — books open when a session runs.</span>
-            </span>
-          </span>
-          <ArrowUpRight className="h-4 w-4 shrink-0 text-lime-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <div className="relative h-44 overflow-hidden sm:h-56">
+            <img
+              src="/visuals/table/table-scene.png"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="table-kenburns absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#090b0a] via-[#090b0a]/70 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#090b0a]/85 via-transparent to-transparent" />
+            <div className="table-shimmer pointer-events-none absolute inset-0" aria-hidden="true" />
+            <div className="absolute left-5 top-1/2 flex -translate-y-1/2 items-center gap-4 sm:left-7">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#f6e3ba]/30 bg-black/55 text-[#f6e3ba] backdrop-blur">
+                <BookOpen className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="flex items-center gap-2 font-display text-base font-bold text-stone-50 sm:text-lg">
+                  The study table
+                  <span className="rounded-full border border-[#f6e3ba]/40 bg-[#f6e3ba]/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[.14em] text-[#f6e3ba]">
+                    3D
+                  </span>
+                </span>
+                <span className="mt-1 block max-w-[220px] text-xs leading-5 text-stone-400 sm:max-w-xs">
+                  See who&apos;s at the table right now — books open when a session runs.
+                </span>
+                <span className="mt-2.5 inline-flex items-center gap-1 rounded-xl bg-[#f6e3ba] px-3 py-1.5 text-[11px] font-extrabold text-[#11130f] transition-all group-hover:gap-2">
+                  Open table <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
+              </span>
+            </div>
+          </div>
         </button>
       )}
 
@@ -243,6 +269,31 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {topStreakFriend && topTodayFriend && (
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="flex aspect-square flex-col justify-between rounded-2xl border border-orange-400/25 bg-gradient-to-br from-orange-400/10 via-transparent to-transparent p-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/15 text-orange-300">
+              <Flame className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[10px] font-extrabold uppercase tracking-[.14em] text-orange-300/80">Top streak</div>
+              <div className="mt-1 truncate font-display text-lg font-extrabold text-white">{topStreakFriend.profile.display_name}</div>
+              <div className="text-xs text-slate-400">{topStreakFriend.currentStreak}-day streak</div>
+            </div>
+          </div>
+          <div className="flex aspect-square flex-col justify-between rounded-2xl border border-[#f6e3ba]/25 bg-gradient-to-br from-[#f6e3ba]/10 via-transparent to-transparent p-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6e3ba]/15 text-[#f6e3ba]">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#f6e3ba]/80">Today&apos;s best</div>
+              <div className="mt-1 truncate font-display text-lg font-extrabold text-white">{topTodayFriend.profile.display_name}</div>
+              <div className="text-xs text-slate-400">{topTodayFriend.todayMinutes}m focused</div>
+            </div>
           </div>
         </div>
       )}
