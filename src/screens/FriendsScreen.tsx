@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
-import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight } from 'lucide-react';
+import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
@@ -28,6 +28,8 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const hiddenTempRef = useRef<Set<string>>(new Set());
 
   const loadFriends = useCallback(async () => {
     if (!session) return;
@@ -47,7 +49,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       const friendIds = accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id));
       const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
       const stats = await Promise.all(statsPromises);
-      setFriends([...TEMP_FRIENDS, ...stats.filter((s): s is FriendStat => s !== null)]);
+      setFriends([
+        ...TEMP_FRIENDS.filter((t) => !hiddenTempRef.current.has(t.profile.id)),
+        ...stats.filter((s): s is FriendStat => s !== null),
+      ]);
 
       const pendingPromises = pending.map(async (p) => {
         const { data } = await supabase
@@ -163,10 +168,36 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     setRefreshing(false);
   }
 
-  const topStreakFriend =
-    friends.length > 0 ? friends.reduce((a, b) => (b.currentStreak > a.currentStreak ? b : a)) : null;
-  const topTodayFriend =
-    friends.length > 0 ? friends.reduce((a, b) => (b.todayMinutes > a.todayMinutes ? b : a)) : null;
+  const topStreakId =
+    friends.length > 0 ? friends.reduce((a, b) => (b.currentStreak > a.currentStreak ? b : a)).profile.id : null;
+  const topTodayId =
+    friends.length > 0 ? friends.reduce((a, b) => (b.todayMinutes > a.todayMinutes ? b : a)).profile.id : null;
+
+  async function handleRemoveFriend(f: FriendStat) {
+    if (confirmRemove !== f.profile.id) {
+      setConfirmRemove(f.profile.id);
+      return;
+    }
+    setConfirmRemove(null);
+    if (f.profile.id.startsWith('temp-')) {
+      hiddenTempRef.current.add(f.profile.id);
+      setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
+      return;
+    }
+    if (!session) return;
+    try {
+      const myId = session.user.id;
+      const fid = f.profile.id;
+      const { error: delErr } = await supabase
+        .from('friendships')
+        .delete()
+        .or(`and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`);
+      if (delErr) throw delErr;
+      setFriends((prev) => prev.filter((x) => x.profile.id !== fid));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not remove friend');
+    }
+  }
 
   return (
     <div className="page-wrap pb-24">
@@ -273,31 +304,6 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         </div>
       )}
 
-      {topStreakFriend && topTodayFriend && (
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div className="flex aspect-square flex-col justify-between rounded-2xl border border-orange-400/25 bg-gradient-to-br from-orange-400/10 via-transparent to-transparent p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-400/15 text-orange-300">
-              <Flame className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[.14em] text-orange-300/80">Top streak</div>
-              <div className="mt-1 truncate font-display text-lg font-extrabold text-white">{topStreakFriend.profile.display_name}</div>
-              <div className="text-xs text-slate-400">{topStreakFriend.currentStreak}-day streak</div>
-            </div>
-          </div>
-          <div className="flex aspect-square flex-col justify-between rounded-2xl border border-[#f6e3ba]/25 bg-gradient-to-br from-[#f6e3ba]/10 via-transparent to-transparent p-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6e3ba]/15 text-[#f6e3ba]">
-              <Clock className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#f6e3ba]/80">Today&apos;s best</div>
-              <div className="mt-1 truncate font-display text-lg font-extrabold text-white">{topTodayFriend.profile.display_name}</div>
-              <div className="text-xs text-slate-400">{topTodayFriend.todayMinutes}m focused</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-slate-300 flex items-center gap-1.5">
           <Users className="w-4 h-4" /> Your friends ({friends.length})
@@ -321,24 +327,67 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         </div>
       ) : (
         <div className="space-y-2">
-          {friends.map((f) => (
-            <div key={f.profile.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-900 border border-slate-800">
-              <div>
-                <div className="text-white text-sm font-medium">{f.profile.display_name}</div>
-                <div className="text-xs text-slate-500">{f.profile.friend_code}</div>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1 text-slate-300">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  {f.todayMinutes}m
+          {friends.map((f) => {
+            const isTopStreak = f.profile.id === topStreakId;
+            const isTopToday = f.profile.id === topTodayId;
+            return (
+              <div
+                key={f.profile.id}
+                className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl border transition ${
+                  isTopStreak
+                    ? 'bg-orange-400/[.06] border-orange-400/35 shadow-[0_0_24px_rgba(251,146,60,.08)]'
+                    : isTopToday
+                      ? 'bg-[#f6e3ba]/[.05] border-[#f6e3ba]/30'
+                      : 'bg-slate-900 border-slate-800'
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white text-sm font-medium truncate">{f.profile.display_name}</span>
+                    {isTopStreak && (
+                      <span className="shrink-0 rounded-full bg-orange-400/15 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wider text-orange-300">
+                        Top streak
+                      </span>
+                    )}
+                    {isTopToday && (
+                      <span className="shrink-0 rounded-full bg-[#f6e3ba]/15 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wider text-[#f6e3ba]">
+                        Today&apos;s best
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500">{f.profile.friend_code}</div>
                 </div>
-                <div className="flex items-center gap-1 text-slate-300">
-                  <Flame className="w-3.5 h-3.5 text-orange-400" />
-                  {f.currentStreak}d
+                <div className="flex shrink-0 items-center gap-3 text-sm">
+                  <div className="flex items-center gap-1 text-slate-300">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    {f.todayMinutes}m
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-300">
+                    <Flame className="w-3.5 h-3.5 text-orange-400" />
+                    {f.currentStreak}d
+                  </div>
+                  {confirmRemove === f.profile.id ? (
+                    <button
+                      onClick={() => handleRemoveFriend(f)}
+                      className="rounded-lg bg-red-500/15 border border-red-500/40 px-2 py-1 text-[11px] font-bold text-red-300 hover:bg-red-500/25"
+                      title="Confirm remove"
+                    >
+                      Remove?
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleRemoveFriend(f)}
+                      className="rounded-lg p-1.5 text-slate-600 hover:text-red-300 hover:bg-white/5 transition"
+                      title="Remove friend"
+                      aria-label={`Remove ${f.profile.display_name}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
