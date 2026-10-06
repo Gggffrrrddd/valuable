@@ -149,7 +149,7 @@ function useTiffTexture(url: string | null): {
 }
 
 /** Sparse cold background starfield, always on (ambient backdrop, not progress-gated). */
-function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
+function BackgroundStars({ reducedMotion, size, opacity }: { reducedMotion: boolean; size: number; opacity: number }) {
   const stars = useMemo((): SurfacePoint[] => {
     const count = 60; // Less dense
     const ranks = Array.from({ length: count }, (_, i) => i);
@@ -179,9 +179,9 @@ function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
       progress={1}
       color="#fcfdff" // mostly white
       accentColor="#ffe8dc" // slight warm variants
-      size={0.4}
+      size={size}
       staticMode={reducedMotion}
-      opacity={0.6}
+      opacity={opacity}
     />
   );
 }
@@ -197,6 +197,41 @@ interface GalaxyPlacement {
   z: number;
   size: number;
   opacity: number;
+}
+
+/** Temporary tuner slider row (removed once values are locked). */
+function TunerSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1">
+      <span className="w-7 shrink-0 text-white/70">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-sky-300"
+      />
+      <span className="w-11 shrink-0 text-right tabular-nums text-white">
+        {step < 0.1 ? value.toFixed(2) : value.toFixed(1)}
+      </span>
+    </label>
+  );
 }
 
 function FarBackgroundGalaxies({
@@ -693,7 +728,11 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const [loop, setLoop] = useState(true);
   // Background galaxy placement (tuned via temporary panel, now hardcoded).
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
-  const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -35, size: 20, opacity: 0.33 };
+  const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
+  // Temporary star tuner (hardcode + remove panel once locked).
+  const [starSize, setStarSize] = useState(0.4);
+  const [starOpacity, setStarOpacity] = useState(0.6);
+  const [showStarTuner, setShowStarTuner] = useState(true);
   useEffect(() => {
     const onVis = () => setLoop(!document.hidden);
     document.addEventListener('visibilitychange', onVis);
@@ -856,7 +895,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             center={galCenter}
           />
         ) : null}
-        <BackgroundStars reducedMotion={reducedMotion} />
+        <BackgroundStars reducedMotion={reducedMotion} size={starSize} opacity={starOpacity} />
         {ready && sunTex ? (
           <>
             <Sun
@@ -904,6 +943,30 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             'radial-gradient(ellipse at center, transparent 52%, rgba(0,0,0,.5) 82%, rgba(0,0,0,1) 100%)',
         }}
       />
+      {showStarTuner ? (
+        <div className="absolute left-3 top-3 z-50 w-60 rounded-md border border-white/15 bg-black/70 p-2 text-[10px] leading-tight text-white/90 backdrop-blur-sm">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-semibold tracking-wide text-white">STARS (temp)</span>
+            <button
+              type="button"
+              onClick={() => setShowStarTuner(false)}
+              className="rounded border border-white/20 px-1.5 py-0.5 text-white/70 hover:text-white"
+            >
+              hide
+            </button>
+          </div>
+          <TunerSlider label="Px" value={starSize} min={0.1} max={1} step={0.02} onChange={setStarSize} />
+          <TunerSlider label="Op" value={starOpacity} min={0} max={1} step={0.01} onChange={setStarOpacity} />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowStarTuner(true)}
+          className="absolute left-3 top-3 z-50 rounded border border-white/20 bg-black/70 px-2 py-1 text-[10px] text-white/70 hover:text-white"
+        >
+          stars
+        </button>
+      )}
     </div>
   );
 }
