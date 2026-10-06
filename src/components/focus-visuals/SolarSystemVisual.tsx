@@ -179,9 +179,9 @@ function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
       progress={1}
       color="#fcfdff" // mostly white
       accentColor="#ffe8dc" // slight warm variants
-      size={0.2}
+      size={0.4}
       staticMode={reducedMotion}
-      opacity={0.55}
+      opacity={0.6}
     />
   );
 }
@@ -190,7 +190,7 @@ function BackgroundStars({ reducedMotion }: { reducedMotion: boolean }) {
  * Two real spiral galaxies far in the background. Rendered on flat planes.
  * (Images already contain perspective tilt and transparent background).
  */
-/** Tunable placement for a background galaxy (temporary tuner panel below). */
+/** Hardcoded placement for a background galaxy (values locked from tuner). */
 interface GalaxyPlacement {
   x: number;
   y: number;
@@ -202,31 +202,19 @@ interface GalaxyPlacement {
 function FarBackgroundGalaxies({
   texWhirlpool,
   texAndromeda,
-  reducedMotion,
   left,
   center,
 }: {
   texWhirlpool: Texture;
   texAndromeda: Texture;
-  reducedMotion: boolean;
   left: GalaxyPlacement;
   center: GalaxyPlacement;
 }) {
-  const refLeft = useRef<ThreeMesh>(null);
-  const refCenter = useRef<ThreeMesh>(null);
-
-  useFrame((_state, delta) => {
-    if (!reducedMotion) {
-      // Extremely subtle rotation
-      if (refLeft.current) refLeft.current.rotation.z -= delta * 0.005;
-      if (refCenter.current) refCenter.current.rotation.z += delta * 0.003;
-    }
-  });
-
+  // Fully static: fixed planes, no drift, no camera-facing.
   return (
     <group>
       {/* Larger left galaxy (Whirlpool) */}
-      <mesh ref={refLeft} position={[left.x, left.y, left.z]} rotation={[0, 0, 0.2]}>
+      <mesh position={[left.x, left.y, left.z]} rotation={[0, 0, 0.2]}>
         <planeGeometry args={[left.size, left.size]} />
         <meshBasicMaterial
           map={texWhirlpool}
@@ -237,7 +225,7 @@ function FarBackgroundGalaxies({
       </mesh>
 
       {/* Smaller center galaxy (Andromeda) */}
-      <mesh ref={refCenter} position={[center.x, center.y, center.z]} rotation={[0, 0, -0.1]}>
+      <mesh position={[center.x, center.y, center.z]} rotation={[0, 0, -0.1]}>
         <planeGeometry args={[center.size, center.size]} />
         <meshBasicMaterial
           map={texAndromeda}
@@ -864,7 +852,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
           <FarBackgroundGalaxies
             texWhirlpool={galaxyWhirlpoolTex}
             texAndromeda={galaxyAndromedaTex}
-            reducedMotion={reducedMotion}
             left={galLeft}
             center={galCenter}
           />
