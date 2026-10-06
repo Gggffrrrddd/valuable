@@ -165,12 +165,12 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
               strokeDasharray="3 4"
             />
           ))}
-          {area && <path d={area} fill="rgba(246,227,186,.10)" stroke="none" />}
+          {area && <path d={area} fill="rgba(96,165,250,.12)" stroke="none" />}
           {line && (
             <path
               d={line}
               fill="none"
-              stroke="#f6e3ba"
+              stroke="#60a5fa"
               strokeWidth={2.5}
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -184,17 +184,17 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
                 x2={hovered.x}
                 y1={PAD}
                 y2={H - PAD}
-                stroke="rgba(246,227,186,.35)"
+                stroke="rgba(96,165,250,.4)"
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
-              <circle cx={hovered.x} cy={hovered.y} r={5} fill="#f6e3ba" stroke="#0f172a" strokeWidth={2} />
+              <circle cx={hovered.x} cy={hovered.y} r={5} fill="#60a5fa" stroke="#0f172a" strokeWidth={2} />
             </g>
           )}
         </svg>
         {hovered && (
           <div
-            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl border border-[#f6e3ba]/25 bg-[#0f172a]/95 px-3 py-1.5 text-center shadow-xl backdrop-blur"
+            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl border border-blue-400/30 bg-[#0f172a]/95 px-3 py-1.5 text-center shadow-xl backdrop-blur"
             style={{ left: `${Math.max(9, Math.min(91, leftPct))}%` }}
           >
             <div className="text-sm font-extrabold text-white">{formatMinutes(hovered.minutes)}</div>
@@ -445,7 +445,7 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
                 key={r}
                 onClick={() => setRange(r)}
                 className={`rounded-[10px] px-3 py-1.5 transition ${
-                  range === r ? 'bg-[#f6e3ba]/15 text-[#f6e3ba]' : 'text-slate-500 hover:text-slate-300'
+                  range === r ? 'bg-blue-400/15 text-blue-300' : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 {r}D
