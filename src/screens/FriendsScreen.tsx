@@ -28,7 +28,8 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<FriendStat | null>(null);
+  const [removing, setRemoving] = useState(false);
   const hiddenTempRef = useRef<Set<string>>(new Set());
 
   const loadFriends = useCallback(async () => {
@@ -168,34 +169,48 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     setRefreshing(false);
   }
 
-  const topStreakId =
-    friends.length > 0 ? friends.reduce((a, b) => (b.currentStreak > a.currentStreak ? b : a)).profile.id : null;
-  const topTodayId =
-    friends.length > 0 ? friends.reduce((a, b) => (b.todayMinutes > a.todayMinutes ? b : a)).profile.id : null;
+  // Highlight only a UNIQUE leader — on a tie nobody gets the badge.
+  const topStreakId = (() => {
+    let best = -1;
+    let bestId: string | null = null;
+    let tied = false;
+    for (const f of friends) {
+      if (f.currentStreak > best) { best = f.currentStreak; bestId = f.profile.id; tied = false; }
+      else if (f.currentStreak === best) { tied = true; }
+    }
+    return tied ? null : bestId;
+  })();
+  const topTodayId = (() => {
+    let best = -1;
+    let bestId: string | null = null;
+    let tied = false;
+    for (const f of friends) {
+      if (f.todayMinutes > best) { best = f.todayMinutes; bestId = f.profile.id; tied = false; }
+      else if (f.todayMinutes === best) { tied = true; }
+    }
+    return tied ? null : bestId;
+  })();
 
   async function handleRemoveFriend(f: FriendStat) {
-    if (confirmRemove !== f.profile.id) {
-      setConfirmRemove(f.profile.id);
-      return;
-    }
-    setConfirmRemove(null);
-    if (f.profile.id.startsWith('temp-')) {
-      hiddenTempRef.current.add(f.profile.id);
-      setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
-      return;
-    }
-    if (!session) return;
+    setRemoving(true);
     try {
-      const myId = session.user.id;
-      const fid = f.profile.id;
-      const { error: delErr } = await supabase
-        .from('friendships')
-        .delete()
-        .or(`and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`);
-      if (delErr) throw delErr;
-      setFriends((prev) => prev.filter((x) => x.profile.id !== fid));
+      if (f.profile.id.startsWith('temp-')) {
+        hiddenTempRef.current.add(f.profile.id);
+      } else if (session) {
+        const myId = session.user.id;
+        const fid = f.profile.id;
+        const { error: delErr } = await supabase
+          .from('friendships')
+          .delete()
+          .or(`and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`);
+        if (delErr) throw delErr;
+      }
+      setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not remove friend');
+    } finally {
+      setRemoving(false);
+      setRemoveTarget(null);
     }
   }
 
@@ -366,28 +381,53 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                     <Flame className="w-3.5 h-3.5 text-orange-400" />
                     {f.currentStreak}d
                   </div>
-                  {confirmRemove === f.profile.id ? (
-                    <button
-                      onClick={() => handleRemoveFriend(f)}
-                      className="rounded-lg bg-red-500/15 border border-red-500/40 px-2 py-1 text-[11px] font-bold text-red-300 hover:bg-red-500/25"
-                      title="Confirm remove"
-                    >
-                      Remove?
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleRemoveFriend(f)}
-                      className="rounded-lg p-1.5 text-slate-600 hover:text-red-300 hover:bg-white/5 transition"
-                      title="Remove friend"
-                      aria-label={`Remove ${f.profile.display_name}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setRemoveTarget(f)}
+                    className="rounded-lg p-1.5 text-slate-600 hover:text-red-300 hover:bg-white/5 transition"
+                    title="Remove friend"
+                    aria-label={`Remove ${f.profile.display_name}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {removeTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => !removing && setRemoveTarget(null)}
+        >
+          <div
+            className="w-full max-w-xs rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-base font-bold text-white">Remove friend?</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Do you really want to remove{' '}
+              <span className="font-bold text-slate-200">{removeTarget.profile.display_name}</span> from your
+              circle?
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setRemoveTarget(null)}
+                disabled={removing}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-slate-200 transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveFriend(removeTarget)}
+                disabled={removing}
+                className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-400 disabled:opacity-50"
+              >
+                {removing ? 'Removing…' : 'Yes, remove'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
