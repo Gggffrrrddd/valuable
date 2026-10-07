@@ -2,14 +2,16 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { CATEGORIES, type ContentItem, type ContentCategory } from '@/types';
-import { Play, SkipForward, Check, Shuffle } from 'lucide-react';
+import { Play, SkipForward, Check, Shuffle, X } from 'lucide-react';
 
 interface BreakScreenProps {
   breakMinutes: number;
   onDone: () => void;
+  /** Cut the rest short — jump straight back to the focus timer. */
+  onCutToFocus: () => void;
 }
 
-export default function BreakScreen({ breakMinutes, onDone }: BreakScreenProps) {
+export default function BreakScreen({ breakMinutes, onDone, onCutToFocus }: BreakScreenProps) {
   const { session } = useAuth();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [selected, setSelected] = useState<ContentItem | null>(null);
@@ -80,20 +82,43 @@ export default function BreakScreen({ breakMinutes, onDone }: BreakScreenProps) 
   const filteredItems = category === 'All' ? items : items.filter((i) => i.category === category);
   const mm = Math.floor(secondsLeft / 60);
   const ss = secondsLeft % 60;
+  const totalBreak = Math.max(1, breakMinutes * 60);
+  const breakPct = Math.min(100, Math.round(((totalBreak - secondsLeft) / totalBreak) * 100));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,rgba(251,191,36,.1),transparent_30rem),#090b0a] px-5 py-6 pb-24 animate-fade-in sm:px-8 lg:px-12">
       <div className="mx-auto max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-amber-200">Break time</h2>
-          <p className="text-amber-100/50 text-sm">Something useful, not mindless.</p>
+          <div className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#f6e3ba]/70">Recovery</div>
+          <h2 className="mt-1 font-display text-3xl font-extrabold tracking-tight text-stone-50 sm:text-4xl">
+            Break <span className="text-[#f6e3ba]">time</span>
+          </h2>
+          <p className="mt-1 text-sm text-stone-500">Something useful, not mindless.</p>
         </div>
-        <div className={`px-3 py-1.5 rounded-full text-sm font-medium tabular-nums ${
-          breakOver ? 'bg-amber-500 text-slate-950' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
-        }`}>
-          {breakOver ? "Break's up!" : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className={`rounded-full px-4 py-2 font-display text-sm font-extrabold tabular-nums ${
+            breakOver
+              ? 'bg-[#f6e3ba] text-[#11130f] shadow-[0_0_28px_rgba(246,227,186,.35)]'
+              : 'border border-[#f6e3ba]/30 bg-[#f6e3ba]/[.07] text-[#f6e3ba] shadow-[0_0_24px_rgba(246,227,186,.12)]'
+          }`}>
+            {breakOver ? "Break's up!" : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`}
+          </div>
+          <button
+            onClick={onCutToFocus}
+            title="Skip rest — back to focus timer"
+            aria-label="Skip rest and go back to focus timer"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[.03] text-stone-500 transition hover:border-white/25 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
+      </div>
+      <div className="mb-6 h-[3px] overflow-hidden rounded-full bg-white/[.06]">
+        <div
+          className="h-full rounded-full transition-all duration-1000"
+          style={{ width: `${breakPct}%`, background: 'linear-gradient(90deg, #8a6a2f, #f6e3ba)' }}
+        />
       </div>
 
       {loading && <div className="text-slate-400 text-sm animate-pulse-soft">Loading content…</div>}
@@ -190,7 +215,7 @@ export default function BreakScreen({ breakMinutes, onDone }: BreakScreenProps) 
             </div>
             <button
               onClick={onDone}
-              className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-xl bg-[#f6e3ba] text-[#11130f] font-semibold hover:bg-[#fff0d6] transition-colors flex items-center justify-center gap-2 shadow-[0_10px_40px_rgba(246,227,186,.25)]"
             >
               <SkipForward className="w-5 h-5" />
               Back to Focus

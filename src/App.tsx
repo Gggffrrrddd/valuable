@@ -127,7 +127,13 @@ function AppContent() {
   }
 
   if (screen === 'break') {
-    return <BreakScreen breakMinutes={breakMinutes} onDone={() => setScreen('tab')} />;
+    return (
+      <BreakScreen
+        breakMinutes={breakMinutes}
+        onDone={() => setScreen('tab')}
+        onCutToFocus={() => setScreen('timer')}
+      />
+    );
   }
 
   if (screen === 'premium') {
