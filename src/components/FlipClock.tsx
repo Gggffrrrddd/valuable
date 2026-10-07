@@ -107,7 +107,7 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
         aria-live="off"
         aria-label={
           hh > 0
-            ? `${hh} hour${hh === 1 ? '' : 's'} ${String(mm).padStart(2, '0')} minutes remaining`
+            ? `${hh} hour${hh === 1 ? '' : 's'} ${String(mm).padStart(2, '0')} minutes ${ss} second${ss === 1 ? '' : 's'} remaining`
             : `${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`
         }
       >
@@ -120,9 +120,15 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
 
             <span className="flip-colon" aria-hidden="true">:</span>
 
-            <div className="flip-clock-group">
+            <div className="flip-clock-group relative">
               <FlipDigit value={m1} />
               <FlipDigit value={m2} />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -bottom-5 right-0 text-[11px] font-bold tabular-nums text-stone-500"
+              >
+                {String(ss).padStart(2, '0')}
+              </span>
             </div>
           </>
         ) : (
