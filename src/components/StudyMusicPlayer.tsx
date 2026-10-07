@@ -260,7 +260,7 @@ export default function StudyMusicPlayer({ sessionPaused }: StudyMusicPlayerProp
 
           {/* Mood Tabs */}
           <div className="mb-3 flex rounded-xl bg-white/5 p-1">
-            {(['Lo-fi', 'Piano', 'Ambient', 'Nature'] as Mood[]).map(m => (
+            {(['Lo-fi', 'Ambient / Piano', 'Nature-blended'] as Mood[]).map(m => (
               <button
                 key={m}
                 onClick={() => setActiveTab(m)}
@@ -296,7 +296,6 @@ export default function StudyMusicPlayer({ sessionPaused }: StudyMusicPlayerProp
                       <div className={`text-xs font-bold ${isActive ? 'text-[#f6e3ba]' : 'text-stone-200'}`}>
                         {t.title}
                       </div>
-                      <div className="text-[10px] text-stone-500">{t.artist}</div>
                     </div>
                   </div>
                   <div
