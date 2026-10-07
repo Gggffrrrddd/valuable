@@ -24,6 +24,12 @@ interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, delayNavigation?: boolean) => Promise<() => void> | void;
   /** Peek at the study table mid-session. The wall-clock timer keeps running; visuals rehydrate on return. */
   onOpenStudyTable?: () => void;
+  /**
+   * External quit request (browser-back on the timer screen). Bumping this
+   * runs the exact X → Yes path: elapsed time is recorded, storage cleared,
+   * everything inside stops, and onComplete navigates away.
+   */
+  externalQuitSignal?: number;
 }
 
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
@@ -80,7 +86,7 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerProps) {
+export default function FocusTimer({ onComplete, onOpenStudyTable, externalQuitSignal }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
@@ -126,6 +132,16 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     if (!showQuitConfirm) return;
     return pushLayer('quit-confirm', () => setShowQuitConfirm(false));
   }, [showQuitConfirm]);
+
+  // External quit (browser-back on the timer screen itself): same as X → Yes.
+  const quitSignalRef = useRef(externalQuitSignal ?? 0);
+  useEffect(() => {
+    if ((externalQuitSignal ?? 0) === quitSignalRef.current) return;
+    quitSignalRef.current = externalQuitSignal ?? 0;
+    if (phase === 'completing') return; // navigation imminent; avoid double-logging
+    handleQuitConfirm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalQuitSignal, phase]);
   useEffect(() => {
     if (!showLeafPicker) return;
     return pushLayer('leaf-picker', () => setShowLeafPicker(false));
