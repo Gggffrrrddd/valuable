@@ -487,6 +487,24 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   -webkit-backface-visibility: hidden;
 }
 
+/* Grow-in: scale 0.15 -> 1 over ~0.55s ease-out from the stem tip, so each
+   leaf visibly grows outward from the branch instead of popping in. The
+   positioning transform on the wrapper is untouched — this animates only
+   the inner image about the same stem-tip origin. */
+@keyframes tree-leaf-grow-in {
+  0% { transform: scale(0.15); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.tree-placed-leaf img.tree-leaf-grow {
+  animation: tree-leaf-grow-in 0.55s ease-out backwards;
+}
+
+.tree-placed-leaf--instant img {
+  animation: none !important;
+}
+
 @media (max-width: 1023px) {
   .tree-focus-layout {
     flex-direction: column-reverse !important;

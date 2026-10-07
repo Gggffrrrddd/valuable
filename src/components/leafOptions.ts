@@ -7,6 +7,7 @@ export interface LeafOption {
 export const LEAF_OPTIONS: LeafOption[] = [
   { id: 'leaf-01', name: 'Original', url: '/visuals/tree/leaf-01.png' },
   { id: 'leaf-02', name: 'Maple', url: '/visuals/tree/leaf-02.png' },
+  { id: 'leaf-03', name: 'Ember', url: '/visuals/tree/leaf-03.png' },
 ];
 
 export const LEAF_STORAGE_KEY = 'valuable-tree-leaf';
