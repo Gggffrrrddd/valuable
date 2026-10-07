@@ -527,10 +527,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Focus (min)</label>
             <input
               type="number"
-              min={10}
+              min={1}
               max={180}
               value={customFocus}
-              onChange={(e) => setCustomFocus(Math.max(10, Math.min(180, Number(e.target.value) || 10)))}
+              onChange={(e) => setCustomFocus(Math.max(1, Math.min(180, Number(e.target.value) || 1)))}
               className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
             />
           </div>
