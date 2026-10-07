@@ -107,11 +107,11 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
         aria-live="off"
         aria-label={
           hh > 0
-            ? `${hh} hour${hh === 1 ? '' : 's'} ${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`
+            ? `${hh} hour${hh === 1 ? '' : 's'} ${String(mm).padStart(2, '0')} minutes remaining`
             : `${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`
         }
       >
-        {hh > 0 && (
+        {hh > 0 ? (
           <>
             <div className="flip-clock-group">
               <FlipDigit value={h1} />
@@ -119,20 +119,27 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
             </div>
 
             <span className="flip-colon" aria-hidden="true">:</span>
+
+            <div className="flip-clock-group">
+              <FlipDigit value={m1} />
+              <FlipDigit value={m2} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flip-clock-group">
+              <FlipDigit value={m1} />
+              <FlipDigit value={m2} />
+            </div>
+
+            <span className="flip-colon" aria-hidden="true">:</span>
+
+            <div className="flip-clock-group">
+              <FlipDigit value={s1} />
+              <FlipDigit value={s2} />
+            </div>
           </>
         )}
-
-        <div className="flip-clock-group">
-          <FlipDigit value={m1} />
-          <FlipDigit value={m2} />
-        </div>
-
-        <span className="flip-colon" aria-hidden="true">:</span>
-
-        <div className="flip-clock-group">
-          <FlipDigit value={s1} />
-          <FlipDigit value={s2} />
-        </div>
       </div>
     </div>
   );
