@@ -10,6 +10,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
  * Guarantees:
  * - NEVER throws: every failure (missing file, network error, malformed data)
  *   is captured into the returned `error` state.
+ * - Transient blips are retried automatically (3 attempts, 0.8s + 2s backoff)
+ *   so a one-time network hiccup shows a brief shimmer, never a fallback.
  * - Results are cached per URL, so the same model/texture used by several
  *   components (e.g. a model + its reflection) is fetched and parsed once.
  * - Failed loads are evicted from the cache so a retry can succeed later.
@@ -97,6 +99,11 @@ export function preloadAssets(...urls: string[]): void {
   }
 }
 
+/** Total load attempts per asset (initial + retries). */
+const MAX_ATTEMPTS = 3;
+/** Backoff before the 2nd and 3rd attempts. */
+const RETRY_DELAYS = [800, 2000];
+
 function useSharedAsset<T>(url: string | null | undefined): AssetState<T> {
   const [state, setState] = useState<AssetState<T>>({ asset: null, isLoading: !!url, error: null });
 
@@ -106,18 +113,33 @@ function useSharedAsset<T>(url: string | null | undefined): AssetState<T> {
       return;
     }
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     setState({ asset: null, isLoading: true, error: null });
-    loadAssetShared(url)
-      .promise.then((asset) => {
-        if (!cancelled) setState({ asset: asset as T, isLoading: false, error: null });
-      })
-      .catch((error: unknown) => {
-        const wrapped = error instanceof Error ? error : new Error(String(error));
-        console.error(wrapped.message);
-        if (!cancelled) setState({ asset: null, isLoading: false, error: wrapped });
-      });
+    // Failures evict themselves from the shared cache, so each attempt is a
+    // genuinely fresh fetch — a transient blip resolves within the retries
+    // and only a persistently failing URL surfaces as `error`.
+    const attempt = (n: number) => {
+      loadAssetShared(url)
+        .promise.then((asset) => {
+          if (!cancelled) setState({ asset: asset as T, isLoading: false, error: null });
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return;
+          if (n < MAX_ATTEMPTS) {
+            timer = setTimeout(() => {
+              if (!cancelled) attempt(n + 1);
+            }, RETRY_DELAYS[n - 1] ?? 2000);
+          } else {
+            const wrapped = error instanceof Error ? error : new Error(String(error));
+            console.error(wrapped.message);
+            setState({ asset: null, isLoading: false, error: wrapped });
+          }
+        });
+    };
+    attempt(1);
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [url]);
 
