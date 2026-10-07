@@ -272,6 +272,25 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
+.hourglass-focus-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hourglass-focus-session .focus-atmosphere,
+.hourglass-focus-session .focus-grid,
+.hourglass-focus-session .focus-orbit,
+.hourglass-focus-session .focus-vignette {
+  display: none;
+}
+
 .blade-focus-session .focus-grid,
 .blade-focus-session .focus-orbit {
   display: none;
