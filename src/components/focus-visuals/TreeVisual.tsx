@@ -89,6 +89,58 @@ const SESSION_COLORS = [
   { hue: 315, saturate: 1.6, brightness: 1.25, dropGlow: '#ff44cc', label: 'hot-pink' },
 ];
 
+/**
+ * Temporary precise-entry box for calibration sliders: type a value, hit
+ * Enter (or tap out) to jump the leaf there. Draft text stays local while
+ * typing so mid-typing values never yank the leaf around.
+ */
+function NumBox({
+  value,
+  min,
+  max,
+  step,
+  digits,
+  onCommit,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  digits: number;
+  onCommit: (v: number) => void;
+}) {
+  const [text, setText] = useState(() => value.toFixed(digits));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(value.toFixed(digits));
+  }, [value, focused, digits]);
+  const commit = () => {
+    const v = Number(text);
+    if (Number.isFinite(v)) onCommit(Math.min(max, Math.max(min, v)));
+    else setText(value.toFixed(digits));
+  };
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        commit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+      }}
+      aria-label="Precise value"
+      className="w-14 shrink-0 rounded-md border border-white/10 bg-black/40 px-1 py-0.5 text-right text-[11px] tabular-nums text-white outline-none focus:border-[#f6e3ba]/50"
+    />
+  );
+}
+
 function useReducedMotion() {
   const [r, setR] = useState(false);
   useEffect(() => {
@@ -288,12 +340,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
               REF leaf #12 · slot {(CALIB_REF.x * 100).toFixed(1)}/{(CALIB_REF.y * 100).toFixed(1)} · rot {CALIB_REF.rotation}° · size {CALIB_REF.scale}
             </div>
             {[
-              { label: 'X', value: calX, min: 0, max: 100, step: 0.1, set: setCalX, fmt: (v: number) => v.toFixed(1) },
-              { label: 'Y', value: calY, min: 0, max: 100, step: 0.1, set: setCalY, fmt: (v: number) => v.toFixed(1) },
-              { label: 'Rot', value: calRot, min: -180, max: 180, step: 1, set: setCalRot, fmt: (v: number) => `${v}°` },
-              { label: 'Size', value: calSize, min: 0.2, max: 1.5, step: 0.01, set: setCalSize, fmt: (v: number) => v.toFixed(2) },
+              { label: 'X', value: calX, min: 0, max: 100, step: 0.1, digits: 1, set: setCalX },
+              { label: 'Y', value: calY, min: 0, max: 100, step: 0.1, digits: 1, set: setCalY },
+              { label: 'Rot', value: calRot, min: -180, max: 180, step: 1, digits: 0, set: setCalRot },
+              { label: 'Size', value: calSize, min: 0.2, max: 1.5, step: 0.01, digits: 2, set: setCalSize },
             ].map((s) => (
-              <label key={s.label} className="flex items-center gap-1.5 py-0.5">
+              <div key={s.label} className="flex items-center gap-1.5 py-0.5">
                 <span className="w-7 shrink-0 text-[10px] font-bold text-white/60">{s.label}</span>
                 <input
                   type="range"
@@ -303,9 +355,17 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
                   value={s.value}
                   onChange={(e) => s.set(Number(e.target.value))}
                   className="w-full accent-[#f6e3ba]"
+                  aria-label={`${s.label} slider`}
                 />
-                <span className="w-11 shrink-0 text-right text-[11px] tabular-nums text-white">{s.fmt(s.value)}</span>
-              </label>
+                <NumBox
+                  value={s.value}
+                  min={s.min}
+                  max={s.max}
+                  step={s.step}
+                  digits={s.digits}
+                  onCommit={s.set}
+                />
+              </div>
             ))}
             <div className="mt-1.5 text-[10px] leading-4 text-[#f6e3ba]/80">
               Ember tip ko purani leaf ke stem-tip par bithao — ye 4 numbers bhejo.
