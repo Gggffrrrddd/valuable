@@ -84,8 +84,12 @@ interface FlipClockProps {
 }
 
 export default function FlipClock({ secondsLeft }: FlipClockProps) {
-  const mm = Math.floor(secondsLeft / 60);
+  const totalMinutes = Math.floor(secondsLeft / 60);
+  const hh = Math.floor(totalMinutes / 60);
+  const mm = totalMinutes % 60;
   const ss = secondsLeft % 60;
+  const h1 = Math.floor(hh / 10);
+  const h2 = hh % 10;
   const m1 = Math.floor(mm / 10);
   const m2 = mm % 10;
   const s1 = Math.floor(ss / 10);
@@ -101,8 +105,23 @@ export default function FlipClock({ secondsLeft }: FlipClockProps) {
         className="flip-clock"
         role="timer"
         aria-live="off"
-        aria-label={`${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`}
+        aria-label={
+          hh > 0
+            ? `${hh} hour${hh === 1 ? '' : 's'} ${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`
+            : `${String(mm).padStart(2, '0')} minutes ${String(ss).padStart(2, '0')} seconds remaining`
+        }
       >
+        {hh > 0 && (
+          <>
+            <div className="flip-clock-group">
+              <FlipDigit value={h1} />
+              <FlipDigit value={h2} />
+            </div>
+
+            <span className="flip-colon" aria-hidden="true">:</span>
+          </>
+        )}
+
         <div className="flip-clock-group">
           <FlipDigit value={m1} />
           <FlipDigit value={m2} />
