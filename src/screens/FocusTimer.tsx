@@ -6,6 +6,7 @@ import GardenVisual from '@/components/focus-visuals/GardenVisual';
 import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import StudyMusicPlayer from '@/components/StudyMusicPlayer';
+import { setSessionPaused, stopAndReset } from '@/lib/studyMusicEngine';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 import {
@@ -110,6 +111,14 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
+
+  // Music follows the session rule: pause/resume in sync, stop when the
+  // session ends (quit/complete). Navigating away (e.g. study-table peek)
+  // intentionally does NOT stop it — the engine outlives this component.
+  useEffect(() => {
+    if (phase === 'config' || phase === 'completing') stopAndReset();
+    else setSessionPaused(phase === 'paused');
+  }, [phase]);
 
   function selectLeaf(asset: string) {
     setSelectedLeaf(asset);
@@ -383,7 +392,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             >
               see your friends →
             </button>
-            <StudyMusicPlayer sessionPaused={phase === 'paused'} />
+            <StudyMusicPlayer />
           </div>
         )}
 
