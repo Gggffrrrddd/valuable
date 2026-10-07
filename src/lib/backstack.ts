@@ -8,13 +8,18 @@
  *
  * Mechanism: a single guard history entry exists while ANY layer is open.
  * - Opening the first layer pushes the guard; deeper layers stack in memory.
- * - Browser-back pops the guard: we close the top layer and, if layers
- *   remain, re-arm a fresh guard.
+ * - Browser-back consumes the guard: popstate arrives, we close the top
+ *   layer and, if layers remain, re-arm a fresh guard.
  * - UI-driven close just drops the memory entry; if the stack empties we
- *   consume the guard with history.back() (its popstate arrives tagged with
- *   the old sequence and is ignored — no double-close, no loop).
- * - Guards carry a sequence number, so a stale guard pop (e.g. close +
- *   immediate re-open in the same tick) can never close the wrong layer.
+ *   consume the guard ourselves with history.back().
+ *
+ * Correctness notes (learned the hard way):
+ * - popstate's event.state is the entry ARRIVED AT (base/null), never the
+ *   consumed guard — so guards are deliberately unidentifiable; ANY popstate
+ *   while layers are open means "unwind one".
+ * - Our own history.back() calls are counted (selfPops) so their popstate
+ *   can never close a freshly opened layer — ordering is deterministic
+ *   because popstate tasks arrive in call order.
  */
 
 interface Layer {
@@ -23,17 +28,17 @@ interface Layer {
 }
 
 let layers: Layer[] = [];
-let seq = 0;
+/** Popstate events caused by our own guard-consuming history.back(). */
+let selfPops = 0;
 let installed = false;
 
-function onPopState(e: PopStateEvent): void {
-  const v = (e.state as { vback?: unknown } | null)?.vback;
-  if (typeof v !== 'number' || v !== seq || layers.length === 0) {
-    // Stale guard, foreign entry, or nothing open. If the browser really went
-    // somewhere else, drop any phantom layers.
-    if (typeof v !== 'number') layers = [];
+function onPopState(): void {
+  if (selfPops > 0) {
+    // Our own UI-close consumption arriving late — never touches layers.
+    selfPops -= 1;
     return;
   }
+  if (layers.length === 0) return; // stale guard pop or real nav: stay put
   const top = layers.pop();
   if (top) {
     try {
@@ -43,9 +48,8 @@ function onPopState(e: PopStateEvent): void {
     }
   }
   if (layers.length > 0) {
-    seq += 1;
     try {
-      history.pushState({ vback: seq }, '');
+      history.pushState({ vback: 1 }, '');
     } catch {
       /* history unavailable */
     }
@@ -68,9 +72,8 @@ export function pushLayer(id: string, close: () => void): () => void {
   const wasEmpty = layers.length === 0;
   layers.push({ id, close });
   if (wasEmpty) {
-    seq += 1;
     try {
-      history.pushState({ vback: seq }, '');
+      history.pushState({ vback: 1 }, '');
     } catch {
       /* history unavailable */
     }
@@ -84,10 +87,11 @@ export function removeLayer(id: string): void {
   if (!had) return;
   layers = layers.filter((l) => l.id !== id);
   if (layers.length === 0) {
+    selfPops += 1;
     try {
       history.back();
     } catch {
-      /* history unavailable */
+      selfPops = Math.max(0, selfPops - 1);
     }
   }
 }
