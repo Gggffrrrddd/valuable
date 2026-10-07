@@ -5,6 +5,7 @@ import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
 import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
+import StudyMusicPlayer from '@/components/StudyMusicPlayer';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 import {
@@ -374,13 +375,16 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
         {/* See your friends — peeks at the study table while the timer runs on */}
         {onOpenStudyTable && phase !== 'completing' && (
-          <button
-            type="button"
-            onClick={onOpenStudyTable}
-            className="absolute bottom-6 right-5 z-20 text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
-          >
-            see your friends →
-          </button>
+          <div className="absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={onOpenStudyTable}
+              className="text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+            >
+              see your friends →
+            </button>
+            <StudyMusicPlayer sessionPaused={phase === 'paused'} />
+          </div>
         )}
 
         {/* Session status */}

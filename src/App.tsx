@@ -182,6 +182,10 @@ function AppContent() {
           </button>
 
           <div className="mt-auto border-t border-white/[.06] pt-4">
+            <div className="mb-4 px-3">
+              <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">Credits</div>
+              <a href="https://pixabay.com/music/" target="_blank" rel="noreferrer" className="mt-2 block text-xs text-stone-500 hover:text-stone-300">Background music licensed via Pixabay. Tracks by ZephiraMusic, Leberch, AtlasAudio, PrabajithK, Andriig, Verclub, Poorartistt, AlexRockBeat, VJGalaxy, Clavier.</a>
+            </div>
             <div className="flex items-center gap-3 rounded-2xl p-2">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-stone-700 to-stone-900 font-display text-sm font-extrabold text-lime-300 ring-1 ring-white/10">{profile.display_name.charAt(0).toUpperCase()}</div>
               <div className="min-w-0 flex-1"><div className="truncate text-sm font-bold text-stone-200">{profile.display_name}</div><div className="text-[11px] text-stone-600">Focus member</div></div>
