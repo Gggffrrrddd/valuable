@@ -111,6 +111,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
+  const [hideHourglassBg, setHideHourglassBg] = useState(
+    () => localStorage.getItem('valuable-hourglass-bg-hidden') === '1',
+  );
 
   // Music follows the session rule: pause/resume in sync, stop when the
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
@@ -341,7 +344,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
-        {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
+        {visualTheme === 'hourglass' && !hideHourglassBg && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
@@ -384,6 +387,20 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         </div>
 
         {/* See your friends — peeks at the study table while the timer runs on */}
+        {visualTheme === 'hourglass' && phase !== 'completing' && (
+          <button
+            type="button"
+            onClick={() => {
+              setHideHourglassBg((v) => {
+                localStorage.setItem('valuable-hourglass-bg-hidden', v ? '0' : '1');
+                return !v;
+              });
+            }}
+            className="absolute bottom-6 left-5 z-20 text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+          >
+            {hideHourglassBg ? 'show background' : 'hide background'}
+          </button>
+        )}
         {onOpenStudyTable && phase !== 'completing' && (
           <div className="absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
             <button
