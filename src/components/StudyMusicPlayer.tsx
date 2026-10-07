@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Music, Play, Pause, Heart, Volume2, X } from 'lucide-react';
 import { STUDY_TRACKS, type Mood } from './focus-visuals/model-core/studyMusicConfig';
 import {
@@ -9,7 +9,6 @@ import {
   setVolume,
   toggleFav,
 } from '@/lib/studyMusicEngine';
-import { pushLayer } from '@/lib/backstack';
 
 /**
  * Thin UI over the app-lifetime music engine: subscribes to engine state and
@@ -22,12 +21,6 @@ export default function StudyMusicPlayer() {
   const [activeTab, setActiveTab] = useState<Mood>(
     () => STUDY_TRACKS.find((t) => t.id === snap.trackId)?.mood ?? 'Lo-fi',
   );
-
-  // Browser-back closes the drawer first instead of exiting the app.
-  useEffect(() => {
-    if (!open) return;
-    return pushLayer('music-drawer', () => setOpen(false));
-  }, [open]);
 
   const activeTrackObj = currentTrack();
   const favTracks = STUDY_TRACKS.filter((t) => snap.favs.includes(t.id));

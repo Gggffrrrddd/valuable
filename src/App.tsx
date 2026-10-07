@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { pushLayer } from '@/lib/backstack';
 import { supabase } from '@/lib/supabase';
 import { startPresenceHeartbeat } from '@/lib/presence';
 import AuthScreen from '@/screens/AuthScreen';
@@ -39,28 +38,6 @@ function AppContent() {
   // lives in sessionStorage, so the table unmounts FocusTimer safely and
   // "go back" remounts it into the same running session.
   const [tableFromTimer, setTableFromTimer] = useState(false);
-  // Bumped when browser-back lands on the timer screen itself: FocusTimer
-  // then runs its X → Yes path (record elapsed, stop everything) and its
-  // onComplete navigates away — the layer is cleaned up by that navigation.
-  const [timerQuitSignal, setTimerQuitSignal] = useState(0);
-
-  // Browser-back unwinds UI layers one by one (screens, drawers, modals)
-  // instead of dumping the user out of the app — see backstack.ts.
-  useEffect(() => {
-    if (screen === 'tab') return;
-    return pushLayer(`screen:${screen}`, () => {
-      if (screen === 'timer') {
-        // Quit like X → Yes: record elapsed time, stop everything inside.
-        // Navigation to tab comes from FocusTimer's onComplete.
-        setTimerQuitSignal((n) => n + 1);
-      } else if (screen === 'table' && tableFromTimer) {
-        setTableFromTimer(false);
-        setScreen('timer');
-      } else {
-        setScreen('tab');
-      }
-    });
-  }, [screen, tableFromTimer]);
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);
@@ -141,7 +118,6 @@ function AppContent() {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
-        externalQuitSignal={timerQuitSignal}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
           setScreen('table');
