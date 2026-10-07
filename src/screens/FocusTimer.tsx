@@ -114,6 +114,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   const [hideHourglassBg, setHideHourglassBg] = useState(
     () => localStorage.getItem('valuable-hourglass-bg-hidden') === '1',
   );
+  // Temporary background zoom tuner = z-axis move (hardcode + remove once locked).
+  const [hourglassZoom, setHourglassZoom] = useState(100);
 
   // Music follows the session rule: pause/resume in sync, stop when the
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
@@ -344,7 +346,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
       <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
-        {visualTheme === 'hourglass' && !hideHourglassBg && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
+        {visualTheme === 'hourglass' && !hideHourglassBg && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" style={{ transform: `scale(${hourglassZoom / 100})` }} />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
@@ -387,6 +389,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         </div>
 
         {/* See your friends — peeks at the study table while the timer runs on */}
+        {visualTheme === 'hourglass' && phase !== 'completing' && (
+          <div className="absolute bottom-14 left-5 z-20 flex w-44 items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-xl">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-white/60">BG zoom</span>
+            <input type="range" min={80} max={200} step={1} value={hourglassZoom} onChange={(e) => setHourglassZoom(Number(e.target.value))} className="w-full accent-amber-200" aria-label="Background zoom" />
+            <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-white">{hourglassZoom}%</span>
+          </div>
+        )}
         {visualTheme === 'hourglass' && phase !== 'completing' && (
           <button
             type="button"
