@@ -7,6 +7,7 @@ import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
 import StudyMusicPlayer from '@/components/StudyMusicPlayer';
 import { setSessionPaused, stopAndReset } from '@/lib/studyMusicEngine';
+import { pushLayer } from '@/lib/backstack';
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
 import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
 import {
@@ -119,6 +120,16 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     if (phase === 'config' || phase === 'completing') stopAndReset();
     else setSessionPaused(phase === 'paused');
   }, [phase]);
+
+  // Browser-back peels session overlays reverse-order (confirm/picker first).
+  useEffect(() => {
+    if (!showQuitConfirm) return;
+    return pushLayer('quit-confirm', () => setShowQuitConfirm(false));
+  }, [showQuitConfirm]);
+  useEffect(() => {
+    if (!showLeafPicker) return;
+    return pushLayer('leaf-picker', () => setShowLeafPicker(false));
+  }, [showLeafPicker]);
 
   function selectLeaf(asset: string) {
     setSelectedLeaf(asset);

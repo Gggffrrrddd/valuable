@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { pushLayer } from '@/lib/backstack';
 import { supabase } from '@/lib/supabase';
 import { startPresenceHeartbeat } from '@/lib/presence';
 import AuthScreen from '@/screens/AuthScreen';
@@ -38,6 +39,20 @@ function AppContent() {
   // lives in sessionStorage, so the table unmounts FocusTimer safely and
   // "go back" remounts it into the same running session.
   const [tableFromTimer, setTableFromTimer] = useState(false);
+
+  // Browser-back unwinds UI layers one by one (screens, drawers, modals)
+  // instead of dumping the user out of the app — see backstack.ts.
+  useEffect(() => {
+    if (screen === 'tab') return;
+    return pushLayer(`screen:${screen}`, () => {
+      if (screen === 'table' && tableFromTimer) {
+        setTableFromTimer(false);
+        setScreen('timer');
+      } else {
+        setScreen('tab');
+      }
+    });
+  }, [screen, tableFromTimer]);
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);

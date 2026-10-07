@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
+import { pushLayer } from '@/lib/backstack';
 import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
 
 interface FriendsScreenProps {
@@ -31,6 +32,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [removeTarget, setRemoveTarget] = useState<FriendStat | null>(null);
   const [removing, setRemoving] = useState(false);
   const hiddenTempRef = useRef<Set<string>>(new Set());
+
+  // Browser-back dismisses the remove confirm before anything behind it.
+  useEffect(() => {
+    if (!removeTarget) return;
+    return pushLayer('remove-friend', () => setRemoveTarget(null));
+  }, [removeTarget]);
 
   const loadFriends = useCallback(async () => {
     if (!session) return;
