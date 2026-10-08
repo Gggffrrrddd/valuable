@@ -169,7 +169,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const style: CSSProperties = {
         left: `${cx}%`,
         top: `${cy}%`,
-        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
+        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale * 0.75})`,
         zIndex: zIdx,
         filter: activeSession ? "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")" : undefined,
       };
@@ -187,14 +187,15 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const freshRot = leaf.rotation + CAL_ROT_OFFSET;
       
       
-      const sc = leaf.scale;
-      const tx = -NEW_TIP.x + sc * (dx * cos - ((dy * sin) * 2) / 3);
-      const ty = -NEW_TIP.y + sc * (dx * 1.5 * sin + dy * cos);
+      const newSc = leaf.scale;
+      const oldSc = leaf.scale * 0.75;
+      const tx = -NEW_TIP.x + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
+      const ty = -NEW_TIP.y + oldSc * (dx * 1.5 * sin + dy * cos);
       const fresh = hasShed ? {
             style: {
               left: `${clampX(leaf.x) * 100}%`,
               top: `${leaf.y * 100}%`,
-              transform: `translate(${tx.toFixed(2)}%,${ty.toFixed(2)}%) rotate(${freshRot}deg) scale(${sc})`,
+              transform: `translate(${tx.toFixed(2)}%,${ty.toFixed(2)}%) rotate(${freshRot}deg) scale(${newSc})`,
               transformOrigin: `${NEW_TIP.x}% ${NEW_TIP.y}%`,
               zIndex: zIdx ?? 5,
             } as CSSProperties,
@@ -291,6 +292,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
