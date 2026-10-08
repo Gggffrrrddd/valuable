@@ -33,7 +33,7 @@ const LEAF_ASSETS = [
 // lands at (50%, 86.1%) of the box. The old leaf rotates about box center,
 // so the coincidence point is recomputed per leaf (rotation + scale) below.
 // LEAF 1 (Red Ember)
-const NEW_LEAF_URL = '/visuals/tree/leaf-03.png';
+const NEW_LEAF_URL = '/visuals/tree/leaf-05.png';
 // LEAF 2 (Custom)
 // const NEW_LEAF_URL = '/visuals/tree/leaf-04.png';
 // LEAF 1 Tip
@@ -340,6 +340,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
