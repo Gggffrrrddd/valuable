@@ -199,7 +199,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         filter: activeSession ? (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")") : (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : undefined),
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
-        + (reducedMotion ? ' tree-placed-leaf--instant' : '');
+        + ((reducedMotion || CALIBRATING) ? ' tree-placed-leaf--instant' : '');
       // Fresh ember leaf (calibrated): stem tip pinned exactly on the old
       // leaf's rendered stem tip; body rotated +48deg to match orientation.
       // Grows over the same 2.5s the old one takes to land. Box is 3:2, so
@@ -225,7 +225,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
               transformOrigin: `${CALIBRATING ? calNewTipX : NEW_TIP.x}% ${CALIBRATING ? calNewTipY : NEW_TIP.y}%`,
               zIndex: zIdx ?? 5,
             } as CSSProperties,
-            cls: 'tree-placed-leaf' + (reducedMotion ? ' tree-placed-leaf--instant' : ''),
+            cls: 'tree-placed-leaf' + ((reducedMotion || CALIBRATING) ? ' tree-placed-leaf--instant' : ''),
           }
         : null;
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc, fresh };
@@ -330,6 +330,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
