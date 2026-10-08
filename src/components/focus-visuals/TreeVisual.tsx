@@ -194,7 +194,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const style: CSSProperties = {
         left: `${cx}%`,
         top: `${cy}%`,
-        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale * (CALIBRATING ? calScaleScale : 1)})`,
+        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
         zIndex: zIdx,
         filter: activeSession ? (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")") : (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : undefined),
       };
@@ -289,9 +289,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
                     <div className="text-[10px] text-stone-400 mt-2 font-mono bg-black/40 p-2 rounded">
             NEW_TIP = {'{'} x: {calNewTipX}, y: {calNewTipY} {'}'}<br/>
-            CAL_OLD_BASE = {'{'} x: {calOldBaseX}, y: {calOldBaseY} {'}'}<br/>
-            CAL_ROT_OFFSET = {calRotOffset}<br/>
-            Scale = {calScaleScale}
+            CAL_ROT_OFFSET = {calRotOffset}
           </div>
         </div>
       )}
@@ -331,6 +329,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
