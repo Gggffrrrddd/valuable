@@ -215,7 +215,8 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const sc = leaf.scale;
       const tx = -tipX + sc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -tipY + sc * (dx * 1.5 * sin + dy * cos);
-      const fresh = hasShed
+      const showFresh = CALIBRATING ? (leaf.id === 12) : hasShed;
+      const fresh = showFresh
         ? {
             style: {
               left: `${clampX(leaf.x) * 100}%`,
@@ -329,6 +330,8 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
+
 
 
 
