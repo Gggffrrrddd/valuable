@@ -151,6 +151,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const [calNewTipX, setCalNewTipX] = useState(50);
   const [calNewTipY, setCalNewTipY] = useState(50);
   const [calRotOffset, setCalRotOffset] = useState(0);
+  const [calScaleScale, setCalScaleScale] = useState(0.75);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -222,7 +223,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const tipX = CALIBRATING ? calNewTipX : NEW_TIP.x;
       const tipY = CALIBRATING ? calNewTipY : NEW_TIP.y;
       
-      const newSc = leaf.scale * 0.75;
+      const newSc = leaf.scale * (CALIBRATING ? calScaleScale : 0.75);
       const oldSc = leaf.scale;
       const tx = -tipX + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -tipY + oldSc * (dx * 1.5 * sin + dy * cos);
@@ -240,7 +241,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         : null;
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc, fresh };
     });
-  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor, calNewTipX, calNewTipY, calRotOffset]);
+  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor, calNewTipX, calNewTipY, calRotOffset, calScaleScale]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -297,10 +298,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
           <div className="text-lime-300 text-[10px] font-bold uppercase tracking-widest mb-3">Leaf 3 Calibration Tuner</div>
           <NumBox label="New Tip X (%)" value={calNewTipX} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipX} />
           <NumBox label="New Tip Y (%)" value={calNewTipY} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipY} />
-          <NumBox label="Rot Offset (deg)" value={calRotOffset} min={-180} max={180} step={1} digits={0} onCommit={setCalRotOffset} />
-                    <div className="text-[10px] text-stone-400 mt-2 font-mono bg-black/40 p-2 rounded">
-            NEW_TIP = {'{'} x: {calNewTipX}, y: {calNewTipY} {'}'}<br/>
-            CAL_ROT_OFFSET = {calRotOffset}
+                    <NumBox label="Rot Offset (deg)" value={calRotOffset} min={-180} max={180} step={1} digits={0} onCommit={setCalRotOffset} />
+          <NumBox label="Scale Multiplier" value={calScaleScale} min={0.1} max={3} step={0.01} digits={2} onCommit={setCalScaleScale} />
+          <div className="text-[10px] text-stone-400 mt-2 font-mono bg-black/40 p-2 rounded">
+            NEW_TIP = {'{'} x: {calNewTipX}, y: {calNewTipY} {'\}'}<br/>
+            CAL_ROT_OFFSET = {calRotOffset}<br/>
+            Scale = {calScaleScale}
           </div>
         </div>
       )}
@@ -340,6 +343,8 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
+
 
 
 
