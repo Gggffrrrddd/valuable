@@ -169,7 +169,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const style: CSSProperties = {
         left: `${cx}%`,
         top: `${cy}%`,
-        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale * 0.75})`,
+        transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
         zIndex: zIdx,
         filter: activeSession ? "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")" : undefined,
       };
@@ -187,8 +187,8 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const freshRot = leaf.rotation + CAL_ROT_OFFSET;
       
       
-      const newSc = leaf.scale;
-      const oldSc = leaf.scale * 0.75;
+      const newSc = leaf.scale * 0.75;
+      const oldSc = leaf.scale;
       const tx = -NEW_TIP.x + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -NEW_TIP.y + oldSc * (dx * 1.5 * sin + dy * cos);
       const fresh = hasShed ? {
@@ -292,6 +292,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
