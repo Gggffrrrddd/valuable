@@ -142,9 +142,6 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const [calNewTipX, setCalNewTipX] = useState(8.8);
   const [calNewTipY, setCalNewTipY] = useState(64.8);
   const [calRotOffset, setCalRotOffset] = useState(48);
-  const [calOldBaseX, setCalOldBaseX] = useState(48.4);
-  const [calOldBaseY, setCalOldBaseY] = useState(51.5);
-  const [calScaleScale, setCalScaleScale] = useState(1);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -199,9 +196,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale * (CALIBRATING ? calScaleScale : 1)})`,
         zIndex: zIdx,
-        filter: activeSession
-          ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate}) brightness(${sessionColor.brightness})`
-          : undefined,
+        filter: activeSession ? (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")") : (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : undefined),
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
         + (reducedMotion ? ' tree-placed-leaf--instant' : '');
@@ -212,12 +207,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const rad = (leaf.rotation * Math.PI) / 180;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
-            const dx = (CALIBRATING ? calOldBaseX : CAL_OLD_BASE.x) - 50;
-      const dy = (CALIBRATING ? calOldBaseY : CAL_OLD_BASE.y) - 50;
+            const dx = CAL_OLD_BASE.x - 50;
+      const dy = CAL_OLD_BASE.y - 50;
       const freshRot = leaf.rotation + (CALIBRATING ? calRotOffset : CAL_ROT_OFFSET);
       const tipX = CALIBRATING ? calNewTipX : NEW_TIP.x;
       const tipY = CALIBRATING ? calNewTipY : NEW_TIP.y;
-      const sc = leaf.scale * (CALIBRATING ? calScaleScale : 1);
+      const sc = leaf.scale;
       const tx = -tipX + sc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -tipY + sc * (dx * 1.5 * sin + dy * cos);
       const fresh = hasShed
@@ -234,7 +229,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         : null;
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc, fresh };
     });
-  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor, calNewTipX, calNewTipY, calRotOffset, calOldBaseX, calOldBaseY, calScaleScale]);
+  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor, calNewTipX, calNewTipY, calRotOffset]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -286,14 +281,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     >
       {!activeSession && <img className="tree-leaf-editor__preview-bg" src={TREE_SCENE_URL} alt="" aria-hidden="true" />}
             {CALIBRATING && (
-        <div className="absolute top-4 left-4 z-[999] bg-black/80 p-4 rounded-xl border border-white/20 shadow-2xl backdrop-blur-md" onPointerDown={e => e.stopPropagation()}>
+        <div className="absolute bottom-4 left-4 z-[999] bg-black/80 p-4 rounded-xl border border-white/20 shadow-2xl backdrop-blur-md" onPointerDown={e => e.stopPropagation()}>
           <div className="text-lime-300 text-[10px] font-bold uppercase tracking-widest mb-3">Calibration Tuner</div>
           <NumBox label="New Tip X (%)" value={calNewTipX} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipX} />
           <NumBox label="New Tip Y (%)" value={calNewTipY} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipY} />
           <NumBox label="Rot Offset (deg)" value={calRotOffset} min={-180} max={180} step={1} digits={0} onCommit={setCalRotOffset} />
-          <NumBox label="Old Base X (%)" value={calOldBaseX} min={0} max={100} step={0.1} digits={1} onCommit={setCalOldBaseX} />
-          <NumBox label="Old Base Y (%)" value={calOldBaseY} min={0} max={100} step={0.1} digits={1} onCommit={setCalOldBaseY} />
-          <NumBox label="Scale Multiplier" value={calScaleScale} min={0.5} max={2} step={0.01} digits={2} onCommit={setCalScaleScale} />
+
                     <div className="text-[10px] text-stone-400 mt-2 font-mono bg-black/40 p-2 rounded">
             NEW_TIP = {'{'} x: {calNewTipX}, y: {calNewTipY} {'}'}<br/>
             CAL_OLD_BASE = {'{'} x: {calOldBaseX}, y: {calOldBaseY} {'}'}<br/>
@@ -338,6 +331,9 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
+
+
 
 
 
