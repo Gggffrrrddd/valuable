@@ -187,7 +187,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const freshRot = leaf.rotation + CAL_ROT_OFFSET;
       
       
-      const newSc = leaf.scale;
+      const newSc = leaf.scale * 0.75;
       const oldSc = leaf.scale;
       const tx = -NEW_TIP.x + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -NEW_TIP.y + oldSc * (dx * 1.5 * sin + dy * cos);
@@ -292,6 +292,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     </div>
   );
 }
+
 
 
 
