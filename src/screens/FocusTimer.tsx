@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap, RotateCw } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
+import CloudRain from '@/components/focus-visuals/CloudRain';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
 import FlipClock from '@/components/FlipClock';
 import LeafPicker from '@/components/LeafPicker';
@@ -417,6 +418,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                     style={{ transform: 'translate(-378px, 152px) scale(0.54)' }}
                     draggable={false}
                   />
+                  {/* Cloud + rain — same placement and engine as the jar. */}
+                  <CloudRain running={phase === 'focus'} />
                 </>
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
