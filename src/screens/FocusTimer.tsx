@@ -79,31 +79,6 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-/** Precise number box for the tuner: type exact values, Enter/blur commits. */
-function TuneNum({ value, step, min, max, onCommit }: {
-  value: number; step: number; min: number; max: number; onCommit: (v: number) => void;
-}) {
-  const decimals = step < 1 ? 2 : 0;
-  const [draft, setDraft] = useState(() => value.toFixed(decimals));
-  useEffect(() => { setDraft(value.toFixed(decimals)); }, [value, decimals]);
-  const commit = () => {
-    const parsed = parseFloat(draft);
-    if (!Number.isNaN(parsed)) onCommit(Math.min(max, Math.max(min, parsed)));
-    else setDraft(value.toFixed(decimals));
-  };
-  return (
-    <input
-      type="number"
-      value={draft}
-      step={step}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-      className="h-6 w-16 rounded-md border border-white/15 bg-black/60 px-1 text-center text-[11px] tabular-nums text-stone-200 outline-none focus:border-lime-300/60"
-    />
-  );
-}
-
 export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
@@ -138,10 +113,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   const [showLeafPicker, setShowLeafPicker] = useState(false);
 
   // Aquarium scene placement (hardcoded from tuner): X=41 Y=38 Zoom=1.27.
-  // Mask overlay tuner: live X/Y/zoom sliders, values in console.
-  const [maskX, setMaskX] = useState(0);
-  const [maskY, setMaskY] = useState(0);
-  const [maskZoom, setMaskZoom] = useState(1);
+  // Mask overlay placement (hardcoded from tuner): X=-378 Y=152 Zoom=0.54.
 
   // Music follows the session rule: pause/resume in sync, stop when the
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
@@ -435,12 +407,14 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                     style={{ transform: 'translate(41px, 38px) scale(1.27)' }}
                     draggable={false}
                   />
+                  {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for
+                      now — will drive the water/fish animation later. */}
                   <img
                     src="/visuals/jar/aquarium-overlay.png"
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-                    style={{ transform: `translate(${maskX}px, ${maskY}px) scale(${maskZoom})` }}
+                    className="pointer-events-none absolute inset-0 hidden h-full w-full object-contain"
+                    style={{ transform: 'translate(-378px, 152px) scale(0.54)' }}
                     draggable={false}
                   />
                 </>
@@ -478,29 +452,6 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
           {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
-
-        {/* Mask tuner — jar session only: X/Y move + zoom sliders.
-            Tune live, copy values from console, then hardcode + delete panel. */}
-        {visualTheme === 'jar' && phase !== 'completing' && (
-          <div className="absolute bottom-5 left-4 z-30 flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/70 p-3 backdrop-blur-xl">
-            <span className="text-[10px] font-bold uppercase tracking-[.14em] text-stone-400">Mask X:{maskX} Y:{maskY} Z:{maskZoom.toFixed(2)}</span>
-            <label className="flex items-center gap-2 text-[10px] text-stone-400">
-              X
-              <input type="range" min={-800} max={800} step={1} value={maskX} onChange={(e) => { const v = Number(e.target.value); setMaskX(v); console.log(`[MaskTune] X=${v} Y=${maskY} Zoom=${maskZoom}`); }} className="w-24 accent-lime-300" />
-              <TuneNum value={maskX} step={1} min={-800} max={800} onCommit={(v) => { setMaskX(v); console.log(`[MaskTune] X=${v} Y=${maskY} Zoom=${maskZoom}`); }} />
-            </label>
-            <label className="flex items-center gap-2 text-[10px] text-stone-400">
-              Y
-              <input type="range" min={-500} max={500} step={1} value={maskY} onChange={(e) => { const v = Number(e.target.value); setMaskY(v); console.log(`[MaskTune] X=${maskX} Y=${v} Zoom=${maskZoom}`); }} className="w-24 accent-lime-300" />
-              <TuneNum value={maskY} step={1} min={-500} max={500} onCommit={(v) => { setMaskY(v); console.log(`[MaskTune] X=${maskX} Y=${v} Zoom=${maskZoom}`); }} />
-            </label>
-            <label className="flex items-center gap-2 text-[10px] text-stone-400">
-              Z
-              <input type="range" min={0.2} max={3} step={0.01} value={maskZoom} onChange={(e) => { const v = Number(e.target.value); setMaskZoom(v); console.log(`[MaskTune] X=${maskX} Y=${maskY} Zoom=${v}`); }} className="w-24 accent-lime-300" />
-              <TuneNum value={maskZoom} step={0.01} min={0.2} max={3} onCommit={(v) => { setMaskZoom(v); console.log(`[MaskTune] X=${maskX} Y=${maskY} Zoom=${v}`); }} />
-            </label>
-          </div>
-        )}
 
         {/* Session controls */}
         {phase !== 'completing' && (
