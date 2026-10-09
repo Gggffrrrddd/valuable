@@ -131,7 +131,12 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boundaryRef = useRef(1);
   const [sessionLeafIndex, setSessionLeafIndex] = useState<number>(0);
-  const [sessionColor] = useState(() => SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
+  const [sessionColor] = useState(() => {
+    const key = 'treeSessionCount';
+    const n = (parseInt(localStorage.getItem(key) ?? '0', 10) || 0);
+    if (activeSession) localStorage.setItem(key, String(n + 1));
+    return SESSION_COLORS[n % SESSION_COLORS.length];
+  });
   const activeNewLeaf = NEW_LEAVES[SESSION_COLORS.indexOf(sessionColor)] ?? NEW_LEAVES[0];
 
   useEffect(() => {
