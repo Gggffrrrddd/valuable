@@ -395,7 +395,16 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
           {/* Left / center zone: hourglass visual */}
           <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
-              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
+              {visualTheme === 'jar' ? (
+                <img
+                  src="/visuals/jar/aquarium-overlay.png"
+                  alt="Aquarium"
+                  className="h-full w-full object-contain"
+                  draggable={false}
+                />
+              ) : (
+                <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
+              )}
             </div>
           </div>
 
