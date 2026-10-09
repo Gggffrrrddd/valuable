@@ -90,7 +90,7 @@ const LEAF_ASSETS = [
 const NEW_LEAF_URL = '/visuals/tree/leaf-12.png';
 const NEW_TIP = { x: 50, y: 52.5 };
 const CAL_ROT_OFFSET = 61;
-const NEW_LEAF_SCALE_FACTOR = 0.86;
+const NEW_LEAF_SCALE_FACTOR = 0.8;
 
 // Calibrated base coincidence
 const CAL_OLD_BASE = { x: 48.4, y: 51.5 };
