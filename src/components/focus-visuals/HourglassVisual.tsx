@@ -133,12 +133,15 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       role="img"
       aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}
     >
-      <div 
-        className="hourglass-ambient" 
-        style={{ 
-          filter: duration > 0 ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate})` : undefined 
-        }} 
-      />
+      <div className="hourglass-ring" aria-hidden="true">
+        <div className="hourglass-ring__bloom" />
+        <div className="hourglass-ring__glow" />
+        <div className="hourglass-ring__line" />
+        <div className="hourglass-inner-glow" />
+        <span className="hourglass-glint hourglass-glint--a" />
+        <span className="hourglass-glint hourglass-glint--b" />
+        <span className="hourglass-glint hourglass-glint--c" />
+      </div>
       {!loaded && <div className="hourglass-loading" />}
       <video
         ref={videoRef}

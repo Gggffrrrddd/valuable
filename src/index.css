@@ -139,15 +139,107 @@ h1, h2, h3, .font-display {
 }
 
 button .hybrid-hourglass { width: 5.8rem; height: 6.4rem; }
+button .hourglass-ring { display: none; }
 
-.hourglass-ambient {
+.hourglass-ring {
+  --ring-size: 93%;
+  --ring-x: 50%;
+  --ring-y: 45%;
   position: absolute;
-  inset: 17% 20%;
+  left: var(--ring-x);
+  top: var(--ring-y);
+  width: var(--ring-size);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
   z-index: 0;
+  pointer-events: none;
+}
+
+.hourglass-ring__line,
+.hourglass-ring__glow,
+.hourglass-ring__bloom {
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(197,255,84,.16), rgba(197,255,84,.045) 42%, transparent 72%);
-  box-shadow: 0 0 7rem rgba(197,255,84,.08);
-  filter: blur(34px);
+  padding: 1.8px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 196, 110, 0.16) 0deg,
+    rgba(255, 205, 130, 0.35) 25deg,
+    rgba(255, 226, 170, 0.95) 50deg,
+    rgba(255, 200, 120, 0.3) 75deg,
+    rgba(255, 190, 110, 0.12) 110deg,
+    rgba(255, 190, 110, 0.1) 180deg,
+    rgba(255, 195, 115, 0.14) 225deg,
+    rgba(255, 232, 185, 0.85) 242deg,
+    rgba(255, 200, 120, 0.2) 256deg,
+    rgba(255, 214, 150, 1) 290deg,
+    rgba(255, 205, 130, 0.4) 315deg,
+    rgba(255, 196, 110, 0.2) 345deg,
+    rgba(255, 196, 110, 0.16) 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.hourglass-ring__glow {
+  filter: blur(8px);
+  opacity: 0.6;
+  animation: hourglassRingBreathe 7s ease-in-out infinite;
+}
+
+.hourglass-ring__bloom {
+  filter: blur(22px);
+  opacity: 0.32;
+}
+
+.hourglass-inner-glow {
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 38% 48%,
+    rgba(120, 140, 40, 0.28),
+    rgba(90, 110, 30, 0.12) 45%,
+    transparent 70%
+  );
+}
+
+.hourglass-glint {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff1cf 0%, #fff1cf 30%, rgba(255, 190, 90, 0.55) 60%, transparent 100%);
+  transform: translate(-50%, -50%);
+  animation: hourglassGlintTwinkle 5s ease-in-out infinite;
+}
+
+.hourglass-glint--a { left: 88.3%; top: 17.8%; width: 7px; height: 7px; animation-duration: 4.5s; }
+.hourglass-glint--b { left: 5.85%; top: 73.5%; width: 5px; height: 5px; animation-duration: 5.5s; animation-delay: 1.2s; }
+.hourglass-glint--c { left: 3%; top: 32.9%; width: 9px; height: 9px; animation-duration: 6s; animation-delay: 2.4s; }
+
+@keyframes hourglassGlintTwinkle {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes hourglassRingBreathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.78; }
+}
+
+@media (max-width: 640px) {
+  .hourglass-ring__line,
+  .hourglass-ring__glow,
+  .hourglass-ring__bloom {
+    padding: 1.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hourglass-ring__glow,
+  .hourglass-glint {
+    animation: none;
+  }
 }
 
 .hourglass-video {
