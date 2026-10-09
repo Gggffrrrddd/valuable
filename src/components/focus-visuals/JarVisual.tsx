@@ -5,14 +5,14 @@ import type { FocusVisualProps } from './types';
 const JAR_SCENE_URL = '/visuals/jar/jar-scene-new.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
-const WATER_CALIBRATION_URL = '/visuals/jar/aquarium-overlay.png';
+const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
 const CLOUD_RAIN_URL = '/visuals/jar/cloud-rain.png';
 const IMG_W = 1672;
 const IMG_H = 941;
 const OBJECT_POSITION = { x: 0.4, y: 0.15 };
-const WATER_MASK = { x: 17, y: 401, width: Math.round(1672 * 0.44), height: Math.round(941 * 0.44) };
-const WATER_TOP = 460;
-const WATER_BASE = 815;
+const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
+const WATER_TOP = 461;
+const WATER_BASE = 843;
 const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
@@ -35,17 +35,17 @@ const RAIN = {
 };
 
 const RAIN_OFFSET = { x: 40, y: -323 };
-const FLOOR_Y = 850;
-const JAR_EXTENT_FALLBACK = { left: 17, right: 17 + Math.round(1672 * 0.44) };
+const FLOOR_Y = 884;
+const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 /** Even horizontal lanes so drops never clump into one side or column. */
 const RAIN_LANES = 32;
 
 const FISH = [
-  { x: 250, y: 780, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
-  { x: 400, y: 740, side: 'right', width: 62, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
-  { x: 320, y: 690, side: 'left', width: 66, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
-  { x: 450, y: 640, side: 'right', width: 56, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
-  { x: 280, y: 580, side: 'left', width: 58, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
+  { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
+  { x: 465, y: 718, side: 'right', width: 62, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
+  { x: 405, y: 665, side: 'left', width: 66, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
+  { x: 475, y: 610, side: 'right', width: 56, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
+  { x: 370, y: 548, side: 'left', width: 58, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
 ] as const;
 
 type FishConfig = (typeof FISH)[number];
@@ -61,7 +61,7 @@ function randomBetween(min: number, max: number) {
 function getMaskBounds(maskRows: MaskRow[], y: number, halfHeight: number) {
   const sampleYs = [y - halfHeight - FISH_WALL_PADDING, y, y + halfHeight + FISH_WALL_PADDING];
   const rows = sampleYs
-    .map((sampleY) => maskRows[Math.round(sampleY - WATER_MASK.y)])
+    .map((sampleY) => maskRows[Math.round(sampleY - WATER_IMAGE.y)])
     .filter((row): row is Exclude<MaskRow, null> => Boolean(row));
   if (rows.length !== sampleYs.length) return null;
   return {
@@ -207,6 +207,7 @@ const keyframes = `
 `;
 
 const JAR_CAL = { x: -55, y: 0, zoom: 1.04 };
+
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
@@ -305,8 +306,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     image.onload = () => {
       if (cancelled) return;
       const canvas = document.createElement('canvas');
-      canvas.width = WATER_MASK.width;
-      canvas.height = WATER_MASK.height;
+      canvas.width = WATER_IMAGE.width;
+      canvas.height = WATER_IMAGE.height;
       const context = canvas.getContext('2d', { willReadFrequently: true });
       if (!context) return;
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -321,7 +322,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           if (left === -1) left = x;
           right = x;
         }
-        rows.push(left === -1 ? null : { left: WATER_MASK.x + left, right: WATER_MASK.x + right });
+        rows.push(left === -1 ? null : { left: WATER_IMAGE.x + left, right: WATER_IMAGE.x + right });
       }
       setMaskRows(rows);
 
@@ -355,8 +356,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       <style>{keyframes}</style>
       <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={WATER_MASK.x} y={WATER_MASK.y} width={WATER_MASK.width} height={WATER_MASK.height} mask-type="alpha">
-            <image href={WATER_CALIBRATION_URL} x={WATER_MASK.x} y={WATER_MASK.y} width={WATER_MASK.width} height={WATER_MASK.height} preserveAspectRatio="none" />
+          <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} mask-type="alpha">
+            <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" />
           </mask>
           <linearGradient id={waterGradientId} x1="0" y1={WATER_TOP} x2="0" y2={WATER_BASE} gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#8dc4b8" stopOpacity=".55" />
@@ -449,7 +450,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
           {/* Calibrated silhouette: only the reveal rect's top edge rises. */}
           <g mask={`url(#${waterMaskId})`}>
-            <rect x={WATER_MASK.x} y={waterY} width={WATER_MASK.width} height={WATER_BASE - waterY} fill={`url(#${waterGradientId})`} style={{ transition: reducedMotion ? undefined : 'y 1s linear, height 1s linear' }} />
+            <rect x={WATER_IMAGE.x} y={waterY} width={WATER_IMAGE.width} height={WATER_BASE - waterY} fill={`url(#${waterGradientId})`} style={{ transition: reducedMotion ? undefined : 'y 1s linear, height 1s linear' }} />
           </g>
 
           <g mask={`url(#${waterMaskId})`}>
