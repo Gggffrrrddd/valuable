@@ -45,11 +45,11 @@ interface NewLeaf {
 const NEW_LEAVES: NewLeaf[] = [
   { url: '/visuals/tree/leaf-03.png',  tip: { x: 50,   y: 86.1 }, rotOffset: 48,   scaleFactor: 0.75 },
   { url: '/visuals/tree/leaf-04.png',  tip: { x: 45.1, y: 57.6 }, rotOffset: -33,  scaleFactor: 0.75 },
-  { url: '/visuals/tree/leaf-05.png',  tip: { x: 57.8, y: 50.6 }, rotOffset: 105,  scaleFactor: 0.88 },
+  { url: '/visuals/tree/leaf-05.png',  tip: { x: 47.7, y: 56.2 }, rotOffset: 52,   scaleFactor: 0.57 },
   { url: '/visuals/tree/leaf-06.png',  tip: { x: 50.6, y: 53.4 }, rotOffset: 32,   scaleFactor: 0.75 },
   { url: '/visuals/tree/leaf-07.png',  tip: { x: 50,   y: 50 },   rotOffset: 67,   scaleFactor: 1.05 },
   { url: '/visuals/tree/leaf-08.png',  tip: { x: 51.4, y: 53.3 }, rotOffset: 62,   scaleFactor: 1.24 },
-  { url: '/visuals/tree/leaf-09.png',  tip: { x: 47.7, y: 56.2 }, rotOffset: 52,   scaleFactor: 0.57 },
+  { url: '/visuals/tree/leaf-09.png',  tip: { x: 57.8, y: 50.6 }, rotOffset: 105,  scaleFactor: 0.88 },
   { url: '/visuals/tree/leaf-10.png',  tip: { x: 50,   y: 54.9 }, rotOffset: 52,   scaleFactor: 0.63 },
   { url: '/visuals/tree/leaf-11.png',  tip: { x: 50,   y: 50 },   rotOffset: 52,   scaleFactor: 0.49 },
   { url: '/visuals/tree/leaf-12.png',  tip: { x: 50,   y: 52.5 }, rotOffset: 61,   scaleFactor: 0.8 },
