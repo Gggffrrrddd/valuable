@@ -220,7 +220,7 @@ function CalBox({ label, value, step, min, max, onChange }: {
     else setDraft(value.toFixed(2));
   };
   return (
-    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', justifyContent: 'flex-end' }}>
       <span>{label}</span>
       <input
         type="number"
@@ -229,7 +229,7 @@ function CalBox({ label, value, step, min, max, onChange }: {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-        style={{ width: '52px', background: '#111', color: '#f6e3ba', border: '1px solid #f6e3ba', borderRadius: '4px', fontSize: '11px', textAlign: 'center' }}
+        style={{ width: '52px', height: '21px', background: '#111', color: '#f6e3ba', border: '1px solid #f6e3ba', borderRadius: '4px', fontSize: '11px', textAlign: 'center', boxSizing: 'border-box' }}
       />
     </label>
   );
@@ -239,7 +239,7 @@ function CalSlider({ label, value, min, max, step, onChange }: {
   label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
 }) {
   return (
-    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', width: '110px' }}>
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', justifyContent: 'flex-end' }}>
       <span>{label}: {value}</span>
       <input
         type="range"
@@ -248,7 +248,7 @@ function CalSlider({ label, value, min, max, step, onChange }: {
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ width: '100%', accentColor: '#f6e3ba' }}
+        style={{ width: '110px', height: '21px', accentColor: '#f6e3ba' }}
       />
     </label>
   );
@@ -534,7 +534,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         <div style={{
           position: 'fixed', bottom: '16px', left: '16px', zIndex: 9999,
           background: 'rgba(0,0,0,0.85)', border: '1px solid #f6e3ba', borderRadius: '8px',
-          padding: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end',
+          padding: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end',
         }}>
           <CalSlider label="Aqua X" value={aqX} min={-800} max={800} step={1} onChange={setAqX} />
           <CalBox label="X" value={aqX} step={1} min={-800} max={800} onChange={setAqX} />
