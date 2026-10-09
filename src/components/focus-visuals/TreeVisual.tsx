@@ -32,65 +32,28 @@ const LEAF_ASSETS = [
 // leaf visibly missed. New sprite (leaf-03, square, contain-fit): stem tip
 // lands at (50%, 86.1%) of the box. The old leaf rotates about box center,
 // so the coincidence point is recomputed per leaf (rotation + scale) below.
-// --- LEAF 1 (Red Ember) ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-03.png';
-// const NEW_TIP = { x: 50, y: 86.1 };
-// const CAL_ROT_OFFSET = 48;
-// const NEW_LEAF_SCALE_FACTOR = 0.75;
-
-// --- LEAF 2 (Custom Neon) ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-04.png';
-// const NEW_TIP = { x: 45.1, y: 57.6 };
-// const CAL_ROT_OFFSET = -33;
-// const NEW_LEAF_SCALE_FACTOR = 0.75;
-
-// --- LEAF 3 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-05.png';
-// const NEW_TIP = { x: 57.8, y: 50.6 };
-// const CAL_ROT_OFFSET = 105;
-// const NEW_LEAF_SCALE_FACTOR = 0.88;
-
-// --- LEAF 4 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-06.png';
-// const NEW_TIP = { x: 50.6, y: 53.4 };
-// const CAL_ROT_OFFSET = 32;
-// const NEW_LEAF_SCALE_FACTOR = 0.75;
-
-// --- LEAF 5 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-07.png';
-// const NEW_TIP = { x: 50, y: 50 };
-// const CAL_ROT_OFFSET = 67;
-// const NEW_LEAF_SCALE_FACTOR = 1.05;
-
-// --- LEAF 6 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-08.png';
-// const NEW_TIP = { x: 51.4, y: 53.3 };
-// const CAL_ROT_OFFSET = 62;
-// const NEW_LEAF_SCALE_FACTOR = 1.24;
-
-// --- LEAF 7 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-09.png';
-// const NEW_TIP = { x: 47.7, y: 56.2 };
-// const CAL_ROT_OFFSET = 52;
-// const NEW_LEAF_SCALE_FACTOR = 0.57;
-
-// --- LEAF 8 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-10.png';
-// const NEW_TIP = { x: 50, y: 54.9 };
-// const CAL_ROT_OFFSET = 52;
-// const NEW_LEAF_SCALE_FACTOR = 0.63;
-
-// --- LEAF 9 ---
-// const NEW_LEAF_URL = '/visuals/tree/leaf-11.png';
-// const NEW_TIP = { x: 50, y: 50 };
-// const CAL_ROT_OFFSET = 52;
-// const NEW_LEAF_SCALE_FACTOR = 0.49;
-
-// --- LEAF 10 ---
-const NEW_LEAF_URL = '/visuals/tree/leaf-12.png';
-const NEW_TIP = { x: 50, y: 52.5 };
-const CAL_ROT_OFFSET = 61;
-const NEW_LEAF_SCALE_FACTOR = 0.8;
+// One new leaf per session color (index-matched to SESSION_COLORS below).
+// Color 0 (warm-orange) → Leaf 1, Color 1 (amber-gold) → Leaf 2, ...
+// Color 9 (hot-pink) → Leaf 10. Each session picks a color; the falling
+// default leaf of that tint is replaced by its mapped new leaf with the grow animation.
+interface NewLeaf {
+  url: string;
+  tip: { x: number; y: number };
+  rotOffset: number;
+  scaleFactor: number;
+}
+const NEW_LEAVES: NewLeaf[] = [
+  { url: '/visuals/tree/leaf-03.png',  tip: { x: 50,   y: 86.1 }, rotOffset: 48,   scaleFactor: 0.75 },
+  { url: '/visuals/tree/leaf-04.png',  tip: { x: 45.1, y: 57.6 }, rotOffset: -33,  scaleFactor: 0.75 },
+  { url: '/visuals/tree/leaf-05.png',  tip: { x: 57.8, y: 50.6 }, rotOffset: 105,  scaleFactor: 0.88 },
+  { url: '/visuals/tree/leaf-06.png',  tip: { x: 50.6, y: 53.4 }, rotOffset: 32,   scaleFactor: 0.75 },
+  { url: '/visuals/tree/leaf-07.png',  tip: { x: 50,   y: 50 },   rotOffset: 67,   scaleFactor: 1.05 },
+  { url: '/visuals/tree/leaf-08.png',  tip: { x: 51.4, y: 53.3 }, rotOffset: 62,   scaleFactor: 1.24 },
+  { url: '/visuals/tree/leaf-09.png',  tip: { x: 47.7, y: 56.2 }, rotOffset: 52,   scaleFactor: 0.57 },
+  { url: '/visuals/tree/leaf-10.png',  tip: { x: 50,   y: 54.9 }, rotOffset: 52,   scaleFactor: 0.63 },
+  { url: '/visuals/tree/leaf-11.png',  tip: { x: 50,   y: 50 },   rotOffset: 52,   scaleFactor: 0.49 },
+  { url: '/visuals/tree/leaf-12.png',  tip: { x: 50,   y: 52.5 }, rotOffset: 61,   scaleFactor: 0.8 },
+];
 
 // Calibrated base coincidence
 const CAL_OLD_BASE = { x: 48.4, y: 51.5 };
@@ -169,6 +132,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const boundaryRef = useRef(1);
   const [sessionLeafIndex, setSessionLeafIndex] = useState<number>(0);
   const [sessionColor] = useState(() => SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
+  const activeNewLeaf = NEW_LEAVES[SESSION_COLORS.indexOf(sessionColor)] ?? NEW_LEAVES[0];
 
   useEffect(() => {
     if (!activeSession) return;
@@ -236,10 +200,10 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const sin = Math.sin(rad);
             const dx = CAL_OLD_BASE.x - 50;
       const dy = CAL_OLD_BASE.y - 50;
-            const freshRot = leaf.rotation + CAL_ROT_OFFSET;
-      const tipX = NEW_TIP.x;
-      const tipY = NEW_TIP.y;
-      const newSc = leaf.scale * NEW_LEAF_SCALE_FACTOR;
+      const freshRot = leaf.rotation + activeNewLeaf.rotOffset;
+      const tipX = activeNewLeaf.tip.x;
+      const tipY = activeNewLeaf.tip.y;
+      const newSc = leaf.scale * activeNewLeaf.scaleFactor;
       const oldSc = leaf.scale;
       const tx = -tipX + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -tipY + oldSc * (dx * 1.5 * sin + dy * cos);
@@ -248,7 +212,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
               left: `${clampX(leaf.x) * 100}%`,
               top: `${leaf.y * 100}%`,
               transform: `translate(${tx.toFixed(2)}%,${ty.toFixed(2)}%) rotate(${freshRot}deg) scale(${newSc})`,
-              transformOrigin: `${NEW_TIP.x}% ${NEW_TIP.y}%`,
+              transformOrigin: `${activeNewLeaf.tip.x}% ${activeNewLeaf.tip.y}%`,
               zIndex: zIdx ?? 5,
             } as CSSProperties,
             cls: 'tree-placed-leaf' + (reducedMotion ? ' tree-placed-leaf--instant' : ''),
@@ -331,11 +295,11 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
                 aria-hidden="true"
               >
                 <img
-                  src={NEW_LEAF_URL}
+                  src={activeNewLeaf.url}
                   alt=""
                   draggable={false}
                   className="tree-leaf-grow"
-                  style={{ transformOrigin: `${NEW_TIP.x}% ${NEW_TIP.y}%`, animationDuration: '2.5s' }}
+                  style={{ transformOrigin: `${activeNewLeaf.tip.x}% ${activeNewLeaf.tip.y}%`, animationDuration: '2.5s' }}
                 />
               </span>,
             ]
