@@ -207,6 +207,52 @@ const keyframes = `
 `;
 
 const JAR_CAL = { x: -55, y: 0, zoom: 1.04 };
+const AQUARIUM_URL = '/visuals/jar/aquarium-overlay.png';
+const CALIBRATING = true;
+
+function CalBox({ label, value, step, min, max, onChange }: {
+  label: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void;
+}) {
+  const [draft, setDraft] = useState(() => value.toFixed(2));
+  const commit = () => {
+    const parsed = parseFloat(draft);
+    if (!isNaN(parsed)) onChange(Math.min(max, Math.max(min, parsed)));
+    else setDraft(value.toFixed(2));
+  };
+  return (
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+      <span>{label}</span>
+      <input
+        type="number"
+        value={draft}
+        step={step}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+        style={{ width: '52px', background: '#111', color: '#f6e3ba', border: '1px solid #f6e3ba', borderRadius: '4px', fontSize: '11px', textAlign: 'center' }}
+      />
+    </label>
+  );
+}
+
+function CalSlider({ label, value, min, max, step, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
+}) {
+  return (
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', width: '110px' }}>
+      <span>{label}: {value}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: '100%', accentColor: '#f6e3ba' }}
+      />
+    </label>
+  );
+}
 
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
@@ -228,6 +274,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   waterYRef.current = waterY;
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
   const rainLaneCursor = useRef(0);
+  const [aqX, setAqX] = useState(0);
+  const [aqY, setAqY] = useState(0);
+  const [aqZoom, setAqZoom] = useState(1);
+  useEffect(() => {
+    if (CALIBRATING) console.log(`[AquaCal] X=${aqX} Y=${aqY} Zoom=${aqZoom}`);
+  }, [aqX, aqY, aqZoom]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -381,6 +433,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
         <g transform={sceneTransform}>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} transform={`translate(${JAR_CAL.x} ${JAR_CAL.y}) scale(${JAR_CAL.zoom})`} />
+          <image href={AQUARIUM_URL} x="0" y="0" width={IMG_W} height={IMG_H} transform={`translate(${aqX} ${aqY}) scale(${aqZoom})`} opacity={CALIBRATING ? 1 : undefined} />
 
           {/* Cloud + rain artwork. */}
           <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
@@ -477,6 +530,20 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
+      {CALIBRATING && (
+        <div style={{
+          position: 'fixed', bottom: '16px', left: '16px', zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)', border: '1px solid #f6e3ba', borderRadius: '8px',
+          padding: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end',
+        }}>
+          <CalSlider label="Aqua X" value={aqX} min={-800} max={800} step={1} onChange={setAqX} />
+          <CalBox label="X" value={aqX} step={1} min={-800} max={800} onChange={setAqX} />
+          <CalSlider label="Aqua Y" value={aqY} min={-500} max={500} step={1} onChange={setAqY} />
+          <CalBox label="Y" value={aqY} step={1} min={-500} max={500} onChange={setAqY} />
+          <CalSlider label="Zoom" value={aqZoom} min={0.2} max={3} step={0.01} onChange={setAqZoom} />
+          <CalBox label="Zoom" value={aqZoom} step={0.01} min={0.2} max={3} onChange={setAqZoom} />
+        </div>
+      )}
     </div>
   );
 }
