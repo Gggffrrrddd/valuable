@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
-const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
+const JAR_SCENE_URL = '/visuals/jar/jar-scene-new.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
@@ -206,6 +206,27 @@ const keyframes = `
   }
 `;
 
+const CALIBRATING = true;
+
+function CalSlider({ label, value, min, max, step, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
+}) {
+  return (
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', width: '110px' }}>
+      <span>{label}: {value}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: '100%', accentColor: '#f6e3ba' }}
+      />
+    </label>
+  );
+}
+
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
@@ -226,6 +247,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   waterYRef.current = waterY;
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
   const rainLaneCursor = useRef(0);
+  const [jarX, setJarX] = useState(0);
+  const [jarY, setJarY] = useState(0);
+  const [jarZoom, setJarZoom] = useState(1);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -378,7 +402,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         </defs>
 
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} transform={`translate(${jarX} ${jarY}) scale(${jarZoom})`} />
 
           {/* Cloud + rain artwork. */}
           <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
@@ -475,6 +499,17 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
+      {CALIBRATING && (
+        <div style={{
+          position: 'fixed', bottom: '16px', left: '16px', zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)', border: '1px solid #f6e3ba', borderRadius: '8px',
+          padding: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap',
+        }}>
+          <CalSlider label="Jar X" value={jarX} min={-800} max={800} step={1} onChange={setJarX} />
+          <CalSlider label="Jar Y" value={jarY} min={-500} max={500} step={1} onChange={setJarY} />
+          <CalSlider label="Zoom" value={jarZoom} min={0.2} max={3} step={0.01} onChange={setJarZoom} />
+        </div>
+      )}
     </div>
   );
 }
