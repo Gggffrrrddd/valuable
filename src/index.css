@@ -272,6 +272,40 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
+/* Aquarium replaces the hidden jar: same desktop staging, own classes. */
+.aquarium-focus-session .focus-atmosphere,
+.aquarium-focus-session .focus-grid,
+.aquarium-focus-session .focus-orbit,
+.aquarium-focus-session .focus-vignette {
+  display: none;
+}
+
+.aquarium-focus-layout > div:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.aquarium-focus-layout > div:first-child > div {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+}
+
+.aquarium-focus-layout > div:last-child {
+  position: absolute;
+  right: clamp(1.5rem, 6vw, 7rem);
+  top: 50%;
+  z-index: 20;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
 .hourglass-focus-background {
   position: absolute;
   inset: 0;
@@ -564,6 +598,43 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   }
 
   .jar-focus-layout > div:last-child {
+    position: relative !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    margin-top: 1rem !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+}
+
+/* Aquarium portrait phones: same stacked treatment — visual on top,
+   flip-clock centered below. Desktop (lg+) untouched. */
+@media (max-width: 1023px) {
+  .aquarium-focus-layout {
+    flex-direction: column-reverse !important;
+    justify-content: flex-end !important;
+    padding-top: 3.5rem !important;
+    padding-bottom: 10rem !important;
+  }
+
+  .aquarium-focus-layout > div:first-child {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: 52vh !important;
+    max-height: 52vh !important;
+    flex: 0 0 auto !important;
+  }
+
+  .aquarium-focus-layout > div:first-child > div {
+    height: 100% !important;
+  }
+
+  .aquarium-focus-layout > div:last-child {
     position: relative !important;
     right: auto !important;
     top: auto !important;

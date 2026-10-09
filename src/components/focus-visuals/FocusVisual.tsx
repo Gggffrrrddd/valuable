@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import HourglassVisual from './HourglassVisual';
-import JarVisual from './JarVisual';
+import AquariumVisual from './AquariumVisual';
 import TreeVisual from './TreeVisual';
 import ButterflyConstellationVisual from './ButterflyConstellationVisual';
 import type { FocusVisualProps, FocusVisualTheme } from './types';
@@ -63,7 +63,7 @@ function lazyVisual<T>(factory: () => Promise<T>): Promise<T> {
 export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
-  if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
+  if (theme === 'aquarium' || theme === 'jar') return <AquariumVisual progress={progress} running={running} />;
   if (theme === 'solar-system') {
     return (
       <ModelVisualErrorBoundary visualLabel="Solar System" progress={progress} running={running} duration={duration ?? 0}>
