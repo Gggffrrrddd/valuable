@@ -12,7 +12,7 @@ interface HourglassProps extends FocusVisualProps {
 
 const VIDEO_DURATION = 1799.9;
 const MASK_URL = '/visuals/hourglass/hourglass-mask-source.png';
-const BOOK_URL = '/visuals/table/open_book_table_ready.glb';
+const BOOK_URL = '/visuals/table/book-v2.glb';
 const MASK_ALIGNMENT = {
   x: 0.49851190476190477,
   y: 0.4999999999999999,
