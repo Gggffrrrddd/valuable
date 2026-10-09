@@ -70,9 +70,9 @@ const LEAF_ASSETS = [
 
 // --- LEAF 7 ---
 const NEW_LEAF_URL = '/visuals/tree/leaf-09.png';
-const NEW_TIP = { x: 50, y: 50 };
-const CAL_ROT_OFFSET = 0;
-const NEW_LEAF_SCALE_FACTOR = 0.75;
+const NEW_TIP = { x: 47.7, y: 56.2 };
+const CAL_ROT_OFFSET = 52;
+const NEW_LEAF_SCALE_FACTOR = 0.57;
 
 // Calibrated base coincidence
 const CAL_OLD_BASE = { x: 48.4, y: 51.5 };
@@ -132,28 +132,6 @@ const SESSION_COLORS = [
  * typing so mid-typing values never yank the leaf around.
  */
 
-function NumBox({ value, min, max, step, digits, onCommit, label }: { value: number; min: number; max: number; step: number; digits: number; onCommit: (v: number) => void; label: string }) {
-  const [text, setText] = useState(() => value.toFixed(digits));
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setText(value.toFixed(digits));
-  }, [value, focused, digits]);
-  const commit = () => {
-    const v = Number(text);
-    if (Number.isFinite(v)) onCommit(Math.min(max, Math.max(min, v)));
-    else setText(value.toFixed(digits));
-  };
-  return (
-    <div className="flex items-center gap-2 mb-2">
-      <span className="text-white text-xs w-24">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onCommit(Number(e.target.value))} className="w-24 accent-lime-400" />
-      <input type="text" value={focused ? text : value.toFixed(digits)} onFocus={() => setFocused(true)} onBlur={() => { setFocused(false); commit(); }} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && commit()} className="w-16 bg-black/50 text-white text-xs px-1 py-0.5 rounded border border-white/20" />
-    </div>
-  );
-}
-
-const CALIBRATING = true;
-
 function useReducedMotion() {
   const [r, setR] = useState(false);
   useEffect(() => {
@@ -173,10 +151,6 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
   const boundaryRef = useRef(1);
   const [sessionLeafIndex, setSessionLeafIndex] = useState<number>(0);
   const [sessionColor] = useState(() => SESSION_COLORS[Math.floor(Math.random() * SESSION_COLORS.length)]);
-  const [calNewTipX, setCalNewTipX] = useState(50);
-  const [calNewTipY, setCalNewTipY] = useState(50);
-  const [calRotOffset, setCalRotOffset] = useState(0);
-  const [calScaleScale, setCalScaleScale] = useState(0.75);
 
   useEffect(() => {
     if (!activeSession) return;
@@ -231,12 +205,10 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
         top: `${cy}%`,
         transform: `translate(-50%,-50%) rotate(${rot}deg) scale(${leaf.scale})`,
         zIndex: zIdx,
-        filter: activeSession
-          ? (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")")
-          : (leaf.id === 12 ? 'drop-shadow(0 0 8px gold) drop-shadow(0 0 16px gold) brightness(1.5)' : undefined),
+        filter: activeSession ? "hue-rotate(" + sessionColor.hue + "deg) saturate(" + sessionColor.saturate + ") brightness(" + sessionColor.brightness + ")" : undefined,
       };
       const cls = (hasShed ? 'tree-placed-leaf tree-placed-leaf--landed' : 'tree-placed-leaf')
-        + ((reducedMotion || CALIBRATING) ? ' tree-placed-leaf--instant' : '');
+        + (reducedMotion ? ' tree-placed-leaf--instant' : '');
       // Fresh ember leaf (calibrated): stem tip pinned exactly on the old
       // leaf's rendered stem tip; body rotated +48deg to match orientation.
       // Grows over the same 2.5s the old one takes to land. Box is 3:2, so
@@ -246,28 +218,27 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       const sin = Math.sin(rad);
             const dx = CAL_OLD_BASE.x - 50;
       const dy = CAL_OLD_BASE.y - 50;
-            const freshRot = leaf.rotation + (CALIBRATING ? calRotOffset : CAL_ROT_OFFSET);
-      const tipX = CALIBRATING ? calNewTipX : NEW_TIP.x;
-      const tipY = CALIBRATING ? calNewTipY : NEW_TIP.y;
-      const newSc = leaf.scale * (CALIBRATING ? calScaleScale : NEW_LEAF_SCALE_FACTOR);
+            const freshRot = leaf.rotation + CAL_ROT_OFFSET;
+      const tipX = NEW_TIP.x;
+      const tipY = NEW_TIP.y;
+      const newSc = leaf.scale * NEW_LEAF_SCALE_FACTOR;
       const oldSc = leaf.scale;
       const tx = -tipX + oldSc * (dx * cos - ((dy * sin) * 2) / 3);
       const ty = -tipY + oldSc * (dx * 1.5 * sin + dy * cos);
-      const showFresh = CALIBRATING ? (leaf.id === 12) : hasShed;
-      const fresh = showFresh ? {
+      const fresh = hasShed ? {
             style: {
               left: `${clampX(leaf.x) * 100}%`,
               top: `${leaf.y * 100}%`,
               transform: `translate(${tx.toFixed(2)}%,${ty.toFixed(2)}%) rotate(${freshRot}deg) scale(${newSc})`,
-              transformOrigin: `${CALIBRATING ? calNewTipX : NEW_TIP.x}% ${CALIBRATING ? calNewTipY : NEW_TIP.y}%`,
+              transformOrigin: `${NEW_TIP.x}% ${NEW_TIP.y}%`,
               zIndex: zIdx ?? 5,
             } as CSSProperties,
-            cls: 'tree-placed-leaf' + ((reducedMotion || CALIBRATING) ? ' tree-placed-leaf--instant' : ''),
+            cls: 'tree-placed-leaf' + (reducedMotion ? ' tree-placed-leaf--instant' : ''),
           }
         : null;
       return { id: leaf.id, style, cls, leafSrc: sessionLeafSrc, fresh };
     });
-  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor, calNewTipX, calNewTipY, calRotOffset, calScaleScale]);
+  }, [activeSession, shedCount, reducedMotion, sessionLeafIndex, sessionColor]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -320,20 +291,6 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
       {!activeSession && <img className="tree-leaf-editor__preview-bg" src={TREE_SCENE_URL} alt="" aria-hidden="true" />}
             
             
-      {CALIBRATING && (
-        <div className="absolute bottom-4 left-4 z-[999] bg-black/80 p-4 rounded-xl border border-white/20 shadow-2xl backdrop-blur-md" onPointerDown={e => e.stopPropagation()}>
-          <div className="text-lime-300 text-[10px] font-bold uppercase tracking-widest mb-3">Leaf 7 Calibration Tuner</div>
-          <NumBox label="New Tip X (%)" value={calNewTipX} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipX} />
-          <NumBox label="New Tip Y (%)" value={calNewTipY} min={0} max={100} step={0.1} digits={1} onCommit={setCalNewTipY} />
-          <NumBox label="Rot Offset (deg)" value={calRotOffset} min={-180} max={180} step={1} digits={0} onCommit={setCalRotOffset} />
-          <NumBox label="Scale Multiplier" value={calScaleScale} min={0.1} max={3} step={0.01} digits={2} onCommit={setCalScaleScale} />
-          <div className="text-[10px] text-stone-400 mt-2 font-mono bg-black/40 p-2 rounded">
-            NEW_TIP = {'{'} x: {calNewTipX}, y: {calNewTipY} {'}'}<br/>
-            CAL_ROT_OFFSET = {calRotOffset}<br/>
-            Scale = {calScaleScale}
-          </div>
-        </div>
-      )}
       <div className="tree-scene__completion-glow visual-finish-glow" aria-hidden="true" />
 
       {leafStyles.map((ls) => (
@@ -360,7 +317,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
                   alt=""
                   draggable={false}
                   className="tree-leaf-grow"
-                  style={{ transformOrigin: `${CALIBRATING ? calNewTipX : NEW_TIP.x}% ${CALIBRATING ? calNewTipY : NEW_TIP.y}%`, animationDuration: '2.5s', ...(CALIBRATING ? { animation: 'none', opacity: 1, transform: 'scale(1)' } : {}) }}
+                  style={{ transformOrigin: `${NEW_TIP.x}% ${NEW_TIP.y}%`, animationDuration: '2.5s' }}
                 />
               </span>,
             ]
