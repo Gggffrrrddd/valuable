@@ -138,26 +138,20 @@ const SESSION_COLORS = [
  * typing so mid-typing values never yank the leaf around.
  */
 
-function NumBox({ label, value, step, min, max, onChange }: {
-  label: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void;
+function CalSlider({ label, value, min, max, step, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
 }) {
-  const [draft, setDraft] = useState(() => value.toFixed(2));
-  const commit = () => {
-    const parsed = parseFloat(draft);
-    if (!isNaN(parsed)) onChange(Math.min(max, Math.max(min, parsed)));
-    else setDraft(value.toFixed(2));
-  };
   return (
-    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-      <span>{label}</span>
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', width: '110px' }}>
+      <span>{label}: {value}</span>
       <input
-        type="number"
-        value={draft}
+        type="range"
+        min={min}
+        max={max}
         step={step}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-        style={{ width: '52px', background: '#111', color: '#f6e3ba', border: '1px solid #f6e3ba', borderRadius: '4px', fontSize: '11px', textAlign: 'center' }}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: '100%', accentColor: '#f6e3ba' }}
       />
     </label>
   );
@@ -337,10 +331,10 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
           background: 'rgba(0,0,0,0.85)', border: '1px solid #f6e3ba', borderRadius: '8px',
           padding: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap',
         }}>
-          <NumBox label="New Tip X (%)" value={calNewTipX} step={0.1} min={0} max={100} onChange={setCalNewTipX} />
-          <NumBox label="New Tip Y (%)" value={calNewTipY} step={0.1} min={0} max={100} onChange={setCalNewTipY} />
-          <NumBox label="Rot Offset (deg)" value={calRotOffset} step={1} min={-360} max={360} onChange={setCalRotOffset} />
-          <NumBox label="Scale Multiplier" value={calScaleScale} step={0.01} min={0.05} max={4} onChange={setCalScaleScale} />
+          <CalSlider label="New Tip X (%)" value={calNewTipX} min={0} max={100} step={0.1} onChange={setCalNewTipX} />
+          <CalSlider label="New Tip Y (%)" value={calNewTipY} min={0} max={100} step={0.1} onChange={setCalNewTipY} />
+          <CalSlider label="Rot Offset (deg)" value={calRotOffset} min={-360} max={360} step={1} onChange={setCalRotOffset} />
+          <CalSlider label="Scale Multiplier" value={calScaleScale} min={0.05} max={4} step={0.01} onChange={setCalScaleScale} />
         </div>
       )}
       <div className="tree-scene__completion-glow visual-finish-glow" aria-hidden="true" />
