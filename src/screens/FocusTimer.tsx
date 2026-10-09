@@ -104,12 +104,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   const SOLAR_DEPTH = 0.2;
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
-    // Legacy 'jar' preference migrates to the aquarium that replaced it.
-    if (saved === 'jar') return 'aquarium';
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
   });
-  // Legacy saved 'jar' renders as aquarium everywhere below.
-  const activeTheme = visualTheme === 'jar' ? 'aquarium' : visualTheme;
   const [selectedLeaf, setSelectedLeaf] = useState<string>(() => {
     const saved = localStorage.getItem(LEAF_STORAGE_KEY);
     return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
@@ -358,7 +354,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${activeTheme === 'aquarium' ? 'aquarium-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
@@ -368,8 +364,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         <div className="focus-orbit focus-orbit-right" aria-hidden="true" />
         <div className="focus-vignette" aria-hidden="true" />
 
-        {/* Aquarium only: optional rotate hint — mobile only, never auto-locks, desktop hidden */}
-        {activeTheme === 'aquarium' && (
+        {/* Jar only: optional rotate hint — mobile only, never auto-locks, desktop hidden */}
+        {visualTheme === 'jar' && (
           <button
             type="button"
             onClick={handleRotateForBetterView}
@@ -395,11 +391,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${activeTheme === 'aquarium' ? 'aquarium-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
+        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual */}
           <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
-              <FocusVisual theme={activeTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
+              <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
             </div>
           </div>
 
@@ -541,7 +537,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             return (
               <div key={theme.id} className="relative">
                 <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'aquarium' ? <img src="/visuals/jar/aquarium-overlay.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]"><img src="/visuals/solar-system/solar-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)' }} draggable={false} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={undefined} />}</div>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]"><img src="/visuals/solar-system/solar-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)' }} draggable={false} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
                   <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
                 </button>
               </div>
