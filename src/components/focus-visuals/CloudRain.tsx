@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { useTankGeom } from './tankGeom';
 
 const CLOUD_RAIN_URL = '/visuals/jar/cloud-rain.png';
 /** Scene space matches aquarium-scene.png so the overlay aligns 1:1. */
@@ -23,10 +24,8 @@ const RAIN = {
 };
 
 const RAIN_OFFSET = { x: 40, y: -323 };
-/** Tank footprint in aquarium-scene.png coordinates. */
-const TANK_EXTENT = { left: 117, right: 813 };
-const TANK_BOTTOM = 735;
-const FLOOR_Y = 800;
+/** Tank footprint + landing heights come from the live mask geometry. */
+const FLOOR_GAP = 65;
 /** Even horizontal lanes so drops never clump into one side or column. */
 const RAIN_LANES = 32;
 
@@ -77,6 +76,9 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
   const [splashes, setSplashes] = useState<RainSplash[]>([]);
   const nextRainId = useRef(0);
   const rainLaneCursor = useRef(0);
+  const { ref, geom } = useTankGeom();
+  const geomRef = useRef(geom);
+  geomRef.current = geom;
 
   // Dense, constant rainfall while the session runs: several drops per tick, so
   // the sky is always full of streaks rather than a single visible line.
@@ -86,7 +88,8 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
     let timer: ReturnType<typeof setTimeout>;
 
     const emitOne = () => {
-      const extent = TANK_EXTENT;
+      const g = geomRef.current;
+      const extent = { left: g.x, right: g.x + g.width };
       // Cycle through equal horizontal lanes (with light jitter inside each
       // lane) so the rainfall is spread evenly, left to right.
       const minX = extent.left - RAIN.spread;
@@ -97,7 +100,7 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
       const x = minX + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
       const toTank = x >= extent.left && x <= extent.right;
       const y = RAIN.sourceY + randomBetween(-26, 26);
-      const landY = toTank ? TANK_BOTTOM : FLOOR_Y;
+      const landY = toTank ? g.base : g.base + FLOOR_GAP;
       // Account for the group offset so the drop's final position lands exactly
       // on the floor / tank bottom: final = y + RAIN_OFFSET.y + fall.
       const fall = Math.max(60, landY - (y + RAIN_OFFSET.y));
@@ -139,7 +142,7 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
   }, [reducedMotion, running]);
 
   return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+    <div ref={ref} className="pointer-events-none absolute inset-0" aria-hidden="true">
       <style>{keyframes}</style>
       <svg
         width="100%"
