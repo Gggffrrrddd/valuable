@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { normalizeModel, useModelLoader } from './model-core';
+import type { Group } from 'three';
 import type { FocusVisualProps } from './types';
 
 interface HourglassProps extends FocusVisualProps {
@@ -9,11 +12,25 @@ interface HourglassProps extends FocusVisualProps {
 
 const VIDEO_DURATION = 1799.9;
 const MASK_URL = '/visuals/hourglass/hourglass-mask-source.png';
+const BOOK_URL = '/visuals/table/open_book_table_ready.glb';
 const MASK_ALIGNMENT = {
   x: 0.49851190476190477,
   y: 0.4999999999999999,
   scale: 1.35,
 };
+
+/** Closed book placement over the hourglass (tunable). */
+const BOOK_CAL = {
+  x: 0,
+  y: 0,
+  z: 0,
+  rotX: 0,
+  rotY: 0,
+  rotZ: 0,
+  zoom: 1,
+};
+
+const CALIBRATING = true;
 
 const SESSION_COLOR_TINTS = [
   { hue: 0, saturate: 1.2, label: 'amber-orange' },
@@ -28,6 +45,59 @@ const SESSION_COLOR_TINTS = [
   { hue: 260, saturate: 1.25, label: 'indigo-lapis' },
 ];
 
+/** Number box + slider pair; draft text syncs when the external value changes. */
+function CalBox({ label, value, min, max, step, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void;
+}) {
+  const [draft, setDraft] = useState(value.toFixed(2));
+  useEffect(() => { setDraft(value.toFixed(2)); }, [value]);
+  return (
+    <label style={{ fontSize: '10px', color: '#f6e3ba', display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', width: '110px' }}>
+      <span>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: '100%', accentColor: '#f6e3ba' }}
+      />
+      <input
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const parsed = parseFloat(draft);
+          if (Number.isFinite(parsed)) onChange(Math.max(min, Math.min(max, parsed)));
+          else setDraft(value.toFixed(2));
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        style={{ width: '100%', height: '21px', background: 'rgba(246,227,186,.08)', border: '1px solid rgba(246,227,186,.4)', borderRadius: '4px', color: '#f6e3ba', textAlign: 'center', fontSize: '10px' }}
+      />
+    </label>
+  );
+}
+
+function BookModel({ model, cal }: { model: Group; cal: typeof BOOK_CAL }) {
+  const staged = useRef<Group | null>(null);
+  if (!staged.current) {
+    const clone = model.clone(true);
+    normalizeModel(clone, 0.5);
+    staged.current = clone;
+  }
+  return (
+    <group
+      position={[cal.x, cal.y, cal.z]}
+      rotation={[(cal.rotX * Math.PI) / 180, (cal.rotY * Math.PI) / 180, (cal.rotZ * Math.PI) / 180]}
+      scale={cal.zoom}
+    >
+      <primitive object={staged.current} />
+    </group>
+  );
+}
+
 export default function HourglassVisual({ progress, duration, running }: HourglassProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -36,9 +106,10 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   const [videoEnded, setVideoEnded] = useState(false);
   const [maskDataUrl, setMaskDataUrl] = useState<string | null>(null);
   const [sessionColor] = useState(() => SESSION_COLOR_TINTS[Math.floor(Math.random() * SESSION_COLOR_TINTS.length)]);
+  const [cal, setCal] = useState(BOOK_CAL);
+  const svgId = useId().replace(/:/g, '');
+  const { model: bookModel } = useModelLoader(BOOK_URL);
   const complete = progress >= 1;
-  // Guard against a zero/invalid duration (e.g. preview or fallback renders):
-  // a non-finite playbackRate throws and would crash the component.
   const playbackRate = duration > 0 ? VIDEO_DURATION / duration : 1;
   const videoStyle: CSSProperties = {
     opacity: maskDataUrl ? 1 : 0,
@@ -85,6 +156,15 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
   }, [complete, loaded]);
 
   useEffect(() => {
+    if (!CALIBRATING) return;
+    console.log(
+      `[HourglassBook] x=${cal.x.toFixed(2)} y=${cal.y.toFixed(2)} z=${cal.z.toFixed(2)} `
+      + `rotX=${cal.rotX.toFixed(1)} rotY=${cal.rotY.toFixed(1)} rotZ=${cal.rotZ.toFixed(1)} `
+      + `zoom=${cal.zoom.toFixed(3)}`,
+    );
+  }, [cal]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -126,6 +206,11 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
     };
   }, []);
 
+  const setCalField = (field: keyof typeof BOOK_CAL) => (v: number) => {
+    console.log(`[HourglassBook] ${field}=${v}`);
+    setCal((c) => ({ ...c, [field]: v }));
+  };
+
   return (
     <div
       ref={containerRef}
@@ -133,11 +218,11 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
       role="img"
       aria-label={`Hourglass ${Math.round(progress * 100)} percent complete`}
     >
-      <div 
-        className="hourglass-ambient" 
-        style={{ 
-          filter: duration > 0 ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate})` : undefined 
-        }} 
+      <div
+        className="hourglass-ambient"
+        style={{
+          filter: duration > 0 ? `hue-rotate(${sessionColor.hue}deg) saturate(${sessionColor.saturate})` : undefined
+        }}
       />
       {!loaded && <div className="hourglass-loading" />}
       <video
@@ -153,6 +238,39 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         onEnded={handleEnded}
         aria-hidden="true"
       />
+
+      {/* Closed book model over the hourglass (transparent 3D overlay). */}
+      {bookModel && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} aria-hidden="true">
+          <Canvas
+            key={`book-canvas-${svgId}`}
+            camera={{ position: [0, 0.4, 2.4], fov: 45 }}
+            gl={{ alpha: true, antialias: true }}
+            style={{ background: 'transparent' }}
+          >
+            <ambientLight intensity={1.1} />
+            <directionalLight position={[3, 5, 4]} intensity={1.4} />
+            <directionalLight position={[-3, 2, -2]} intensity={0.5} />
+            <BookModel model={bookModel} cal={cal} />
+          </Canvas>
+        </div>
+      )}
+
+      {CALIBRATING && (
+        <div style={{
+          position: 'fixed', bottom: '16px', left: '16px', zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)', border: '1px solid #f6e3ba', borderRadius: '8px',
+          padding: '10px', display: 'flex', gap: '10px', flexWrap: 'wrap',
+        }}>
+          <CalBox label="X" value={cal.x} min={-3} max={3} step={0.01} onChange={setCalField('x')} />
+          <CalBox label="Y" value={cal.y} min={-3} max={3} step={0.01} onChange={setCalField('y')} />
+          <CalBox label="Z" value={cal.z} min={-3} max={3} step={0.01} onChange={setCalField('z')} />
+          <CalBox label="Tilt X (°)" value={cal.rotX} min={-180} max={180} step={1} onChange={setCalField('rotX')} />
+          <CalBox label="Tilt Y (°)" value={cal.rotY} min={-180} max={180} step={1} onChange={setCalField('rotY')} />
+          <CalBox label="Tilt Z (°)" value={cal.rotZ} min={-180} max={180} step={1} onChange={setCalField('rotZ')} />
+          <CalBox label="Zoom" value={cal.zoom} min={0.1} max={5} step={0.01} onChange={setCalField('zoom')} />
+        </div>
+      )}
     </div>
   );
 }
