@@ -112,6 +112,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
 
+  // Aquarium placement tuner (jar session only): live X/Y/zoom sliders.
+  // Tune visually, note the console values, then hardcode + remove panel.
+  const [aquaX, setAquaX] = useState(0);
+  const [aquaY, setAquaY] = useState(0);
+  const [aquaZoom, setAquaZoom] = useState(1);
+
   // Music follows the session rule: pause/resume in sync, stop when the
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
   // intentionally does NOT stop it — the engine outlives this component.
@@ -400,6 +406,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   src="/visuals/jar/aquarium-scene.png"
                   alt="Aquarium"
                   className="h-full w-full object-contain"
+                  style={{ transform: `translate(${aquaX}px, ${aquaY}px) scale(${aquaZoom})` }}
                   draggable={false}
                 />
               ) : (
@@ -436,6 +443,26 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
           {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
+
+        {/* Image tuner — jar session only: X/Y move + zoom sliders.
+            Tune live, copy values from console, then hardcode + delete panel. */}
+        {visualTheme === 'jar' && phase !== 'completing' && (
+          <div className="absolute bottom-5 left-4 z-30 flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/70 p-3 backdrop-blur-xl">
+            <span className="text-[10px] font-bold uppercase tracking-[.14em] text-stone-400">Tune X:{aquaX} Y:{aquaY} Z:{aquaZoom.toFixed(2)}</span>
+            <label className="flex items-center gap-2 text-[10px] text-stone-400">
+              X
+              <input type="range" min={-800} max={800} step={1} value={aquaX} onChange={(e) => { const v = Number(e.target.value); setAquaX(v); console.log(`[AquaTune] X=${v} Y=${aquaY} Zoom=${aquaZoom}`); }} className="w-32 accent-lime-300" />
+            </label>
+            <label className="flex items-center gap-2 text-[10px] text-stone-400">
+              Y
+              <input type="range" min={-500} max={500} step={1} value={aquaY} onChange={(e) => { const v = Number(e.target.value); setAquaY(v); console.log(`[AquaTune] X=${aquaX} Y=${v} Zoom=${aquaZoom}`); }} className="w-32 accent-lime-300" />
+            </label>
+            <label className="flex items-center gap-2 text-[10px] text-stone-400">
+              Z
+              <input type="range" min={0.2} max={3} step={0.01} value={aquaZoom} onChange={(e) => { const v = Number(e.target.value); setAquaZoom(v); console.log(`[AquaTune] X=${aquaX} Y=${aquaY} Zoom=${v}`); }} className="w-32 accent-lime-300" />
+            </label>
+          </div>
+        )}
 
         {/* Session controls */}
         {phase !== 'completing' && (
