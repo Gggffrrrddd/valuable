@@ -214,6 +214,7 @@ function CalBox({ label, value, step, min, max, onChange }: {
   label: string; value: number; step: number; min: number; max: number; onChange: (v: number) => void;
 }) {
   const [draft, setDraft] = useState(() => value.toFixed(2));
+  useEffect(() => { setDraft(value.toFixed(2)); }, [value]);
   const commit = () => {
     const parsed = parseFloat(draft);
     if (!isNaN(parsed)) onChange(Math.min(max, Math.max(min, parsed)));
