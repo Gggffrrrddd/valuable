@@ -397,7 +397,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
               {visualTheme === 'jar' ? (
                 <img
-                  src="/visuals/jar/aquarium-overlay.png"
+                  src="/visuals/jar/aquarium-scene.png"
                   alt="Aquarium"
                   className="h-full w-full object-contain"
                   draggable={false}
