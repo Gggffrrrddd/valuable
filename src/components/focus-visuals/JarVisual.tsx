@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
-const JAR_SCENE_URL = '/visuals/jar/jar-scene-new.png';
+const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
@@ -206,8 +206,6 @@ const keyframes = `
   }
 `;
 
-const JAR_CAL = { x: -55, y: 0, zoom: 1.04 };
-
 export default function JarVisual({ progress, running = false }: FocusVisualProps) {
   const value = Math.max(0, Math.min(1, progress));
   const complete = value >= 1;
@@ -380,7 +378,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         </defs>
 
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} transform={`translate(${JAR_CAL.x} ${JAR_CAL.y}) scale(${JAR_CAL.zoom})`} />
+          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
           {/* Cloud + rain artwork. */}
           <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
