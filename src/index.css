@@ -1461,3 +1461,65 @@ button .butterfly-constellation {
     animation: none;
   }
 }
+/* --------------------------------------------------------------------------
+   Jar mobile landscape lock (same pattern as the hourglass sim).
+   Portrait phones/tablets: the whole session rotates into a landscape stage.
+   Inside the sim the phone portrait-stacking is undone, so the desktop
+   absolute layout (full-bleed visual + floating clock/chrome) applies as-is.
+   Nothing can exceed the stage, so no cut/bleed on any phone size; other
+   visuals are untouched (hooks are jar-only).
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Rotated stage: 100vh wide x 100vw tall. */
+  .jr-sim.jr-sim {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    overflow: hidden;
+    transform: translate(-50%, -50%) rotate(90deg);
+    animation: hg-sim-in 300ms ease-out;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  /* Undo the portrait stack: back to the desktop row + absolute visual. */
+  .jr-sim .jar-focus-layout {
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+  }
+  .jr-sim .jar-focus-layout > div:first-child {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: none !important;
+  }
+  .jr-sim .jar-focus-layout > div:first-child > div {
+    height: 100% !important;
+    max-height: none !important;
+  }
+  .jr-sim .jar-focus-layout > div:last-child {
+    position: absolute !important;
+    right: clamp(1.5rem, 6vw, 7rem) !important;
+    top: 50% !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+    width: auto !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jr-sim.jr-sim {
+    animation: none;
+  }
+}
