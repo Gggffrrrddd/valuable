@@ -420,7 +420,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                     draggable={false}
                   />
                   {/* Cloud + rain — same placement and engine as the jar. */}
-                  <CloudRain running={phase === 'focus'} />
+                  <CloudRain running={phase === 'focus'} progress={progress} />
                   {/* Water fill + fish — mapped live onto the hidden mask. */}
                   <TankLife progress={progress} />
                 </>

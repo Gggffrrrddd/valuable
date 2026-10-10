@@ -68,7 +68,7 @@ const keyframes = `
  * and same rain engine constants as the jar visual; geometry matches the
  * scene image 1:1 (same box, same fit, same transform).
  */
-export default function CloudRain({ running = false }: { running?: boolean }) {
+export default function CloudRain({ running = false, progress = 0 }: { running?: boolean; progress?: number }) {
   const reducedMotion = useReducedMotion();
   const svgId = useId().replace(/:/g, '');
   const rainGradientId = `aqua-cloud-rain-${svgId}`;
@@ -79,6 +79,8 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
   const { ref, geom } = useTankGeom();
   const geomRef = useRef(geom);
   geomRef.current = geom;
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
 
   // Dense, constant rainfall while the session runs: several drops per tick, so
   // the sky is always full of streaks rather than a single visible line.
@@ -90,6 +92,9 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
     const emitOne = () => {
       const g = geomRef.current;
       const extent = { left: g.x, right: g.x + g.width };
+      // Drops land on the rising water surface (same as the jar), not the floor.
+      const p = Math.max(0, Math.min(1, progressRef.current));
+      const surfaceY = g.base - p * (g.base - g.top);
       // Cycle through equal horizontal lanes (with light jitter inside each
       // lane) so the rainfall is spread evenly, left to right.
       const minX = extent.left - RAIN.spread;
@@ -100,7 +105,7 @@ export default function CloudRain({ running = false }: { running?: boolean }) {
       const x = minX + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
       const toTank = x >= extent.left && x <= extent.right;
       const y = RAIN.sourceY + randomBetween(-26, 26);
-      const landY = toTank ? g.base : g.base + FLOOR_GAP;
+      const landY = toTank ? surfaceY : g.base + FLOOR_GAP;
       // Account for the group offset so the drop's final position lands exactly
       // on the floor / tank bottom: final = y + RAIN_OFFSET.y + fall.
       const fall = Math.max(60, landY - (y + RAIN_OFFSET.y));
