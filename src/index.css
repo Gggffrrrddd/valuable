@@ -1377,10 +1377,6 @@ button .butterfly-constellation {
     justify-content: flex-start;
     padding-left: 2rem;
   }
-  /* 4-digit clock at minimum rem sizes is ~350px: scale to fit the zone. */
-  .hg-sim-hg .hg-clock-zone .flip-clock {
-    zoom: 0.75;
-  }
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
@@ -1402,7 +1398,7 @@ button .butterfly-constellation {
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: 46vw;
+    height: 60vw;
     max-height: none;
   }
 }
@@ -1413,7 +1409,7 @@ button .butterfly-constellation {
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: 46vh;
+    height: 60vh;
     max-height: none;
   }
 }
