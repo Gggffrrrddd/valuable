@@ -12,10 +12,22 @@ import StudyTableScreen from '@/screens/StudyTableScreen';
 import CompeteScreen from '@/screens/CompeteScreen';
 import RestrictedScreen from '@/screens/RestrictedScreen';
 import { isAllowedUser } from '@/lib/restriction';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, TreePine } from 'lucide-react';
+import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, TreePine, MoreVertical, Download, Check } from 'lucide-react';
 
 type Tab = 'home' | 'stats' | 'compete' | 'friends';
 type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
+
+/** Minimal shape of the PWA install prompt event. */
+interface DeferredInstallPrompt extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function isStandaloneDisplay(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia?.('(display-mode: standalone)').matches
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
 
 const SCREEN_STORAGE_KEY = 'valuable-app-screen';
 const TAB_STORAGE_KEY = 'valuable-app-tab';
@@ -38,6 +50,58 @@ function AppContent() {
   // lives in sessionStorage, so the table unmounts FocusTimer safely and
   // "go back" remounts it into the same running session.
   const [tableFromTimer, setTableFromTimer] = useState(false);
+
+  // Mobile overflow menu + PWA install prompt (captured for the menu item).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPrompt | null>(null);
+  const [installed, setInstalled] = useState(isStandaloneDisplay);
+  const [showInstallHint, setShowInstallHint] = useState(false);
+
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as DeferredInstallPrompt);
+    };
+    const onInstalled = () => {
+      setInstalled(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onInstalled);
+    const mq = window.matchMedia('(display-mode: standalone)');
+    const onDisplayChange = () => setInstalled(isStandaloneDisplay());
+    mq.addEventListener?.('change', onDisplayChange);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onInstalled);
+      mq.removeEventListener?.('change', onDisplayChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  async function handleInstallClick() {
+    if (installed) return;
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+      } catch {
+        /* prompt dismissed or failed — menu stays usable */
+      }
+      setDeferredPrompt(null);
+      setMenuOpen(false);
+      return;
+    }
+    setShowInstallHint((v) => !v);
+  }
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);
@@ -202,7 +266,42 @@ function AppContent() {
             <button onClick={() => setScreen('premium')} className="hidden items-center gap-2 rounded-xl border border-lime-300/20 bg-lime-300/[.06] px-3 py-2 text-xs font-bold text-lime-300 sm:flex">
               <Sparkles className="h-3.5 w-3.5" /> Go Premium
             </button>
-            <button onClick={signOut} className="icon-button h-9 w-9" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
+            <div className="relative">
+              <button onClick={() => setMenuOpen((v) => !v)} className="icon-button h-9 w-9" aria-label="Menu" aria-haspopup="menu" aria-expanded={menuOpen}>
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {menuOpen && (
+                <>
+                  <button aria-hidden tabIndex={-1} onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent" />
+                  <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d0f0c]/95 p-1.5 shadow-2xl backdrop-blur-2xl">
+                    <button
+                      role="menuitem"
+                      onClick={handleInstallClick}
+                      disabled={installed}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                    >
+                      {installed ? <Check className="h-4 w-4 text-lime-300" /> : <Download className="h-4 w-4" />}
+                      {installed ? 'Installed' : deferredPrompt ? 'Install app' : 'Download app'}
+                    </button>
+                    {!installed && !deferredPrompt && showInstallHint && (
+                      <p className="px-3 pb-2 pt-1 text-[11px] leading-5 text-stone-500">
+                        {/iphone|ipad|ipod/i.test(navigator.userAgent)
+                          ? 'Tap Share, then “Add to Home Screen”.'
+                          : 'Open the browser menu (⋮), then “Add to Home Screen” or “Install app”.'}
+                      </p>
+                    )}
+                    <div className="mx-2 my-1 h-px bg-white/[.07]" />
+                    <button
+                      role="menuitem"
+                      onClick={() => { setMenuOpen(false); signOut(); }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
+                    >
+                      <LogOut className="h-4 w-4" /> Sign out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
