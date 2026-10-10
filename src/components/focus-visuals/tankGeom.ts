@@ -9,15 +9,16 @@ export const SCENE_T = { x: 41, y: 38, k: 1.27 };
 export const MASK_T = { x: -378, y: 152, k: 0.54 };
 
 /** Tank interior inside aquarium-overlay.png pixels (conservative). */
-export const MASK_TANK = { x: 150, y: 345, width: 1368, height: 300 };
+export const MASK_TANK = { x: 166, y: 250, width: 1338, height: 536 };
 
 /** Overlay asset used for exact alpha calibration (same as the jar). */
 const OVERLAY_URL = '/visuals/jar/aquarium-overlay.png';
 const ALPHA_THRESHOLD = 24;
-/** Glass thickness insets: keep water/fish inside the glass walls. */
-const GLASS_X = 16;
-const RIM_TOP = 20;
-const BASE_BOTTOM = 12;
+/** No shrinking insets: use the calibrated glass bounds exactly so the
+    water covers the tank wall-to-wall. */
+const GLASS_X = 0;
+const RIM_TOP = 0;
+const BASE_BOTTOM = 0;
 
 export interface TankGeom {
   x: number;
@@ -28,14 +29,14 @@ export interface TankGeom {
   base: number;
 }
 
-/** Fallback before first measure (matches the previous static rect). */
+/** Fallback before first measure (matches the calibrated raw bounds). */
 export const TANK_GEOM_FALLBACK: TankGeom = {
-  x: 170,
-  y: 352,
-  width: 1330,
-  height: 288,
-  top: 360,
-  base: 638,
+  x: 166,
+  y: 250,
+  width: 1338,
+  height: 536,
+  top: 250,
+  base: 786,
 };
 
 function mapMaskToScene(q: number, o: number, c: number, s: number, tM: number, kM: number, tS: number, kS: number): number {
