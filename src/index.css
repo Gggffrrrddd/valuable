@@ -1376,9 +1376,10 @@ button .butterfly-constellation {
     margin-top: 0;
     justify-content: flex-start;
     padding-left: 2rem;
+    transform: translateY(-4%);
   }
   .hg-sim-hg .hg-clock-zone .flip-clock {
-    zoom: 0.85;
+    zoom: 0.8;
   }
 }
 
