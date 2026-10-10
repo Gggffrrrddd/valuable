@@ -126,36 +126,51 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     else setSessionPaused(phase === 'paused');
   }, [phase]);
 
-  // YouTube-style chrome: overlay UI (subject, status, controls, friends)
-  // auto-hides while the timer runs; any tap reveals it and restarts the
-  // hide timer. Paused/completed sessions keep chrome visible.
-  const [chromeVisible, setChromeVisible] = useState(false);
-  const chromeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Immersive session: hide the phone's own system bars (status +
+  // navigation) while the landscape timer runs, YouTube-fullscreen style.
+  // Web path uses the Fullscreen API (fail-soft); the native wrapper will
+  // additionally lock orientation + immersive-sticky mode on its side.
+  const askedFullscreenRef = useRef(false);
 
-  const pokeChrome = useCallback(() => {
-    if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
-    setChromeVisible(true);
-    if (phase === 'focus') {
-      chromeTimerRef.current = setTimeout(() => setChromeVisible(false), 2800);
+  function enterImmersive() {
+    if (askedFullscreenRef.current) return;
+    askedFullscreenRef.current = true;
+    try {
+      const request = document.documentElement.requestFullscreen?.bind(document.documentElement) as
+        | (() => Promise<void> | void)
+        | undefined;
+      const result = request?.();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch(() => undefined);
+      }
+    } catch {
+      /* Fullscreen unavailable (e.g. iPhone Safari) — sim still rotates. */
     }
-  }, [phase]);
+  }
+
+  function exitImmersive() {
+    if (!askedFullscreenRef.current) return;
+    askedFullscreenRef.current = false;
+    try {
+      if (document.fullscreenElement) {
+        const result = document.exitFullscreen?.();
+        if (result && typeof result.catch === 'function') result.catch(() => undefined);
+      }
+    } catch {
+      /* no-op */
+    }
+  }
 
   useEffect(() => {
-    if (phase === 'focus') {
-      if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
-      setChromeVisible(true);
-      chromeTimerRef.current = setTimeout(() => setChromeVisible(false), 2800);
+    if ((phase === 'focus' || phase === 'paused') && visualTheme === 'hourglass') {
+      enterImmersive();
     } else {
-      if (chromeTimerRef.current) {
-        clearTimeout(chromeTimerRef.current);
-        chromeTimerRef.current = null;
-      }
-      setChromeVisible(true);
+      exitImmersive();
     }
-  }, [phase]);
+  }, [phase, visualTheme]);
 
   useEffect(() => () => {
-    if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
+    exitImmersive();
   }, []);
 
   function selectLeaf(asset: string) {
@@ -382,7 +397,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div onPointerDown={pokeChrome} className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${chromeVisible ? 'hg-chrome-shown' : ''} ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
+      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
@@ -394,7 +409,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
         {/* Subject tag */}
         {subjectTag && (
-          <div className="hg-chrome absolute left-1/2 top-7 z-20 -translate-x-1/2 rounded-full border border-white/[.08] bg-black/35 px-5 py-2 text-[11px] font-bold uppercase tracking-[.16em] text-lime-300 backdrop-blur-xl sm:top-9">
+          <div className="absolute left-1/2 top-7 z-20 -translate-x-1/2 rounded-full border border-white/[.08] bg-black/35 px-5 py-2 text-[11px] font-bold uppercase tracking-[.16em] text-lime-300 backdrop-blur-xl sm:top-9">
             {subjectTag}
           </div>
         )}
@@ -457,7 +472,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
         {/* See your friends — peeks at the study table while the timer runs on */}
         {onOpenStudyTable && phase !== 'completing' && (
-          <div className="hg-chrome absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
+          <div className="absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
             <button
               type="button"
               onClick={onOpenStudyTable}
@@ -470,13 +485,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         )}
 
         {/* Session status */}
-        <div className="hg-chrome absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
+        <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
           {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : visualTheme === 'jar' ? (playsAquarium ? 'Aquarium' : 'Water Jar') : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
 
         {/* Session controls */}
         {phase !== 'completing' && (
-          <div className="hg-chrome absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
+          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
             {phase === 'focus' ? (
               <button
                 onClick={handlePause}

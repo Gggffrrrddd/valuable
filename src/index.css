@@ -1428,30 +1428,3 @@ button .butterfly-constellation {
     animation: none;
   }
 }
-/* --------------------------------------------------------------------------
-   Landscape chrome auto-hide (YouTube-style). The fade transition is always
-   attached; hiding only applies inside the hourglass landscape sim, so
-   portrait sessions and every other screen keep chrome permanently visible.
-   -------------------------------------------------------------------------- */
-.hg-chrome {
-  transition: opacity 220ms ease;
-}
-
-@media (pointer: coarse) and (max-width: 1023.5px) {
-  /* Default state is HIDDEN (fail-safe): chrome only appears while the
-     shown class is present, so both elements always come and go together. */
-  .hg-sim-hg .hg-chrome {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .hg-sim-hg.hg-chrome-shown .hg-chrome {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hg-chrome {
-    transition: none;
-  }
-}
