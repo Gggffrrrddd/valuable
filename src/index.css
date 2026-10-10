@@ -1377,6 +1377,9 @@ button .butterfly-constellation {
     justify-content: flex-start;
     padding-left: 2rem;
   }
+  .hg-sim-hg .hg-clock-zone .flip-clock {
+    zoom: 0.85;
+  }
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
@@ -1412,7 +1415,7 @@ button .butterfly-constellation {
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: min(100%, 60vw);
+    height: min(100%, 55vw);
     max-height: none;
   }
   .hg-sim-hg .hg-clock-zone {
@@ -1438,7 +1441,7 @@ button .butterfly-constellation {
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: min(100%, 60vh);
+    height: min(100%, 55vh);
     max-height: none;
   }
   .hg-sim-hg .hg-clock-zone {
