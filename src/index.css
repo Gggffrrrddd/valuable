@@ -1347,3 +1347,84 @@ button .butterfly-constellation {
 }
 
 
+/* --------------------------------------------------------------------------
+   Hourglass mobile landscape lock (web-preview simulation).
+   Portrait phones/tablets: the whole session rotates into a landscape stage
+   with the desktop side-by-side layout, scaled to fit without cropping.
+   Desktop (fine pointer / wide screens) never matches these queries, and no
+   other visual is touched (hooks are hourglass-only).
+   When the native wrapper lands, manifest orientation replaces this sim.
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  /* Desktop-like row inside the landscape stage (both phone orientations). */
+  .hg-sim-hg .hg-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+  .hg-sim-hg .hg-visual-zone {
+    flex: 0 0 auto;
+    width: 58.3333%;
+    justify-content: flex-end;
+    padding-right: 2.5rem;
+  }
+  .hg-sim-hg .hg-visual-box {
+    max-width: 42rem;
+  }
+  .hg-sim-hg .hg-clock-zone {
+    width: 41.6667%;
+    margin-top: 0;
+    justify-content: flex-start;
+    padding-left: 2rem;
+  }
+  /* 4-digit clock at minimum rem sizes is ~350px: scale to fit the zone. */
+  .hg-sim-hg .hg-clock-zone .flip-clock {
+    zoom: 0.75;
+  }
+}
+
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Rotated stage: 100vh wide x 100vw tall, so 1vw == 1% of stage height. */
+  .hg-sim-hg.hg-sim-hg {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    overflow: hidden;
+    transform: translate(-50%, -50%) rotate(90deg);
+    animation: hg-sim-in 300ms ease-out;
+  }
+  .hg-sim-hg .hg-row {
+    padding: 18vw 1.5rem 34vw;
+  }
+  .hg-sim-hg .hg-visual-box .hybrid-hourglass {
+    width: auto;
+    height: 46vw;
+    max-height: none;
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-width: 1023.5px) {
+  .hg-sim-hg .hg-row {
+    padding: 18vh 1.5rem 36vh;
+  }
+  .hg-sim-hg .hg-visual-box .hybrid-hourglass {
+    width: auto;
+    height: 46vh;
+    max-height: none;
+  }
+}
+
+@keyframes hg-sim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hg-sim-hg.hg-sim-hg {
+    animation: none;
+  }
+}
