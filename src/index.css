@@ -1393,24 +1393,57 @@ button .butterfly-constellation {
     transform: translate(-50%, -50%) rotate(90deg);
     animation: hg-sim-in 300ms ease-out;
   }
+  /* Scale-to-fit: the row always equals the stage height, the visual caps
+     at 60% of stage height — content can never exceed the stage, so no
+     cut/bleed on any phone size; chrome floats above like fullscreen apps. */
   .hg-sim-hg .hg-row {
-    padding: 18vw 1.5rem 34vw;
+    height: 100%;
+    align-items: stretch;
+    padding: 0 1.5rem;
+  }
+  .hg-sim-hg .hg-visual-zone {
+    height: 100%;
+    align-items: center;
+  }
+  .hg-sim-hg .hg-visual-box {
+    height: 100%;
+    max-height: none;
+    align-items: center;
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: 60vw;
+    height: min(100%, 60vw);
     max-height: none;
+  }
+  .hg-sim-hg .hg-clock-zone {
+    height: 100%;
+    align-items: center;
   }
 }
 
 @media (pointer: coarse) and (orientation: landscape) and (max-width: 1023.5px) {
   .hg-sim-hg .hg-row {
-    padding: 18vh 1.5rem 36vh;
+    height: 100%;
+    align-items: stretch;
+    padding: 0 1.5rem;
+  }
+  .hg-sim-hg .hg-visual-zone {
+    height: 100%;
+    align-items: center;
+  }
+  .hg-sim-hg .hg-visual-box {
+    height: 100%;
+    max-height: none;
+    align-items: center;
   }
   .hg-sim-hg .hg-visual-box .hybrid-hourglass {
     width: auto;
-    height: 60vh;
+    height: min(100%, 60vh);
     max-height: none;
+  }
+  .hg-sim-hg .hg-clock-zone {
+    height: 100%;
+    align-items: center;
   }
 }
 
