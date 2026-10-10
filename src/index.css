@@ -1378,14 +1378,15 @@ button .butterfly-constellation {
     padding-left: 2rem;
     transform: translateY(-4%);
   }
-  .hg-sim-hg .hg-clock-zone .flip-clock {
+  /* Flip clock at 80% in every landscape sim (all visuals, not 100). */
+  .mob-sim .mob-clock-zone .flip-clock {
     zoom: 0.8;
   }
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Rotated stage: 100vh wide x 100vw tall, so 1vw == 1% of stage height. */
-  .hg-sim-hg.hg-sim-hg {
+  /* Generic rotated stage for every focus timer (rotation lives here only). */
+  .mob-sim.mob-sim {
     top: 50%;
     left: 50%;
     right: auto;
@@ -1397,6 +1398,7 @@ button .butterfly-constellation {
     transform: translate(-50%, -50%) rotate(90deg);
     animation: hg-sim-in 300ms ease-out;
   }
+  /* Desktop row proportions, scaled to the stage (1vw == 1% of its height). */
   /* Scale-to-fit: the row always equals the stage height, the visual caps
      at 60% of stage height — content can never exceed the stage, so no
      cut/bleed on any phone size; chrome floats above like fullscreen apps. */
@@ -1455,12 +1457,6 @@ button .butterfly-constellation {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .hg-sim-hg.hg-sim-hg {
-    animation: none;
-  }
-}
 /* --------------------------------------------------------------------------
    Jar mobile landscape lock (same pattern as the hourglass sim).
    Portrait phones/tablets: the whole session rotates into a landscape stage.
@@ -1469,22 +1465,6 @@ button .butterfly-constellation {
    Nothing can exceed the stage, so no cut/bleed on any phone size; other
    visuals are untouched (hooks are jar-only).
    -------------------------------------------------------------------------- */
-@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Rotated stage: 100vh wide x 100vw tall. */
-  .jr-sim.jr-sim {
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    width: 100vh;
-    width: 100dvh;
-    height: 100vw;
-    overflow: hidden;
-    transform: translate(-50%, -50%) rotate(90deg);
-    animation: hg-sim-in 300ms ease-out;
-  }
-}
-
 @media (pointer: coarse) and (max-width: 1023.5px) {
   /* Undo the portrait stack: back to the desktop row + absolute visual. */
   .jr-sim .jar-focus-layout {
@@ -1518,8 +1498,24 @@ button .butterfly-constellation {
   }
 }
 
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Letterboxed fit box: the whole jar unit scales to the stage with its
+     aspect kept, so the image is fully visible like the hourglass. Desktop
+     keeps `display: contents` (zero impact). Overlays anchor to this box,
+     so the mask mapping stays exact. */
+  .jr-sim .jr-fit.jr-fit {
+    display: block;
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    aspect-ratio: 1670 / 942;
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .jr-sim.jr-sim {
+  .mob-sim.mob-sim {
     animation: none;
   }
 }

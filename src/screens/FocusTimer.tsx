@@ -162,12 +162,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   }
 
   useEffect(() => {
-    if ((phase === 'focus' || phase === 'paused') && visualTheme === 'hourglass') {
+    if (phase === 'focus' || phase === 'paused') {
       enterImmersive();
     } else {
       exitImmersive();
     }
-  }, [phase, visualTheme]);
+  }, [phase]);
 
   useEffect(() => () => {
     exitImmersive();
@@ -318,7 +318,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   // and show the same minimal black flip-clock as the jar/tree sessions.
   if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
     return (
-      <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+      <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <GardenVisual 
           progress={progress} 
           running={phase === 'focus'} 
@@ -397,7 +397,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
+      <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
@@ -428,7 +428,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             <div className={`${visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'} ${visualTheme === 'hourglass' ? 'hg-visual-box' : ''}`}>
               {visualTheme === 'jar' ? (
                 playsAquarium ? (
-                <>
+                <div className="contents jr-fit">
                   <img
                     src="/visuals/jar/aquarium-scene.png"
                     alt="Aquarium"
@@ -450,9 +450,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <CloudRain running={phase === 'focus'} progress={progress} />
                   {/* Water fill + fish — mapped live onto the hidden mask. */}
                   <TankLife progress={progress} />
-                </>
+                </div>
                 ) : (
-                  <JarVisual progress={progress} running={phase === 'focus'} />
+                  <div className="contents jr-fit">
+                    <JarVisual progress={progress} running={phase === 'focus'} />
+                  </div>
                 )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
@@ -462,7 +464,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
           {/* Right zone: flip-clock timer (suppressed for solar-system — digits live on the Sun) */}
           {visualTheme !== 'solar-system' && (
-            <div className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 ${visualTheme === 'hourglass' ? 'hg-clock-zone' : ''}`}>
+            <div className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 mob-clock-zone ${visualTheme === 'hourglass' ? 'hg-clock-zone' : ''}`}>
               <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
                 <FlipClock secondsLeft={secondsLeft} />
               </div>
