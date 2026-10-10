@@ -433,7 +433,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                     src="/visuals/jar/aquarium-scene.png"
                     alt="Aquarium"
                     className="h-full w-full object-contain"
-                    style={{ transform: 'translate(41px, 38px) scale(1.27)' }}
+                    style={{ transform: 'var(--aqua-place, translate(41px, 38px) scale(1.27))' }}
                     draggable={false}
                   />
                   {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for

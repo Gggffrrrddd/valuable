@@ -8,6 +8,17 @@ export const TANK_IMG_H = 942;
 export const SCENE_T = { x: 41, y: 38, k: 1.27 };
 export const MASK_T = { x: -378, y: 152, k: 0.54 };
 
+/** Sim media: placement is neutralized there, so mapping goes identity. */
+const SIM_QUERY = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
+const IDENTITY_T = { x: 0, y: 0, k: 1 };
+
+function activeTransforms() {
+  const sim = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(SIM_QUERY).matches;
+  return sim ? { tS: IDENTITY_T, tM: IDENTITY_T } : { tS: SCENE_T, tM: MASK_T };
+}
+
 /** Tank interior inside aquarium-overlay.png pixels (conservative). */
 export const MASK_TANK = { x: 166, y: 250, width: 1338, height: 536 };
 
@@ -59,10 +70,11 @@ export function computeTankGeom(W: number, H: number, rect: { x: number; y: numb
   const oy = (H - TANK_IMG_H * s) / 2;
   const cx = W / 2;
   const cy = H / 2;
-  const x0 = mapMaskToScene(rect.x, ox, cx, s, MASK_T.x, MASK_T.k, SCENE_T.x, SCENE_T.k);
-  const x1 = mapMaskToScene(rect.x + rect.width, ox, cx, s, MASK_T.x, MASK_T.k, SCENE_T.x, SCENE_T.k);
-  const y0 = mapMaskToScene(rect.y, oy, cy, s, MASK_T.y, MASK_T.k, SCENE_T.y, SCENE_T.k);
-  const y1 = mapMaskToScene(rect.y + rect.height, oy, cy, s, MASK_T.y, MASK_T.k, SCENE_T.y, SCENE_T.k);
+  const { tS, tM } = activeTransforms();
+  const x0 = mapMaskToScene(rect.x, ox, cx, s, tM.x, tM.k, tS.x, tS.k);
+  const x1 = mapMaskToScene(rect.x + rect.width, ox, cx, s, tM.x, tM.k, tS.x, tS.k);
+  const y0 = mapMaskToScene(rect.y, oy, cy, s, tM.y, tM.k, tS.y, tS.k);
+  const y1 = mapMaskToScene(rect.y + rect.height, oy, cy, s, tM.y, tM.k, tS.y, tS.k);
   if (![x0, x1, y0, y1].every(Number.isFinite)) return TANK_GEOM_FALLBACK;
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0, top: y0, base: y1 };
 }

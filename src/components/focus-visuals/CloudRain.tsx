@@ -155,7 +155,7 @@ export default function CloudRain({ running = false, progress = 0 }: { running?:
         height="100%"
         viewBox={`0 0 ${IMG_W} ${IMG_H}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ transform: 'translate(41px, 38px) scale(1.27)' }}
+        style={{ transform: 'var(--aqua-place, translate(41px, 38px) scale(1.27))' }}
       >
         <defs>
           {/* Soft, translucent rain streak — fades at both tips. */}

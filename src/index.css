@@ -1499,6 +1499,11 @@ button .butterfly-constellation {
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Full-fit placement: neutralize the desktop zoom so the whole image
+     shows with zero crop; overlays inherit the same neutral placement. */
+  .jr-sim {
+    --aqua-place: none;
+  }
   /* Letterboxed fit box: the whole jar unit scales to the stage with its
      aspect kept, so the image is fully visible like the hourglass. Desktop
      keeps `display: contents` (zero impact). Overlays anchor to this box,

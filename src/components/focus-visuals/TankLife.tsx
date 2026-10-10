@@ -199,7 +199,7 @@ export default function TankLife({ progress }: Pick<FocusVisualProps, 'progress'
         height="100%"
         viewBox={`0 0 ${TANK_IMG_W} ${TANK_IMG_H}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ transform: 'translate(41px, 38px) scale(1.27)' }}
+        style={{ transform: 'var(--aqua-place, translate(41px, 38px) scale(1.27))' }}
       >
         <defs>
           <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={geom.x} y={geom.y} width={geom.width} height={geom.height} mask-type="alpha">
