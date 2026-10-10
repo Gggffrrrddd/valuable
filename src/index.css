@@ -1504,6 +1504,14 @@ button .butterfly-constellation {
   .jr-sim {
     --aqua-place: none;
   }
+  /* Belt-and-suspenders: direct override beats inline styles, so no layer
+     can keep the cropping zoom inside the sim. */
+  .jr-sim .jr-fit > img {
+    transform: none !important;
+  }
+  .jr-sim .jr-fit > div > svg {
+    transform: none !important;
+  }
   /* Letterboxed fit box: the whole jar unit scales to the stage with its
      aspect kept, so the image is fully visible like the hourglass. Desktop
      keeps `display: contents` (zero impact). Overlays anchor to this box,
