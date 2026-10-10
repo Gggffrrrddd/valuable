@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap, RotateCw } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
+import JarVisual from '@/components/focus-visuals/JarVisual';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
@@ -140,6 +141,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
+  // Duration-driven visual: 60 min or less plays the jar, more plays the
+  // aquarium — same picker card, decided by the chosen rhythm.
+  const picksAquarium = focusMinutes > 60;
+  // Locked at session start so the visual never flips mid-session.
+  const playsAquarium = activeDurationSeconds > 3600;
 
   const navigateToNextScreenRef = useRef<(() => void) | null>(null);
 
@@ -401,6 +407,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
           <div className={visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'}>
             <div className={visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'}>
               {visualTheme === 'jar' ? (
+                playsAquarium ? (
                 <>
                   <img
                     src="/visuals/jar/aquarium-scene.png"
@@ -424,6 +431,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   {/* Water fill + fish — mapped live onto the hidden mask. */}
                   <TankLife progress={progress} />
                 </>
+                ) : (
+                  <JarVisual progress={progress} running={phase === 'focus'} />
+                )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
               )}
@@ -456,7 +466,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
         {/* Session status */}
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
-          {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
+          {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : visualTheme === 'jar' ? (playsAquarium ? 'Aquarium' : 'Water Jar') : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
         </div>
 
         {/* Session controls */}
@@ -568,8 +578,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             return (
               <div key={theme.id} className="relative">
                 <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]"><img src="/visuals/solar-system/solar-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)' }} draggable={false} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
-                  <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
+                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src={picksAquarium ? '/visuals/jar/aquarium-scene.png' : '/visuals/jar/jar-preview.png'} alt={picksAquarium ? 'Aquarium' : theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/blade-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]"><img src="/visuals/solar-system/solar-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)' }} draggable={false} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
+                  <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.id === 'jar' && picksAquarium ? 'Aquarium' : theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.id === 'jar' && picksAquarium ? 'Fill the tank slowly' : theme.description}</div></div>
                 </button>
               </div>
             );
