@@ -72,6 +72,7 @@ export default function CloudRain({ running = false, progress = 0 }: { running?:
   const reducedMotion = useReducedMotion();
   const svgId = useId().replace(/:/g, '');
   const rainGradientId = `aqua-cloud-rain-${svgId}`;
+  const splashMaskId = `aqua-splash-mask-${svgId}`;
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [splashes, setSplashes] = useState<RainSplash[]>([]);
   const nextRainId = useRef(0);
@@ -165,6 +166,10 @@ export default function CloudRain({ running = false, progress = 0 }: { running?:
             <stop offset=".85" stopColor="#eafaff" stopOpacity=".5" />
             <stop offset="1" stopColor="#eafaff" stopOpacity="0" />
           </linearGradient>
+          {/* Clip splashes to the tank interior so ripples never bleed out. */}
+          <mask id={splashMaskId} maskUnits="userSpaceOnUse" x={geom.x} y={geom.y} width={geom.width} height={geom.height} mask-type="alpha">
+            <rect x={geom.x} y={geom.y} width={geom.width} height={geom.height} fill="white" />
+          </mask>
         </defs>
 
         {/* Cloud artwork — same placement as the jar visual. */}
@@ -218,7 +223,8 @@ export default function CloudRain({ running = false, progress = 0 }: { running?:
           ))}
         </g>
 
-        {/* Splashes where drops land inside the tank. */}
+        {/* Splashes where drops land inside the tank (clipped to the mask). */}
+        <g mask={`url(#${splashMaskId})`}>
         {splashes.map((splash) => (
           <g key={splash.id} style={{ transform: `translate(${splash.x}px, ${splash.y}px)` }}>
             <g
@@ -230,6 +236,7 @@ export default function CloudRain({ running = false, progress = 0 }: { running?:
             </g>
           </g>
         ))}
+        </g>
       </svg>
     </div>
   );
