@@ -7,19 +7,19 @@ const FISH_SURFACE_PADDING = 14;
 
 /** Fish homes as fractions of the mapped tank rect (responsive-safe). */
 const FISH = [
-  { fx: 0.264, fy: 0.861, side: 'left', width: 64, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
-  { fx: 0.549, fy: 0.722, side: 'right', width: 58, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
-  { fx: 0.398, fy: 0.566, side: 'left', width: 60, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
-  { fx: 0.737, fy: 0.809, side: 'right', width: 54, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
-  { fx: 0.586, fy: 0.375, side: 'left', width: 52, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
+  { fx: 0.264, fy: 0.861, width: 64, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
+  { fx: 0.549, fy: 0.722, width: 58, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
+  { fx: 0.398, fy: 0.566, width: 60, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
+  { fx: 0.737, fy: 0.809, width: 54, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
+  { fx: 0.586, fy: 0.375, width: 52, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
 ] as const;
 
-const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
-const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
+const FISH_URL = '/visuals/jar/fish-right.png';
 
-type FishConfig = { x: number; y: number; side: 'left' | 'right'; width: number; hue: number; speed: number; bob: number; delay: number };
+type FishConfig = { x: number; y: number; width: number; hue: number; speed: number; bob: number; delay: number };
 type MaskRow = { left: number; right: number } | null;
-type FishMotion = { x: number; y: number; duration: number; facing: -1 | 1; tilt: number };
+/** Forward-only motion: fish always face right; `wrap` loops to the left edge. */
+type FishMotion = { x: number; y: number; duration: number; tilt: number; wrap?: boolean };
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -37,7 +37,7 @@ function getMaskBounds(maskRows: MaskRow[], yOrigin: number, y: number, halfHeig
   };
 }
 
-function pickFishTarget(fish: FishConfig, maskRows: MaskRow[], geom: TankGeom, waterY: number, current: FishMotion, dart = false) {
+function pickFishTarget(fish: FishConfig, maskRows: MaskRow[], geom: TankGeom, waterY: number, current: FishMotion, dart = false): FishMotion {
   const height = fish.width * (391 / 638);
   const halfWidth = fish.width / 2;
   const halfHeight = height / 2;
@@ -54,33 +54,34 @@ function pickFishTarget(fish: FishConfig, maskRows: MaskRow[], geom: TankGeom, w
     const maxX = bounds.right - halfWidth - FISH_WALL_PADDING;
     if (minX >= maxX) continue;
 
-    const targetX = dart
-      ? Math.max(minX, Math.min(maxX, current.x + (Math.random() < .5 ? -1 : 1) * randomBetween(38, 72)))
-      : randomBetween(minX, maxX);
-    const dx = targetX - current.x;
+    // Forward-only: always head right; near the right wall, wrap to the left.
+    const step = dart ? randomBetween(38, 72) : randomBetween(50, 150);
+    if (current.x + step > maxX - 8) {
+      return { x: minX + randomBetween(0, 30), y: randomY, duration: 0, tilt: 0, wrap: true };
+    }
     return {
-      x: targetX,
+      x: Math.min(maxX, current.x + step),
       y: randomY,
-      facing: (Math.abs(dx) < 2 ? current.facing : dx < 0 ? -1 : 1) as -1 | 1,
+      duration: 0,
       tilt: Math.max(-5, Math.min(5, (randomY - current.y) * .14)),
     };
   }
 
-  return { x: current.x, y: current.y, facing: current.facing, tilt: 0 };
+  return { x: current.x, y: current.y, duration: 0, tilt: 0 };
 }
 
 function SwimmingFish({ fish, maskRows, geom, waterY, reducedMotion }: { fish: FishConfig; maskRows: MaskRow[]; geom: TankGeom; waterY: number; reducedMotion: boolean }) {
   const height = fish.width * (391 / 638);
   const visible = waterY <= fish.y - height / 2 - FISH_SURFACE_PADDING;
-  const initialFacing = (fish.side === 'left' ? -1 : 1) as -1 | 1;
-  const [motion, setMotion] = useState<FishMotion>({ x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 });
-  const motionRef = useRef<FishMotion>({ x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 });
+  const [motion, setMotion] = useState<FishMotion>({ x: fish.x, y: fish.y, duration: 0, tilt: 0 });
+  const motionRef = useRef<FishMotion>({ x: fish.x, y: fish.y, duration: 0, tilt: 0 });
+  const [wrapping, setWrapping] = useState(false);
   const waterYRef = useRef(waterY);
   waterYRef.current = waterY;
 
   useEffect(() => {
     if (reducedMotion) {
-      const staticMotion: FishMotion = { x: fish.x, y: fish.y, duration: 0, facing: initialFacing, tilt: 0 };
+      const staticMotion: FishMotion = { x: fish.x, y: fish.y, duration: 0, tilt: 0 };
       motionRef.current = staticMotion;
       setMotion(staticMotion);
       return;
@@ -90,11 +91,31 @@ function SwimmingFish({ fish, maskRows, geom, waterY, reducedMotion }: { fish: F
     let cancelled = false;
     let moveTimer: ReturnType<typeof setTimeout>;
     let dartTimer: ReturnType<typeof setTimeout>;
+    let wrapTimer: ReturnType<typeof setTimeout>;
+
+    // Wrap: quick fade out, teleport to the left edge, fade back in —
+    // the fish never swims backwards.
+    const doWrap = (target: FishMotion) => {
+      if (cancelled) return;
+      setWrapping(true);
+      wrapTimer = setTimeout(() => {
+        if (cancelled) return;
+        const next: FishMotion = { x: target.x, y: target.y, duration: 0, tilt: 0 };
+        motionRef.current = next;
+        setMotion(next);
+        setWrapping(false);
+        moveTimer = setTimeout(() => move(false), randomBetween(250, 900));
+      }, 280);
+    };
 
     const move = (dart = false) => {
       if (cancelled) return;
       const current = motionRef.current;
       const target = pickFishTarget(fish, maskRows, geom, waterYRef.current, current, dart);
+      if (target.wrap) {
+        doWrap(target);
+        return;
+      }
       const distance = Math.hypot(target.x - current.x, target.y - current.y);
       const duration = dart
         ? randomBetween(.55, .85)
@@ -119,20 +140,19 @@ function SwimmingFish({ fish, maskRows, geom, waterY, reducedMotion }: { fish: F
       cancelled = true;
       clearTimeout(moveTimer);
       clearTimeout(dartTimer);
+      clearTimeout(wrapTimer);
     };
-  }, [fish, geom, initialFacing, maskRows, reducedMotion, visible]);
+  }, [fish, geom, maskRows, reducedMotion, visible]);
 
-  const imageFacesRight = fish.side === 'right';
-  const flip = (motion.facing === 1) === imageFacesRight ? 1 : -1;
-
+  // Always faces right (forward) — never mirrored backwards.
   return (
     <g
-      opacity={visible ? 1 : 0}
-      style={{ transform: `translate(${motion.x}px, ${motion.y}px)`, transition: reducedMotion ? 'opacity 1.25s ease-out' : `transform ${motion.duration}s cubic-bezier(.35,.05,.3,1), opacity 1.25s ease-out` }}
+      opacity={visible && !wrapping ? 1 : 0}
+      style={{ transform: `translate(${motion.x}px, ${motion.y}px)`, transition: reducedMotion ? 'opacity 1.25s ease-out' : `transform ${motion.duration}s cubic-bezier(.35,.05,.3,1), opacity .28s ease-out` }}
     >
-      <g style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `rotate(${motion.tilt}deg) scaleX(${flip})`, transition: reducedMotion ? undefined : 'transform .28s ease-out' }}>
+      <g style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `rotate(${motion.tilt}deg)`, transition: reducedMotion ? undefined : 'transform .28s ease-out' }}>
         <g style={{ animation: reducedMotion ? undefined : `tank-fish-bob ${fish.bob}s ease-in-out ${fish.delay}s infinite alternate` }}>
-          <image href={fish.side === 'left' ? FISH_LEFT_URL : FISH_RIGHT_URL} x={-fish.width / 2} y={-height / 2} width={fish.width} height={height} style={{ filter: `hue-rotate(${fish.hue}deg) saturate(1.15) brightness(1.08)` }} />
+          <image href={FISH_URL} x={-fish.width / 2} y={-height / 2} width={fish.width} height={height} style={{ filter: `hue-rotate(${fish.hue}deg) saturate(1.15) brightness(1.08)` }} />
         </g>
       </g>
     </g>
@@ -235,7 +255,7 @@ export default function TankLife({ progress }: Pick<FocusVisualProps, 'progress'
         </g>
 
         <g mask={`url(#${waterMaskId})`}>
-          {fishes.map((fish) => <SwimmingFish key={`${fish.side}-${Math.round(fish.y)}`} fish={fish} maskRows={maskRows} geom={geom} waterY={waterY} reducedMotion={reducedMotion} />)}
+          {fishes.map((fish, index) => <SwimmingFish key={`tank-fish-${index}`} fish={fish} maskRows={maskRows} geom={geom} waterY={waterY} reducedMotion={reducedMotion} />)}
         </g>
 
         {/* Floor sheen glow under the tank (no ground ripples). */}
