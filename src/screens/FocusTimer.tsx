@@ -382,7 +382,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
     return (
-      <div onPointerDown={pokeChrome} className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${chromeVisible ? '' : 'hg-chrome-hidden'} ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
+      <div onPointerDown={pokeChrome} className={`fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${chromeVisible ? 'hg-chrome-shown' : ''} ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session' : ''} ${visualTheme === 'jar' ? 'jar-focus-session' : ''} ${visualTheme === 'blade' ? 'blade-focus-session' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}

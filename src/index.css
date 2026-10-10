@@ -1438,9 +1438,15 @@ button .butterfly-constellation {
 }
 
 @media (pointer: coarse) and (max-width: 1023.5px) {
-  .hg-sim-hg.hg-chrome-hidden .hg-chrome {
+  /* Default state is HIDDEN (fail-safe): chrome only appears while the
+     shown class is present, so both elements always come and go together. */
+  .hg-sim-hg .hg-chrome {
     opacity: 0;
     pointer-events: none;
+  }
+  .hg-sim-hg.hg-chrome-shown .hg-chrome {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
