@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
-import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap, RotateCw } from 'lucide-react';
+import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import JarVisual from '@/components/focus-visuals/JarVisual';
 import CloudRain from '@/components/focus-visuals/CloudRain';
@@ -212,20 +212,6 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     localStorage.setItem(VISUAL_STORAGE_KEY, theme);
   }
 
-  // Optional only — never auto-locks. On phones the "Rotate for better view"
-  // pill calls this from a user tap; desktop never renders that pill.
-  // Unsupported browsers (e.g. iOS Safari) silently stay in portrait.
-  function handleRotateForBetterView() {
-    try {
-      const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-      if (typeof orientation.lock === 'function') {
-        orientation.lock('landscape').catch(() => undefined);
-      }
-    } catch {
-      /* no-op: portrait remains fully usable */
-    }
-  }
-
   function handleStart() {
     sessionSubjectRef.current = subjectTag || null;
     sessionBreakRef.current = breakMinutes;
@@ -373,18 +359,6 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         <div className="focus-orbit focus-orbit-left" aria-hidden="true" />
         <div className="focus-orbit focus-orbit-right" aria-hidden="true" />
         <div className="focus-vignette" aria-hidden="true" />
-
-        {/* Jar only: optional rotate hint — mobile only, never auto-locks, desktop hidden */}
-        {visualTheme === 'jar' && (
-          <button
-            type="button"
-            onClick={handleRotateForBetterView}
-            className="absolute left-4 top-5 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-stone-300 backdrop-blur-xl transition hover:text-white lg:hidden"
-          >
-            <RotateCw className="h-3.5 w-3.5" />
-            Rotate for better view
-          </button>
-        )}
 
         {/* Subject tag */}
         {subjectTag && (
