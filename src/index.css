@@ -1637,18 +1637,19 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile: tree video + soil sit 216px lower (measured iPhone 16:
-   soil natural bottom 549, nav top 765). Uses the universal `transform`
-   property (NOT the separate `translate` property) so it paints on every
-   engine. Full transform restated with !important to beat the inline tuned
-   values; desktop keeps those inline values exactly as they are. If the
-   tuned defaults above ever change, mirror them here.
+   Compete mobile: tree video + soil shifted down 216px on mobile (< 1024px)
+   so soil bottom touches mobile nav bar (iPhone 16: soil bottom 549 + 216
+   = 765, matching nav top 765). Desktop (>= 1024px) stays at 0.
+   Uses a dedicated wrapper without coarse-pointer gating so it works on
+   real phones and DevTools responsive emulation alike.
    -------------------------------------------------------------------------- */
-@media (pointer: coarse) and (max-width: 1023.5px) {
-  .compete-stage > video {
-    transform: translate(-1%, 13.4%) translateY(216px) scale(1.03) !important;
+@media (max-width: 1023.5px) {
+  .compete-tree-stage {
+    transform: translateY(216px);
   }
-  .compete-stage > img {
-    transform: translate(-2%, 38.4%) translateY(216px) scale(1.07) !important;
+}
+@media (min-width: 1024px) {
+  .compete-tree-stage {
+    transform: none;
   }
 }

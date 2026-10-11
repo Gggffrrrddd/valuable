@@ -207,8 +207,11 @@ export default function CompeteScreen() {
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
       <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+        {/* Tree + soil container: shifted down 216px on mobile so soil bottom touches nav */}
+        <div className="compete-tree-stage absolute inset-0">
+          <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+          <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+        </div>
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
