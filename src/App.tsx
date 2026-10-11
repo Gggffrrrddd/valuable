@@ -345,9 +345,7 @@ function AppContent() {
             />
           )}
           {tab === 'compete' && (
-            <div className="hidden lg:contents">
-              <CompeteScreen />
-            </div>
+            <CompeteScreen />
           )}
           {tab === 'friends' && (
             <FriendsScreen
