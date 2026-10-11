@@ -90,27 +90,66 @@ export default function CompeteScreen() {
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
   /** TEMPORARY: joint Y offset added to both tree and soil (hardcode when final). */
-  const [jointY, setJointY] = useState(0);
-  /** Measured stage height so the spacer below matches the shift in px. */
-  const [stageH, setStageH] = useState(0);
+  const [jointRaw, setJointRaw] = useState(0);
+  /** Measured stage box + viewport bottom edge for the runtime clamp. */
+  const [stageBox, setStageBox] = useState({ width: 0, height: 0, top: 0 });
+  const [viewportBottom, setViewportBottom] = useState(
+    () => (typeof window === 'undefined' ? 0 : window.innerHeight),
+  );
   const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const update = () => setStageH(el.getBoundingClientRect().height);
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setStageBox({ width: r.width, height: r.height, top: r.top });
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    const update = () => setViewportBottom(window.innerHeight);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  // Runtime clamp: visible mound bottom (soil image is transparent below
+  // ~857/940 — measured opaque bound) may never dive into black. Bound is
+  // always the nav top when the fixed nav is visible (even past the stage
+  // edge, which just shows main padding), else the stage edge — measured
+  // live, no hardcoded range, safe on any screen.
+  const SOIL_GAP = 2;
+  const { joint, jointMax, moundBottom, limitY } = useMemo(() => {
+    const { width: W, height: H, top: stageTop } = stageBox;
+    const base = DEFAULT_IMAGE_TRANSFORM.y;
+    const k = DEFAULT_IMAGE_TRANSFORM.zoom;
+    const fallback = { joint: Math.max(0, jointRaw), jointMax: 0, moundBottom: 0, limitY: 0 };
+    if (W <= 0 || H <= 0) return fallback;
+    const s = Math.min(W / 1672, H / 940);
+    const imgH = 940 * s;
+    const top0 = (H - imgH) / 2;
+    const at = (soilY: number) => H / 2 + k * (top0 + MOUND_BOTTOM_IMG_Y * s - H / 2) + (soilY / 100) * H;
+    const nav = typeof document !== 'undefined' ? document.querySelector('nav.safe-bottom') : null;
+    const navRect = nav?.getBoundingClientRect();
+    const navVisible = !!navRect && navRect.height > 0;
+    const target = (navVisible ? navRect!.top - stageTop : viewportBottom - stageTop) - SOIL_GAP;
+    const maxSoilY = 100 * (target - H / 2 - k * (top0 + MOUND_BOTTOM_IMG_Y * s - H / 2)) / H;
+    const maxJ = Math.max(0, maxSoilY - base);
+    const applied = Math.min(Math.max(jointRaw, 0), maxJ);
+    return { joint: applied, jointMax: maxJ, moundBottom: at(base + applied), limitY: target };
+  }, [stageBox, viewportBottom, jointRaw]);
   const treeTune: PlacementTransform = useMemo(
-    () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + jointY }),
-    [jointY],
+    () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + joint }),
+    [joint],
   );
   const soilTune: PlacementTransform = useMemo(
-    () => ({ ...DEFAULT_IMAGE_TRANSFORM, y: DEFAULT_IMAGE_TRANSFORM.y + jointY }),
-    [jointY],
+    () => ({ ...DEFAULT_IMAGE_TRANSFORM, y: DEFAULT_IMAGE_TRANSFORM.y + joint }),
+    [joint],
   );
 
   const refresh = useCallback(async () => {
@@ -236,7 +275,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
+      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
 
@@ -291,15 +330,19 @@ export default function CompeteScreen() {
             <PlacementTuner
               title="Move Y joint (temp)"
               logTag="compete-joint-y"
-              transform={{ y: jointY }}
-              rows={[{ key: 'y', label: 'Tree + soil together', min: -30, max: 50, step: 1 }]}
+              transform={{ y: joint }}
+              rows={[{ key: 'y', label: 'Tree + soil together', min: 0, max: Math.max(0, Math.round(jointMax * 10) / 10), step: 1 }]}
               defaults={{ y: 0 }}
               onChange={(patch) => {
                 const v = patch.y ?? 0;
-                setJointY(v);
+                setJointRaw(v);
                 console.log(
                   '[compete-joint-values]',
                   `{ treeY: ${(DEFAULT_VIDEO_TRANSFORM.y + v).toFixed(1)}, soilY: ${(DEFAULT_IMAGE_TRANSFORM.y + v).toFixed(1)} }`,
+                );
+                console.log(
+                  '[compete-geometry]',
+                  `{ stage: ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, moundBottom: ${Math.round(moundBottom)}, limit: ${Math.round(limitY)}, jointMax: ${jointMax.toFixed(1)} }`,
                 );
               }}
             />
@@ -357,10 +400,6 @@ export default function CompeteScreen() {
           </div>
         )}
       </div>
-
-      {/* Spacer grows with the joint shift so content moved below the stage
-          stays inside the scroll range instead of vanishing into black. */}
-      <div aria-hidden className="shrink-0" style={{ height: Math.max(0, (jointY / 100) * stageH) }} />
 
       {/* Overall tracker module — big overlay with the growth calendar
           (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
