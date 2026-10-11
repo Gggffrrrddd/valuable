@@ -446,7 +446,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
         ref={skyCanvasRef}
         aria-hidden="true"
         className="absolute left-0 top-0 w-full pointer-events-none"
-        style={{ height: `${SKY.overlayVh * 100}vh`, opacity: skyOpacity }}
+        style={{ height: `${SKY.overlayVh * 100}%`, opacity: skyOpacity }}
       />
 
       {/* 4. Effects canvas — fully transparent, cleared every frame. */}
