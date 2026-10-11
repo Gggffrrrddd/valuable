@@ -1646,20 +1646,12 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile portrait: only video + soil show, shifted down 216px
-   (same desktop visuals). Everything else in the stage is hidden.
+   Compete mobile (< 1024px): plain background only — the whole stage
+   content (tree, soil, cards, dreams, links, tuners) is hidden.
    Desktop (>= 1024px) renders the full CompeteScreen untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-stage > * {
     display: none;
-  }
-  .compete-tree-stage {
-    transform: translateY(216px) scale(.7);
-  }
-}
-@media (min-width: 1024px) {
-  .compete-tree-stage {
-    transform: none;
   }
 }
