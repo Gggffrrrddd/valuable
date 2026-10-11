@@ -284,7 +284,7 @@ export default function CompeteScreen() {
 
         {/* TEMPORARY — joint Y + zoom tuner, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
-          <div className="absolute left-4 right-4 top-4 z-30 lg:hidden">
+          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 lg:hidden">
             <PlacementTuner
               title="Joint Y + zoom (temp)"
               logTag="compete-joint"
@@ -308,7 +308,7 @@ export default function CompeteScreen() {
 
         {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
         {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="absolute bottom-4 right-4 z-30 w-60">
+          <div className="compete-tuner absolute bottom-4 right-4 z-30 w-60">
             <PlacementTuner
               title="Dream stretch (temp)"
               logTag="compete-dream-stretch"
@@ -322,7 +322,7 @@ export default function CompeteScreen() {
 
         {/* TEMPORARY — gold-ring width tuner (hardcode + flip off when final). */}
         {SHOW_RING_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="absolute bottom-4 right-4 z-30 w-60">
+          <div className="compete-tuner absolute bottom-4 right-4 z-30 w-60">
             <PlacementTuner
               title="Gold ring (temp)"
               logTag="compete-ring"
@@ -487,3 +487,4 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<vo
     </div>
   );
 }
+
