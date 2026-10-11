@@ -1590,3 +1590,34 @@ button .butterfly-constellation {
     height: 100vh !important;
   }
 }
+/* --------------------------------------------------------------------------
+   Blade mobile landscape lock (same sim pattern as jar/tree).
+   Portrait phones/tablets rotate into a landscape stage (generic mob-sim);
+   below, the phone-only sizing is replaced with stage-relative sizing so
+   the visual fits without cut on any phone size. R3F Canvas auto-resizes
+   and keeps camera aspect itself; progress logic is size-independent.
+   Other visuals untouched (hooks are blade-only).
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Stage-relative (1vh == 1% of stage width, 1vw == 1% of stage height). */
+  .bd-sim .blade-focus-layout > div:first-child > div {
+    width: min(92vh, 74rem);
+    height: min(82vw, 62rem);
+  }
+  .bd-sim .blade-focus-layout > div:last-child {
+    top: clamp(1.5rem, 9%, 4rem);
+    transform: translateX(-50%);
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-width: 1023.5px) {
+  /* Viewport == stage here: re-assert desktop sizing over the <=767px rule. */
+  .bd-sim .blade-focus-layout > div:first-child > div {
+    width: min(92vw, 74rem);
+    height: min(82vh, 62rem);
+  }
+  .bd-sim .blade-focus-layout > div:last-child {
+    top: clamp(1.5rem, 9%, 4rem);
+    transform: translateX(-50%);
+  }
+}
