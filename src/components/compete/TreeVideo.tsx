@@ -37,16 +37,25 @@ export default function TreeVideo({
 
     const setTime = () => {
       if (Number.isFinite(video.duration) && video.duration > 0) {
-        video.currentTime = video.duration * progress;
+        try {
+          video.currentTime = video.duration * progress;
+        } catch {
+          /* slow mobile networks may reject early seeks — canplay retries */
+        }
       }
     };
 
+    // Slow networks (real mobile) often have metadata but no frame data yet;
+    // retry on canplay so the 97% frame always lands.
     if (video.readyState >= 1) {
       setTime();
-    } else {
-      video.addEventListener('loadedmetadata', setTime);
-      return () => video.removeEventListener('loadedmetadata', setTime);
     }
+    video.addEventListener('loadedmetadata', setTime);
+    video.addEventListener('canplay', setTime);
+    return () => {
+      video.removeEventListener('loadedmetadata', setTime);
+      video.removeEventListener('canplay', setTime);
+    };
   }, [progress]);
 
   return (
@@ -55,6 +64,7 @@ export default function TreeVideo({
       src="/visuals/compete/tree-growth-2.mp4"
       muted
       playsInline
+      preload="auto"
       className="absolute inset-0 h-full w-full object-cover"
       style={{
         transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
