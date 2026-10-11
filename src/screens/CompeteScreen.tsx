@@ -279,7 +279,7 @@ export default function CompeteScreen() {
               title="Soil Y (temp)"
               logTag="compete-soil-y"
               transform={soilTune}
-              rows={[{ key: 'y', label: 'Move Y (up / down)', min: -50, max: 200, step: 1 }]}
+              rows={[{ key: 'y', label: 'Move Y (up / down)', min: -50, max: 60, step: 1 }]}
               defaults={DEFAULT_IMAGE_TRANSFORM}
               onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
             />
