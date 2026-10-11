@@ -255,7 +255,7 @@ function AppContent() {
         </aside>
 
         <div className="relative flex min-h-screen min-w-0 flex-col lg:col-start-2">
-        <header className={`safe-top sticky top-0 flex items-center justify-between border-b border-white/[.06] bg-[#090b0a]/80 px-5 pb-4 backdrop-blur-xl sm:px-8 lg:hidden ${tab === 'compete' ? 'z-[60]' : 'z-40'}`}>
+        <header className="safe-top sticky top-0 z-40 flex items-center justify-between border-b border-white/[.06] bg-[#090b0a]/80 px-5 pb-4 backdrop-blur-xl sm:px-8 lg:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f] shadow-[0_0_30px_rgba(197,255,84,.12)]">
               <Timer className="h-[18px] w-[18px]" strokeWidth={2.4} />
@@ -345,7 +345,7 @@ function AppContent() {
             />
           )}
           {tab === 'compete' && (
-            <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-black lg:contents">
+            <div className="hidden lg:contents">
               <CompeteScreen />
             </div>
           )}
@@ -359,7 +359,7 @@ function AppContent() {
           )}
         </main>
 
-        <nav className={`safe-bottom fixed bottom-3 left-1/2 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden ${tab === 'compete' ? 'z-[60]' : 'z-40'}`}>
+        <nav className="safe-bottom fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden">
           <NavButton
             active={tab === 'home'}
             onClick={() => setTab('home')}
