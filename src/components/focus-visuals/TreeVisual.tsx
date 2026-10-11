@@ -151,7 +151,13 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
     if (colon && container) {
       const cr = container.getBoundingClientRect();
       const loc = colon.getBoundingClientRect();
-      boundaryRef.current = Math.max(0.15, Math.min(0.98, (loc.left - cr.left) / cr.width));
+      // The clock only constrains landing spots when it actually overlaps
+      // the container (floating clock in the sim). Clock outside/below the
+      // container (desktop row, stacked portrait) means full spread.
+      const overlaps = loc.left >= cr.left && loc.left <= cr.right
+        && loc.top >= cr.top && loc.top <= cr.bottom;
+      const frac = (loc.left - cr.left) / cr.width;
+      boundaryRef.current = overlaps ? Math.max(0.15, Math.min(0.98, frac)) : 0.98;
     }
   }, [activeSession]);
 
@@ -163,7 +169,14 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
   const leafStyles = useMemo(() => {
     const clampX = (rawX: number) => Math.min(rawX, boundaryRef.current - 0.008);
-    const sessionLeafSrc = LEAF_ASSETS[sessionLeafIndex] ?? LEAF_URL;
+    // Landed spots spread across the allowed region instead of piling up
+    // at the boundary (which rendered as a single vertical line).
+    const fitLandX = (rawX: number) => {
+      const lo = 0.05;
+      const hi = Math.max(lo + 0.01, boundaryRef.current - 0.008);
+      const t = Math.min(Math.max(rawX, lo), 0.95);
+      return lo + ((t - lo) / 0.9) * (hi - lo);
+    };    const sessionLeafSrc = LEAF_ASSETS[sessionLeafIndex] ?? LEAF_URL;
     return LEAVES.map((leaf) => {
       const rank = SHED_RANK.get(leaf.id) ?? Infinity;
       const hasShed = activeSession && rank < shedCount;
@@ -171,7 +184,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
       let x: number, y: number, rot: number, zIdx: number | undefined;
       if (hasShed && land) {
-        x = clampX(land.landX);
+        x = fitLandX(land.landX);
         y = land.landY;
         rot = land.landRotation;
         zIdx = land.zIndex;
