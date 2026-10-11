@@ -284,7 +284,7 @@ export default function CompeteScreen() {
 
         {/* TEMPORARY — joint Y + zoom tuner, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
-          <div className="absolute bottom-4 right-4 z-30 w-60 lg:hidden">
+          <div className="absolute left-4 right-4 top-4 z-30 lg:hidden">
             <PlacementTuner
               title="Joint Y + zoom (temp)"
               logTag="compete-joint"
