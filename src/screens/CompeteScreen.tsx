@@ -236,7 +236,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a]">
+      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
 
