@@ -345,7 +345,7 @@ function AppContent() {
             />
           )}
           {tab === 'compete' && (
-            <div className="hidden lg:contents">
+            <div className="mob-sim compete-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a] lg:contents">
               <CompeteScreen />
             </div>
           )}
