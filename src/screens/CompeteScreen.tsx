@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -88,24 +88,9 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
-  /** TEMPORARY: joint Y + zoom offsets for tree + soil (hardcode when final). */
-  const [jointTune, setJointTune] = useState({ y: 0, zoom: 0 });
-  const treeTune: PlacementTransform = useMemo(
-    () => ({
-      ...DEFAULT_VIDEO_TRANSFORM,
-      y: DEFAULT_VIDEO_TRANSFORM.y + jointTune.y,
-      zoom: DEFAULT_VIDEO_TRANSFORM.zoom + jointTune.zoom,
-    }),
-    [jointTune],
-  );
-  const soilTune: PlacementTransform = useMemo(
-    () => ({
-      ...DEFAULT_IMAGE_TRANSFORM,
-      y: DEFAULT_IMAGE_TRANSFORM.y + jointTune.y,
-      zoom: DEFAULT_IMAGE_TRANSFORM.zoom + jointTune.zoom,
-    }),
-    [jointTune],
-  );
+  /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
+  const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
+  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -282,26 +267,30 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — joint Y + zoom tuner, mobile only (hardcode + flip off when final). */}
+        {/* TEMPORARY — separate tree + soil Y/zoom tuners, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
-          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 lg:hidden">
+          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
             <PlacementTuner
-              title="Joint Y + zoom (temp)"
-              logTag="compete-joint"
-              transform={jointTune}
+              title="Tree (temp)"
+              logTag="compete-tree"
+              transform={treeTune}
               rows={[
-                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 30, step: 1 },
-                { key: 'zoom', label: 'Zoom (in / out)', min: -0.3, max: 0.6, step: 0.01 },
+                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
               ]}
-              defaults={{ y: 0, zoom: 0 }}
-              onChange={(patch) => {
-                const next = { ...jointTune, ...patch };
-                setJointTune(next);
-                console.log(
-                  '[compete-joint-values]',
-                  `{ treeY: ${(DEFAULT_VIDEO_TRANSFORM.y + next.y).toFixed(1)}, treeZoom: ${(DEFAULT_VIDEO_TRANSFORM.zoom + next.zoom).toFixed(3)}, soilY: ${(DEFAULT_IMAGE_TRANSFORM.y + next.y).toFixed(1)}, soilZoom: ${(DEFAULT_IMAGE_TRANSFORM.zoom + next.zoom).toFixed(3)} }`,
-                );
-              }}
+              defaults={DEFAULT_VIDEO_TRANSFORM}
+              onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
+            />
+            <PlacementTuner
+              title="Soil (temp)"
+              logTag="compete-soil"
+              transform={soilTune}
+              rows={[
+                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
+              ]}
+              defaults={DEFAULT_IMAGE_TRANSFORM}
+              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
             />
           </div>
         )}
