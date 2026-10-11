@@ -279,7 +279,7 @@ export default function CompeteScreen() {
               title="Move Y joint (temp)"
               logTag="compete-joint-y"
               transform={{ y: jointY }}
-              rows={[{ key: 'y', label: 'Tree + soil together', min: -30, max: 12, step: 1 }]}
+              rows={[{ key: 'y', label: 'Tree + soil together', min: -30, max: 8, step: 1 }]}
               defaults={{ y: 0 }}
               onChange={(patch) => {
                 const v = patch.y ?? 0;
