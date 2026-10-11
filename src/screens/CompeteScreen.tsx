@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -47,13 +47,6 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_RING_TUNER = false;
-/**
- * Joint tree+soil Y-move tuner is VISIBLE on mobile only — one slider moves
- * both together so the tree (and its mask) stays glued to the soil.
- * Desktop renders hardcoded defaults, untouched.
- */
-const SHOW_JOINT_TUNER = true;
-
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -281, y: 195, zoom: 1.5 },
@@ -89,93 +82,6 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
-  /** TEMPORARY: joint Y offset added to both tree and soil (hardcode when final). */
-  const [jointRaw, setJointRaw] = useState(0);
-  /** Measured stage box + viewport bottom edge for the runtime clamp. */
-  const [stageBox, setStageBox] = useState({ width: 0, height: 0, top: 0 });
-  /** True only after the observer reports a real (non-zero) box — until
-      then the slider stays locked and no clamp is trusted. */
-  const [measured, setMeasured] = useState(false);
-  const loggedFirstMeasure = useRef(false);
-  /**
-   * Stage element via callback-ref state (not a plain ref + [] effect):
-   * the stage mounts only AFTER the async goal loads, so a mount-time
-   * effect would see a null ref and never retry. State re-runs the
-   * observer effect exactly when the element attaches/detaches.
-   */
-  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
-  const [viewportBottom, setViewportBottom] = useState(
-    () => (typeof window === 'undefined' ? 0 : window.innerHeight),
-  );
-
-  useEffect(() => {
-    if (!stageEl) return;
-    const update = () => {
-      const r = stageEl.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setStageBox({ width: r.width, height: r.height, top: r.top });
-        setMeasured(true);
-        if (!loggedFirstMeasure.current) {
-          loggedFirstMeasure.current = true;
-          console.log(
-            '[compete-measure] first',
-            `{ stage: ${Math.round(r.width)}x${Math.round(r.height)} }`,
-          );
-        }
-      }
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(stageEl);
-    return () => ro.disconnect();
-  }, [stageEl]);
-
-  useEffect(() => {
-    const update = () => setViewportBottom(window.innerHeight);
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  // Runtime clamp: visible mound bottom (soil image is transparent below
-  // ~857/940 — measured opaque bound) may never dive into black. Bound is
-  // the nav top when the fixed nav is visible, else the viewport bottom —
-  // measured live, no hardcoded range, safe on any screen.
-  const SOIL_GAP = 2;
-  /** Last opaque row of the soil image (alpha-scan measured) — the feather
-      below this is transparent, so the visible mound ends here, not at 940. */
-  const MOUND_BOTTOM_IMG_Y = 857;
-  const { joint, jointMax, moundBottom, limitY } = useMemo(() => {
-    // Unmeasured (or zero-size) stage: lock at 0 and trust nothing —
-    // a jointMax of 0 from real measurement still locks, but must never
-    // be confused with "not measured yet".
-    const locked = { joint: 0, jointMax: 0, moundBottom: 0, limitY: 0 };
-    if (!measured) return locked;
-    const { width: W, height: H, top: stageTop } = stageBox;
-    const base = DEFAULT_IMAGE_TRANSFORM.y;
-    const k = DEFAULT_IMAGE_TRANSFORM.zoom;
-    if (W <= 0 || H <= 0) return locked;
-    const s = Math.min(W / 1672, H / 940);
-    const imgH = 940 * s;
-    const top0 = (H - imgH) / 2;
-    const at = (soilY: number) => H / 2 + k * (top0 + MOUND_BOTTOM_IMG_Y * s - H / 2) + (soilY / 100) * H;
-    const nav = typeof document !== 'undefined' ? document.querySelector('nav.safe-bottom') : null;
-    const navRect = nav?.getBoundingClientRect();
-    const navVisible = !!navRect && navRect.height > 0;
-    const target = (navVisible ? navRect!.top - stageTop : viewportBottom - stageTop) - SOIL_GAP;
-    const maxSoilY = 100 * (target - H / 2 - k * (top0 + MOUND_BOTTOM_IMG_Y * s - H / 2)) / H;
-    const maxJ = Math.max(0, maxSoilY - base);
-    const applied = Math.min(Math.max(jointRaw, 0), maxJ);
-    return { joint: applied, jointMax: maxJ, moundBottom: at(base + applied), limitY: target };
-  }, [measured, stageBox, viewportBottom, jointRaw]);
-  const treeTune: PlacementTransform = useMemo(
-    () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + joint }),
-    [joint],
-  );
-  const soilTune: PlacementTransform = useMemo(
-    () => ({ ...DEFAULT_IMAGE_TRANSFORM, y: DEFAULT_IMAGE_TRANSFORM.y + joint }),
-    [joint],
-  );
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -300,9 +206,9 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={setStageEl} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
-        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={soilTune} />
+      <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
@@ -348,33 +254,6 @@ export default function CompeteScreen() {
           onAdd={addDream}
           onRemove={removeDream}
         />
-
-        {/* TEMPORARY — joint tree+soil Y tuner, mobile only (hardcode + flip off when final).
-            Rendered only after a real stage measurement, so the slider can
-            never run on an unmeasured (0x0) box. */}
-        {SHOW_JOINT_TUNER && measured && (
-          <div className="absolute bottom-4 right-4 z-30 w-60 lg:hidden">
-            <PlacementTuner
-              title="Move Y joint (temp)"
-              logTag="compete-joint-y"
-              transform={{ y: joint }}
-              rows={[{ key: 'y', label: 'Tree + soil together', min: 0, max: Math.max(0, Math.round(jointMax * 10) / 10), step: 1 }]}
-              defaults={{ y: 0 }}
-              onChange={(patch) => {
-                const v = patch.y ?? 0;
-                setJointRaw(v);
-                console.log(
-                  '[compete-joint-values]',
-                  `{ treeY: ${(DEFAULT_VIDEO_TRANSFORM.y + v).toFixed(1)}, soilY: ${(DEFAULT_IMAGE_TRANSFORM.y + v).toFixed(1)} }`,
-                );
-                console.log(
-                  '[compete-geometry]',
-                  `{ measured: ${measured}, stage: ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, moundBottom: ${Math.round(moundBottom)}, limit: ${Math.round(limitY)}, jointMax: ${jointMax.toFixed(1)} }`,
-                );
-              }}
-            />
-          </div>
-        )}
 
         {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
         {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (

@@ -1636,3 +1636,19 @@ button .butterfly-constellation {
     transform: translateY(-50%);
   }
 }
+/* --------------------------------------------------------------------------
+   Compete mobile: tree video + soil sit 216px lower (measured iPhone 16:
+   soil natural bottom 549, nav top 765). Uses the universal `transform`
+   property (NOT the separate `translate` property) so it paints on every
+   engine. Full transform restated with !important to beat the inline tuned
+   values; desktop keeps those inline values exactly as they are. If the
+   tuned defaults above ever change, mirror them here.
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  .compete-stage > video {
+    transform: translate(-1%, 13.4%) translateY(216px) scale(1.03) !important;
+  }
+  .compete-stage > img {
+    transform: translate(-2%, 38.4%) translateY(216px) scale(1.07) !important;
+  }
+}
