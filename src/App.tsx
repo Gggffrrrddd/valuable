@@ -357,8 +357,6 @@ function AppContent() {
           )}
         </main>
 
-        {/* TEMPORARY: bottom nav hidden on compete while tuning soil placement. */}
-        {tab !== 'compete' && (
         <nav className="safe-bottom fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden">
           <NavButton
             active={tab === 'home'}
@@ -391,7 +389,6 @@ function AppContent() {
             label="Premium"
           />
         </nav>
-        )}
         </div>
       </div>
     </div>
