@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -91,6 +91,19 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   /** TEMPORARY: joint Y offset added to both tree and soil (hardcode when final). */
   const [jointY, setJointY] = useState(0);
+  /** Measured stage height so the spacer below matches the shift in px. */
+  const [stageH, setStageH] = useState(0);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setStageH(el.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const treeTune: PlacementTransform = useMemo(
     () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + jointY }),
     [jointY],
@@ -223,7 +236,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
+      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
 
@@ -344,6 +357,10 @@ export default function CompeteScreen() {
           </div>
         )}
       </div>
+
+      {/* Spacer grows with the joint shift so content moved below the stage
+          stays inside the scroll range instead of vanishing into black. */}
+      <div aria-hidden className="shrink-0" style={{ height: Math.max(0, (jointY / 100) * stageH) }} />
 
       {/* Overall tracker module — big overlay with the growth calendar
           (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
