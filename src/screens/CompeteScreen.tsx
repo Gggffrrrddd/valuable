@@ -47,6 +47,11 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_RING_TUNER = false;
+/**
+ * Tree/soil Y-move tuner is VISIBLE — tune live on iPhone 16, read the
+ * console values, then hardcode + flip off.
+ */
+const SHOW_TREE_SOIL_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -83,6 +88,9 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
+  /** TEMPORARY: live Y placement for tree video + soil (hardcode when final). */
+  const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
+  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -207,9 +215,9 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a]">
+        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={soilTune} />
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
@@ -255,6 +263,28 @@ export default function CompeteScreen() {
           onAdd={addDream}
           onRemove={removeDream}
         />
+
+        {/* TEMPORARY — tree + soil Y-move tuners (hardcode + flip off when final). */}
+        {SHOW_TREE_SOIL_TUNER && (
+          <div className="absolute bottom-4 right-4 z-30 w-60 space-y-2">
+            <PlacementTuner
+              title="Tree Y (temp)"
+              logTag="compete-tree-y"
+              transform={treeTune}
+              rows={[{ key: 'y', label: 'Move Y (up / down)', min: -50, max: 200, step: 1 }]}
+              defaults={DEFAULT_VIDEO_TRANSFORM}
+              onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
+            />
+            <PlacementTuner
+              title="Soil Y (temp)"
+              logTag="compete-soil-y"
+              transform={soilTune}
+              rows={[{ key: 'y', label: 'Move Y (up / down)', min: -50, max: 200, step: 1 }]}
+              defaults={DEFAULT_IMAGE_TRANSFORM}
+              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
+            />
+          </div>
+        )}
 
         {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
         {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
