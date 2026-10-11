@@ -308,7 +308,7 @@ function AppContent() {
         <main
           className={
             tab === 'compete'
-              ? 'app-main overflow-hidden bg-black p-0 lg:bg-transparent'
+              ? 'app-main overflow-hidden bg-[#090b0a] p-0 lg:bg-transparent'
               : 'app-main lg:px-10 lg:pb-12 xl:px-16'
           }
         >
