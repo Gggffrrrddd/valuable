@@ -1490,6 +1490,7 @@ button .butterfly-constellation {
   .jr-sim .jar-focus-layout > div:first-child > div {
     height: 100% !important;
     max-height: none !important;
+    max-width: none !important;
   }
   .jr-sim .jar-focus-layout > div:last-child {
     position: absolute !important;
@@ -1511,9 +1512,10 @@ button .butterfly-constellation {
   .jr-sim .jar-focus-layout .aqua-layer {
     transform: none;
   }
-  /* Classic jar: letterboxed feed box (validated pattern) so its internal
-     cover-fit sees a 16:9-ish box and crops ~nothing. Desktop keeps
-     `display: contents` (zero impact); aquarium stack untouched. */
+  /* Classic jar: letterboxed feed box with DEFINITE height straight from the
+     stage (100vw == stage height in portrait sim — no % chain to break), so
+     the observer always measures a 16:9-ish box and cover crops ~nothing.
+     Desktop keeps `display: contents` (zero impact); aquarium untouched. */
   .jr-sim .jr-fit-classic.jr-fit-classic {
     display: block;
     position: absolute;
@@ -1522,7 +1524,7 @@ button .butterfly-constellation {
     left: 0;
     right: 0;
     margin: auto;
-    height: 100%;
+    height: 100vw;
     aspect-ratio: 1670 / 942;
     max-width: 100%;
   }
