@@ -287,6 +287,35 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
     status: OWN_STATUS_BY_STATE[ownState],
   };
 
+  // Immersive table: hide the phone's own system bars while the landscape
+  // table shows, same as timer sessions. Fail-soft outside Fullscreen API.
+  useEffect(() => {
+    let asked = false;
+    try {
+      const request = document.documentElement.requestFullscreen?.bind(document.documentElement) as
+        | (() => Promise<void> | void)
+        | undefined;
+      const result = request?.();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch(() => undefined);
+      }
+      asked = true;
+    } catch {
+      /* Fullscreen unavailable — rotation sim still applies. */
+    }
+    return () => {
+      if (!asked) return;
+      try {
+        if (document.fullscreenElement) {
+          const result = document.exitFullscreen?.();
+          if (result && typeof result.catch === 'function') result.catch(() => undefined);
+        }
+      } catch {
+        /* no-op */
+      }
+    };
+  }, []);
+
   const seatedFriends: SeatOccupant[] = (friends || []).map((f) => ({
     id: f.id,
     name: f.display_name,
@@ -304,7 +333,7 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
   }, [self.status, friendIdsKey, statuses]);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+    <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
       <div className="absolute inset-0">
         <TableScene3D
           self={self}
