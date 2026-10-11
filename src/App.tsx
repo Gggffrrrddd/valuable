@@ -308,7 +308,7 @@ function AppContent() {
         <main
           className={
             tab === 'compete'
-              ? 'app-main overflow-hidden p-0'
+              ? 'app-main overflow-hidden bg-black p-0 lg:bg-transparent'
               : 'app-main lg:px-10 lg:pb-12 xl:px-16'
           }
         >
@@ -345,7 +345,9 @@ function AppContent() {
             />
           )}
           {tab === 'compete' && (
-            <CompeteScreen />
+            <div className="hidden lg:contents">
+              <CompeteScreen />
+            </div>
           )}
           {tab === 'friends' && (
             <FriendsScreen
