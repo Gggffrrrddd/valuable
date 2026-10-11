@@ -1636,22 +1636,3 @@ button .butterfly-constellation {
     transform: translateY(-50%);
   }
 }
-/* --------------------------------------------------------------------------
-   Compete mobile (< 1024px): show ONLY tree video + soil image (everything
-   else in the stage hidden), shifted down 216px so the soil bottom touches
-   the mobile nav bar. Desktop (>= 1024px) renders the full CompeteScreen
-   untouched. No coarse-pointer gating (fails in DevTools emulation).
-   -------------------------------------------------------------------------- */
-@media (max-width: 1023.5px) {
-  .compete-stage > :not(video):not(img):not(.compete-tree-stage) {
-    display: none;
-  }
-  .compete-tree-stage {
-    transform: translateY(216px);
-  }
-}
-@media (min-width: 1024px) {
-  .compete-tree-stage {
-    transform: none;
-  }
-}
