@@ -1655,7 +1655,7 @@ button .butterfly-constellation {
     display: none;
   }
   .compete-tree-stage {
-    transform: translateY(216px);
+    transform: translateY(216px) scale(.7);
   }
 }
 @media (min-width: 1024px) {
