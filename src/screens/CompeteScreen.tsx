@@ -93,6 +93,10 @@ export default function CompeteScreen() {
   const [jointRaw, setJointRaw] = useState(0);
   /** Measured stage box + viewport bottom edge for the runtime clamp. */
   const [stageBox, setStageBox] = useState({ width: 0, height: 0, top: 0 });
+  /** True only after the observer reports a real (non-zero) box — until
+      then the slider stays locked and no clamp is trusted. */
+  const [measured, setMeasured] = useState(false);
+  const loggedFirstMeasure = useRef(false);
   const [viewportBottom, setViewportBottom] = useState(
     () => (typeof window === 'undefined' ? 0 : window.innerHeight),
   );
@@ -100,10 +104,23 @@ export default function CompeteScreen() {
 
   useEffect(() => {
     const el = stageRef.current;
-    if (!el) return;
+    if (!el) {
+      console.warn('[compete-measure] stage ref missing — slider locked');
+      return;
+    }
     const update = () => {
       const r = el.getBoundingClientRect();
-      setStageBox({ width: r.width, height: r.height, top: r.top });
+      if (r.width > 0 && r.height > 0) {
+        setStageBox({ width: r.width, height: r.height, top: r.top });
+        setMeasured(true);
+        if (!loggedFirstMeasure.current) {
+          loggedFirstMeasure.current = true;
+          console.log(
+            '[compete-measure] first',
+            `{ stage: ${Math.round(r.width)}x${Math.round(r.height)} }`,
+          );
+        }
+      }
     };
     update();
     const ro = new ResizeObserver(update);
@@ -127,11 +144,15 @@ export default function CompeteScreen() {
       below this is transparent, so the visible mound ends here, not at 940. */
   const MOUND_BOTTOM_IMG_Y = 857;
   const { joint, jointMax, moundBottom, limitY } = useMemo(() => {
+    // Unmeasured (or zero-size) stage: lock at 0 and trust nothing —
+    // a jointMax of 0 from real measurement still locks, but must never
+    // be confused with "not measured yet".
+    const locked = { joint: 0, jointMax: 0, moundBottom: 0, limitY: 0 };
+    if (!measured) return locked;
     const { width: W, height: H, top: stageTop } = stageBox;
     const base = DEFAULT_IMAGE_TRANSFORM.y;
     const k = DEFAULT_IMAGE_TRANSFORM.zoom;
-    const fallback = { joint: Math.max(0, jointRaw), jointMax: 0, moundBottom: 0, limitY: 0 };
-    if (W <= 0 || H <= 0) return fallback;
+    if (W <= 0 || H <= 0) return locked;
     const s = Math.min(W / 1672, H / 940);
     const imgH = 940 * s;
     const top0 = (H - imgH) / 2;
@@ -144,7 +165,7 @@ export default function CompeteScreen() {
     const maxJ = Math.max(0, maxSoilY - base);
     const applied = Math.min(Math.max(jointRaw, 0), maxJ);
     return { joint: applied, jointMax: maxJ, moundBottom: at(base + applied), limitY: target };
-  }, [stageBox, viewportBottom, jointRaw]);
+  }, [measured, stageBox, viewportBottom, jointRaw]);
   const treeTune: PlacementTransform = useMemo(
     () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + joint }),
     [joint],
@@ -326,8 +347,10 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — joint tree+soil Y tuner, mobile only (hardcode + flip off when final). */}
-        {SHOW_JOINT_TUNER && (
+        {/* TEMPORARY — joint tree+soil Y tuner, mobile only (hardcode + flip off when final).
+            Rendered only after a real stage measurement, so the slider can
+            never run on an unmeasured (0x0) box. */}
+        {SHOW_JOINT_TUNER && measured && (
           <div className="absolute bottom-4 right-4 z-30 w-60 lg:hidden">
             <PlacementTuner
               title="Move Y joint (temp)"
@@ -344,7 +367,7 @@ export default function CompeteScreen() {
                 );
                 console.log(
                   '[compete-geometry]',
-                  `{ stage: ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, moundBottom: ${Math.round(moundBottom)}, limit: ${Math.round(limitY)}, jointMax: ${jointMax.toFixed(1)} }`,
+                  `{ measured: ${measured}, stage: ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, moundBottom: ${Math.round(moundBottom)}, limit: ${Math.round(limitY)}, jointMax: ${jointMax.toFixed(1)} }`,
                 );
               }}
             />
