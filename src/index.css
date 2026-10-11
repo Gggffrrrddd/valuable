@@ -1651,7 +1651,7 @@ button .butterfly-constellation {
    Desktop (>= 1024px) renders the full CompeteScreen untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage) {
+  .compete-stage > * {
     display: none;
   }
   .compete-tree-stage {
