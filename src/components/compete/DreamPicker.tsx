@@ -122,54 +122,40 @@ export default function DreamPicker({
     </button>
   );
 
-  const circle = (i: number, offsetClass?: string, transform?: PlacementTransform) => (
+  const circle = (i: number, offsetClass?: string) => (
     <DreamCircle
       key={`dream-${i}`}
       src={images[i]}
       offsetClass={offsetClass}
-      transform={transform ?? transforms?.[i] ?? IDENTITY}
+      transform={transforms?.[i] ?? IDENTITY}
       stretch={stretch ?? DEFAULT_DREAM_STRETCH}
       ringWidth={ringWidth ?? 3}
       onRemove={() => onRemove(i)}
     />
   );
 
-  // Arrangement (arc slots: 0 = left/lower, 1 = centre/highest, 2 = right/lower):
-  //  0 → [add] centred; 1 → [centre circle] alone;
-  //  2 → [left circle, right circle] symmetric, middle removed;
+  // Arrangement:
+  //  0 → [add] centred; 1 → [add, circle] (circle right of centre);
+  //  2 → [circle, add, circle] symmetric with add between;
   //  3 → gentle arc crowning the tree — sides lower, centre highest, no add.
-  // A compact add button sits under the row while under the max.
-  const arcSideClass = 'translate-y-[10px] md:translate-y-[14px]';
   let items;
   if (images.length >= MAX_DREAM_IMAGES) {
     items = [
-      circle(0, arcSideClass, transforms?.[0]),
-      circle(1, undefined, transforms?.[1]),
-      circle(2, arcSideClass, transforms?.[2]),
+      circle(0, 'translate-y-[10px] md:translate-y-[14px]'),
+      circle(1),
+      circle(2, 'translate-y-[10px] md:translate-y-[14px]'),
     ];
   } else if (images.length === 0) {
     items = [addBtn];
   } else if (images.length === 1) {
-    items = [circle(0, undefined, transforms?.[1])];
+    items = [addBtn, circle(0)];
   } else {
-    items = [circle(0, arcSideClass, transforms?.[0]), circle(1, arcSideClass, transforms?.[2])];
+    items = [circle(0), addBtn, circle(1)];
   }
 
   return (
     <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
-      <div className="flex origin-top scale-[.85] items-start justify-center gap-3 sm:scale-100 sm:gap-4">{items}</div>
-      {(images.length === 1 || images.length === 2) && (
-        <button
-          key="add-mini"
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          aria-label="Add dream image"
-          className="mx-auto mt-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#f6e3ba]/60 transition hover:text-[#f6e3ba] disabled:opacity-40"
-        >
-          <Plus className="h-3 w-3" /> Add
-        </button>
-      )}
+      <div className="flex items-start justify-center gap-3 sm:gap-4">{items}</div>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>
   );

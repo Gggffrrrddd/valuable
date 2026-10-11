@@ -47,6 +47,7 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_RING_TUNER = false;
+
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -281, y: 195, zoom: 1.5 },
@@ -206,12 +207,9 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
-        {/* Tree + soil container: shifted down 216px on mobile so soil bottom touches nav */}
-        <div className="compete-tree-stage absolute inset-0">
-          <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-          <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
-        </div>
+      <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
