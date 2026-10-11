@@ -1636,3 +1636,12 @@ button .butterfly-constellation {
     transform: translateY(-50%);
   }
 }
+/* --------------------------------------------------------------------------
+   Compete mobile landscape: stage fills the rotated stage exactly (no void
+   below content). Desktop keeps its min-height rule untouched.
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  .compete-sim .compete-stage {
+    min-height: 100%;
+  }
+}
