@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   buildVideoMask,
   DEFAULT_VIDEO_MASK,
@@ -28,14 +28,12 @@ export default function TreeVideo({
   progress?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [loaded, setLoaded] = useState(false);
   const { image, size, repeat } = useMemo(() => buildVideoMask(mask), [mask]);
 
-  // drive playback position from the progress value — only after frame data
-  // exists (same gate as the hourglass visual, which works on real mobile).
+  // drive playback position from the progress value
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !loaded) return;
+    if (!video) return;
 
     const setTime = () => {
       if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -47,30 +45,28 @@ export default function TreeVideo({
       }
     };
 
-    setTime();
+    // Slow networks (real mobile) often have metadata but no frame data yet;
+    // retry on canplay so the 97% frame always lands.
+    if (video.readyState >= 1) {
+      setTime();
+    }
+    video.addEventListener('loadedmetadata', setTime);
     video.addEventListener('canplay', setTime);
     return () => {
+      video.removeEventListener('loadedmetadata', setTime);
       video.removeEventListener('canplay', setTime);
     };
-  }, [progress, loaded]);
-
-  const handleLoadedData = () => {
-    setLoaded(true);
-  };
+  }, [progress]);
 
   return (
-    <>
-      {!loaded && <div className="hourglass-loading" aria-hidden="true" />}
-      <video
-        ref={videoRef}
-        src="/visuals/compete/tree-growth-2.mp4"
-        muted
-        playsInline
-        preload="auto"
-        onLoadedData={handleLoadedData}
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{
-          opacity: loaded ? 1 : 0,
+    <video
+      ref={videoRef}
+      src="/visuals/compete/tree-growth-2.mp4"
+      muted
+      playsInline
+      preload="auto"
+      className="absolute inset-0 h-full w-full object-cover"
+      style={{
         transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         // screen blend: the video's near-black background becomes exactly the
         // app background behind it, so no dark halo is visible in the fade zone
@@ -83,6 +79,5 @@ export default function TreeVideo({
         WebkitMaskRepeat: repeat,
       }}
     />
-    </>
   );
 }
