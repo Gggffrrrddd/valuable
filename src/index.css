@@ -1657,6 +1657,14 @@ button .butterfly-constellation {
   .compete-tree-stage {
     transform: translateY(8px);
   }
+  /* Mobile tree framing (emulator-verified): full foliage visible both
+     sides, mask edge soft like desktop — no hard ring. Desktop keeps its
+     inline tuned values exactly. */
+  .compete-tree-stage > video {
+    transform: translate(-1%, 30%) scale(0.62) !important;
+    -webkit-mask-size: 140% 140%, 100% 100% !important;
+    mask-size: 140% 140%, 100% 100% !important;
+  }
 }
 @media (min-width: 1024px) {
   .compete-tree-stage {
