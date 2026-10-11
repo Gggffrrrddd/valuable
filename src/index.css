@@ -1511,6 +1511,21 @@ button .butterfly-constellation {
   .jr-sim .jar-focus-layout .aqua-layer {
     transform: none;
   }
+  /* Classic jar: letterboxed feed box (validated pattern) so its internal
+     cover-fit sees a 16:9-ish box and crops ~nothing. Desktop keeps
+     `display: contents` (zero impact); aquarium stack untouched. */
+  .jr-sim .jr-fit-classic.jr-fit-classic {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    height: 100%;
+    aspect-ratio: 1670 / 942;
+    max-width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

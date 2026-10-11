@@ -451,7 +451,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <TankLife progress={progress} />
                 </>
                 ) : (
+                  <div className="contents jr-fit-classic">
                     <JarVisual progress={progress} running={phase === 'focus'} />
+                  </div>
                 )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
