@@ -120,10 +120,12 @@ export default function CompeteScreen() {
 
   // Runtime clamp: visible mound bottom (soil image is transparent below
   // ~857/940 — measured opaque bound) may never dive into black. Bound is
-  // always the nav top when the fixed nav is visible (even past the stage
-  // edge, which just shows main padding), else the stage edge — measured
-  // live, no hardcoded range, safe on any screen.
+  // the nav top when the fixed nav is visible, else the viewport bottom —
+  // measured live, no hardcoded range, safe on any screen.
   const SOIL_GAP = 2;
+  /** Last opaque row of the soil image (alpha-scan measured) — the feather
+      below this is transparent, so the visible mound ends here, not at 940. */
+  const MOUND_BOTTOM_IMG_Y = 857;
   const { joint, jointMax, moundBottom, limitY } = useMemo(() => {
     const { width: W, height: H, top: stageTop } = stageBox;
     const base = DEFAULT_IMAGE_TRANSFORM.y;
@@ -275,7 +277,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
 
