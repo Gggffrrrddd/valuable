@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -47,6 +47,12 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_RING_TUNER = false;
+/**
+ * Joint tree+soil Y-move tuner is VISIBLE on mobile only — one slider moves
+ * both together so the tree (and its mask) stays glued to the soil.
+ * Desktop renders hardcoded defaults, untouched.
+ */
+const SHOW_JOINT_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -83,6 +89,16 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
+  /** TEMPORARY: joint Y offset added to both tree and soil (hardcode when final). */
+  const [jointY, setJointY] = useState(0);
+  const treeTune: PlacementTransform = useMemo(
+    () => ({ ...DEFAULT_VIDEO_TRANSFORM, y: DEFAULT_VIDEO_TRANSFORM.y + jointY }),
+    [jointY],
+  );
+  const soilTune: PlacementTransform = useMemo(
+    () => ({ ...DEFAULT_IMAGE_TRANSFORM, y: DEFAULT_IMAGE_TRANSFORM.y + jointY }),
+    [jointY],
+  );
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -208,8 +224,8 @@ export default function CompeteScreen() {
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
       <div className="relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-        <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <SoilOverlay transform={soilTune} />
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
@@ -255,6 +271,27 @@ export default function CompeteScreen() {
           onAdd={addDream}
           onRemove={removeDream}
         />
+
+        {/* TEMPORARY — joint tree+soil Y tuner, mobile only (hardcode + flip off when final). */}
+        {SHOW_JOINT_TUNER && (
+          <div className="absolute bottom-4 right-4 z-30 w-60 lg:hidden">
+            <PlacementTuner
+              title="Move Y joint (temp)"
+              logTag="compete-joint-y"
+              transform={{ y: jointY }}
+              rows={[{ key: 'y', label: 'Tree + soil together', min: -30, max: 30, step: 1 }]}
+              defaults={{ y: 0 }}
+              onChange={(patch) => {
+                const v = patch.y ?? 0;
+                setJointY(v);
+                console.log(
+                  '[compete-joint-values]',
+                  `{ treeY: ${(DEFAULT_VIDEO_TRANSFORM.y + v).toFixed(1)}, soilY: ${(DEFAULT_IMAGE_TRANSFORM.y + v).toFixed(1)} }`,
+                );
+              }}
+            />
+          </div>
+        )}
 
         {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
         {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
