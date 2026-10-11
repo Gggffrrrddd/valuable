@@ -97,19 +97,21 @@ export default function CompeteScreen() {
       then the slider stays locked and no clamp is trusted. */
   const [measured, setMeasured] = useState(false);
   const loggedFirstMeasure = useRef(false);
+  /**
+   * Stage element via callback-ref state (not a plain ref + [] effect):
+   * the stage mounts only AFTER the async goal loads, so a mount-time
+   * effect would see a null ref and never retry. State re-runs the
+   * observer effect exactly when the element attaches/detaches.
+   */
+  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
   const [viewportBottom, setViewportBottom] = useState(
     () => (typeof window === 'undefined' ? 0 : window.innerHeight),
   );
-  const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const el = stageRef.current;
-    if (!el) {
-      console.warn('[compete-measure] stage ref missing — slider locked');
-      return;
-    }
+    if (!stageEl) return;
     const update = () => {
-      const r = el.getBoundingClientRect();
+      const r = stageEl.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         setStageBox({ width: r.width, height: r.height, top: r.top });
         setMeasured(true);
@@ -124,9 +126,9 @@ export default function CompeteScreen() {
     };
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(el);
+    ro.observe(stageEl);
     return () => ro.disconnect();
-  }, []);
+  }, [stageEl]);
 
   useEffect(() => {
     const update = () => setViewportBottom(window.innerHeight);
@@ -298,7 +300,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={stageRef} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
+      <div ref={setStageEl} className="relative h-full min-h-[480px] w-full shrink-0 overflow-x-clip overflow-y-visible bg-[#090b0a] lg:overflow-hidden">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
 
