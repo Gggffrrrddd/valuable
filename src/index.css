@@ -1645,3 +1645,13 @@ button .butterfly-constellation {
     min-height: 100%;
   }
 }
+/* --------------------------------------------------------------------------
+   Compete mobile (< 1024px): plain background only — the whole stage
+   content (tree, soil, cards, dreams, links, tuners) is hidden.
+   Desktop (>= 1024px) renders the full CompeteScreen untouched.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1023.5px) {
+  .compete-stage > * {
+    display: none;
+  }
+}
