@@ -272,6 +272,12 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
+/* Aquarium scene + overlay placement (desktop tuned framing). */
+.jar-focus-layout .aqua-scene,
+.jar-focus-layout .aqua-layer {
+  transform: translate(41px, 38px) scale(1.27);
+}
+
 .hourglass-focus-background {
   position: absolute;
   inset: 0;
@@ -1499,31 +1505,11 @@ button .butterfly-constellation {
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Full-fit placement: neutralize the desktop zoom so the whole image
-     shows with zero crop; overlays inherit the same neutral placement. */
-  .jr-sim {
-    --aqua-place: none;
-  }
-  /* Belt-and-suspenders: direct override beats inline styles, so no layer
-     can keep the cropping zoom inside the sim. */
-  .jr-sim .jr-fit > img {
-    transform: none !important;
-  }
-  .jr-sim .jr-fit > div > svg {
-    transform: none !important;
-  }
-  /* Letterboxed fit box: the whole jar unit scales to the stage with its
-     aspect kept, so the image is fully visible like the hourglass. Desktop
-     keeps `display: contents` (zero impact). Overlays anchor to this box,
-     so the mask mapping stays exact. */
-  .jr-sim .jr-fit.jr-fit {
-    display: block;
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    aspect-ratio: 1670 / 942;
-    max-width: 100%;
-    max-height: 100%;
+  /* Mobile gets the scene plain (zero crop); overlays share it, so the
+     mask mapping stays exact. Desktop keeps the tuned framing above. */
+  .jr-sim .jar-focus-layout .aqua-scene,
+  .jr-sim .jar-focus-layout .aqua-layer {
+    transform: none;
   }
 }
 

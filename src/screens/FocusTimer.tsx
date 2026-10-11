@@ -428,12 +428,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             <div className={`${visualTheme === 'solar-system' ? 'relative h-full w-full' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'} ${visualTheme === 'hourglass' ? 'hg-visual-box' : ''}`}>
               {visualTheme === 'jar' ? (
                 playsAquarium ? (
-                <div className="contents jr-fit">
+                <>
                   <img
                     src="/visuals/jar/aquarium-scene.png"
                     alt="Aquarium"
-                    className="h-full w-full object-contain"
-                    style={{ transform: 'var(--aqua-place, translate(41px, 38px) scale(1.27))' }}
+                    className="aqua-scene h-full w-full object-contain"
                     draggable={false}
                   />
                   {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for
@@ -450,11 +449,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <CloudRain running={phase === 'focus'} progress={progress} />
                   {/* Water fill + fish — mapped live onto the hidden mask. */}
                   <TankLife progress={progress} />
-                </div>
+                </>
                 ) : (
-                  <div className="contents jr-fit">
                     <JarVisual progress={progress} running={phase === 'focus'} />
-                  </div>
                 )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
