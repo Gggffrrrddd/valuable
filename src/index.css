@@ -1535,3 +1535,58 @@ button .butterfly-constellation {
     animation: none;
   }
 }
+/* --------------------------------------------------------------------------
+   Tree mobile landscape lock (same pattern as jar sim).
+   Portrait phones/tablets rotate into a landscape stage; the phone
+   portrait-stacking is undone so the desktop absolute layout
+   (full-bleed visual + floating clock/chrome) applies as-is.
+   Definite heights come straight from the stage (100vw == stage height in
+   portrait sim) — never a % chain — so measurement always sees real boxes.
+   Other visuals untouched (hooks are tree-only).
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  /* Undo the portrait stack: back to the desktop row + absolute visual. */
+  .tr-sim .tree-focus-layout {
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+  }
+  .tr-sim .tree-focus-layout > div:first-child {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: none !important;
+  }
+  .tr-sim .tree-focus-layout > div:first-child > div {
+    height: 100% !important;
+    max-height: none !important;
+    max-width: none !important;
+  }
+  .tr-sim .tree-focus-layout > div:last-child {
+    position: absolute !important;
+    right: clamp(1.5rem, 6vw, 7rem) !important;
+    top: 50% !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+    width: auto !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+}
+
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  /* Definite inner height from the stage (100vw), no % chain to break. */
+  .tr-sim .tree-focus-layout > div:first-child > div {
+    height: 100vw !important;
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-width: 1023.5px) {
+  .tr-sim .tree-focus-layout > div:first-child > div {
+    height: 100vh !important;
+  }
+}
