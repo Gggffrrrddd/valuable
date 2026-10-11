@@ -146,13 +146,37 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
   useEffect(() => {
     if (!activeSession) return;
-    const colon = document.querySelector('.flip-colon');
+    const colon = document.querySelector('.flip-colon') as HTMLElement | null;
     const container = containerRef.current;
-    if (colon && container) {
+    if (!colon || !container) return;
+    // In the rotated landscape sim getBoundingClientRect is viewport-space,
+    // which is meaningless for layout — unrotate into stage space (90deg CW
+    // about the stage center, using transform-independent offset sizes).
+    const rotated = typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)').matches;
+    const simRoot = rotated ? container.closest('.mob-sim') as HTMLElement | null : null;
+    let frac: number;
+    let inside: boolean;
+    if (simRoot) {
+      const stageW = simRoot.offsetWidth || 1;
+      const rootRect = simRoot.getBoundingClientRect();
+      const cvx = rootRect.left + rootRect.width / 2;
+      const loc = colon.getBoundingClientRect();
+      const sx = stageW / 2 + (loc.left + loc.width / 2 - cvx);
+      frac = sx / stageW;
+      inside = sx >= 0 && sx <= stageW;
+    } else {
       const cr = container.getBoundingClientRect();
       const loc = colon.getBoundingClientRect();
-      boundaryRef.current = Math.max(0.15, Math.min(0.98, (loc.left - cr.left) / cr.width));
+      // The clock only constrains landing spots when it actually overlaps
+      // the container. Clock outside/below (desktop row, stacked portrait)
+      // means full spread.
+      inside = loc.left >= cr.left && loc.left <= cr.right
+        && loc.top >= cr.top && loc.top <= cr.bottom;
+      frac = (loc.left - cr.left) / cr.width;
     }
+    boundaryRef.current = inside ? Math.max(0.15, Math.min(0.98, frac)) : 0.98;
   }, [activeSession]);
 
   const shedCount = useMemo(() => {
@@ -163,7 +187,14 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
   const leafStyles = useMemo(() => {
     const clampX = (rawX: number) => Math.min(rawX, boundaryRef.current - 0.008);
-    const sessionLeafSrc = LEAF_ASSETS[sessionLeafIndex] ?? LEAF_URL;
+    // Landed spots spread across the allowed region instead of piling up
+    // at the boundary (which rendered as a single vertical line).
+    const fitLandX = (rawX: number) => {
+      const lo = 0.05;
+      const hi = Math.max(lo + 0.01, boundaryRef.current - 0.008);
+      const t = Math.min(Math.max(rawX, lo), 0.95);
+      return lo + ((t - lo) / 0.9) * (hi - lo);
+    };    const sessionLeafSrc = LEAF_ASSETS[sessionLeafIndex] ?? LEAF_URL;
     return LEAVES.map((leaf) => {
       const rank = SHED_RANK.get(leaf.id) ?? Infinity;
       const hasShed = activeSession && rank < shedCount;
@@ -171,7 +202,7 @@ export default function TreeVisual({ progress, duration }: TreeVisualProps) {
 
       let x: number, y: number, rot: number, zIdx: number | undefined;
       if (hasShed && land) {
-        x = clampX(land.landX);
+        x = fitLandX(land.landX);
         y = land.landY;
         rot = land.landRotation;
         zIdx = land.zIndex;
