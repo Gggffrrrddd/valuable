@@ -1657,6 +1657,10 @@ button .butterfly-constellation {
   .compete-tree-stage {
     transform: translateY(8px);
   }
+  /* Soil hidden for now on mobile (video stays). */
+  .compete-tree-stage > img {
+    display: none;
+  }
 }
 @media (min-width: 1024px) {
   .compete-tree-stage {
