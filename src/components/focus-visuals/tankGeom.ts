@@ -8,9 +8,8 @@ export const TANK_IMG_H = 942;
 export const SCENE_T = { x: 41, y: 38, k: 1.27 };
 export const MASK_T = { x: -378, y: 152, k: 0.54 };
 
-/** Sim media: placement is neutralized there, so mapping goes identity.
-    Mirrors the jar CSS lock (no coarse gate — DevTools emulation included). */
-const SIM_QUERY = '(orientation: portrait) and (max-width: 1023.5px)';
+/** Sim media: placement is neutralized there, so mapping goes identity. */
+const SIM_QUERY = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
 const IDENTITY_T = { x: 0, y: 0, k: 1 };
 
 function activeTransforms() {
