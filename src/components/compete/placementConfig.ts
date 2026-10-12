@@ -43,8 +43,8 @@ export interface VideoMask {
 
 /** Hardcoded video placement (read off the Video tuner). */
 export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: -1, y: 16, zoom: 1.03, rot: 0 };
-/** Hardcoded soil-image placement (read off the Image tuner). */
-export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: -2, y: 41, zoom: 1.07 };
+/** Hardcoded soil-image placement (tuned on mobile portrait: x4 y40 zoom1.22). */
+export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: 4, y: 40, zoom: 1.22 };
 
 /** Progress tuner row: scrub today's growth (0 = seedling, 1 = full bloom). */
 export interface ProgressTune {
