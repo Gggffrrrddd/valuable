@@ -1506,21 +1506,15 @@ button .butterfly-constellation {
   .jr-sim .jar-focus-layout .aqua-layer {
     transform: none;
   }
-  /* Classic jar: letterboxed feed box with DEFINITE height straight from the
-     stage (100vw == stage height in portrait sim — no % chain to break), so
-     the observer always measures a 16:9-ish box and cover crops ~nothing.
+  /* Classic jar: full-bleed feed box like desktop (no letterbox bars) —
+     fills the whole stage edge-to-edge; cover-fit crops inside JarVisual.
      Desktop keeps `display: contents` (zero impact); aquarium untouched. */
   .jr-sim .jr-fit-classic.jr-fit-classic {
     display: block;
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    margin: auto;
-    height: 100vw;
-    aspect-ratio: 1670 / 942;
-    max-width: 100%;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 }
 
