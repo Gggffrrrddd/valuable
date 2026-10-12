@@ -48,10 +48,10 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  */
 const SHOW_RING_TUNER = false;
 /**
- * Joint Y+zoom tuner is VISIBLE on mobile only — one panel moves tree+soil
- * together; flip off + hardcode when final.
+ * Tree rotation+zoom tuner is VISIBLE on mobile only — tune live, then
+ * hardcode + flip off when final.
  */
-const SHOW_JOINT_TUNER = false;
+const SHOW_JOINT_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -88,9 +88,9 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
-  /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
+  /** TEMPORARY: separate live placement for tree video (hardcode when final). */
   const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
+  const [soilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -267,7 +267,7 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — separate tree + soil Y/zoom tuners, mobile only (hardcode + flip off when final). */}
+        {/* TEMPORARY — tree rotation + zoom tuner, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
           <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
             <PlacementTuner
@@ -275,22 +275,11 @@ export default function CompeteScreen() {
               logTag="compete-tree"
               transform={treeTune}
               rows={[
-                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'rot', label: 'Rotation (deg)', min: -180, max: 180, step: 1 },
                 { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
               ]}
               defaults={DEFAULT_VIDEO_TRANSFORM}
               onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
-            />
-            <PlacementTuner
-              title="Soil (temp)"
-              logTag="compete-soil"
-              transform={soilTune}
-              rows={[
-                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
-                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
-              ]}
-              defaults={DEFAULT_IMAGE_TRANSFORM}
-              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
             />
           </div>
         )}

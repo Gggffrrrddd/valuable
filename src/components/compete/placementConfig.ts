@@ -11,6 +11,8 @@ export interface PlacementTransform {
   /** Vertical shift (negative = up). */
   y: number;
   zoom: number;
+  /** Rotation in degrees (0 = upright). Optional — most placements don't rotate. */
+  rot?: number;
 }
 
 export interface SliderRow<T extends { [K in keyof T]: number } = PlacementTransform> {
@@ -40,7 +42,7 @@ export interface VideoMask {
 }
 
 /** Hardcoded video placement (read off the Video tuner). */
-export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: -1, y: 16, zoom: 1.03 };
+export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: -1, y: 16, zoom: 1.03, rot: 0 };
 /** Hardcoded soil-image placement (read off the Image tuner). */
 export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: -2, y: 41, zoom: 1.07 };
 

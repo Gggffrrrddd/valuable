@@ -67,7 +67,7 @@ export default function TreeVideo({
       preload="auto"
       className="absolute inset-0 h-full w-full object-cover"
       style={{
-        transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
+        transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom}) rotate(${transform.rot ?? 0}deg)`,
         // screen blend: the video's near-black background becomes exactly the
         // app background behind it, so no dark halo is visible in the fade zone
         mixBlendMode: 'screen',

@@ -1650,7 +1650,7 @@ button .butterfly-constellation {
    (no shift, no soil, no cards/tuners). Desktop untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage) {
+  .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
     display: none;
   }
   /* Soil hidden — only the tree video shows on mobile. */
