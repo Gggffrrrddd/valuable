@@ -41,10 +41,10 @@ export interface VideoMask {
   bottomKeep: number;
 }
 
-/** Hardcoded video placement (read off the Video tuner). */
+/** Hardcoded video placement — DESKTOP values (mobile overrides via CSS). */
 export const DEFAULT_VIDEO_TRANSFORM: PlacementTransform = { x: -1, y: 16, zoom: 1.03, rot: 0 };
-/** Hardcoded soil-image placement (tuned on mobile portrait: x-1 y33 zoom1.14). */
-export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: -1, y: 33, zoom: 1.14 };
+/** Hardcoded soil-image placement — DESKTOP values (mobile overrides via CSS). */
+export const DEFAULT_IMAGE_TRANSFORM: PlacementTransform = { x: -2, y: 41, zoom: 1.07 };
 
 /** Progress tuner row: scrub today's growth (0 = seedling, 1 = full bloom). */
 export interface ProgressTune {

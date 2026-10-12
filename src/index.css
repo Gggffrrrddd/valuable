@@ -1646,17 +1646,23 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile portrait: tree video + soil show (soil fixed x-1 y33
-   zoom1.14). Everything else (cards, dream picker) hidden; tree
-   rotate+zoom+XY tuner (compete-tuner) stays visible. Desktop untouched.
+   Compete mobile portrait: tree video + soil show with mobile-only tuned
+   transforms (desktop keeps its own hardcoded placement). Everything else
+   (cards, dream picker, tuners) hidden. Progress is static 97%.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
+  .compete-stage > :not(.compete-tree-stage) {
     display: none;
   }
   /* Full tree visible on mobile: contain instead of cover (no side crop).
-     Screen blend + dark stage bg makes the letterbox bars invisible. */
+     Screen blend + dark stage bg makes the letterbox bars invisible.
+     !important overrides the inline desktop transform from TreeVideo. */
   .compete-tree-stage > video {
     object-fit: contain;
+    transform: translate(-1%, 22%) scale(1.85) !important;
+  }
+  /* Soil mobile-tuned placement (desktop uses x-2 y41 zoom1.07 inline). */
+  .compete-tree-stage > img {
+    transform: translate(-1%, 33%) scale(1.14) !important;
   }
 }

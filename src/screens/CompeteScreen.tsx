@@ -4,19 +4,14 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
-import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
   DEFAULT_DREAM_STRETCH,
-  DREAM_STRETCH_SLIDER_ROWS,
   DEFAULT_RING,
-  RING_SLIDER_ROWS,
   type PlacementTransform,
-  type DreamStretch,
-  type RingTune,
 } from '@/components/compete/placementConfig';
 import {
   fetchActiveGoal,
@@ -33,30 +28,8 @@ import {
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
 
-/** Slim Progress slider is hidden for now — the tree sits at a static 97%. */
-const SHOW_PROGRESS_SLIDER = false;
-/** Scrub cap: the slider never goes past 97%. */
+/** Scrub cap: progress sits at a static 97%. */
 const PROGRESS_CAP = 0.97;
-/**
- * Dream-stretch tuner is HIDDEN — circles sit at the neutral scale;
- * flip this on to re-tune live (rows stay in placementConfig).
- */
-const SHOW_DREAM_STRETCH_TUNER = false;
-/**
- * Gold-ring width tuner is HIDDEN — width is hardcoded (0.55 base px);
- * flip this on to re-tune live (rows stay in placementConfig).
- */
-const SHOW_RING_TUNER = false;
-/**
- * Tree rotate+zoom+XY tuner is VISIBLE on mobile only — tune live, then
- * hardcode + flip off when final. Soil stays fixed (no tuner).
- */
-const SHOW_JOINT_TUNER = true;
-/**
- * Soil X/Y+zoom tuner is HIDDEN — placement hardcoded (x-1 y33 zoom1.14,
- * portrait-tuned); flip on to re-tune live (rows stay below).
- */
-const SHOW_SOIL_TUNER = false;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -85,19 +58,10 @@ export default function CompeteScreen() {
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
-  const [progressOverride, setProgressOverride] = useState<number | null>(null);
   const [dreamBusy, setDreamBusy] = useState(false);
-  /** TEMPORARY: live CSS stretch of the photo on the dream circles. */
-  const [dreamStretch, setDreamStretch] = useState<DreamStretch>(DEFAULT_DREAM_STRETCH);
-  /** TEMPORARY: live gold-ring width (base px) on the dream circles. */
-  const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
-  /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
-  /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
-  const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
-  /** TEMPORARY: live video-progress scrub — replaces the hardcoded 97% cap. */
-  const [tuneProgress, setTuneProgress] = useState({ progress: PROGRESS_CAP });
+  const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
+  const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -214,9 +178,7 @@ export default function CompeteScreen() {
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
-  const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
-  // TEMPORARY: 97% cap bypassed — tuner progress slider drives the video directly.
-  const progress = progressOverride ?? PROGRESS_CAP;
+  const progress = PROGRESS_CAP;
   const complete = autoProgress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
@@ -268,113 +230,12 @@ export default function CompeteScreen() {
         <DreamPicker
           images={goal.dream_images ?? []}
           transforms={DREAM_CIRCLE_TRANSFORMS}
-          stretch={dreamStretch}
-          ringWidth={ring.ring}
+          stretch={DEFAULT_DREAM_STRETCH}
+          ringWidth={DEFAULT_RING.ring}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
         />
-
-        {/* TEMPORARY — tree zoom+XY + video-progress tuner, mobile only (hardcode + flip off when final). */}
-        {SHOW_JOINT_TUNER && (
-          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
-            <PlacementTuner
-              title="Tree (temp)"
-              logTag="compete-tree"
-              transform={treeTune}
-              rows={[
-                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
-                { key: 'x', label: 'Move X (left / right)', min: -50, max: 50, step: 1 },
-                { key: 'y', label: 'Move Y (up / down)', min: -50, max: 50, step: 1 },
-              ]}
-              defaults={DEFAULT_VIDEO_TRANSFORM}
-              onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
-            />
-            <PlacementTuner
-              title="Video progress (temp)"
-              logTag="compete-progress"
-              transform={tuneProgress}
-              rows={[
-                { key: 'progress', label: 'Progress (video scrub)', min: 0, max: 1, step: 0.01 },
-              ]}
-              defaults={{ progress: PROGRESS_CAP }}
-              onChange={(patch) => {
-                setTuneProgress((t) => ({ ...t, ...patch }));
-                if (patch.progress !== undefined) setProgressOverride(patch.progress);
-              }}
-            />
-          </div>
-        )}
-
-        {/* TEMPORARY — soil X/Y + zoom tuner, mobile only (hardcode + flip off when final). */}
-        {SHOW_SOIL_TUNER && (
-          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
-            <PlacementTuner
-              title="Soil (temp)"
-              logTag="compete-soil"
-              transform={soilTune}
-              rows={[
-                { key: 'x', label: 'Move X (left / right)', min: -50, max: 50, step: 1 },
-                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
-                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
-              ]}
-              defaults={DEFAULT_IMAGE_TRANSFORM}
-              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
-              compact
-            />
-          </div>
-        )}
-
-        {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
-        {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="compete-tuner absolute bottom-4 right-4 z-30 w-60">
-            <PlacementTuner
-              title="Dream stretch (temp)"
-              logTag="compete-dream-stretch"
-              transform={dreamStretch}
-              rows={DREAM_STRETCH_SLIDER_ROWS}
-              defaults={DEFAULT_DREAM_STRETCH}
-              onChange={(patch) => setDreamStretch((t) => ({ ...t, ...patch }))}
-            />
-          </div>
-        )}
-
-        {/* TEMPORARY — gold-ring width tuner (hardcode + flip off when final). */}
-        {SHOW_RING_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="compete-tuner absolute bottom-4 right-4 z-30 w-60">
-            <PlacementTuner
-              title="Gold ring (temp)"
-              logTag="compete-ring"
-              transform={ring}
-              rows={RING_SLIDER_ROWS}
-              defaults={DEFAULT_RING}
-              onChange={(patch) => setRing((t) => ({ ...t, ...patch }))}
-            />
-          </div>
-        )}
-
-        {/* Slim progress slider — hidden for now, capped at 97% */}
-        {SHOW_PROGRESS_SLIDER && (
-          <div className="absolute bottom-4 left-4 z-20 w-44 sm:bottom-6 sm:left-6">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-              <span>Progress</span>
-              <span className="font-mono text-stone-400">{Math.round(progress * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={PROGRESS_CAP}
-              step={0.01}
-              value={scrubbed}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                console.log('[compete-progress]', `{ progress: ${v.toFixed(2)} }`);
-                setProgressOverride(v === autoProgress ? null : v);
-              }}
-              className="mt-1.5 w-full accent-lime-300"
-            />
-          </div>
-        )}
       </div>
 
       {/* Overall tracker module — big overlay with the growth calendar
