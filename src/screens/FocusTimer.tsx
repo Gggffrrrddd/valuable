@@ -408,19 +408,24 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 1023.5px)').matches
     ) {
-      // Blank-slate rebuild, step 1: jar BACKGROUND only. contain = the full
-      // artwork always visible, zero crop on any phone shape (no cover math).
-      // Aquarium stays blank for now (next step). Header + nav paint above.
+      // Blank-slate rebuild, step 2: FULL desktop jar (scene + water + fish +
+      // rain + clouds, all animations) inside an aspect-locked landscape
+      // stage. Box is exactly 1672:941, so cover-fit overflow ≈ 0 — no cut
+      // on any phone shape, portrait or landscape. Aquarium blank (next).
       return (
         <div className="mob-sim fixed inset-0 z-30 bg-[#090b0a]">
           {!playsAquarium && (
-            <img
-              src="/visuals/jar/jar-scene.png"
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-contain"
-              draggable={false}
-            />
+            <div className="absolute inset-0 flex items-center justify-center px-3 pb-28 pt-28">
+              <div
+                className="w-full overflow-hidden rounded-2xl"
+                style={{
+                  aspectRatio: '1672 / 941',
+                  maxWidth: 'min(100%, calc((100dvh - 15rem) * 1.7771))',
+                }}
+              >
+                <JarVisual progress={progress} running={phase === 'focus'} />
+              </div>
+            </div>
           )}
         </div>
       );
