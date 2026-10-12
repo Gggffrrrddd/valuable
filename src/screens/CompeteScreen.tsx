@@ -48,10 +48,15 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  */
 const SHOW_RING_TUNER = false;
 /**
- * Tree rotation+zoom tuner is VISIBLE on mobile only — tune live, then
+ * Tree rotation+zoom tuner is HIDDEN — hardcode when final;
+ * flip on to re-tune live (rows stay below).
+ */
+const SHOW_JOINT_TUNER = false;
+/**
+ * Soil X/Y+zoom tuner is VISIBLE on mobile only — tune live, then
  * hardcode + flip off when final.
  */
-const SHOW_JOINT_TUNER = true;
+const SHOW_SOIL_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -88,9 +93,9 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
-  /** TEMPORARY: separate live placement for tree video (hardcode when final). */
+  /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
   const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
-  const [soilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
+  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -267,7 +272,7 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — tree rotation + zoom tuner, mobile only (hardcode + flip off when final). */}
+        {/* TEMPORARY — tree rotation + zoom tuner, mobile only (hidden; flip SHOW_JOINT_TUNER to re-tune). */}
         {SHOW_JOINT_TUNER && (
           <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
             <PlacementTuner
@@ -280,6 +285,24 @@ export default function CompeteScreen() {
               ]}
               defaults={DEFAULT_VIDEO_TRANSFORM}
               onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
+            />
+          </div>
+        )}
+
+        {/* TEMPORARY — soil X/Y + zoom tuner, mobile only (hardcode + flip off when final). */}
+        {SHOW_SOIL_TUNER && (
+          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
+            <PlacementTuner
+              title="Soil (temp)"
+              logTag="compete-soil"
+              transform={soilTune}
+              rows={[
+                { key: 'x', label: 'Move X (left / right)', min: -50, max: 50, step: 1 },
+                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
+              ]}
+              defaults={DEFAULT_IMAGE_TRANSFORM}
+              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
             />
           </div>
         )}

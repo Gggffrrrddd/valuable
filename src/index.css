@@ -1646,15 +1646,12 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile portrait: only the tree video shows, exactly as desktop
-   (no shift, no soil, no cards/tuners). Desktop untouched.
+   Compete mobile portrait: only the tree video + soil show (desktop
+   visuals), exactly as desktop (no shift). Everything else stays hidden.
+   Desktop untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
-    display: none;
-  }
-  /* Soil hidden — only the tree video shows on mobile. */
-  .compete-tree-stage > img {
     display: none;
   }
 }
