@@ -408,7 +408,22 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 1023.5px)').matches
     ) {
-      return <div className="mob-sim fixed inset-0 z-30 bg-[#090b0a]" />;
+      // Blank-slate rebuild, step 1: jar BACKGROUND only. contain = the full
+      // artwork always visible, zero crop on any phone shape (no cover math).
+      // Aquarium stays blank for now (next step). Header + nav paint above.
+      return (
+        <div className="mob-sim fixed inset-0 z-30 bg-[#090b0a]">
+          {!playsAquarium && (
+            <img
+              src="/visuals/jar/jar-scene.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-contain"
+              draggable={false}
+            />
+          )}
+        </div>
+      );
     }
     return (
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
