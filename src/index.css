@@ -1670,3 +1670,26 @@ button .butterfly-constellation {
      button is absolutely positioned onto the middle slot from JS, so it
      stays visible below the sticky header without moving the row. */
 }
+/* --------------------------------------------------------------------------
+   Compete desktop: with exactly 1 dream, the plus docks to the row's
+   top-right corner (mobile keeps the peek-above-dream placement).
+   The row stretches full-width only in this state so the corner anchor
+   is the stage edge; pointer-events pass through except on buttons so
+   nothing underneath gets blocked. All other counts are untouched.
+   -------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  .compete-dreams.has-one {
+    left: 0;
+    right: 0;
+    transform: none;
+    pointer-events: none;
+  }
+  .compete-dreams.has-one button {
+    pointer-events: auto;
+  }
+  .compete-dreams.has-one .dream-plus-one {
+    left: auto;
+    right: 1.5rem;
+    transform: none !important;
+  }
+}

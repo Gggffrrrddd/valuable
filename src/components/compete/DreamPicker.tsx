@@ -145,12 +145,12 @@ export default function DreamPicker({
   // slot transform so it sits in the visible tree area on both platforms
   // — never stranded at the row top behind the mobile header. liftPct
   // raises it above the slot (1-image peek).
-  const plusAt = (key: string, slotIdx: number, liftPct = 0) => {
+  const plusAt = (key: string, slotIdx: number, liftPct = 0, extraClass = '') => {
     const t = transforms?.[slotIdx] ?? IDENTITY;
     return (
       <div
         key={key}
-        className="absolute left-1/2 top-0"
+        className={`absolute left-1/2 top-0 ${extraClass}`}
         style={{
           transform: `translate(-50%, ${liftPct}%) translate(${t.x}%, ${t.y}%) scale(${t.zoom * PLUS_SCALE})`,
         }}
@@ -180,16 +180,19 @@ export default function DreamPicker({
     plus = plusAt('add', 1);
   } else if (images.length === 1) {
     items = [circle(0, 1)];
-    // Lifted clear above the dream: full plus visible, bottom edge just
-    // kissing the dream top (header is far above this spot).
-    plus = plusAt('add', 1, -120);
+    // Mobile: lifted clear above the dream (full plus visible, bottom
+    // edge just kissing the dream top). Desktop: docked to the row's
+    // top-right corner via .dream-plus-one (see index.css).
+    plus = plusAt('add', 1, -120, 'dream-plus-one');
   } else {
     items = [circle(0, 0), circle(1, 2)];
     plus = plusAt('add', 1);
   }
 
   return (
-    <div className="compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
+    <div
+      className={`compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6 ${images.length === 1 ? 'has-one' : ''}`}
+    >
       <div className="relative flex items-start justify-center gap-3 sm:gap-4">
         {plus}
         {items}
