@@ -1654,4 +1654,9 @@ button .butterfly-constellation {
   .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
     display: none;
   }
+  /* Full tree visible on mobile: contain instead of cover (no side crop).
+     Screen blend + dark stage bg makes the letterbox bars invisible. */
+  .compete-tree-stage > video {
+    object-fit: contain;
+  }
 }
