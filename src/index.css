@@ -1661,6 +1661,11 @@ button .butterfly-constellation {
   .compete-tree-stage > img {
     display: none;
   }
+  /* Tree moved off-screen on mobile — still rendered (not display:none);
+     inline transform is overridden with !important. */
+  .compete-tree-stage > video {
+    transform: translateY(-200%) !important;
+  }
 }
 @media (min-width: 1024px) {
   .compete-tree-stage {
