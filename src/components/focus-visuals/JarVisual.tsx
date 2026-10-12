@@ -255,6 +255,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         w = rect.width;
         h = rect.height;
       }
+      // Gate: never apply a collapsed/0×0/stale box to the scene — keep the
+      // previous (sane aspect-correct) viewport until a real size lands.
+      if (w < 1 || h < 1) return;
       measureSrcRef.current = src;
       setViewport((prev) =>
         Math.abs(prev.width - w) < 0.5 && Math.abs(prev.height - h) < 0.5 ? prev : { width: w, height: h },
