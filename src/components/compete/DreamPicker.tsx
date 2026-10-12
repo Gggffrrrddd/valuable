@@ -136,34 +136,48 @@ export default function DreamPicker({
     />
   );
 
-  // Arrangement (plus always lives in the middle slot, same size as circles):
-  //  0 → [plus] centred; 1 → [circle] centred with plus behind it (covered);
-  //  2 → [circle, plus, circle] symmetric, plus visible in the middle;
-  //  3 → gentle arc crowning the tree with plus behind the middle circle
-  //      (covered) — sides lower, centre highest.
+  // Arrangement (derived from count → reversing on remove is automatic):
+  //  0 → [plus] centred (where the middle dream would be);
+  //  1 → [circle] centred, plus peeks just above it (clickable);
+  //  2 → [circle, plus, circle] symmetric — plus in the middle slot;
+  //  3 → gentle arc crowning the tree — NO plus at all.
+  // In-flow plus buttons carry .dream-add-flow so mobile CSS can push them
+  // below the fixed header (row top sits behind it).
   let items;
   let plusBehind = false;
+  let plusPeek = false;
   if (images.length >= MAX_DREAM_IMAGES) {
     items = [
       circle(0, 'translate-y-[10px] md:translate-y-[14px]'),
       circle(1),
       circle(2, 'translate-y-[10px] md:translate-y-[14px]'),
     ];
-    plusBehind = true;
   } else if (images.length === 0) {
-    items = [addBtn('add')];
+    items = [addBtn('add', 'dream-add-flow')];
   } else if (images.length === 1) {
     items = [circle(0)];
     plusBehind = true;
+    plusPeek = true;
   } else {
-    items = [circle(0), addBtn('add'), circle(1)];
+    items = [circle(0), addBtn('add', 'dream-add-flow'), circle(1)];
   }
+
+  // Middle circle index for the behind-plus (1 image → circle 0).
+  const midIdx = 0;
+  const mid = transforms?.[midIdx] ?? IDENTITY;
+  // 1-image: lift plus above the circle (peek) instead of covering it.
+  const behindY = plusPeek ? -55 : 0;
 
   return (
     <div className="compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
       <div className="relative flex items-start justify-center gap-3 sm:gap-4">
         {plusBehind && (
-          <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2">
+          <div
+            className="absolute left-1/2 top-0"
+            style={{
+              transform: `translate(-50%, ${behindY}%) translate(${mid.x}%, ${mid.y}%) scale(${mid.zoom})`,
+            }}
+          >
             {addBtn('add-behind')}
           </div>
         )}

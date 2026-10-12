@@ -1665,4 +1665,8 @@ button .butterfly-constellation {
   .compete-tree-stage > img {
     transform: translate(-1%, 33%) scale(1.14) !important;
   }
+  /* Push dreams row below the sticky header (top-4 sits behind it). */
+  .compete-dreams {
+    margin-top: 3.5rem;
+  }
 }
