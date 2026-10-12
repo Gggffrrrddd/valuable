@@ -244,23 +244,23 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — single dream-circle tuner (pick 1/2/3, then X/Y/zoom).
-            Mobile only; hardcode + flip off when final. */}
+        {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/zoom).
+            Overlaps the plant; mobile only; hardcode + flip off when final. */}
         {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="compete-tuner absolute bottom-4 left-4 right-4 z-30 lg:hidden">
-            <div className="mb-1.5 flex gap-1">
+          <div className="compete-tuner absolute bottom-[28%] left-3 right-3 z-30 lg:hidden">
+            <div className="mb-1 flex gap-1">
               {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((_, i) => (
                 <button
                   key={`dream-tab-${i}`}
                   type="button"
                   onClick={() => setDreamTuneIdx(i)}
-                  className={`flex-1 rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition ${
+                  className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
                     dreamTuneIdx === i
                       ? 'border-lime-300/60 bg-lime-300/15 text-lime-200'
                       : 'border-white/10 bg-black/40 text-stone-500 hover:text-stone-300'
                   }`}
                 >
-                  Dream {i + 1}
+                  s{i + 1}
                 </button>
               ))}
             </div>
