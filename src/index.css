@@ -1665,8 +1665,8 @@ button .butterfly-constellation {
   .compete-tree-stage > img {
     transform: translate(-1%, 33%) scale(1.14) !important;
   }
-  /* Push dreams row below the sticky header (top-4 sits behind it). */
-  .compete-dreams {
-    margin-top: 3.5rem;
-  }
+  /* NOTE: the dreams row itself is never shifted here — dream circles
+     must land exactly on their hardcoded slot transforms. The plus
+     button is absolutely positioned onto the middle slot from JS, so it
+     stays visible below the sticky header without moving the row. */
 }
