@@ -217,10 +217,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const floorGradientId = `jar-floor-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
-  // Explicit px box (compact only): pins the container to the measured
-  // stage size so ancestor CSS states (stale/mixed stylesheets,
-  // display:contents wrappers, flex quirks) can never shrink the scene.
-  const [boxPx, setBoxPx] = useState<{ w: number; h: number } | null>(null);
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
@@ -279,11 +275,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       // previous (sane aspect-correct) viewport until a real size lands.
       if (w < 1 || h < 1) return;
       measureSrcRef.current = src;
-      if (compactNow) {
-        setBoxPx((prev) =>
-          prev && Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
-        );
-      }
       setViewport((prev) =>
         Math.abs(prev.width - w) < 0.5 && Math.abs(prev.height - h) < 0.5 ? prev : { width: w, height: h },
       );
@@ -487,7 +478,21 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
 
   return (
-    <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: compact ? 'absolute' : 'relative', inset: compact ? 0 : undefined, margin: compact ? 'auto' : undefined, width: boxPx ? `${boxPx.w}px` : '100%', height: boxPx ? `${boxPx.h}px` : '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
+    <div
+      ref={containerRef}
+      className={`focus-visual ${complete ? 'visual-complete' : ''}`}
+      style={{
+        position: compact ? 'absolute' : 'relative',
+        inset: compact ? 0 : undefined,
+        width: '100%',
+        height: '100%',
+        maxWidth: compact ? 'none' : undefined,
+        maxHeight: compact ? 'none' : undefined,
+        overflow: 'hidden',
+      }}
+      role="img"
+      aria-label={`Water jar ${Math.round(value * 100)} percent complete`}
+    >
       <style>{keyframes}</style>
       <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
         <defs>

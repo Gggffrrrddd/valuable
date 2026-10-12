@@ -1507,6 +1507,14 @@ button .butterfly-constellation {
     width: 100% !important;
     height: 100% !important;
   }
+  .jr-sim .focus-visual {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
   /* Mobile jar: flip clock hidden — the jar owns the full stage, nothing
      overlaps it. Coarse-only, so desktop keeps its side-by-side clock. */
   .jr-sim .jar-focus-layout > div:last-child {
