@@ -47,6 +47,11 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  * flip this on to re-tune live (rows stay in placementConfig).
  */
 const SHOW_RING_TUNER = false;
+/**
+ * Joint Y+zoom tuner is VISIBLE on mobile only — one panel moves tree+soil
+ * together; flip off + hardcode when final.
+ */
+const SHOW_JOINT_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -83,6 +88,9 @@ export default function CompeteScreen() {
   const [ring, setRing] = useState<RingTune>(DEFAULT_RING);
   /** Overall-tracker module (growth calendar) open state. */
   const [trackerOpen, setTrackerOpen] = useState(false);
+  /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
+  const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
+  const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -210,8 +218,8 @@ export default function CompeteScreen() {
       <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         {/* Mobile portrait: video + soil shifted down to touch the nav */}
         <div className="compete-tree-stage absolute inset-0">
-          <TreeVideo transform={DEFAULT_VIDEO_TRANSFORM} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-          <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
+          <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+          <SoilOverlay transform={soilTune} />
         </div>
 
         {/* Today's status (+ overall-tracker text link underneath) */}
@@ -258,6 +266,34 @@ export default function CompeteScreen() {
           onAdd={addDream}
           onRemove={removeDream}
         />
+
+        {/* TEMPORARY — separate tree + soil Y/zoom tuners, mobile only (hardcode + flip off when final). */}
+        {SHOW_JOINT_TUNER && (
+          <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
+            <PlacementTuner
+              title="Tree (temp)"
+              logTag="compete-tree"
+              transform={treeTune}
+              rows={[
+                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
+              ]}
+              defaults={DEFAULT_VIDEO_TRANSFORM}
+              onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
+            />
+            <PlacementTuner
+              title="Soil (temp)"
+              logTag="compete-soil"
+              transform={soilTune}
+              rows={[
+                { key: 'y', label: 'Move Y (up / down)', min: -30, max: 60, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
+              ]}
+              defaults={DEFAULT_IMAGE_TRANSFORM}
+              onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
+            />
+          </div>
+        )}
 
         {/* TEMPORARY — dream-image stretch tuner (remove once hardcoded). */}
         {SHOW_DREAM_STRETCH_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
