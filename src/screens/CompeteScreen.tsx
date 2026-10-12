@@ -96,6 +96,8 @@ export default function CompeteScreen() {
   /** TEMPORARY: separate live placement for tree video + soil (hardcode when final). */
   const [treeTune, setTreeTune] = useState<PlacementTransform>(DEFAULT_VIDEO_TRANSFORM);
   const [soilTune, setSoilTune] = useState<PlacementTransform>(DEFAULT_IMAGE_TRANSFORM);
+  /** TEMPORARY: live video-progress scrub — replaces the hardcoded 97% cap. */
+  const [tuneProgress, setTuneProgress] = useState({ progress: PROGRESS_CAP });
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -213,7 +215,8 @@ export default function CompeteScreen() {
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   const scrubbed = Math.min(PROGRESS_CAP, progressOverride ?? autoProgress);
-  const progress = SHOW_PROGRESS_SLIDER ? scrubbed : PROGRESS_CAP;
+  // TEMPORARY: 97% cap bypassed — tuner progress slider drives the video directly.
+  const progress = progressOverride ?? PROGRESS_CAP;
   const complete = autoProgress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
@@ -272,7 +275,7 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — tree rotate + zoom + XY tuner, mobile only (hardcode + flip off when final). */}
+        {/* TEMPORARY — tree zoom+XY + video-progress tuner, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
           <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
             <PlacementTuner
@@ -280,13 +283,25 @@ export default function CompeteScreen() {
               logTag="compete-tree"
               transform={treeTune}
               rows={[
-                { key: 'rot', label: 'Rotation (deg)', min: -180, max: 180, step: 1 },
                 { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
                 { key: 'x', label: 'Move X (left / right)', min: -50, max: 50, step: 1 },
                 { key: 'y', label: 'Move Y (up / down)', min: -50, max: 50, step: 1 },
               ]}
               defaults={DEFAULT_VIDEO_TRANSFORM}
               onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
+            />
+            <PlacementTuner
+              title="Video progress (temp)"
+              logTag="compete-progress"
+              transform={tuneProgress}
+              rows={[
+                { key: 'progress', label: 'Progress (video scrub)', min: 0, max: 1, step: 0.01 },
+              ]}
+              defaults={{ progress: PROGRESS_CAP }}
+              onChange={(patch) => {
+                setTuneProgress((t) => ({ ...t, ...patch }));
+                if (patch.progress !== undefined) setProgressOverride(patch.progress);
+              }}
             />
           </div>
         )}
