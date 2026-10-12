@@ -233,6 +233,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   // catch a collapsed/stale square (393x393) while the feed box is already at
   // its final 16:9 size — and cover-fit then crops ~122px off the left edge.
   // Feed-first keeps the measurement glued to the real rendered box.
+  // Transform-independent sizes: getBoundingClientRect is viewport-space, so
+  // inside the rotated portrait sim it returns the 90°-swapped (portrait)
+  // box and cover-fit cuts the jar's left edge (which the rotation puts at
+  // the phone's top — reads as a "cut under the header"). offsetWidth /
+  // offsetHeight are layout sizes, always the true unrotated box (same
+  // pattern TreeVisual uses for stage space).
   const measureSrcRef = useRef('init');
   useEffect(() => {
     const element = containerRef.current;
@@ -243,17 +249,17 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       let h = 0;
       let src = 'self';
       if (feed) {
-        const rect = feed.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          w = rect.width;
-          h = rect.height;
+        const fw = feed.offsetWidth;
+        const fh = feed.offsetHeight;
+        if (fw > 0 && fh > 0) {
+          w = fw;
+          h = fh;
           src = 'feed';
         }
       }
       if (src === 'self') {
-        const rect = element.getBoundingClientRect();
-        w = rect.width;
-        h = rect.height;
+        w = element.offsetWidth;
+        h = element.offsetHeight;
       }
       // Gate: never apply a collapsed/0×0/stale box to the scene — keep the
       // previous (sane aspect-correct) viewport until a real size lands.
