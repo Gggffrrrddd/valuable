@@ -347,6 +347,70 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const offsetX = (viewport.width - IMG_W * scale) * OBJECT_POSITION.x;
   const offsetY = (viewport.height - IMG_H * scale) * OBJECT_POSITION.y;
   const sceneTransform = `translate(${offsetX} ${offsetY}) scale(${scale})`;
+
+  // DIAGNOSTIC (temporary): why the jar scene gets cropped — especially the
+  // left edge. The scene uses cover-fit: scale = max(w/1672, h/941), then the
+  // overflow is split 40% left / 60% right (OBJECT_POSITION.x = 0.4). Whenever
+  // the measured container is TALLER than 16:9, the left side is cut by
+  // (1672*scale - viewport.width) * 0.4 scene-px. Fires on mount + resize.
+  useEffect(() => {
+    const scaledW = IMG_W * scale;
+    const scaledH = IMG_H * scale;
+    const overflowX = Math.max(0, scaledW - viewport.width);
+    const overflowY = Math.max(0, scaledH - viewport.height);
+    const feed = containerRef.current?.parentElement ?? null;
+    const feedStyle = feed ? getComputedStyle(feed) : null;
+    console.log(
+      '[jar-crop] viewport=%dx%d (aspect %s) scale=%s scene=%dx%d overflowX=%s overflowY=%s ' +
+        'cropL=%s cropR=%s cropT=%s cropB=%s (scene px) objPos=%s/%s',
+      Math.round(viewport.width),
+      Math.round(viewport.height),
+      (viewport.width / Math.max(1, viewport.height)).toFixed(3),
+      scale.toFixed(4),
+      Math.round(scaledW),
+      Math.round(scaledH),
+      overflowX.toFixed(1),
+      overflowY.toFixed(1),
+      (overflowX * OBJECT_POSITION.x).toFixed(1),
+      (overflowX * (1 - OBJECT_POSITION.x)).toFixed(1),
+      (overflowY * OBJECT_POSITION.y).toFixed(1),
+      (overflowY * (1 - OBJECT_POSITION.y)).toFixed(1),
+      OBJECT_POSITION.x,
+      OBJECT_POSITION.y,
+    );
+    console.log(
+      '[jar-crop] feed=<%s class="%s"> %dx%d display=%s | coarse=%s orient=%s win=%dx%d dpr=%s',
+      feed?.tagName ?? '?',
+      feed?.className ?? '?',
+      feed?.clientWidth ?? -1,
+      feed?.clientHeight ?? -1,
+      feedStyle?.display ?? '?',
+      window.matchMedia('(pointer: coarse)').matches,
+      window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
+      window.innerWidth,
+      window.innerHeight,
+      window.devicePixelRatio,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewport.width, viewport.height]);
+
+  // DIAGNOSTIC (temporary): the inner <image> assumes jar-scene.png is exactly
+  // 1672x941. If the real PNG differs, SVG meet-fit letterboxes it inside that
+  // box — an extra hidden shift that also reads as a "cut".
+  useEffect(() => {
+    const probe = new Image();
+    probe.src = JAR_SCENE_URL;
+    probe.onload = () => {
+      console.log(
+        '[jar-crop] jar-scene.png natural=%dx%d expected=%dx%d match=%s',
+        probe.naturalWidth,
+        probe.naturalHeight,
+        IMG_W,
+        IMG_H,
+        probe.naturalWidth === IMG_W && probe.naturalHeight === IMG_H,
+      );
+    };
+  }, []);
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
 
   return (
