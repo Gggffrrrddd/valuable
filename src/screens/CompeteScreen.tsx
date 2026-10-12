@@ -32,14 +32,20 @@ import type { CompeteGoal } from '@/types';
 /** Scrub cap: progress sits at a static 97%. */
 const PROGRESS_CAP = 0.97;
 
-/** Hardcoded per-circle placement (read off the Dream tuner). */
+/** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -281, y: 195, zoom: 1.5 },
   { x: 2, y: 108, zoom: 1.545 },
   { x: 238, y: 195, zoom: 1.5 },
 ];
-/** TEMPORARY — live X/Y tuner for the 3 dream circles (mobile only). */
-const SHOW_DREAM_XY_TUNER = true;
+/** Hardcoded per-circle placement — MOBILE values (tuned on mobile portrait). */
+const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
+  { x: -146, y: 593, zoom: 1.5 },
+  { x: -2, y: 462, zoom: 1.6 },
+  { x: 128, y: 593, zoom: 1.5 },
+];
+/** TEMPORARY — dream-circle tuner is HIDDEN (values hardcoded above). */
+const SHOW_DREAM_XY_TUNER = false;
 
 /**
  * Compete: the daily-tree ritual.
@@ -66,7 +72,11 @@ export default function CompeteScreen() {
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
-  const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(DREAM_CIRCLE_TRANSFORMS);
+  const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
+      ? MOBILE_DREAM_CIRCLE_TRANSFORMS
+      : DREAM_CIRCLE_TRANSFORMS
+  );
   /** Which dream circle the single tuner is editing (0/1/2). */
   const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
 

@@ -42,25 +42,27 @@ function DreamCircle({
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
       >
-        {/* Premium gold gradient ring (rose-pink glow radiates from it)
-            behind the flat photo circle; both scale with the transform. */}
+        {/* Premium gold gradient ring (rose-pink glow radiates from it):
+            padding-band so the ring is always a clean uniform circle,
+            photo clipped inside. */}
         <div
-          className="absolute rounded-full"
+          className="h-full w-full rounded-full"
           style={{
-            inset: `-${ringWidth}px`,
+            padding: ringWidth,
             background:
               'linear-gradient(145deg, #fdf0cd 0%, #f0d089 22%, #cf9f3a 50%, #a87b25 68%, #f2d48f 88%, #fff8e6 100%)',
             boxShadow: GLOW,
           }}
-        />
-        <div className="absolute inset-0 overflow-hidden rounded-full">
-          <img
-            src={src}
-            alt=""
-            draggable={false}
-            className="h-full w-full object-cover"
-            style={{ transform: `scale(${stretch.x}, ${stretch.y})` }}
-          />
+        >
+          <div className="h-full w-full overflow-hidden rounded-full">
+            <img
+              src={src}
+              alt=""
+              draggable={false}
+              className="h-full w-full object-cover"
+              style={{ transform: `scale(${stretch.x}, ${stretch.y})` }}
+            />
+          </div>
         </div>
         <button
           type="button"
@@ -109,14 +111,14 @@ export default function DreamPicker({
     if (file) onAdd(file);
   };
 
-  const addBtn = (
+  const addBtn = (key: string, extraClass = '') => (
     <button
-      key="add"
+      key={key}
       type="button"
       onClick={() => inputRef.current?.click()}
       disabled={busy}
       aria-label="Add dream image"
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40 sm:h-16 sm:w-16"
+      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40 sm:h-16 sm:w-16 ${extraClass}`}
     >
       <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
     </button>
@@ -134,28 +136,39 @@ export default function DreamPicker({
     />
   );
 
-  // Arrangement:
-  //  0 → [add] centred; 1 → [add, circle] (circle right of centre);
-  //  2 → [circle, add, circle] symmetric with add between;
-  //  3 → gentle arc crowning the tree — sides lower, centre highest, no add.
+  // Arrangement (plus always lives in the middle slot, same size as circles):
+  //  0 → [plus] centred; 1 → [circle] centred with plus behind it (covered);
+  //  2 → [circle, plus, circle] symmetric, plus visible in the middle;
+  //  3 → gentle arc crowning the tree with plus behind the middle circle
+  //      (covered) — sides lower, centre highest.
   let items;
+  let plusBehind = false;
   if (images.length >= MAX_DREAM_IMAGES) {
     items = [
       circle(0, 'translate-y-[10px] md:translate-y-[14px]'),
       circle(1),
       circle(2, 'translate-y-[10px] md:translate-y-[14px]'),
     ];
+    plusBehind = true;
   } else if (images.length === 0) {
-    items = [addBtn];
+    items = [addBtn('add')];
   } else if (images.length === 1) {
-    items = [addBtn, circle(0)];
+    items = [circle(0)];
+    plusBehind = true;
   } else {
-    items = [circle(0), addBtn, circle(1)];
+    items = [circle(0), addBtn('add'), circle(1)];
   }
 
   return (
     <div className="compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
-      <div className="flex items-start justify-center gap-3 sm:gap-4">{items}</div>
+      <div className="relative flex items-start justify-center gap-3 sm:gap-4">
+        {plusBehind && (
+          <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2">
+            {addBtn('add-behind')}
+          </div>
+        )}
+        {items}
+      </div>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>
   );
