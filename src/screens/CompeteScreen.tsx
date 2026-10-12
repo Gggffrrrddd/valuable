@@ -211,7 +211,7 @@ export default function CompeteScreen() {
 
         {/* Today's status (+ overall-tracker text link underneath) */}
         <div
-          className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
+          className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
           style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
         >
           <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
@@ -299,7 +299,7 @@ export default function CompeteScreen() {
           (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
       {trackerOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          className="compete-tracker fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setTrackerOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -309,7 +309,7 @@ export default function CompeteScreen() {
             className="relative w-full max-w-4xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="max-h-[86vh] overflow-y-auto">
+            <div className="compete-tracker-scroll max-h-[86vh] overflow-y-auto">
               <GoalHeatmap
                 startDate={goal.start_date || goal.created_at.slice(0, 10)}
                 examDate={goal.exam_date}

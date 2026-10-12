@@ -1651,8 +1651,24 @@ button .butterfly-constellation {
    (cards, dream picker, tuners) hidden. Progress is static 97%.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage):not(.compete-dreams):not(.compete-tuner) {
+  .compete-stage > :not(.compete-tree-stage):not(.compete-dreams):not(.compete-tuner):not(.compete-today) {
     display: none;
+  }
+  /* Today's-tree card on mobile: top-left like desktop, below the sticky
+     header, scaled down to mobile size (!important beats the inline 0.84). */
+  .compete-today {
+    top: 6rem !important;
+    left: 0.75rem !important;
+    transform: scale(0.62) !important;
+  }
+  /* Tracker overlay on mobile: clear the sticky header (top) and bottom
+     nav, both of which paint above the overlay (z-60 vs overlay's z-50
+     stacking context). Content height shrinks to fit between them. */
+  .compete-tracker {
+    padding: 6.5rem 1rem 6rem !important;
+  }
+  .compete-tracker .compete-tracker-scroll {
+    max-height: 68vh;
   }
   /* Full tree visible on mobile: contain instead of cover (no side crop).
      Screen blend + dark stage bg makes the letterbox bars invisible.
