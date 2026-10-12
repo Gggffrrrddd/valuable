@@ -1487,14 +1487,25 @@ button .butterfly-constellation {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     max-height: none !important;
     flex: none !important;
   }
   .jr-sim .jar-focus-layout > div:first-child > div {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
     height: 100% !important;
     max-height: none !important;
     max-width: none !important;
+    display: block !important;
+  }
+  .jr-sim .jr-fit-classic {
+    display: block !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
   }
   /* Mobile jar: flip clock hidden — the jar owns the full stage, nothing
      overlaps it. Coarse-only, so desktop keeps its side-by-side clock. */

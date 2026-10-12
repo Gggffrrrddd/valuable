@@ -217,9 +217,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const floorGradientId = `jar-floor-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
-  // True once a real (non-zero) box has been measured — the scene renders
-  // only after that, so no stale/default size is ever painted.
-  const [measured, setMeasured] = useState(false);
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
@@ -267,7 +264,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       // Gate: never apply a collapsed/0×0/stale box to the scene — keep the
       // previous (sane aspect-correct) viewport until a real size lands.
       if (w < 1 || h < 1) return;
-      setMeasured(true);
       measureSrcRef.current = src;
       setViewport((prev) =>
         Math.abs(prev.width - w) < 0.5 && Math.abs(prev.height - h) < 0.5 ? prev : { width: w, height: h },
@@ -470,12 +466,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   return (
     <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
       <style>{keyframes}</style>
-      {/* SVG element sized to the EXACT px the crop-math/viewport uses —
-          never 100% (percentage resolution can disagree with the measured
-          box and leave a void). Gated on `measured` so the pre-measure
-          default (1672×941) is never painted at fixed px. */}
-      {measured && (
-      <svg width={viewport.width} height={viewport.height} viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" aria-hidden="true">
+      <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
         <defs>
           <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} mask-type="alpha">
             <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" />
@@ -595,7 +586,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </g>
         </g>
       </svg>
-      )}
 
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
