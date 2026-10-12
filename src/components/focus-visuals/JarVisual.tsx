@@ -217,6 +217,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const floorGradientId = `jar-floor-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
+  // Explicit px box (compact only): pins the container to the measured
+  // stage size so ancestor CSS states (stale/mixed stylesheets,
+  // display:contents wrappers, flex quirks) can never shrink the scene.
+  const [boxPx, setBoxPx] = useState<{ w: number; h: number } | null>(null);
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
@@ -227,34 +231,44 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
   const rainLaneCursor = useRef(0);
 
-  // Viewport source: the feed-box element (class "jr-fit-classic" parent) when
-  // it renders a real box; otherwise this container itself (desktop keeps the
-  // wrapper at display:contents = box-less). Measuring only the container can
-  // catch a collapsed/stale square (393x393) while the feed box is already at
-  // its final 16:9 size — and cover-fit then crops ~122px off the left edge.
-  // Feed-first keeps the measurement glued to the real rendered box.
-  // Transform-independent sizes: getBoundingClientRect is viewport-space, so
-  // inside the rotated portrait sim it returns the 90°-swapped (portrait)
-  // box and cover-fit cuts the jar's left edge (which the rotation puts at
-  // the phone's top — reads as a "cut under the header"). offsetWidth /
-  // offsetHeight are layout sizes, always the true unrotated box (same
-  // pattern TreeVisual uses for stage space).
+  // Viewport source (compact): the `.mob-sim` STAGE itself — always a
+  // definite, transform-independent box, immune to inner wrapper CSS
+  // states (stale/mixed stylesheets, display:contents feed, flex quirks).
+  // Desktop keeps the feed-first chain (feed box, else this container).
   const measureSrcRef = useRef('init');
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
     const measure = () => {
-      const feed = element.parentElement;
+      const compactNow =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(max-width: 1023.5px)').matches;
       let w = 0;
       let h = 0;
       let src = 'self';
-      if (feed) {
-        const fw = feed.offsetWidth;
-        const fh = feed.offsetHeight;
-        if (fw > 0 && fh > 0) {
-          w = fw;
-          h = fh;
-          src = 'feed';
+      if (compactNow) {
+        const stage = element.closest('.mob-sim') as HTMLElement | null;
+        if (stage) {
+          const sw = stage.offsetWidth;
+          const sh = stage.offsetHeight;
+          if (sw > 0 && sh > 0) {
+            w = sw;
+            h = sh;
+            src = 'stage';
+          }
+        }
+      }
+      if (src === 'self') {
+        const feed = element.parentElement;
+        if (feed) {
+          const fw = feed.offsetWidth;
+          const fh = feed.offsetHeight;
+          if (fw > 0 && fh > 0) {
+            w = fw;
+            h = fh;
+            src = 'feed';
+          }
         }
       }
       if (src === 'self') {
@@ -265,6 +279,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       // previous (sane aspect-correct) viewport until a real size lands.
       if (w < 1 || h < 1) return;
       measureSrcRef.current = src;
+      if (compactNow) {
+        setBoxPx((prev) =>
+          prev && Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
+        );
+      }
       setViewport((prev) =>
         Math.abs(prev.width - w) < 0.5 && Math.abs(prev.height - h) < 0.5 ? prev : { width: w, height: h },
       );
@@ -272,7 +291,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   // Dense, constant rainfall while the session runs: several drops per tick, so
@@ -464,7 +487,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterTransition = reducedMotion ? undefined : 'transform 1s linear';
 
   return (
-    <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
+    <div ref={containerRef} className={`focus-visual ${complete ? 'visual-complete' : ''}`} style={{ position: compact ? 'absolute' : 'relative', inset: compact ? 0 : undefined, margin: compact ? 'auto' : undefined, width: boxPx ? `${boxPx.w}px` : '100%', height: boxPx ? `${boxPx.h}px` : '100%', overflow: 'hidden' }} role="img" aria-label={`Water jar ${Math.round(value * 100)} percent complete`}>
       <style>{keyframes}</style>
       <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
         <defs>
