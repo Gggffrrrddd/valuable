@@ -1646,29 +1646,15 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile portrait: only video + soil show (desktop visuals),
-   shifted down so the mound touches the nav. Everything else stays as-is.
-   Desktop (>= 1024px) renders the full CompeteScreen untouched.
+   Compete mobile portrait: only the tree video shows, exactly as desktop
+   (no shift, no soil, no cards/tuners). Desktop untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
+  .compete-stage > :not(.compete-tree-stage) {
     display: none;
   }
-  .compete-tree-stage {
-    transform: translateY(8px);
-  }
-  /* Soil hidden for now on mobile (video stays). */
+  /* Soil hidden — only the tree video shows on mobile. */
   .compete-tree-stage > img {
     display: none;
-  }
-  /* Tree moved off-screen on mobile — still rendered (not display:none);
-     inline transform is overridden with !important. */
-  .compete-tree-stage > video {
-    transform: translateY(-200%) !important;
-  }
-}
-@media (min-width: 1024px) {
-  .compete-tree-stage {
-    transform: none;
   }
 }

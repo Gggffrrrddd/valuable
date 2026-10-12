@@ -51,7 +51,7 @@ const SHOW_RING_TUNER = false;
  * Joint Y+zoom tuner is VISIBLE on mobile only — one panel moves tree+soil
  * together; flip off + hardcode when final.
  */
-const SHOW_JOINT_TUNER = true;
+const SHOW_JOINT_TUNER = false;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
