@@ -482,12 +482,12 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       ref={containerRef}
       className={`focus-visual ${complete ? 'visual-complete' : ''}`}
       style={{
-        position: compact ? 'absolute' : 'relative',
-        inset: compact ? 0 : undefined,
+        position: 'absolute',
+        inset: 0,
         width: '100%',
         height: '100%',
-        maxWidth: compact ? 'none' : undefined,
-        maxHeight: compact ? 'none' : undefined,
+        maxWidth: 'none',
+        maxHeight: 'none',
         overflow: 'hidden',
       }}
       role="img"
