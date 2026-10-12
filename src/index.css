@@ -1479,12 +1479,21 @@ button .butterfly-constellation {
     align-items: center !important;
     padding: 0 !important;
   }
-  /* Mobile jar background REMOVED for now: the whole visual zone (jar scene
-     + aquarium art) is hidden from paint — session runs on the dark shell
-     with subject tag + status + controls only. Coarse-only; desktop renders
-     everything as before. */
+  /* Mobile jar visual zone: back, Hourglass-style — absolute full-bleed over
+     the stage (desktop row + absolute layout, same mechanism as hg-sim).
+     JarVisual fills it edge-to-edge like desktop. Coarse-only. */
   .jr-sim .jar-focus-layout > div:first-child {
-    display: none !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: none !important;
+  }
+  .jr-sim .jar-focus-layout > div:first-child > div {
+    height: 100% !important;
+    max-height: none !important;
+    max-width: none !important;
   }
   /* Mobile jar: flip clock hidden — the jar owns the full stage, nothing
      overlaps it. Coarse-only, so desktop keeps its side-by-side clock. */
