@@ -154,7 +154,7 @@ export default function DreamPicker({
   }
 
   return (
-    <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
+    <div className="compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6">
       <div className="flex items-start justify-center gap-3 sm:gap-4">{items}</div>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>

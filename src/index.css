@@ -1651,7 +1651,7 @@ button .butterfly-constellation {
    (cards, dream picker, tuners) hidden. Progress is static 97%.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage) {
+  .compete-stage > :not(.compete-tree-stage):not(.compete-dreams):not(.compete-tuner) {
     display: none;
   }
   /* Full tree visible on mobile: contain instead of cover (no side crop).

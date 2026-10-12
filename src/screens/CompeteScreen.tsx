@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
+import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import {
   DEFAULT_VIDEO_TRANSFORM,
@@ -37,6 +38,8 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: 2, y: 108, zoom: 1.545 },
   { x: 238, y: 195, zoom: 1.5 },
 ];
+/** TEMPORARY — live X/Y tuner for the 3 dream circles (mobile only). */
+const SHOW_DREAM_XY_TUNER = true;
 
 /**
  * Compete: the daily-tree ritual.
@@ -62,6 +65,8 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
+  /** TEMPORARY: live X/Y placement for the 3 dream circles (hardcode when final). */
+  const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(DREAM_CIRCLE_TRANSFORMS);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -229,13 +234,36 @@ export default function CompeteScreen() {
         {/* Dream images: bare glow circles crowning the tree */}
         <DreamPicker
           images={goal.dream_images ?? []}
-          transforms={DREAM_CIRCLE_TRANSFORMS}
+          transforms={dreamTune}
           stretch={DEFAULT_DREAM_STRETCH}
           ringWidth={DEFAULT_RING.ring}
           busy={dreamBusy}
           onAdd={addDream}
           onRemove={removeDream}
         />
+
+        {/* TEMPORARY — dream-circle X/Y tuner for all 3, mobile only (hardcode + flip off). */}
+        {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
+          <div className="compete-tuner absolute bottom-4 left-4 right-4 z-30 space-y-2 lg:hidden">
+            {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((t, i) => (
+              <PlacementTuner
+                key={`dream-xy-${i}`}
+                title={`Dream ${i + 1} (temp)`}
+                logTag={`compete-dream-${i}`}
+                transform={t}
+                rows={[
+                  { key: 'x', label: 'Move X (left / right)', min: -400, max: 400, step: 1 },
+                  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 400, step: 1 },
+                ]}
+                defaults={DREAM_CIRCLE_TRANSFORMS[i]}
+                onChange={(patch) =>
+                  setDreamTune((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)))
+                }
+                compact
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Overall tracker module — big overlay with the growth calendar
