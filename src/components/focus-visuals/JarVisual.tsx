@@ -227,12 +227,41 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const jarExtentRef = useRef(JAR_EXTENT_FALLBACK);
   const rainLaneCursor = useRef(0);
 
+  // Viewport source: the feed-box element (class "jr-fit-classic" parent) when
+  // it renders a real box; otherwise this container itself (desktop keeps the
+  // wrapper at display:contents = box-less). Measuring only the container can
+  // catch a collapsed/stale square (393x393) while the feed box is already at
+  // its final 16:9 size — and cover-fit then crops ~122px off the left edge.
+  // Feed-first keeps the measurement glued to the real rendered box.
+  const measureSrcRef = useRef('init');
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setViewport({ width: entry.contentRect.width, height: entry.contentRect.height });
-    });
+    const measure = () => {
+      const feed = element.parentElement;
+      let w = 0;
+      let h = 0;
+      let src = 'self';
+      if (feed) {
+        const rect = feed.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          w = rect.width;
+          h = rect.height;
+          src = 'feed';
+        }
+      }
+      if (src === 'self') {
+        const rect = element.getBoundingClientRect();
+        w = rect.width;
+        h = rect.height;
+      }
+      measureSrcRef.current = src;
+      setViewport((prev) =>
+        Math.abs(prev.width - w) < 0.5 && Math.abs(prev.height - h) < 0.5 ? prev : { width: w, height: h },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -361,8 +390,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     const feed = containerRef.current?.parentElement ?? null;
     const feedStyle = feed ? getComputedStyle(feed) : null;
     console.log(
-      '[jar-crop] viewport=%dx%d (aspect %s) scale=%s scene=%dx%d overflowX=%s overflowY=%s ' +
+      '[jar-crop] src=%s viewport=%dx%d (aspect %s) scale=%s scene=%dx%d overflowX=%s overflowY=%s ' +
         'cropL=%s cropR=%s cropT=%s cropB=%s (scene px) objPos=%s/%s',
+      measureSrcRef.current,
       Math.round(viewport.width),
       Math.round(viewport.height),
       (viewport.width / Math.max(1, viewport.height)).toFixed(3),
