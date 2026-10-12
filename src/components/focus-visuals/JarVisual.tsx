@@ -386,16 +386,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   }, []);
 
   const scale = Math.max(viewport.width / IMG_W, viewport.height / IMG_H);
-  // Mobile (coarse) stage is full-bleed and much wider than 16:9, so the
-  // visible window shifts down: sky gets trimmed, jar base + floor stay on
-  // screen. Desktop keeps OBJECT_POSITION.y (0.15) — untouched.
-  const coarseMobile =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(pointer: coarse) and (max-width: 1023.5px)').matches;
-  const objPosY = coarseMobile ? 0.7 : OBJECT_POSITION.y;
+  // Desktop math everywhere (mobile overrides removed): same cover-fit,
+  // same offsets, all screens.
   const offsetX = (viewport.width - IMG_W * scale) * OBJECT_POSITION.x;
-  const offsetY = (viewport.height - IMG_H * scale) * objPosY;
+  const offsetY = (viewport.height - IMG_H * scale) * OBJECT_POSITION.y;
   const sceneTransform = `translate(${offsetX} ${offsetY}) scale(${scale})`;
 
   // DIAGNOSTIC (temporary): why the jar scene gets cropped — especially the
@@ -424,8 +418,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       overflowY.toFixed(1),
       (overflowX * OBJECT_POSITION.x).toFixed(1),
       (overflowX * (1 - OBJECT_POSITION.x)).toFixed(1),
-      (overflowY * objPosY).toFixed(1),
-      (overflowY * (1 - objPosY)).toFixed(1),
+      (overflowY * OBJECT_POSITION.y).toFixed(1),
+      (overflowY * (1 - OBJECT_POSITION.y)).toFixed(1),
       OBJECT_POSITION.x,
       OBJECT_POSITION.y,
     );

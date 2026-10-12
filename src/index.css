@@ -1506,16 +1506,9 @@ button .butterfly-constellation {
   .jr-sim .jar-focus-layout .aqua-layer {
     transform: none;
   }
-  /* Classic jar: full-bleed feed box like desktop (no letterbox bars) —
-     fills the whole stage edge-to-edge; cover-fit crops inside JarVisual.
-     Desktop keeps `display: contents` (zero impact); aquarium untouched. */
-  .jr-sim .jr-fit-classic.jr-fit-classic {
-    display: block;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
+  /* (Classic jar uses the desktop feed behavior on mobile too —
+     `display: contents`, visual fills its zone — so no mobile-only box
+     rule here. Aquarium untouched.) */
 }
 
 @media (prefers-reduced-motion: reduce) {
