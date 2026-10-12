@@ -53,10 +53,10 @@ const SHOW_RING_TUNER = false;
  */
 const SHOW_JOINT_TUNER = false;
 /**
- * Soil X/Y+zoom tuner is HIDDEN — placement hardcoded (x4 y40 zoom1.22);
- * flip on to re-tune live (rows stay below).
+ * Soil X/Y+zoom tuner is VISIBLE on mobile portrait — previous values were
+ * tuned in landscape and land wrong here; retune + hardcode when final.
  */
-const SHOW_SOIL_TUNER = false;
+const SHOW_SOIL_TUNER = true;
 
 /** Hardcoded per-circle placement (read off the Dream tuner). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
