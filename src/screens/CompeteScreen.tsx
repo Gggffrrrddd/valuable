@@ -303,6 +303,7 @@ export default function CompeteScreen() {
               ]}
               defaults={DEFAULT_IMAGE_TRANSFORM}
               onChange={(patch) => setSoilTune((t) => ({ ...t, ...patch }))}
+              compact
             />
           </div>
         )}

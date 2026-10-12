@@ -1647,11 +1647,14 @@ button .butterfly-constellation {
 }
 /* --------------------------------------------------------------------------
    Compete mobile portrait: only the tree video + soil show (desktop
-   visuals), exactly as desktop (no shift). Everything else stays hidden.
-   Desktop untouched.
+   visuals), shifted down so the mound touches the nav — exact earlier
+   position. Everything else stays hidden. Desktop untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {
     display: none;
+  }
+  .compete-tree-stage {
+    transform: translateY(8px);
   }
 }

@@ -9,6 +9,8 @@ interface PlacementTunerProps<T extends { [K in keyof T]: number }> {
   rows: SliderRow<T>[];
   defaults: T;
   onChange: (patch: Partial<T>) => void;
+  /** Compact horizontal strip: sliders side-by-side, small text. */
+  compact?: boolean;
 }
 
 function logValues<T extends { [K in keyof T]: number }>(logTag: string, t: T) {
@@ -54,6 +56,7 @@ export default function PlacementTuner<T extends { [K in keyof T]: number }>({
   rows,
   defaults,
   onChange,
+  compact = false,
 }: PlacementTunerProps<T>) {
   const update = (patch: Partial<T>) => {
     onChange(patch);
@@ -66,7 +69,13 @@ export default function PlacementTuner<T extends { [K in keyof T]: number }>({
   };
 
   return (
-    <div className="max-h-[70vh] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
+    <div
+      className={
+        compact
+          ? 'rounded-[1rem] border border-white/[.07] bg-black/40 px-3 py-2 backdrop-blur-xl'
+          : 'max-h-[70vh] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl'
+      }
+    >
       <div className="flex items-center justify-between">
         <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
           {title}
@@ -79,27 +88,35 @@ export default function PlacementTuner<T extends { [K in keyof T]: number }>({
           Reset
         </button>
       </div>
-      {rows.map((row) => (
-        <label key={row.key} className="block">
-          <span className="flex items-center justify-between text-xs font-bold text-stone-300">
-            {row.label}
-            <NumberBox
-              value={transform[row.key]}
+      <div className={compact ? 'mt-1.5 grid grid-cols-3 gap-2' : undefined}>
+        {rows.map((row) => (
+          <label key={row.key} className="block">
+            <span
+              className={
+                compact
+                  ? 'flex items-center justify-between text-[10px] font-bold text-stone-300'
+                  : 'flex items-center justify-between text-xs font-bold text-stone-300'
+              }
+            >
+              {row.label}
+              <NumberBox
+                value={transform[row.key]}
+                step={row.step}
+                onCommit={(n) => update({ [row.key]: n } as Partial<T>)}
+              />
+            </span>
+            <input
+              type="range"
+              min={row.min}
+              max={row.max}
               step={row.step}
-              onCommit={(n) => update({ [row.key]: n } as Partial<T>)}
+              value={transform[row.key]}
+              onChange={(e) => update({ [row.key]: Number(e.target.value) } as Partial<T>)}
+              className="mt-1.5 w-full accent-lime-300"
             />
-          </span>
-          <input
-            type="range"
-            min={row.min}
-            max={row.max}
-            step={row.step}
-            value={transform[row.key]}
-            onChange={(e) => update({ [row.key]: Number(e.target.value) } as Partial<T>)}
-            className="mt-1.5 w-full accent-lime-300"
-          />
-        </label>
-      ))}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
