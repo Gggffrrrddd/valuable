@@ -1464,14 +1464,35 @@ button .butterfly-constellation {
   to { opacity: 1; }
 }
 /* --------------------------------------------------------------------------
+   Jar forced landscape (same rotation every other visual gets, but NOT gated
+   on pointer:coarse — DevTools device emulation reports a fine pointer, so a
+   coarse gate silently skips the whole lock there and the wide jar scene gets
+   cropped in the portrait box). Portrait viewports under 1023.5px always lock;
+   landscape viewports (desktop included) never match.
+   -------------------------------------------------------------------------- */
+@media (orientation: portrait) and (max-width: 1023.5px) {
+  .jr-sim.mob-sim {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    overflow: hidden;
+    transform: translate(-50%, -50%) rotate(90deg);
+    animation: hg-sim-in 300ms ease-out;
+  }
+}
+/* --------------------------------------------------------------------------
    Jar mobile landscape lock (same pattern as the hourglass sim).
    Portrait phones/tablets: the whole session rotates into a landscape stage.
    Inside the sim the phone portrait-stacking is undone, so the desktop
    absolute layout (full-bleed visual + floating clock/chrome) applies as-is.
-   Nothing can exceed the stage, so no cut/bleed on any phone size; other
-   visuals are untouched (hooks are jar-only).
+   Not coarse-gated (see above) so the lock holds in DevTools emulation too;
+   other visuals are untouched (hooks are jar-only).
    -------------------------------------------------------------------------- */
-@media (pointer: coarse) and (max-width: 1023.5px) {
+@media (max-width: 1023.5px) {
   /* Undo the portrait stack: back to the desktop row + absolute visual. */
   .jr-sim .jar-focus-layout {
     flex-direction: row !important;
@@ -1505,9 +1526,11 @@ button .butterfly-constellation {
   }
 }
 
-@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+@media (orientation: portrait) and (max-width: 1023.5px) {
   /* Mobile gets the scene plain (zero crop); overlays share it, so the
-     mask mapping stays exact. Desktop keeps the tuned framing above. */
+     mask mapping stays exact. Desktop keeps the tuned framing above.
+     Not coarse-gated — the letterboxed feed box must exist wherever the
+     jar lock rotates (DevTools emulation included). */
   .jr-sim .jar-focus-layout .aqua-scene,
   .jr-sim .jar-focus-layout .aqua-layer {
     transform: none;
