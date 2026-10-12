@@ -65,8 +65,10 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
-  /** TEMPORARY: live X/Y placement for the 3 dream circles (hardcode when final). */
+  /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(DREAM_CIRCLE_TRANSFORMS);
+  /** Which dream circle the single tuner is editing (0/1/2). */
+  const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -242,26 +244,43 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — dream-circle X/Y tuner for all 3, mobile only (hardcode + flip off). */}
+        {/* TEMPORARY — single dream-circle tuner (pick 1/2/3, then X/Y/zoom).
+            Mobile only; hardcode + flip off when final. */}
         {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="compete-tuner absolute bottom-4 left-4 right-4 z-30 space-y-2 lg:hidden">
-            {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((t, i) => (
-              <PlacementTuner
-                key={`dream-xy-${i}`}
-                title={`Dream ${i + 1} (temp)`}
-                logTag={`compete-dream-${i}`}
-                transform={t}
-                rows={[
-                  { key: 'x', label: 'Move X (left / right)', min: -400, max: 400, step: 1 },
-                  { key: 'y', label: 'Move Y (up / down)', min: -100, max: 400, step: 1 },
-                ]}
-                defaults={DREAM_CIRCLE_TRANSFORMS[i]}
-                onChange={(patch) =>
-                  setDreamTune((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)))
-                }
-                compact
-              />
-            ))}
+          <div className="compete-tuner absolute bottom-4 left-4 right-4 z-30 lg:hidden">
+            <div className="mb-1.5 flex gap-1">
+              {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((_, i) => (
+                <button
+                  key={`dream-tab-${i}`}
+                  type="button"
+                  onClick={() => setDreamTuneIdx(i)}
+                  className={`flex-1 rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition ${
+                    dreamTuneIdx === i
+                      ? 'border-lime-300/60 bg-lime-300/15 text-lime-200'
+                      : 'border-white/10 bg-black/40 text-stone-500 hover:text-stone-300'
+                  }`}
+                >
+                  Dream {i + 1}
+                </button>
+              ))}
+            </div>
+            <PlacementTuner
+              title={`Dream ${dreamTuneIdx + 1} (temp)`}
+              logTag={`compete-dream-${dreamTuneIdx}`}
+              transform={dreamTune[dreamTuneIdx]}
+              rows={[
+                { key: 'x', label: 'Move X (left / right)', min: -400, max: 400, step: 1 },
+                { key: 'y', label: 'Move Y (up / down)', min: -100, max: 400, step: 1 },
+                { key: 'zoom', label: 'Zoom (in / out)', min: 0.5, max: 3, step: 0.01 },
+              ]}
+              defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
+              onChange={(patch) =>
+                setDreamTune((prev) =>
+                  prev.map((p, j) => (j === dreamTuneIdx ? { ...p, ...patch } : p))
+                )
+              }
+              compact
+            />
           </div>
         )}
       </div>
