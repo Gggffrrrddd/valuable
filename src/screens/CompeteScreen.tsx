@@ -269,8 +269,8 @@ export default function CompeteScreen() {
               logTag={`compete-dream-${dreamTuneIdx}`}
               transform={dreamTune[dreamTuneIdx]}
               rows={[
-                { key: 'x', label: 'Move X (left / right)', min: -400, max: 400, step: 1 },
-                { key: 'y', label: 'Move Y (up / down)', min: -100, max: 400, step: 1 },
+                { key: 'x', label: 'Move X (left / right)', min: -800, max: 800, step: 1 },
+                { key: 'y', label: 'Move Y (up / down)', min: -400, max: 1000, step: 1 },
                 { key: 'zoom', label: 'Zoom (in / out)', min: 0.5, max: 3, step: 0.01 },
               ]}
               defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
