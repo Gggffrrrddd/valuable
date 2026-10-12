@@ -396,6 +396,20 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   }
 
   if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
+    // Mobile jar is a blank slate (redo from scratch): the whole session
+    // content — jar scene, aquarium, clouds, flip clock, status, controls —
+    // is REMOVED from the render output on mobile (never mounts). Desktop
+    // renders everything below exactly as before. Timer/complete logic from
+    // the hooks above keeps running underneath the empty shell.
+    // Shell is z-30: below the app header + bottom nav (z-40), so the
+    // Valuable top bar and navigation stay visible over the blank session.
+    if (
+      visualTheme === 'jar' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 1023.5px)').matches
+    ) {
+      return <div className="mob-sim fixed inset-0 z-30 bg-[#090b0a]" />;
+    }
     return (
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}

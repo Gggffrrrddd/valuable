@@ -1535,17 +1535,7 @@ button .butterfly-constellation {
     animation: none;
   }
 }
-/* --------------------------------------------------------------------------
-   Jar on mobile: BLANK SLATE (will be redone from scratch). Everything inside
-   the jar session is hidden on mobile only — jar scene, aquarium, clouds,
-   flip clock, status pill, controls. Desktop (>1023.5px) is untouched; the
-   empty black session shell stays so the timer still runs underneath.
-   -------------------------------------------------------------------------- */
-@media (max-width: 1023.5px) {
-  .jr-sim > * {
-    display: none !important;
-  }
-}
+
 /* --------------------------------------------------------------------------
    Tree mobile landscape lock (same pattern as jar sim).
    Portrait phones/tablets rotate into a landscape stage; the phone
