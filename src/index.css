@@ -1646,9 +1646,10 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
-   Compete mobile portrait: tree video + soil show (desktop visuals, soil
-   hardcoded x-1 y33 zoom1.14). Everything else (cards, dream picker,
-   tuners) hidden. Desktop untouched.
+   Compete mobile: landscape sim (mob-sim rotation). Tree video + soil show
+   (soil fixed x-1 y33 zoom1.14). Everything else (cards, dream picker)
+   hidden; tree rotate+zoom+XY tuner (compete-tuner) stays visible.
+   Desktop untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-stage > :not(.compete-tree-stage):not(.compete-tuner) {

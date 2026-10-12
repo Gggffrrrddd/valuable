@@ -48,10 +48,10 @@ const SHOW_DREAM_STRETCH_TUNER = false;
  */
 const SHOW_RING_TUNER = false;
 /**
- * Tree rotation+zoom tuner is HIDDEN — hardcode when final;
- * flip on to re-tune live (rows stay below).
+ * Tree rotate+zoom+XY tuner is VISIBLE on mobile only — tune live, then
+ * hardcode + flip off when final. Soil stays fixed (no tuner).
  */
-const SHOW_JOINT_TUNER = false;
+const SHOW_JOINT_TUNER = true;
 /**
  * Soil X/Y+zoom tuner is HIDDEN — placement hardcoded (x-1 y33 zoom1.14,
  * portrait-tuned); flip on to re-tune live (rows stay below).
@@ -272,7 +272,7 @@ export default function CompeteScreen() {
           onRemove={removeDream}
         />
 
-        {/* TEMPORARY — tree rotation + zoom tuner, mobile only (hidden; flip SHOW_JOINT_TUNER to re-tune). */}
+        {/* TEMPORARY — tree rotate + zoom + XY tuner, mobile only (hardcode + flip off when final). */}
         {SHOW_JOINT_TUNER && (
           <div className="compete-tuner absolute left-4 right-4 top-4 z-30 space-y-2 lg:hidden">
             <PlacementTuner
@@ -282,6 +282,8 @@ export default function CompeteScreen() {
               rows={[
                 { key: 'rot', label: 'Rotation (deg)', min: -180, max: 180, step: 1 },
                 { key: 'zoom', label: 'Zoom (in / out)', min: 0.3, max: 2, step: 0.01 },
+                { key: 'x', label: 'Move X (left / right)', min: -50, max: 50, step: 1 },
+                { key: 'y', label: 'Move Y (up / down)', min: -50, max: 50, step: 1 },
               ]}
               defaults={DEFAULT_VIDEO_TRANSFORM}
               onChange={(patch) => setTreeTune((t) => ({ ...t, ...patch }))}
