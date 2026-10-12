@@ -546,42 +546,8 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   }
 }
 
-/* Jar portrait phones: same stacked treatment as tree — visual on top,
-   flip-clock centered below. Desktop (lg+) untouched. */
-@media (max-width: 1023px) {
-  .jar-focus-layout {
-    flex-direction: column-reverse !important;
-    justify-content: flex-end !important;
-    padding-top: 3.5rem !important;
-    padding-bottom: 10rem !important;
-  }
-
-  .jar-focus-layout > div:first-child {
-    position: relative !important;
-    inset: auto !important;
-    width: 100% !important;
-    height: 52vh !important;
-    max-height: 52vh !important;
-    flex: 0 0 auto !important;
-  }
-
-  .jar-focus-layout > div:first-child > div {
-    height: 100% !important;
-  }
-
-  .jar-focus-layout > div:last-child {
-    position: relative !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    margin-top: 1rem !important;
-    display: flex !important;
-    justify-content: center !important;
-  }
-}
+/* Jar portrait phones: portrait-stack removed — jar uses landscape-lock
+   (same as hourglass/tree sim). The .jr-sim block below handles layout. */
 
 @keyframes drip {
   0% { transform: translateY(-8px); opacity: 0; }
@@ -1471,13 +1437,18 @@ button .butterfly-constellation {
    Nothing can exceed the stage, so no cut/bleed on any phone size; other
    visuals are untouched (hooks are jar-only).
    -------------------------------------------------------------------------- */
-@media (pointer: coarse) and (max-width: 1023.5px) {
+@media (max-width: 1023.5px) {
   /* Undo the portrait stack: back to the desktop row + absolute visual. */
   .jr-sim .jar-focus-layout {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     flex-direction: row !important;
     justify-content: center !important;
     align-items: center !important;
     padding: 0 !important;
+    margin: 0 !important;
   }
   /* Mobile jar visual zone: full-bleed over the stage (hourglass pattern —
      desktop row + absolute layout inside the rotated sim). JarVisual fills
