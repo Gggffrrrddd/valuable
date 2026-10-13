@@ -84,12 +84,14 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: base image full-bleed; overlay image kept hidden at the
-            tuned transform (translate(-28%, -10%) scale(0.34)) for use as a mask. */}
+        {/* Desktop: 3-layer stack.
+            1. Base image full-bleed (Minimalist Easel).
+            2. Hidden overlay (Blue Canvas) at tuned transform for mask use.
+            3. Red Tree visible, same tuned transform, overlapping the hidden layer. */}
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-base.png"
-            alt="Red Tree Above the Sunset Clouds"
+            alt="Minimalist Easel in a Dark Studio"
             className="absolute inset-0 h-full w-full object-cover"
             draggable={false}
           />
@@ -98,6 +100,13 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             alt=""
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0"
+            style={{ transform: 'translate(-28%, -10%) scale(0.34)' }}
+            draggable={false}
+          />
+          <img
+            src="/visuals/blade/easel-red-tree.png"
+            alt="Red Tree Above the Sunset Clouds"
+            className="absolute inset-0 h-full w-full object-cover"
             style={{ transform: 'translate(-28%, -10%) scale(0.34)' }}
             draggable={false}
           />
