@@ -75,11 +75,26 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
   }
   if (theme === 'blade') {
     return (
-      <ModelVisualErrorBoundary visualLabel="Spin Blade" progress={progress} running={running} duration={duration ?? 0}>
-        <Suspense fallback={<ModelLoadingShimmer label="Spin Blade" />}>
-          <BladeVisual progress={progress} running={running} duration={duration} />
-        </Suspense>
-      </ModelVisualErrorBoundary>
+      <>
+        {/* Mobile: keep the 3D spin blade as-is. */}
+        <div className="h-full w-full lg:hidden">
+          <ModelVisualErrorBoundary visualLabel="Spin Blade" progress={progress} running={running} duration={duration ?? 0}>
+            <Suspense fallback={<ModelLoadingShimmer label="Spin Blade" />}>
+              <BladeVisual progress={progress} running={running} duration={duration} />
+            </Suspense>
+          </ModelVisualErrorBoundary>
+        </div>
+        {/* Desktop: swap the 3D blade for the studio easel image.
+            Drop the file at public/visuals/blade/easel-moody-studio.png */}
+        <div className="hidden h-full w-full items-center justify-center lg:flex">
+          <img
+            src="/visuals/blade/easel-moody-studio.png"
+            alt="Small Easel in Moody Studio Space"
+            className="h-full w-full object-contain"
+            draggable={false}
+          />
+        </div>
+      </>
     );
   }
   return <HourglassVisual progress={progress} duration={duration ?? 0} running={running ?? false} />;
