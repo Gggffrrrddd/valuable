@@ -1502,17 +1502,7 @@ button .butterfly-constellation {
     align-items: center !important;
     justify-content: center !important;
   }
-  .jr-sim .mob-clock-zone .flip-clock-shell {
-    transform: scale(0.72) !important;
-    transform-origin: right center !important;
-  }
-}
-
-@media (max-width: 1023.5px) and (max-height: 380px) {
-  .jr-sim .mob-clock-zone .flip-clock-shell {
-    transform: scale(0.64) !important;
-    transform-origin: right center !important;
-  }
+  /* No custom scale — standard mob-sim flip-clock zoom (0.8) applies. */
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
