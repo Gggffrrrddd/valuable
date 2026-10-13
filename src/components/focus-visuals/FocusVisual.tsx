@@ -89,7 +89,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-base.png"
-            alt="Minimalist Easel in a Dark Studio"
+            alt="Red Tree Above the Sunset Clouds"
             className="absolute inset-0 h-full w-full object-cover"
             draggable={false}
           />
