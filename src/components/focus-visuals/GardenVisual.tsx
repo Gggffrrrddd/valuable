@@ -248,7 +248,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           pctx.save();
           pctx.globalCompositeOperation = 'lighter';
           pctx.fillStyle = palette.core;
-          pctx.shadowBlur = 6;
+          pctx.shadowBlur = 3;
           pctx.shadowColor = palette.glow;
           for (const b of swarms.emergence.butterflies) {
             const pts = b.phrasePoints;
@@ -261,7 +261,7 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
               const pt = pts[k];
               pctx.globalAlpha = 0.95;
               pctx.beginPath();
-              pctx.arc(pt.x, pt.y, 1.7, 0, Math.PI * 2);
+              pctx.arc(pt.x, pt.y, 1.2, 0, Math.PI * 2);
               pctx.fill();
             }
             if (done > stamped) phraseStampRef.current.set(b, done);
@@ -278,12 +278,12 @@ export default function GardenVisual({ progress, running = false, onFinaleComple
           ctx.drawImage(pcv, 0, 0);
           if (frontier.length > 0) {
             ctx.fillStyle = palette.core;
-            ctx.shadowBlur = 6;
+            ctx.shadowBlur = 3;
             ctx.shadowColor = palette.glow;
             for (const d of frontier) {
               ctx.globalAlpha = d.a;
               ctx.beginPath();
-              ctx.arc(d.x, d.y, 1.7, 0, Math.PI * 2);
+              ctx.arc(d.x, d.y, 1.2, 0, Math.PI * 2);
               ctx.fill();
             }
           }
