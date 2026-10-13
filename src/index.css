@@ -356,8 +356,15 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 }
 
 @media (max-width: 767px) {
-  .blade-focus-layout > div:first-child > div { width: 110vw; height: 72vh; }
-  .blade-focus-layout > div:last-child { top: 5.25rem; transform: translateX(-50%) scale(.82); }
+  /* Stage-relative: never exceed the viewport; parent is the full-bleed zone. */
+  .blade-focus-layout > div:first-child > div {
+    width: min(100%, 92vw);
+    height: min(82%, 72vh);
+  }
+  .blade-focus-layout > div:last-child {
+    top: clamp(4rem, 8vh, 5.25rem);
+    transform: translateX(-50%) scale(.82);
+  }
 }
 
 .jar-tap {

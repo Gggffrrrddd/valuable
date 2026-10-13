@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -38,12 +38,30 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: 2, y: 108, zoom: 1.545 },
   { x: 238, y: 195, zoom: 1.5 },
 ];
-/** Hardcoded per-circle placement — MOBILE values (tuned on mobile portrait). */
+/**
+ * Mobile arc placement tuned on a reference portrait stage. Offsets are
+ * stored as element-% (circle box = 56px) exactly as before, but at runtime
+ * they are re-scaled against the *measured* stage so the crown tracks the
+ * tree on any phone — never a fixed-px path for one device.
+ */
+const MOBILE_DREAM_REF_STAGE = { w: 393, h: 700 } as const;
 const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -146, y: 593, zoom: 1.5 },
   { x: -2, y: 462, zoom: 1.6 },
   { x: 128, y: 593, zoom: 1.5 },
 ];
+
+/** Scale the tuned mobile arc to the live stage (ready-gated by the caller). */
+function mobileDreamTransformsFor(stageW: number, stageH: number): PlacementTransform[] {
+  const sx = stageW / MOBILE_DREAM_REF_STAGE.w;
+  const sy = stageH / MOBILE_DREAM_REF_STAGE.h;
+  return MOBILE_DREAM_CIRCLE_TRANSFORMS.map((t) => ({
+    // Tuned element-% offsets scale linearly with the stage vs the ref size.
+    x: t.x * sx,
+    y: t.y * sy,
+    zoom: t.zoom,
+  }));
+}
 /** TEMPORARY — dream-circle tuner is HIDDEN (values hardcoded above). */
 const SHOW_DREAM_XY_TUNER = false;
 
@@ -71,6 +89,18 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
+  const stageReady = stageBox.w >= 1 && stageBox.h >= 1;
+  const isMobileVp =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 1023.5px)').matches;
+  /** Live mobile arc: tuned values re-scaled to the measured stage (ready-gated). */
+  const mobileDreamTransforms = useMemo(
+    () => (stageReady ? mobileDreamTransformsFor(stageBox.w, stageBox.h) : MOBILE_DREAM_CIRCLE_TRANSFORMS),
+    [stageBox.w, stageBox.h, stageReady],
+  );
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
@@ -79,6 +109,23 @@ export default function CompeteScreen() {
   );
   /** Which dream circle the single tuner is editing (0/1/2). */
   const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
+
+  // Measure the stage so mobile dream placement scales with the real box
+  // (never a 0×0 / stale value — gate before applying).
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      const h = entry.contentRect.height;
+      if (w < 1 || h < 1) return;
+      setStageBox((prev) =>
+        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -202,7 +249,7 @@ export default function CompeteScreen() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
       {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+      <div ref={stageRef} className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
         {/* Mobile portrait: video + soil shifted down to touch the nav */}
         <div className="compete-tree-stage absolute inset-0">
           <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
@@ -243,10 +290,11 @@ export default function CompeteScreen() {
           </button>
         </div>
 
-        {/* Dream images: bare glow circles crowning the tree */}
+        {/* Dream images: bare glow circles crowning the tree.
+            Mobile uses the stage-measured arc; desktop keeps its hardcoded slots. */}
         <DreamPicker
           images={goal.dream_images ?? []}
-          transforms={dreamTune}
+          transforms={isMobileVp ? mobileDreamTransforms : dreamTune}
           stretch={DEFAULT_DREAM_STRETCH}
           ringWidth={DEFAULT_RING.ring}
           busy={dreamBusy}
