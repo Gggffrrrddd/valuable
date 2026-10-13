@@ -119,9 +119,18 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
                   step={step}
                   value={val}
                   onChange={(e) => set(Number(e.target.value))}
-                  className="w-36 cursor-pointer accent-lime-400"
+                  className="w-32 cursor-pointer accent-lime-400"
                 />
-                <span className="w-12 text-right text-[11px] tabular-nums text-lime-300">{val.toFixed(2)}{unit}</span>
+                <input
+                  type="number"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={val}
+                  onChange={(e) => set(Number(e.target.value))}
+                  className="w-16 rounded bg-white/10 px-1.5 py-0.5 text-[11px] tabular-nums text-lime-300 outline-none focus:bg-white/20"
+                />
+                <span className="text-[10px] text-white/40">{unit}</span>
               </div>
             ))}
           </div>
