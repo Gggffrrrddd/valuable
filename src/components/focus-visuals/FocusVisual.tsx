@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import HourglassVisual from './HourglassVisual';
 import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
@@ -61,9 +61,6 @@ function lazyVisual<T>(factory: () => Promise<T>): Promise<T> {
  * down the focus session UI.
  */
 export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
-  const [ovZoom, setOvZoom] = useState(1);
-  const [ovX, setOvX] = useState(0);
-  const [ovY, setOvY] = useState(0);
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
@@ -87,7 +84,8 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: base image + overlay image with live tuner. */}
+        {/* Desktop: base image full-bleed; overlay image kept hidden at the
+            tuned transform (translate(-28%, -10%) scale(0.34)) for use as a mask. */}
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-base.png"
@@ -97,43 +95,12 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
           />
           <img
             src="/visuals/blade/easel-overlay.png"
-            alt="Blue Textured Canvas Pane overlay"
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ transform: `translate(${ovX}%, ${ovY}%) scale(${ovZoom})` }}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0"
+            style={{ transform: 'translate(-28%, -10%) scale(0.34)' }}
             draggable={false}
           />
-          {/* Temporary tuner — remove once final values are set. */}
-          <div className="absolute bottom-6 left-6 z-30 flex flex-col gap-2 rounded-2xl bg-black/70 px-5 py-4 backdrop-blur-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-white/50">Overlay Tuner</div>
-            {([
-              ['Zoom', ovZoom, setOvZoom, 0.1, 5, 0.01, 'x'],
-              ['X', ovX, setOvX, -100, 100, 0.5, '%'],
-              ['Y', ovY, setOvY, -100, 100, 0.5, '%'],
-            ] as const).map(([label, val, set, min, max, step, unit]) => (
-              <div key={label} className="flex items-center gap-3">
-                <span className="w-10 text-[11px] font-medium text-white/70">{label}</span>
-                <input
-                  type="range"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={val}
-                  onChange={(e) => set(Number(e.target.value))}
-                  className="w-32 cursor-pointer accent-lime-400"
-                />
-                <input
-                  type="number"
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={val}
-                  onChange={(e) => set(Number(e.target.value))}
-                  className="w-16 rounded bg-white/10 px-1.5 py-0.5 text-[11px] tabular-nums text-lime-300 outline-none focus:bg-white/20"
-                />
-                <span className="text-[10px] text-white/40">{unit}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </>
     );
