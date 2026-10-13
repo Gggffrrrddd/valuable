@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import HourglassVisual from './HourglassVisual';
 import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
@@ -61,6 +61,9 @@ function lazyVisual<T>(factory: () => Promise<T>): Promise<T> {
  * down the focus session UI.
  */
 export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
+  const [bladeZoom, setBladeZoom] = useState(1);
+  const [bladeX, setBladeX] = useState(0);
+  const [bladeY, setBladeY] = useState(0);
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
@@ -84,15 +87,38 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: swap the 3D blade for the studio easel image.
-            Drop the file at public/visuals/blade/easel-moody-studio.png */}
-        <div className="hidden h-full w-full items-center justify-center lg:flex">
+        {/* Desktop: full-bleed image with live tuner overlay. */}
+        <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-moody-studio.png"
-            alt="Small Easel in Moody Studio Space"
-            className="h-full w-full object-contain"
+            alt="Blue Textured Canvas Pane"
+            className="h-full w-full object-cover"
+            style={{ transform: `translate(${bladeX}%, ${bladeY}%) scale(${bladeZoom})` }}
             draggable={false}
           />
+          {/* Temporary tuner — remove once final values are set. */}
+          <div className="absolute bottom-6 left-6 z-30 flex flex-col gap-2 rounded-2xl bg-black/70 px-5 py-4 backdrop-blur-sm">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-white/50">Image Tuner</div>
+            {([
+              ['Zoom', bladeZoom, setBladeZoom, 1, 3, 0.01, 'x'],
+              ['X', bladeX, setBladeX, -50, 50, 0.5, '%'],
+              ['Y', bladeY, setBladeY, -50, 50, 0.5, '%'],
+            ] as const).map(([label, val, set, min, max, step, unit]) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="w-10 text-[11px] font-medium text-white/70">{label}</span>
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={val}
+                  onChange={(e) => set(Number(e.target.value))}
+                  className="w-36 cursor-pointer accent-lime-400"
+                />
+                <span className="w-12 text-right text-[11px] tabular-nums text-lime-300">{val.toFixed(2)}{unit}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </>
     );
