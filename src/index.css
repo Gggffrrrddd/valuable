@@ -302,6 +302,14 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   display: none;
 }
 
+/* Desktop only: clean full-screen image, no atmosphere/vignette overlays. */
+@media (min-width: 768px) {
+  .blade-focus-session .focus-atmosphere,
+  .blade-focus-session .focus-vignette {
+    display: none;
+  }
+}
+
 .blade-focus-session .focus-atmosphere {
   background:
     radial-gradient(ellipse at 50% 42%, rgba(225, 177, 111, .12) 0%, rgba(121, 71, 52, .05) 32%, transparent 62%),
@@ -333,21 +341,21 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
 }
 
 .blade-focus-layout > div:first-child > div {
-  width: min(92vw, 74rem);
-  height: min(82vh, 62rem);
+  width: 100%;
   max-width: none;
   max-height: none;
+  height: 100%;
 }
 
 .blade-focus-layout > div:last-child {
   position: absolute;
-  top: clamp(5rem, 10vh, 8rem);
-  left: 50%;
-  z-index: 30;
+  right: clamp(1.5rem, 6vw, 7rem);
+  top: 50%;
+  z-index: 20;
   width: auto;
   margin: 0;
   padding: 0;
-  transform: translateX(-50%);
+  transform: translateY(-50%);
   filter: drop-shadow(0 22px 45px rgba(0,0,0,.38));
 }
 
