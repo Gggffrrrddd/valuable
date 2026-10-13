@@ -61,9 +61,9 @@ function lazyVisual<T>(factory: () => Promise<T>): Promise<T> {
  * down the focus session UI.
  */
 export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
-  const [bladeZoom, setBladeZoom] = useState(1);
-  const [bladeX, setBladeX] = useState(0);
-  const [bladeY, setBladeY] = useState(0);
+  const [ovZoom, setOvZoom] = useState(1);
+  const [ovX, setOvX] = useState(0);
+  const [ovY, setOvY] = useState(0);
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
@@ -87,22 +87,28 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: full-bleed image with live tuner overlay. */}
+        {/* Desktop: base image + overlay image with live tuner. */}
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
-            src="/visuals/blade/easel-moody-studio.png"
-            alt="Blue Textured Canvas Pane"
-            className="h-full w-full object-cover"
-            style={{ transform: `translate(${bladeX}%, ${bladeY}%) scale(${bladeZoom})` }}
+            src="/visuals/blade/easel-base.png"
+            alt="Minimalist Easel in a Dark Studio"
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+          />
+          <img
+            src="/visuals/blade/easel-overlay.png"
+            alt="Blue Textured Canvas Pane overlay"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ transform: `translate(${ovX}%, ${ovY}%) scale(${ovZoom})` }}
             draggable={false}
           />
           {/* Temporary tuner — remove once final values are set. */}
           <div className="absolute bottom-6 left-6 z-30 flex flex-col gap-2 rounded-2xl bg-black/70 px-5 py-4 backdrop-blur-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-white/50">Image Tuner</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-white/50">Overlay Tuner</div>
             {([
-              ['Zoom', bladeZoom, setBladeZoom, 1, 3, 0.01, 'x'],
-              ['X', bladeX, setBladeX, -50, 50, 0.5, '%'],
-              ['Y', bladeY, setBladeY, -50, 50, 0.5, '%'],
+              ['Zoom', ovZoom, setOvZoom, 0.1, 5, 0.01, 'x'],
+              ['X', ovX, setOvX, -100, 100, 0.5, '%'],
+              ['Y', ovY, setOvY, -100, 100, 0.5, '%'],
             ] as const).map(([label, val, set, min, max, step, unit]) => (
               <div key={label} className="flex items-center gap-3">
                 <span className="w-10 text-[11px] font-medium text-white/70">{label}</span>
