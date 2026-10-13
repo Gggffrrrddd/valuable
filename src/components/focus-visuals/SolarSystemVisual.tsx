@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   AdditiveBlending,
   BackSide,
@@ -739,7 +739,20 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   // CameraRig multiplies the base position by this factor every frame — the
   // Canvas camera must start pre-corrected, otherwise the first frame renders
   // uncorrected and the whole scene visibly jumps once ("shift at start").
-  const camK = 0.65 + depth * 1.9;
+  // Wide stages (mobile landscape sim) get the same aspect fit as CameraRig.
+  // Portrait phones rotate the stage 90°, so the CANVAS aspect is h/w there.
+  const camK = (() => {
+    const k = 0.65 + depth * 1.9;
+    if (typeof window === 'undefined') return k;
+    const rotated =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)').matches;
+    const aspect = rotated
+      ? window.innerHeight / Math.max(1, window.innerWidth)
+      : window.innerWidth / Math.max(1, window.innerHeight);
+    const fit = aspect > 1.6 ? Math.min(2.2, 1 + (aspect - 1.6) * 0.9) : 1;
+    return k * fit;
+  })();
   useEffect(() => {
     const onVis = () => setLoop(!document.hidden);
     document.addEventListener('visibilitychange', onVis);
@@ -955,13 +968,21 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
 }
 
 /** Keeps the system framed at a constant distance; `depth` (0..1) lets the
- *  user push the whole system back or pull it front. No progress-driven zoom. */
+ *  user push the whole system back or pull it front. No progress-driven zoom.
+ *  Wide full-bleed stages (mobile landscape-locked sim, aspect ≳ 1.6) pull
+ *  the camera back proportionally so the full orbital system stays in frame —
+ *  the desktop box (~square) keeps the tuned distance unchanged. */
 function CameraRig({ depthRef }: { depthRef: React.MutableRefObject<number> }) {
   const base = useMemo(() => new Vector3(0, 8.5, 13), []);
+  const size = useThree((s) => s.size);
   useFrame(({ camera }) => {
     // depth 0 = close/front (x0.65), 0.5 = default (x1), 1 = far/back (x1.6)
     const k = 0.65 + depthRef.current * 1.9;
-    camera.position.copy(base).multiplyScalar(k);
+    const aspect = size.width / Math.max(1, size.height);
+    // Wide stage → pull back just enough to keep Neptune's orbit inside the
+    // vertical FOV. Capped at 2.2× so the system never goes tiny.
+    const fit = aspect > 1.6 ? Math.min(2.2, 1 + (aspect - 1.6) * 0.9) : 1;
+    camera.position.copy(base).multiplyScalar(k * fit);
     camera.lookAt(0, 0, 0);
   });
   return null;
