@@ -107,7 +107,6 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             src="/visuals/blade/easel-red-tree.png"
             alt="Red Tree Above the Sunset Clouds"
             className="absolute inset-0 h-full w-full object-cover"
-            style={{ transform: 'translate(-28%, -10%) scale(0.34)' }}
             draggable={false}
           />
         </div>
