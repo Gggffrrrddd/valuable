@@ -20,7 +20,11 @@ const PAINT_SRC = '/visuals/blade/easel-tune.jpg';
 
 const COUNT_DESKTOP = 2400;
 const COUNT_MOBILE  = 800;
-const LAND_RADIUS   = 26;   // px, screen space
+// Small, weak stamps: full coverage needs nearly ALL particles,
+// so the reveal stays gradual across the whole session instead of
+// saturating white after the first few hundred landings.
+const LAND_RADIUS   = 12;   // px, screen space
+const STAMP_ALPHA   = 0.13; // per-landing opacity
 const DONE_AT       = 0.97;
 const MAX_RECRUIT_PER_FRAME = 6;
 
@@ -72,13 +76,13 @@ function spawn(W: number, H: number): Dot {
   };
 }
 
-/** Stamp one soft white blob on the mask (screen coords). */
+/** Stamp one small faint blob on the mask (screen coords). */
 function stamp(mc: CanvasRenderingContext2D, x: number, y: number, strength = 1) {
-  const r = LAND_RADIUS * rng(0.7, 1.6);
+  const r = LAND_RADIUS * rng(0.7, 1.4);
   const g = mc.createRadialGradient(x, y, 0, x, y, r);
-  const c = 0.75 * strength;
+  const c = STAMP_ALPHA * strength;
   g.addColorStop(0, `rgba(255,255,255,${c})`);
-  g.addColorStop(0.5, `rgba(255,255,255,${c * 0.45})`);
+  g.addColorStop(0.5, `rgba(255,255,255,${c * 0.4})`);
   g.addColorStop(1, 'rgba(255,255,255,0)');
   mc.fillStyle = g;
   mc.beginPath();
@@ -144,7 +148,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
     const pre = Math.floor(st.progress * n);
     if (mc && pre > 0) {
-      for (let i = 0; i < pre; i++) stamp(mc, rng(zx - zhw, zx + zhw), rng(zy - zhh, zy + zhh), 0.8);
+      for (let i = 0; i < pre; i++) stamp(mc, rng(zx - zhw, zx + zhw), rng(zy - zhh, zy + zhh));
       for (let i = 0; i < pre && i < st.dots.length; i++) {
         const d = st.dots[Math.floor(Math.random() * st.dots.length)];
         if (d.phase === 0) { d.phase = 3; d.a = 0; }
@@ -225,7 +229,8 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     const target = prog * total;
     const catchup = Math.max(0, target - st.landed);
     let recruit = Math.min(Math.floor(st.budget), catchup, MAX_RECRUIT_PER_FRAME);
-    st.budget -= recruit;
+    // NOTE: budget is consumed per actual recruitment inside the loop,
+    // not here — so paused frames never waste budget.
 
     // ── update dots ──
     const mc = st.mask?.getContext('2d') ?? null;
@@ -249,6 +254,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           d.tx = rng(zx - zhw, zx + zhw);
           d.ty = rng(zy - zhh, zy + zhh);
           recruit--;
+          st.budget = Math.max(0, st.budget - 1);
         }
       } else if (d.phase === 1) {
         const dx = d.tx - d.x, dy = d.ty - d.y;
@@ -270,13 +276,22 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       }
     }
 
-    // ── completion: full reveal ──
+    // ── finale: full reveal + EVERY remaining particle lands ──
+    // No particle is left floating: all ambient dots are sent to the
+    // canvas for a closing flurry, so the sky empties as the session ends.
     if (prog >= DONE_AT && !st.done) {
       st.done = true;
       if (mc) {
         mc.fillStyle = '#fff';
         mc.fillRect(0, 0, W, H);
         st.revealDirty = true;
+      }
+      for (const d of dots) {
+        if (d.phase === 0) {
+          d.phase = 1;
+          d.tx = rng(zx - zhw, zx + zhw);
+          d.ty = rng(zy - zhh, zy + zhh);
+        }
       }
     }
 
