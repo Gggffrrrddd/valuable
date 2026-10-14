@@ -828,6 +828,64 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
   const sh = useThree((s) => s.size.height);
   const setSize = useThree((s) => s.setSize);
   const camera = useThree((s) => s.camera);
+  // Last forced stage dims (fresh layout values, never R3F state).
+  const expectedRef = useRef<{ w: number; h: number } | null>(null);
+
+  // Single source of truth for forcing: ALWAYS re-reads fresh
+  // clientWidth/clientHeight at call time — never stale R3F state.
+  const forceFromLayout = (src: string): boolean => {
+    const el = wrapRef.current;
+    if (!el) return false;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w < 1 || h < 1 || w <= h) return false; // locked stage is landscape
+    console.log(
+      '[solar-system-measure] sizefix-apply ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        src,
+        forcedW: w,
+        forcedH: h,
+      }),
+    );
+    setSize(w, h);
+    const cam = camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void };
+    if (typeof cam.aspect === 'number') {
+      cam.aspect = w / h;
+      cam.updateProjectionMatrix?.();
+    }
+    expectedRef.current = { w, h };
+    const c = el.querySelector('canvas') as HTMLCanvasElement | null;
+    console.log(
+      '[solar-system-measure] sizefix-postset ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        src,
+        attr: c ? { w: c.width, h: c.height } : null,
+      }),
+    );
+    return true;
+  };
+
+  // Bounded settle: re-check backing buffer up to N times (150ms gap) until
+  // it stays landscape; then stop — never an open-ended loop.
+  const settle = (left: number) => {
+    if (left <= 0) return;
+    window.setTimeout(() => {
+      const el = wrapRef.current;
+      const c = el?.querySelector('canvas') as HTMLCanvasElement | null;
+      const exp = expectedRef.current;
+      if (!el || !c || !exp) return;
+      const portraitBacking = c.width < c.height;
+      console.log(
+        '[solar-system-measure] sizefix-retry ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          attemptsLeft: left,
+          attr: { w: c.width, h: c.height },
+          verdict: portraitBacking ? 'reforce' : 'stable',
+        }),
+      );
+      if (portraitBacking && forceFromLayout('retry')) settle(left - 1);
+    }, 150);
+  };
 
   useEffect(() => {
     // [5] gate visibility: log on narrow viewports only (desktop ≥1024 untouched).
@@ -848,73 +906,13 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
       );
     }
     if (!isSolarLockedContext()) return;
-    const readCanvas = () => {
-      const c = wrapRef.current?.querySelector('canvas') as HTMLCanvasElement | null;
-      return c ? { w: c.width, h: c.height } : null;
+    if (forceFromLayout('mount')) settle(4);
+    const onResize = () => {
+      if (forceFromLayout('resize')) settle(4);
     };
-    const apply = (src: string) => {
-      const el = wrapRef.current;
-      if (!el) return;
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (w < 1 || h < 1) return;
-      // [1] setSize call log with timestamp.
-      console.log(
-        '[solar-system-measure] sizefix-apply ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          src,
-          forcedW: w,
-          forcedH: h,
-        }),
-      );
-      setSize(w, h);
-      const cam = camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void };
-      if (typeof cam.aspect === 'number') {
-        cam.aspect = w / h;
-        cam.updateProjectionMatrix?.();
-      }
-      // [2] canvas attrs IMMEDIATELY after setSize.
-      console.log(
-        '[solar-system-measure] sizefix-postset ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          src,
-          attr: readCanvas(),
-        }),
-      );
-      // [3] re-read after delays — catches RO/auto-measure overwrite races.
-      window.setTimeout(() => {
-        console.log(
-          '[solar-system-measure] sizefix-recheck ' + JSON.stringify({
-            t: Math.round(performance.now()),
-            src,
-            delayMs: 100,
-            attr: readCanvas(),
-          }),
-        );
-      }, 100);
-      window.setTimeout(() => {
-        console.log(
-          '[solar-system-measure] sizefix-recheck ' + JSON.stringify({
-            t: Math.round(performance.now()),
-            src,
-            delayMs: 500,
-            attr: readCanvas(),
-          }),
-        );
-      }, 500);
-      const glCanvas = el.querySelector('canvas');
-      console.log(
-        '[solar-system-measure] size-fix ' + JSON.stringify({
-          forcedW: w,
-          forcedH: h,
-          aspect: +(w / h).toFixed(3),
-          backing: glCanvas ? { w: (glCanvas as HTMLCanvasElement).width, h: (glCanvas as HTMLCanvasElement).height } : null,
-        }),
-      );
+    const onOrient = () => {
+      if (forceFromLayout('orientationchange')) settle(4);
     };
-    apply('mount');
-    const onResize = () => apply('resize');
-    const onOrient = () => apply('orientationchange');
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onOrient);
     return () => {
@@ -924,8 +922,9 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Guard: if R3F's auto-measure overwrites with the rotated bbox later,
-  // re-force from layout dims (stable — no loop: forced size fails the check).
+  // Guard: detects R3F auto-measure overwrites (size flips back to portrait)
+  // and re-forces from FRESH layout dims — stale R3F state is only the
+  // tripwire, never the value source.
   useEffect(() => {
     if (!isSolarLockedContext()) return;
     const el = wrapRef.current;
@@ -933,7 +932,6 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
     const w = el.clientWidth;
     const h = el.clientHeight;
     if (w < 1 || h < 1) return;
-    // [4] log every guard evaluation + what it decides.
     const mismatch = w > h && sw < sh;
     console.log(
       '[solar-system-measure] sizefix-guard ' + JSON.stringify({
@@ -945,9 +943,7 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
         action: mismatch ? 'reforce' : 'noop',
       }),
     );
-    if (mismatch) {
-      setSize(w, h);
-    }
+    if (mismatch && forceFromLayout('guard')) settle(4);
   }, [sw, sh, setSize, wrapRef]);
 
   return null;
