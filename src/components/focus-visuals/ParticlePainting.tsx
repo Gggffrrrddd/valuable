@@ -16,12 +16,25 @@ const PAINT_TX = -0.2815; // fraction of W
 const PAINT_TY = -0.10;   // fraction of H
 const PAINT_S  = 0.21;
 
-// Painting pool — one is picked at random per session mount.
-// All paintings share the same placement + reveal animation.
-// Drop new files in public/visuals/blade/ and add the path here.
+// Painting pool — sequence 1-10, round-robin per session (see mount effect).
+// 1-2 bundled (untouched, hardcoded values safe); 3-10 Cloudinary.
+// All share the exact same placement + reveal animation.
 const PAINTINGS = [
-  '/visuals/blade/paint-sunflower.png',
+  '/visuals/blade/paint-default.jpg', // 1 (bundled)
+  '/visuals/blade/paint-sunflower.png', // 2 (bundled)
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993074/image_3.png', // 3 (fixed: was image_3.pngv → 404)
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993086/image_4.png', // 4
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993100/image_6.png', // 5
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993114/imaeg_8.jpg', // 6
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994070/iamge_9_1_1.png', // 7
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994180/image_5_1.jpg', // 8
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994231/image_7_1.png', // 9
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994451/image_10_2_-compressed.jpg', // 10
 ];
+
+// Round-robin cursor: stores the NEXT index to show, so refresh/relogin
+// continues the 1-10 sequence without repeating until all 10 have shown.
+const PAINT_INDEX_KEY = 'valuable-particle-painting-index';
 
 const COUNT_DESKTOP = 2400;
 const COUNT_MOBILE  = 800;
@@ -407,12 +420,41 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     s.current.duration = duration;
   }, [progress, running, duration]);
 
-  // ── mount: pick a random painting, load it, init, loop ────────────────
+  // ── mount: next painting in 1-10 sequence, load it, init, loop ────────
 
   useEffect(() => {
+    const total = PAINTINGS.length;
+    const readIdx = () => {
+      try {
+        return (((parseInt(localStorage.getItem(PAINT_INDEX_KEY) ?? '0', 10) || 0) % total) + total) % total;
+      } catch {
+        return 0;
+      }
+    };
+    const writeIdx = (i: number) => {
+      try {
+        localStorage.setItem(PAINT_INDEX_KEY, String((((i % total) + total) % total)));
+      } catch {
+        /* storage unavailable — sequence restarts, harmless */
+      }
+    };
+    let idx = readIdx();
+    let attempts = 0;
     const img = new Image();
-    img.src = pick(PAINTINGS);
     img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
+    img.onerror = () => {
+      console.warn('[particle-painting] painting failed to load, skipping to next:', PAINTINGS[idx]);
+      attempts += 1;
+      if (attempts >= total) return; // all failed — stay blank, never loop forever
+      idx = (idx + 1) % total;
+      writeIdx(idx + 1);
+      img.src = PAINTINGS[idx];
+    };
+    img.src = PAINTINGS[idx];
+    writeIdx(idx + 1); // reserve: next session continues the sequence
+    // Warm the HTTP cache for the following painting (silent, no handlers).
+    const warm = new Image();
+    warm.src = PAINTINGS[(idx + 1) % total];
     s.current.img = img;
 
     init();

@@ -119,31 +119,6 @@ function TableModel({
   );
 }
 
-/* TEMP DIAGNOSTIC (mobile only): logs the size R3F measures when its
-   ResizeObserver fires — catches first-render 0×0 / stale values. */
-function R3fSizeProbe() {
-  const w = useThree((s) => s.size.width);
-  const h = useThree((s) => s.size.height);
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    const canvas = document.querySelector('#study-table-canvas-wrap canvas');
-    const parent = canvas?.parentElement ?? null;
-    const pr = parent?.getBoundingClientRect() ?? null;
-    const cr = (canvas as HTMLCanvasElement | null)?.getBoundingClientRect() ?? null;
-    console.log(
-      '[study-table-measure] r3f-size ' + JSON.stringify({
-        r3fW: Math.round(w),
-        r3fH: Math.round(h),
-        zeroSize: w < 1 || h < 1,
-        parentRect: pr ? { w: Math.round(pr.width), h: Math.round(pr.height) } : null,
-        canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
-        canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
-      }),
-    );
-  }, [w, h]);
-  return null;
-}
-
 /* Mirrors the exact media query that applies the generic rotated stage
    (index.css `.mob-sim.mob-sim`). Desktop never matches → zero-touch. */
 const LOCKED_MEDIA = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
@@ -182,15 +157,6 @@ function CanvasSizeFix({ wrapRef }: { wrapRef: React.RefObject<HTMLDivElement | 
         cam.updateProjectionMatrix?.();
       }
       forcedRef.current = { w, h };
-      const glCanvas = el.querySelector('canvas');
-      console.log(
-        '[study-table-measure] size-fix ' + JSON.stringify({
-          forcedW: w,
-          forcedH: h,
-          aspect: +(w / h).toFixed(3),
-          backing: glCanvas ? { w: (glCanvas as HTMLCanvasElement).width, h: (glCanvas as HTMLCanvasElement).height } : null,
-        }),
-      );
     };
     apply();
     window.addEventListener('resize', apply);
@@ -295,7 +261,6 @@ export default function TableScene3D({
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <R3fSizeProbe />
         <CanvasSizeFix wrapRef={wrapRef} />
         <ambientLight intensity={0.34} color="#d8d1c7" />
         <spotLight

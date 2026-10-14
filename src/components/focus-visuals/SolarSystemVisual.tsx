@@ -719,95 +719,6 @@ function LoadingSun() {
   return null;
 }
 
-/* ── TEMP DIAGNOSTICS: [solar-system-measure] — remove after diagnosis. ──
-   Mobile-only (viewport < 768px); desktop path is untouched. */
-
-function solarIsQuarterTurn(t: string): boolean {
-  if (t === 'none') return false;
-  if (t.indexOf('rotate') !== -1) return true;
-  const m = t.match(/^matrix\(([^)]+)\)/);
-  if (!m) return false;
-  const p = m[1].split(',').map(Number);
-  return Math.abs(p[0]) < 0.05 && Math.abs(p[3]) < 0.05 && Math.abs(Math.abs(p[1]) - 1) < 0.05;
-}
-
-function snapSolarSystem(tag: string) {
-  const anchor = document.querySelector('#solar-system-canvas-wrap');
-  if (!anchor) {
-    console.log('[solar-system-measure] no-anchor ' + tag);
-    return;
-  }
-  const r = anchor.getBoundingClientRect();
-  const chain: object[] = [];
-  let rotatedAncestor: string | null = null;
-  let el: HTMLElement | null = anchor.parentElement;
-  let guard = 0;
-  while (el && guard < 10) {
-    const cs = getComputedStyle(el);
-    const er = el.getBoundingClientRect();
-    if (!rotatedAncestor && solarIsQuarterTurn(cs.transform)) {
-      rotatedAncestor = el.tagName + '.' + String(el.className).split(' ')[0];
-    }
-    chain.push({
-      tag: el.tagName,
-      cls: String(el.className).slice(0, 64),
-      cssH: cs.height,
-      cssW: cs.width,
-      pos: cs.position,
-      rectW: Math.round(er.width),
-      rectH: Math.round(er.height),
-    });
-    el = el.parentElement;
-    guard++;
-  }
-  const ownTf = getComputedStyle(anchor as HTMLElement).transform;
-  const canvas = anchor.querySelector('canvas');
-  const cr = canvas ? canvas.getBoundingClientRect() : null;
-  console.log(
-    '[solar-system-measure] snapshot ' + tag + ' ' + JSON.stringify({
-      anchorRect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
-      anchorTransform: ownTf === 'none' ? 'none' : ownTf.slice(0, 72),
-      anchorRotated: solarIsQuarterTurn(ownTf),
-      canvasPresent: !!canvas,
-      canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
-      canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
-      orientation: (window.screen.orientation && window.screen.orientation.type) || 'n/a',
-      portraitMQ: window.matchMedia('(orientation: portrait)').matches,
-      inner: { w: window.innerWidth, h: window.innerHeight },
-      landscapeLocked: !!rotatedAncestor,
-      rotatedAncestor,
-      chain,
-    }),
-  );
-}
-
-/* Inside-Canvas probe: R3F-measured size + resolved camera aspect. */
-function SolarSizeProbe() {
-  const w = useThree((s) => s.size.width);
-  const h = useThree((s) => s.size.height);
-  const camera = useThree((s) => s.camera);
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    const wrap = document.querySelector('#solar-system-canvas-wrap');
-    const wr = wrap?.getBoundingClientRect() ?? null;
-    const canvas = wrap?.querySelector('canvas') ?? null;
-    const cr = (canvas as HTMLCanvasElement | null)?.getBoundingClientRect() ?? null;
-    const aspect = (camera as unknown as { aspect?: number }).aspect;
-    console.log(
-      '[solar-system-measure] r3f-size ' + JSON.stringify({
-        r3fW: Math.round(w),
-        r3fH: Math.round(h),
-        zeroSize: w < 1 || h < 1,
-        cameraAspect: typeof aspect === 'number' ? +aspect.toFixed(3) : null,
-        wrapRect: wr ? { w: Math.round(wr.width), h: Math.round(wr.height) } : null,
-        canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
-        canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
-      }),
-    );
-  }, [w, h, camera]);
-  return null;
-}
-
 /* Mirrors the exact media query that applies the generic rotated stage
    (index.css `.mob-sim.mob-sim`). Desktop never matches → zero-touch. */
 const SOLAR_LOCKED_MEDIA = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
@@ -836,18 +747,6 @@ function SolarSizeBridge({ apiRef }: { apiRef: { current: SolarSizeApi } }) {
   useLayoutEffect(() => {
     apiRef.current = { setSize, camera, size: { width: size.width, height: size.height } };
   });
-  // TEMP DIAGNOSTIC: canvas-tree remount watch.
-  useEffect(() => {
-    solarCanvasMounts += 1;
-    if (window.innerWidth < 1024) {
-      console.log('[solar-system-measure] canvas-tree-mount ' + JSON.stringify({ t: Math.round(performance.now()), count: solarCanvasMounts }));
-    }
-    return () => {
-      if (window.innerWidth < 1024) {
-        console.log('[solar-system-measure] canvas-tree-unmount ' + JSON.stringify({ t: Math.round(performance.now()) }));
-      }
-    };
-  }, []);
   return null;
 }
 
@@ -861,8 +760,6 @@ interface SolarSizeShare {
   canvas: HTMLCanvasElement | null;
   onFirstGoodFrame: (() => void) | null;
 }
-
-let solarCanvasMounts = 0;
 
 /* PART 2 safety net (locked mobile context only): takes over R3F's frame
    render at priority 1 and SKIPS frames whose camera aspect or backing
@@ -887,29 +784,15 @@ function SolarRenderGate({ shareRef }: { shareRef: { current: SolarSizeShare } }
     const aspectOk = typeof cam.aspect === 'number' && Math.abs(cam.aspect - exp.aspect) < 0.02;
     const backingOk = !c || c.width >= c.height;
     if (aspectOk && backingOk) {
-      if (wasSkippingRef.current) {
-        wasSkippingRef.current = false;
-        if (window.innerWidth < 1024) {
-          console.log('[solar-system-measure] render-gate resumed ' + JSON.stringify({ t: Math.round(performance.now()), skipped: skipCountRef.current }));
-        }
-        skipCountRef.current = 0;
-      }
+      wasSkippingRef.current = false;
+      skipCountRef.current = 0;
       gl.render(scene, camera);
       // First confirmed-correct painted frame → lift the mount cover (once).
       shareRef.current.onFirstGoodFrame?.();
       return;
     }
     skipCountRef.current += 1;
-    if (!wasSkippingRef.current) {
-      wasSkippingRef.current = true;
-      if (window.innerWidth < 1024) {
-        console.log('[solar-system-measure] render-gate froze ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          camAspect: typeof cam.aspect === 'number' ? +cam.aspect.toFixed(3) : null,
-          backing: c ? { w: c.width, h: c.height } : null,
-        }));
-      }
-    }
+    wasSkippingRef.current = true;
   }, 1);
   return null;
 }
@@ -971,15 +854,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       cam.aspect = w / h;
       cam.updateProjectionMatrix?.();
     }
-    console.log(
-      '[solar-system-measure] size-force ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        src,
-        forcedW: w,
-        forcedH: h,
-        aspect: +(w / h).toFixed(3),
-      }),
-    );
     return true;
   };
 
@@ -1009,78 +883,10 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  // TEMP DIAGNOSTIC (mobile only): measure container/parent-chain/canvas.
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    snapSolarSystem('mount');
-    const t1 = window.setTimeout(() => snapSolarSystem('t+1s'), 1000);
-    const t2 = window.setTimeout(() => snapSolarSystem('t+2.5s'), 2500);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
-  }, []);
-
-  // TEMP DIAGNOSTIC (mobile only): tick cadence vs refire cycle.
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    console.log('[solar-system-measure] progress-tick ' + JSON.stringify({ t: Math.round(performance.now()), progress: +value.toFixed(4) }));
-  }, [value]);
-
-  // TEMP DIAGNOSTIC (mobile only): spy on what fires measurement — own RO on
-  // the same subtree R3F observes, plus mob-sim signature + remount watch.
-  // If this stays silent while the cycle continues, the driver is Canvas
-  // re-render → dep-less configure, not a layout change.
-  useEffect(() => {
-    if (window.innerWidth >= 768) return;
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const mob = document.querySelector('.mob-sim');
-    const targets: Element[] = [wrap, ...Array.from(wrap.querySelectorAll('div'))];
-    if (mob) targets.push(mob);
-    const prev = new Map<Element, string>();
-    const ro = new ResizeObserver((entries) => {
-      const mobEl = document.querySelector('.mob-sim') as HTMLElement | null;
-      for (const e of entries) {
-        const r = e.contentRect;
-        const key = Math.round(r.width) + 'x' + Math.round(r.height);
-        const el = e.target as HTMLElement;
-        const name = el === wrap ? 'wrap' : el === mobEl ? 'mob-sim' : el.tagName + '.' + String(el.className || '').split(' ')[0];
-        const changed = prev.get(e.target) !== key;
-        prev.set(e.target, key);
-        console.log('[solar-system-measure] resize-observer-fire ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          target: name,
-          w: Math.round(r.width),
-          h: Math.round(r.height),
-          changed,
-          mobCls: mobEl ? String(mobEl.className).slice(0, 80) : null,
-          mobStyle: mobEl ? mobEl.getAttribute('style') : null,
-        }));
-      }
-    });
-    targets.forEach((t) => ro.observe(t));
-    return () => ro.disconnect();
-  }, []);
-
-  // TEMP DIAGNOSTIC: gate-visibility log + resize/orientation re-force
-  // (covers RO refires that don't re-render the parent).
+  // Resize/orientation re-force (covers RO refires that don't re-render
+  // the parent) + gate-confirmed cover lift wiring.
   useEffect(() => {
     if (window.innerWidth >= 1024) return;
-    let gate = false;
-    try {
-      gate = window.matchMedia(SOLAR_LOCKED_MEDIA).matches;
-    } catch {
-      gate = false;
-    }
-    console.log(
-      '[solar-system-measure] sizefix-mount ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        gate,
-        media: SOLAR_LOCKED_MEDIA,
-        inner: { w: window.innerWidth, h: window.innerHeight },
-      }),
-    );
     const onResize = () => {
       if (!isSolarLockedContext()) {
         liftCover();
@@ -1258,7 +1064,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <SolarSizeProbe />
         <SolarSizeBridge apiRef={sizeApiRef} />
         <SolarRenderGate shareRef={sizeShareRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
