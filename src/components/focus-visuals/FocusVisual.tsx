@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import HourglassVisual from './HourglassVisual';
 import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
@@ -61,6 +61,9 @@ function lazyVisual<T>(factory: () => Promise<T>): Promise<T> {
  * down the focus session UI.
  */
 export default function FocusVisual({ theme, progress, duration, running, leafAsset, depth }: FocusVisualProps & { theme: FocusVisualTheme; duration?: number }) {
+  const [tuneZoom, setTuneZoom] = useState(1);
+  const [tuneX, setTuneX] = useState(0);
+  const [tuneY, setTuneY] = useState(0);
   if (theme === 'tree') return <TreeVisual progress={progress} duration={duration ?? 0} leafAsset={leafAsset} />;
   if (theme === 'butterfly') return <ButterflyConstellationVisual progress={progress} running={running} />;
   if (theme === 'jar') return <JarVisual progress={progress} running={running} />;
@@ -84,10 +87,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: 3-layer stack.
-            1. Base image full-bleed (Minimalist Easel).
-            2. Hidden overlay (Blue Canvas) at tuned transform for mask use.
-            3. Red Tree visible, same tuned transform, overlapping the hidden layer. */}
+        {/* Desktop: base image full-bleed + tune image overlay with sliders. */}
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-base.png"
@@ -96,19 +96,44 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             draggable={false}
           />
           <img
-            src="/visuals/blade/easel-overlay.png"
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0"
-            style={{ transform: 'translate(-28%, -10%) scale(0.34)' }}
-            draggable={false}
-          />
-          <img
-            src="/visuals/blade/easel-red-tree.png"
-            alt="Red Tree Above the Sunset Clouds"
+            src="/visuals/blade/easel-tune.jpg"
+            alt="Tune overlay"
             className="absolute inset-0 h-full w-full object-cover"
+            style={{ transform: `translate(${tuneX}%, ${tuneY}%) scale(${tuneZoom})` }}
             draggable={false}
           />
+          {/* Temporary tuner — remove once final values are set. */}
+          <div className="absolute bottom-6 left-6 z-30 flex flex-col gap-2 rounded-2xl bg-black/70 px-5 py-4 backdrop-blur-sm">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-white/50">Overlay Tuner</div>
+            {([
+              ['Zoom', tuneZoom, setTuneZoom, 0.1, 5, 0.01, 'x'],
+              ['X', tuneX, setTuneX, -100, 100, 0.5, '%'],
+              ['Y', tuneY, setTuneY, -100, 100, 0.5, '%'],
+            ] as const).map(([label, val, set, min, max, step, unit]) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="w-10 text-[11px] font-medium text-white/70">{label}</span>
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={val}
+                  onChange={(e) => set(Number(e.target.value))}
+                  className="w-32 cursor-pointer accent-lime-400"
+                />
+                <input
+                  type="number"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={val}
+                  onChange={(e) => set(Number(e.target.value))}
+                  className="w-16 rounded bg-white/10 px-1.5 py-0.5 text-[11px] tabular-nums text-lime-300 outline-none focus:bg-white/20"
+                />
+                <span className="text-[10px] text-white/40">{unit}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </>
     );
