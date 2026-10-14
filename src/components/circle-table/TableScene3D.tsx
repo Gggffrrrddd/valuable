@@ -144,6 +144,82 @@ function R3fSizeProbe() {
   return null;
 }
 
+/* Mirrors the exact media query that applies the generic rotated stage
+   (index.css `.mob-sim.mob-sim`). Desktop never matches → zero-touch. */
+const LOCKED_MEDIA = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
+
+function isLockedContext(): boolean {
+  try {
+    return window.matchMedia(LOCKED_MEDIA).matches;
+  } catch {
+    return false;
+  }
+}
+
+/* Mobile-only fix: force R3F to the wrapper's LAYOUT size (clientWidth/
+   clientHeight are transform-unaware, so they read the true landscape stage
+   852×393 instead of react-use-measure's rotated bbox 393×852). */
+function CanvasSizeFix({ wrapRef }: { wrapRef: React.RefObject<HTMLDivElement | null> }) {
+  const sw = useThree((s) => s.size.width);
+  const sh = useThree((s) => s.size.height);
+  const setSize = useThree((s) => s.setSize);
+  const camera = useThree((s) => s.camera);
+  const forcedRef = useRef<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!isLockedContext()) return;
+    const apply = () => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w < 1 || h < 1) return;
+      setSize(w, h);
+      // Belt-and-braces per spec: camera aspect follows the forced size.
+      const cam = camera as { aspect?: number; updateProjectionMatrix?: () => void };
+      if (typeof cam.aspect === 'number') {
+        cam.aspect = w / h;
+        cam.updateProjectionMatrix?.();
+      }
+      forcedRef.current = { w, h };
+      const glCanvas = el.querySelector('canvas');
+      console.log(
+        '[study-table-measure] size-fix ' + JSON.stringify({
+          forcedW: w,
+          forcedH: h,
+          aspect: +(w / h).toFixed(3),
+          backing: glCanvas ? { w: (glCanvas as HTMLCanvasElement).width, h: (glCanvas as HTMLCanvasElement).height } : null,
+        }),
+      );
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', apply);
+    return () => {
+      window.removeEventListener('resize', apply);
+      window.removeEventListener('orientationchange', apply);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guard: if R3F's auto-measure overwrites with the rotated bbox later,
+  // re-force from layout dims (stable — no loop: forced size fails the check).
+  useEffect(() => {
+    if (!isLockedContext()) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w < 1 || h < 1) return;
+    if (w > h && sw < sh) {
+      setSize(w, h);
+      forcedRef.current = { w, h };
+    }
+  }, [sw, sh, setSize, wrapRef]);
+
+  return null;
+}
+
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
@@ -194,6 +270,8 @@ export default function TableScene3D({
   const hue = useMemo(() => Math.random() * 360, []);
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(TABLE_TEXTURE_URL);
+  // Stable ref for the mobile-only size fix (layout-dims measurement).
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const error = modelError ?? textureError;
 
@@ -209,7 +287,7 @@ export default function TableScene3D({
   }
 
   return (
-    <div id="study-table-canvas-wrap" className="absolute inset-0">
+    <div id="study-table-canvas-wrap" ref={wrapRef} className="absolute inset-0">
       <Canvas
         camera={{ position: [0, transform.cameraHeight, transform.cameraDistance], fov: 38 }}
         dpr={[1, 1.5]}
@@ -218,6 +296,7 @@ export default function TableScene3D({
         style={{ position: 'absolute', inset: 0 }}
       >
         <R3fSizeProbe />
+        <CanvasSizeFix wrapRef={wrapRef} />
         <ambientLight intensity={0.34} color="#d8d1c7" />
         <spotLight
           position={[1.4, 5.6, 3.2]}
