@@ -836,6 +836,78 @@ function SolarSizeBridge({ apiRef }: { apiRef: { current: SolarSizeApi } }) {
   useLayoutEffect(() => {
     apiRef.current = { setSize, camera, size: { width: size.width, height: size.height } };
   });
+  // TEMP DIAGNOSTIC: canvas-tree remount watch.
+  useEffect(() => {
+    solarCanvasMounts += 1;
+    if (window.innerWidth < 1024) {
+      console.log('[solar-system-measure] canvas-tree-mount ' + JSON.stringify({ t: Math.round(performance.now()), count: solarCanvasMounts }));
+    }
+    return () => {
+      if (window.innerWidth < 1024) {
+        console.log('[solar-system-measure] canvas-tree-unmount ' + JSON.stringify({ t: Math.round(performance.now()) }));
+      }
+    };
+  }, []);
+  return null;
+}
+
+/* Background galaxy placement (tuned via temporary panel, now hardcoded).
+   Module-level so the memoized Canvas element never sees new identities. */
+const SOLAR_GAL_LEFT: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
+const SOLAR_GAL_CENTER: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
+
+interface SolarSizeShare {
+  expected: { w: number; h: number; aspect: number } | null;
+  canvas: HTMLCanvasElement | null;
+}
+
+let solarCanvasMounts = 0;
+
+/* PART 2 safety net (locked mobile context only): takes over R3F's frame
+   render at priority 1 and SKIPS frames whose camera aspect or backing
+   buffer don't match the forced landscape size. A dropped frame is
+   imperceptible; a wrong-aspect frame is not. Desktop: expected stays null
+   → plain render every frame (identical to auto-render). */
+function SolarRenderGate({ shareRef }: { shareRef: { current: SolarSizeShare } }) {
+  const skipCountRef = useRef(0);
+  const wasSkippingRef = useRef(false);
+  useFrame(({ gl, scene, camera }) => {
+    const exp = shareRef.current.expected;
+    if (!exp) {
+      gl.render(scene, camera);
+      return;
+    }
+    let c = shareRef.current.canvas;
+    if (!c || !c.isConnected) {
+      c = document.querySelector('#solar-system-canvas-wrap canvas') as HTMLCanvasElement | null;
+      shareRef.current.canvas = c;
+    }
+    const cam = camera as unknown as { aspect?: number };
+    const aspectOk = typeof cam.aspect === 'number' && Math.abs(cam.aspect - exp.aspect) < 0.02;
+    const backingOk = !c || c.width >= c.height;
+    if (aspectOk && backingOk) {
+      if (wasSkippingRef.current) {
+        wasSkippingRef.current = false;
+        if (window.innerWidth < 1024) {
+          console.log('[solar-system-measure] render-gate resumed ' + JSON.stringify({ t: Math.round(performance.now()), skipped: skipCountRef.current }));
+        }
+        skipCountRef.current = 0;
+      }
+      gl.render(scene, camera);
+      return;
+    }
+    skipCountRef.current += 1;
+    if (!wasSkippingRef.current) {
+      wasSkippingRef.current = true;
+      if (window.innerWidth < 1024) {
+        console.log('[solar-system-measure] render-gate froze ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          camAspect: typeof cam.aspect === 'number' ? +cam.aspect.toFixed(3) : null,
+          backing: c ? { w: c.width, h: c.height } : null,
+        }));
+      }
+    }
+  }, 1);
   return null;
 }
 
@@ -857,6 +929,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const wrapRef = useRef<HTMLDivElement | null>(null);
   // Stashed R3F store setters (filled by SolarSizeBridge inside Canvas).
   const sizeApiRef = useRef<SolarSizeApi>({ setSize: null, camera: null, size: null });
+  // Forced-size record for the render gate (written by forceSolarSize).
+  const sizeShareRef = useRef<SolarSizeShare>({ expected: null, canvas: null });
 
   // Mobile-only pre-paint force: single authoritative source
   // (wrapper clientWidth/clientHeight). No timers, no retries.
@@ -868,6 +942,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     const h = el.clientHeight;
     if (w < 1 || h < 1 || w <= h) return false; // locked stage is landscape
     api.setSize(w, h);
+    sizeShareRef.current.expected = { w, h, aspect: w / h };
     const cam = api.camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void } | null;
     if (cam && typeof cam.aspect === 'number') {
       cam.aspect = w / h;
@@ -901,9 +976,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       forceSolarSize('commit');
     }
   });
-  // Background galaxy placement (tuned via temporary panel, now hardcoded).
-  const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
-  const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
   // CameraRig multiplies the base position by this factor every frame — the
   // Canvas camera must start pre-corrected, otherwise the first frame renders
   // uncorrected and the whole scene visibly jumps once ("shift at start").
@@ -924,6 +996,48 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
+  }, []);
+
+  // TEMP DIAGNOSTIC (mobile only): tick cadence vs refire cycle.
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    console.log('[solar-system-measure] progress-tick ' + JSON.stringify({ t: Math.round(performance.now()), progress: +value.toFixed(4) }));
+  }, [value]);
+
+  // TEMP DIAGNOSTIC (mobile only): spy on what fires measurement — own RO on
+  // the same subtree R3F observes, plus mob-sim signature + remount watch.
+  // If this stays silent while the cycle continues, the driver is Canvas
+  // re-render → dep-less configure, not a layout change.
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const mob = document.querySelector('.mob-sim');
+    const targets: Element[] = [wrap, ...Array.from(wrap.querySelectorAll('div'))];
+    if (mob) targets.push(mob);
+    const prev = new Map<Element, string>();
+    const ro = new ResizeObserver((entries) => {
+      const mobEl = document.querySelector('.mob-sim') as HTMLElement | null;
+      for (const e of entries) {
+        const r = e.contentRect;
+        const key = Math.round(r.width) + 'x' + Math.round(r.height);
+        const el = e.target as HTMLElement;
+        const name = el === wrap ? 'wrap' : el === mobEl ? 'mob-sim' : el.tagName + '.' + String(el.className || '').split(' ')[0];
+        const changed = prev.get(e.target) !== key;
+        prev.set(e.target, key);
+        console.log('[solar-system-measure] resize-observer-fire ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          target: name,
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+          changed,
+          mobCls: mobEl ? String(mobEl.className).slice(0, 80) : null,
+          mobStyle: mobEl ? mobEl.getAttribute('style') : null,
+        }));
+      }
+    });
+    targets.forEach((t) => ro.observe(t));
+    return () => ro.disconnect();
   }, []);
 
   // TEMP DIAGNOSTIC: gate-visibility log + resize/orientation re-force
@@ -1045,17 +1159,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     [glowCool, glowHot],
   );
 
-  const mapsByKey: Record<string, Texture | null> = {
-    mercury: mercuryTex,
-    venus: venusTex,
-    earth: earthDayTex,
-    mars: marsTex,
-    jupiter: jupiterTex,
-    saturn: saturnTex,
-    uranus: uranusTex,
-    neptune: neptuneTex,
-  };
-
   if (firstError) {
     return (
       <ModelVisualFallback
@@ -1096,8 +1199,22 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     !!uranusTex &&
     !!neptuneTex;
 
-  return (
-    <div id="solar-system-canvas-wrap" ref={wrapRef} className="relative h-full w-full overflow-hidden bg-black">
+  // PART 1 isolation: the SAME Canvas element object across timer ticks, so
+  // R3F's dep-less configure effect never re-runs with the stale rotated
+  // bbox (React bails out on identical element references — no memo import
+  // needed). Deps change only on texture load / ready flip / visibility.
+  const canvasEl = useMemo(() => {
+    const mapsByKey: Record<string, Texture | null> = {
+      mercury: mercuryTex,
+      venus: venusTex,
+      earth: earthDayTex,
+      mars: marsTex,
+      jupiter: jupiterTex,
+      saturn: saturnTex,
+      uranus: uranusTex,
+      neptune: neptuneTex,
+    };
+    return (
       <Canvas
         camera={{ position: [0, 8.5 * camK, 13 * camK], fov: 40, near: 0.1, far: 120 }}
         dpr={[1, 1.75]}
@@ -1110,13 +1227,14 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       >
         <SolarSizeProbe />
         <SolarSizeBridge apiRef={sizeApiRef} />
+        <SolarRenderGate shareRef={sizeShareRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
         {galaxyWhirlpoolTex && galaxyAndromedaTex ? (
           <FarBackgroundGalaxies
             texWhirlpool={galaxyWhirlpoolTex}
             texAndromeda={galaxyAndromedaTex}
-            left={galLeft}
-            center={galCenter}
+            left={SOLAR_GAL_LEFT}
+            center={SOLAR_GAL_CENTER}
           />
         ) : null}
         <BackgroundStars reducedMotion={reducedMotion} />
@@ -1159,6 +1277,17 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
           <LoadingSun />
         )}
       </Canvas>
+    );
+  }, [
+    sunTex, mercuryTex, venusTex, earthDayTex, earthNightTex, earthCloudsTex,
+    earthNormalTex, earthSpecTex, marsTex, jupiterTex, saturnTex, ringTex,
+    uranusTex, neptuneTex, galaxyWhirlpoolTex, galaxyAndromedaTex,
+    ready, loop, camK, reducedMotion, glowCool, glowHot,
+  ]);
+
+  return (
+    <div id="solar-system-canvas-wrap" ref={wrapRef} className="relative h-full w-full overflow-hidden bg-black">
+      {canvasEl}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
