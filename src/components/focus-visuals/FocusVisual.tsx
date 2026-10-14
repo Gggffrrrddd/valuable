@@ -93,7 +93,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             className="absolute inset-0 h-full w-full object-cover"
             draggable={false}
           />
-          <ParticlePainting progress={progress} running={running ?? false} />
+          <ParticlePainting progress={progress} running={running ?? false} duration={duration ?? 0} />
         </div>
       </>
     );

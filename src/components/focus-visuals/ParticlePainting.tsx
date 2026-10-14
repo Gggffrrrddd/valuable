@@ -1,56 +1,51 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
+//
+// The painting sits where the old hardcoded img sat:
+//   transform: translate(-28.15%, -10%) scale(0.21), origin 50% 50%.
+// We replicate that exact transform on canvas (no CSS-mask coordinate trap)
+// and render the painting reveal directly: painting (transformed, cover-fit)
+// clipped by an accumulated landing mask, blitted under the particles.
 
-const CANVAS_ZONE = {
-  cx: 0.5 - 0.2815,
-  cy: 0.5 - 0.10,
-  hw: 0.11,
-  hh: 0.14,
-};
+// Landing zone on screen (fraction of container) — matches the visible canvas.
+const ZONE = { cx: 0.5 - 0.2815, cy: 0.5 - 0.10, hw: 0.11, hh: 0.14 };
+
+// Must match the old CSS values exactly.
+const PAINT_TX = -0.2815; // fraction of W
+const PAINT_TY = -0.10;   // fraction of H
+const PAINT_S  = 0.21;
+
+const PAINT_SRC = '/visuals/blade/easel-tune.jpg';
 
 const COUNT_DESKTOP = 2400;
 const COUNT_MOBILE  = 800;
-const LAND_RADIUS   = 26;
+const LAND_RADIUS   = 26;   // px, screen space
 const DONE_AT       = 0.97;
+const MAX_RECRUIT_PER_FRAME = 6;
 
-// Vibrant multi-colour palette — each entry is [r, g, b]
+// Vibrant multi-colour palette — [r, g, b]
 const PALETTE: [number, number, number][] = [
-  [255, 200,  80],   // warm gold
-  [255, 140,  60],   // amber
-  [255, 100, 120],   // rose
-  [200, 130, 255],   // lavender
-  [100, 200, 255],   // sky blue
-  [130, 255, 200],   // mint
-  [255, 220, 150],   // peach
-  [255,  80, 180],   // hot pink
-  [100, 255, 255],   // cyan
-  [255, 255, 180],   // cream
-  [220, 180, 255],   // lilac
-  [255, 160, 100],   // tangerine
-  [180, 255, 160],   // spring green
-  [255, 120, 200],   // magenta-pink
-  [255, 200, 200],   // blush
+  [255, 200,  80], [255, 140,  60], [255, 100, 120], [200, 130, 255],
+  [100, 200, 255], [130, 255, 200], [255, 220, 150], [255,  80, 180],
+  [100, 255, 255], [255, 255, 180], [220, 180, 255], [255, 160, 100],
+  [180, 255, 160], [255, 120, 200], [255, 200, 200],
 ];
 
-// ─── Particle type ───────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Dot {
   x: number; y: number;
   vx: number; vy: number;
-  r: number;               // radius (very small)
-  a: number;               // current alpha
-  ba: number;              // base alpha
-  cr: number; cg: number; cb: number; // colour
-  glow: number;            // outer glow radius multiplier
-  phase: 0 | 1 | 2 | 3;   // 0 ambient, 1 drift, 2 land, 3 done
-  tx: number; ty: number;  // target
-  age: number;
-  lt: number;              // land timer
-  wobbleX: number;         // per-particle wobble seed
-  wobbleY: number;
-  speed: number;           // per-particle drift speed multiplier
-  pulse: number;           // pulse phase offset
+  r: number;
+  a: number; ba: number;
+  cr: number; cg: number; cb: number;
+  glow: number;
+  phase: 0 | 1 | 2 | 3; // 0 ambient, 1 drift, 2 land-fade, 3 done
+  tx: number; ty: number;
+  age: number; lt: number;
+  wobX: number; wobY: number;
+  speed: number; pulse: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -71,77 +66,140 @@ function spawn(W: number, H: number): Dot {
     tx: 0, ty: 0,
     age: Math.floor(rng(0, 500)),
     lt: 0,
-    wobbleX: rng(0.006, 0.018),
-    wobbleY: rng(0.005, 0.014),
+    wobX: rng(0.006, 0.018), wobY: rng(0.005, 0.014),
     speed: rng(0.6, 1.4),
     pulse: rng(0, Math.PI * 2),
   };
 }
 
+/** Stamp one soft white blob on the mask (screen coords). */
+function stamp(mc: CanvasRenderingContext2D, x: number, y: number, strength = 1) {
+  const r = LAND_RADIUS * rng(0.7, 1.6);
+  const g = mc.createRadialGradient(x, y, 0, x, y, r);
+  const c = 0.75 * strength;
+  g.addColorStop(0, `rgba(255,255,255,${c})`);
+  g.addColorStop(0.5, `rgba(255,255,255,${c * 0.45})`);
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  mc.fillStyle = g;
+  mc.beginPath();
+  mc.arc(x, y, r, 0, Math.PI * 2);
+  mc.fill();
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
-interface Props { progress: number; running: boolean }
+interface Props { progress: number; running: boolean; duration?: number }
 
-export default function ParticlePainting({ progress, running }: Props) {
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const maskRef     = useRef<HTMLCanvasElement>(null);
-  const paintImgRef = useRef<HTMLImageElement>(null);
+export default function ParticlePainting({ progress, running, duration = 0 }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const s = useRef({
     dots: [] as Dot[],
-    W: 0, H: 0, dpr: 1,
+    W: 0, H: 0,
     raf: 0,
+    last: 0,
     progress: 0,
     running: false,
-    dirty: false,
-    done: false,
+    duration: 0,
     landed: 0,
+    budget: 0,          // time-paced recruitment budget (particles)
+    done: false,        // completion fill fired
+    imgReady: false,
+    revealDirty: true,
+    mask: null as HTMLCanvasElement | null,
+    reveal: null as HTMLCanvasElement | null,
+    img: null as HTMLImageElement | null,
   });
 
-  // ── init / resize ──────────────────────────────────────────────────────────
+  // ── init / resize ─────────────────────────────────────────────────────────
 
   const init = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
     const rect = c.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
+    const W = rect.width, H = rect.height;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    c.width  = rect.width  * dpr;
-    c.height = rect.height * dpr;
-    const ctx = c.getContext('2d');
-    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const m = maskRef.current;
-    if (m) { m.width = rect.width; m.height = rect.height; }
+    c.width = W * dpr; c.height = H * dpr;
+    c.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const st = s.current;
-    st.W = rect.width; st.H = rect.height; st.dpr = dpr;
-    const n = rect.width < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
-    st.dots = Array.from({ length: n }, () => spawn(rect.width, rect.height));
-    st.landed = 0; st.done = false; st.dirty = true;
+    st.W = W; st.H = H;
 
-    // start mask fully transparent → painting fully hidden
-    if (m) {
-      const mc = m.getContext('2d');
-      if (mc) mc.clearRect(0, 0, rect.width, rect.height);
+    // fresh offscreens
+    const mask = document.createElement('canvas');
+    mask.width = W; mask.height = H;
+    const reveal = document.createElement('canvas');
+    reveal.width = W; reveal.height = H;
+    st.mask = mask; st.reveal = reveal;
+
+    const n = W < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
+    st.dots = Array.from({ length: n }, () => spawn(W, H));
+    st.done = false; st.budget = 0; st.revealDirty = true;
+
+    // pre-fill: keep reveal in sync with current progress across resizes —
+    // stamp random zone points + mark that many dots done.
+    const mc = mask.getContext('2d');
+    const zx = W * ZONE.cx, zy = H * ZONE.cy;
+    const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
+    const pre = Math.floor(st.progress * n);
+    if (mc && pre > 0) {
+      for (let i = 0; i < pre; i++) stamp(mc, rng(zx - zhw, zx + zhw), rng(zy - zhh, zy + zhh), 0.8);
+      for (let i = 0; i < pre && i < st.dots.length; i++) {
+        const d = st.dots[Math.floor(Math.random() * st.dots.length)];
+        if (d.phase === 0) { d.phase = 3; d.a = 0; }
+      }
     }
-    // apply initial empty mask immediately so painting is hidden from frame 0
-    const img = paintImgRef.current;
-    if (img && m) {
-      const url = m.toDataURL();
-      img.style.maskImage = `url(${url})`;
-      img.style.webkitMaskImage = `url(${url})`;
-      img.style.opacity = '1'; // mask controls visibility now
+    st.landed = pre;
+    if (st.progress >= DONE_AT && mc) {
+      mc.fillStyle = '#fff';
+      mc.fillRect(0, 0, W, H);
+      st.done = true;
     }
   }, []);
 
-  // ── draw loop ──────────────────────────────────────────────────────────────
+  // ── compose reveal canvas: painting (transformed) clipped by mask ─────────
 
-  const draw = useCallback(() => {
+  const composeReveal = useCallback(() => {
+    const st = s.current;
+    const { mask, reveal, img, W, H } = st;
+    if (!mask || !reveal || !img || !st.imgReady || W < 1) return;
+    const rc = reveal.getContext('2d');
+    if (!rc) return;
+
+    rc.setTransform(1, 0, 0, 1, 0, 0);
+    rc.globalCompositeOperation = 'source-over';
+    rc.clearRect(0, 0, W, H);
+
+    // replicate CSS: origin centre → translate → scale → un-origin
+    rc.save();
+    rc.translate(W / 2, H / 2);
+    rc.translate(PAINT_TX * W, PAINT_TY * H);
+    rc.scale(PAINT_S, PAINT_S);
+    rc.translate(-W / 2, -H / 2);
+
+    // object-cover the image into the W×H local box
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    if (iw > 0 && ih > 0) {
+      const sc = Math.max(W / iw, H / ih);
+      const dw = iw * sc, dh = ih * sc;
+      rc.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    }
+    rc.restore();
+
+    // clip to accumulated landings
+    rc.globalCompositeOperation = 'destination-in';
+    rc.drawImage(mask, 0, 0);
+    rc.globalCompositeOperation = 'source-over';
+
+    st.revealDirty = false;
+  }, []);
+
+  // ── main loop ─────────────────────────────────────────────────────────────
+
+  const draw = useCallback((now: number) => {
     const c = canvasRef.current;
-    const m = maskRef.current;
-    const img = paintImgRef.current;
-    if (!c || !m) { s.current.raf = requestAnimationFrame(draw); return; }
+    if (!c) { s.current.raf = requestAnimationFrame(draw); return; }
     const ctx = c.getContext('2d');
     if (!ctx) return;
 
@@ -149,145 +207,129 @@ export default function ParticlePainting({ progress, running }: Props) {
     const { W, H, dots, progress: prog } = st;
     if (W < 1) { st.raf = requestAnimationFrame(draw); return; }
 
-    // zone
-    const zx  = W * CANVAS_ZONE.cx;
-    const zy  = H * CANVAS_ZONE.cy;
-    const zhw = W * CANVAS_ZONE.hw;
-    const zhh = H * CANVAS_ZONE.hh;
+    const dt = Math.min(0.1, Math.max(0.001, (now - (st.last || now)) / 1000));
+    st.last = now;
 
-    // target landed count — linear with progress, all particles can land
-    const target = Math.floor(prog * dots.length);
-    // recruit at most a few per frame for steady trickle
-    const need = Math.max(0, target - st.landed);
-    const maxRecruit = Math.max(1, Math.ceil(dots.length / 900)); // ~2-3 per frame
+    const zx = W * ZONE.cx, zy = H * ZONE.cy;
+    const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
 
-    // clear
-    ctx.clearRect(0, 0, W, H);
+    // ── time-paced recruitment ──
+    // rate spreads ALL particles evenly across the whole session duration,
+    // so landings track the clock instead of bursting mid-session.
+    const total = dots.length;
+    const dur = st.duration > 0 ? st.duration : 1500;
+    const rate = total / dur; // particles per second
+    if (st.running) {
+      st.budget = Math.min(rate * 5, st.budget + rate * dt); // cap 5s worth
+    }
+    const target = prog * total;
+    const catchup = Math.max(0, target - st.landed);
+    let recruit = Math.min(Math.floor(st.budget), catchup, MAX_RECRUIT_PER_FRAME);
+    st.budget -= recruit;
 
-    // batch: first draw all glows (additive), then dots
-    ctx.globalCompositeOperation = 'lighter';
-
-    let recruited = 0;
+    // ── update dots ──
+    const mc = st.mask?.getContext('2d') ?? null;
 
     for (const d of dots) {
       d.age++;
-      const sin1 = Math.sin(d.age * d.wobbleX + d.pulse);
-      const cos1 = Math.cos(d.age * d.wobbleY + d.pulse);
+      const sin1 = Math.sin(d.age * d.wobX + d.pulse);
+      const cos1 = Math.cos(d.age * d.wobY + d.pulse);
 
       if (d.phase === 0) {
-        // ambient — gentle float with slightly more movement
         d.x += (d.vx + sin1 * 0.15) * d.speed;
         d.y += (d.vy + cos1 * 0.10) * d.speed;
-
-        // pulse alpha
         d.a = d.ba * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin(d.age * 0.02 + d.pulse)));
-
-        // wrap
         if (d.x < -10) d.x = W + 10;
         if (d.x > W + 10) d.x = -10;
         if (d.y < -10) d.y = H + 10;
         if (d.y > H + 10) d.y = -10;
 
-        // recruit — steady trickle, capped per frame
-        if (need > 0 && st.running && recruited < maxRecruit && Math.random() < 0.06) {
+        if (recruit > 0 && st.running && Math.random() < 0.5) {
           d.phase = 1;
           d.tx = rng(zx - zhw, zx + zhw);
           d.ty = rng(zy - zhh, zy + zhh);
-          recruited++;
+          recruit--;
         }
       } else if (d.phase === 1) {
-        // drift toward canvas — graceful arc
-        const dx = d.tx - d.x;
-        const dy = d.ty - d.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const spd = Math.max(0.5, dist * 0.025);
-        d.x += (dx / (dist || 1)) * spd + sin1 * 0.3;
-        d.y += (dy / (dist || 1)) * spd + cos1 * 0.2;
-        d.a = Math.min(0.95, d.a + 0.015);
+        const dx = d.tx - d.x, dy = d.ty - d.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        // fast enough to arrive ~1s after recruitment → landing tracks time
+        const spd = Math.max(3, dist * 0.08);
+        d.x += (dx / dist) * spd + sin1 * 0.3;
+        d.y += (dy / dist) * spd + cos1 * 0.2;
+        d.a = Math.min(0.95, d.a + 0.02);
 
-        if (dist < 3) {
-          d.phase = 2;
-          d.lt = 50;
+        if (dist < 5) {
+          d.phase = 2; d.lt = 50;
           st.landed++;
-          st.dirty = true;
-          // stamp reveal mask — strong opacity for visible reveal
-          const mc = m.getContext('2d');
-          if (mc) {
-            const r = LAND_RADIUS * rng(0.6, 1.5);
-            const g = mc.createRadialGradient(d.tx, d.ty, 0, d.tx, d.ty, r);
-            g.addColorStop(0, 'rgba(255,255,255,0.7)');
-            g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
-            g.addColorStop(1, 'rgba(255,255,255,0)');
-            mc.fillStyle = g;
-            mc.beginPath();
-            mc.arc(d.tx, d.ty, r, 0, Math.PI * 2);
-            mc.fill();
-          }
+          if (mc) { stamp(mc, d.tx, d.ty); st.revealDirty = true; }
         }
       } else if (d.phase === 2) {
         d.a *= 0.94;
-        d.lt--;
-        if (d.lt <= 0) { d.phase = 3; d.a = 0; }
-      }
-
-      // draw (skip phase 3 = done)
-      if (d.phase < 3 && d.a > 0.008) {
-        // outer glow
-        const gr = d.r * d.glow;
-        const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
-        g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
-        g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
-        g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
-        ctx.fill();
-
-        // bright core
-        ctx.globalAlpha = d.a;
-        ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        if (--d.lt <= 0) { d.phase = 3; d.a = 0; }
       }
     }
 
-    ctx.globalCompositeOperation = 'source-over';
-
-    // completion burst — fully reveal painting
+    // ── completion: full reveal ──
     if (prog >= DONE_AT && !st.done) {
       st.done = true;
-      const mc = m.getContext('2d');
       if (mc) {
-        // fill entire mask canvas white = painting fully visible
-        mc.fillStyle = 'rgba(255,255,255,1)';
+        mc.fillStyle = '#fff';
         mc.fillRect(0, 0, W, H);
-        st.dirty = true;
+        st.revealDirty = true;
       }
     }
 
-    // apply mask
-    if (st.dirty && img) {
-      const url = m.toDataURL();
-      img.style.maskImage = `url(${url})`;
-      img.style.webkitMaskImage = `url(${url})`;
-      st.dirty = false;
+    // ── render ──
+    if (st.revealDirty) composeReveal();
+
+    ctx.clearRect(0, 0, W, H);
+
+    // painting reveal under everything
+    if (st.reveal) ctx.drawImage(st.reveal, 0, 0, W, H);
+
+    // particles on top (additive glow)
+    ctx.globalCompositeOperation = 'lighter';
+    for (const d of dots) {
+      if (d.phase >= 3 || d.a <= 0.008) continue;
+      const gr = d.r * d.glow;
+      const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
+      g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
+      g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
+      g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = d.a;
+      ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
+    ctx.globalCompositeOperation = 'source-over';
 
     st.raf = requestAnimationFrame(draw);
-  }, []);
+  }, [composeReveal]);
 
-  // ── sync props ─────────────────────────────────────────────────────────────
+  // ── sync props ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     s.current.progress = progress;
-    s.current.running  = running;
-  }, [progress, running]);
+    s.current.running = running;
+    s.current.duration = duration;
+  }, [progress, running, duration]);
 
-  // ── mount ──────────────────────────────────────────────────────────────────
+  // ── mount: load painting, init, loop ──────────────────────────────────────
 
   useEffect(() => {
+    const img = new Image();
+    img.src = PAINT_SRC;
+    img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
+    s.current.img = img;
+
     init();
     s.current.raf = requestAnimationFrame(draw);
     const ro = new ResizeObserver(init);
@@ -295,32 +337,11 @@ export default function ParticlePainting({ progress, running }: Props) {
     return () => { cancelAnimationFrame(s.current.raf); ro.disconnect(); };
   }, [init, draw]);
 
-  // ── render ─────────────────────────────────────────────────────────────────
-
   return (
-    <>
-      <canvas ref={maskRef} className="pointer-events-none absolute hidden" aria-hidden="true" />
-
-      <img
-        ref={paintImgRef}
-        src="/visuals/blade/easel-tune.jpg"
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        style={{
-          transform: 'translate(-28.15%, -10%) scale(0.21)',
-          opacity: 0,
-          maskSize: '100% 100%',
-          WebkitMaskSize: '100% 100%',
-        }}
-        draggable={false}
-      />
-
-      <canvas
-        ref={canvasRef}
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        aria-hidden="true"
-      />
-    </>
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden="true"
+    />
   );
 }
