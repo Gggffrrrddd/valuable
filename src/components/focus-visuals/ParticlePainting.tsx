@@ -20,7 +20,6 @@ const PAINT_S  = 0.21;
 // All paintings share the same placement + reveal animation.
 // Drop new files in public/visuals/blade/ and add the path here.
 const PAINTINGS = [
-  '/visuals/blade/paint-default.jpg',
   '/visuals/blade/paint-sunflower.png',
 ];
 
