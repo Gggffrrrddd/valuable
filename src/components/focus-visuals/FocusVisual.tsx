@@ -3,6 +3,7 @@ import HourglassVisual from './HourglassVisual';
 import JarVisual from './JarVisual';
 import TreeVisual from './TreeVisual';
 import ButterflyConstellationVisual from './ButterflyConstellationVisual';
+import ParticlePainting from './ParticlePainting';
 import type { FocusVisualProps, FocusVisualTheme } from './types';
 import { ModelLoadingShimmer, ModelVisualErrorBoundary } from './model-core';
 
@@ -84,7 +85,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             </Suspense>
           </ModelVisualErrorBoundary>
         </div>
-        {/* Desktop: base image full-bleed + tune image hardcoded. */}
+        {/* Desktop: easel base + particle painting reveal. */}
         <div className="relative hidden h-full w-full items-center justify-center lg:flex">
           <img
             src="/visuals/blade/easel-base.png"
@@ -92,13 +93,7 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
             className="absolute inset-0 h-full w-full object-cover"
             draggable={false}
           />
-          <img
-            src="/visuals/blade/easel-tune.jpg"
-            alt="Overlay"
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ transform: 'translate(-28.15%, -10%) scale(0.21)' }}
-            draggable={false}
-          />
+          <ParticlePainting progress={progress} running={running ?? false} />
         </div>
       </>
     );
