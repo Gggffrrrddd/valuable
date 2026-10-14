@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { CanvasTexture, ClampToEdgeWrapping, Group, Mesh, SRGBColorSpace, Texture } from 'three';
@@ -119,6 +119,31 @@ function TableModel({
   );
 }
 
+/* TEMP DIAGNOSTIC (mobile only): logs the size R3F measures when its
+   ResizeObserver fires — catches first-render 0×0 / stale values. */
+function R3fSizeProbe() {
+  const w = useThree((s) => s.size.width);
+  const h = useThree((s) => s.size.height);
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    const canvas = document.querySelector('#study-table-canvas-wrap canvas');
+    const parent = canvas?.parentElement ?? null;
+    const pr = parent?.getBoundingClientRect() ?? null;
+    const cr = (canvas as HTMLCanvasElement | null)?.getBoundingClientRect() ?? null;
+    console.log(
+      '[study-table-measure] r3f-size ' + JSON.stringify({
+        r3fW: Math.round(w),
+        r3fH: Math.round(h),
+        zeroSize: w < 1 || h < 1,
+        parentRect: pr ? { w: Math.round(pr.width), h: Math.round(pr.height) } : null,
+        canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+        canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
+      }),
+    );
+  }, [w, h]);
+  return null;
+}
+
 export default function TableScene3D({
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
@@ -184,7 +209,7 @@ export default function TableScene3D({
   }
 
   return (
-    <div className="absolute inset-0">
+    <div id="study-table-canvas-wrap" className="absolute inset-0">
       <Canvas
         camera={{ position: [0, transform.cameraHeight, transform.cameraDistance], fov: 38 }}
         dpr={[1, 1.5]}
@@ -192,6 +217,7 @@ export default function TableScene3D({
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
+        <R3fSizeProbe />
         <ambientLight intensity={0.34} color="#d8d1c7" />
         <spotLight
           position={[1.4, 5.6, 3.2]}

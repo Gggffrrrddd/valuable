@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
@@ -21,6 +21,67 @@ const OWN_STATUS_BY_STATE: Record<LocalFocusState, CirclePresenceStatus> = {
   focusing: 'focusing',
   paused: 'paused',
 };
+
+/* ── TEMP DIAGNOSTICS: [study-table-measure] — remove after diagnosis. ──
+   Mobile-only (viewport < 768px); desktop path is untouched. */
+
+function isQuarterTurn(t: string): boolean {
+  if (t === 'none') return false;
+  if (t.indexOf('rotate') !== -1) return true;
+  const m = t.match(/^matrix\(([^)]+)\)/);
+  if (!m) return false;
+  const p = m[1].split(',').map(Number);
+  return Math.abs(p[0]) < 0.05 && Math.abs(p[3]) < 0.05 && Math.abs(Math.abs(p[1]) - 1) < 0.05;
+}
+
+function snapStudyTable(tag: string, anchor: HTMLElement | null) {
+  if (!anchor) {
+    console.log('[study-table-measure] no-anchor ' + tag);
+    return;
+  }
+  const r = anchor.getBoundingClientRect();
+  const chain: object[] = [];
+  let rotatedAncestor: string | null = null;
+  let el: HTMLElement | null = anchor.parentElement;
+  let guard = 0;
+  while (el && guard < 10) {
+    const cs = getComputedStyle(el);
+    const er = el.getBoundingClientRect();
+    if (!rotatedAncestor && isQuarterTurn(cs.transform)) {
+      rotatedAncestor = el.tagName + '.' + String(el.className).split(' ')[0];
+    }
+    chain.push({
+      tag: el.tagName,
+      cls: String(el.className).slice(0, 64),
+      cssH: cs.height,
+      cssW: cs.width,
+      pos: cs.position,
+      rectW: Math.round(er.width),
+      rectH: Math.round(er.height),
+    });
+    el = el.parentElement;
+    guard++;
+  }
+  const ownTf = getComputedStyle(anchor).transform;
+  const canvas = anchor.querySelector('canvas');
+  const cr = canvas ? canvas.getBoundingClientRect() : null;
+  console.log(
+    '[study-table-measure] snapshot ' + tag + ' ' + JSON.stringify({
+      anchorRect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+      anchorTransform: ownTf === 'none' ? 'none' : ownTf.slice(0, 72),
+      anchorRotated: isQuarterTurn(ownTf),
+      canvasPresent: !!canvas,
+      canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+      canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
+      orientation: (window.screen.orientation && window.screen.orientation.type) || 'n/a',
+      portraitMQ: window.matchMedia('(orientation: portrait)').matches,
+      inner: { w: window.innerWidth, h: window.innerHeight },
+      landscapeLocked: !!rotatedAncestor,
+      rotatedAncestor,
+      chain,
+    }),
+  );
+}
 
 /** Tuned reference for the sitting-character chairs (final hardcoded values). */
 const CHARACTER_REFERENCE: ObjectTransform = {
@@ -287,6 +348,21 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
     status: OWN_STATUS_BY_STATE[ownState],
   };
 
+  // TEMP DIAGNOSTIC (mobile only): measure container/parent-chain/canvas.
+  const sceneAnchorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    snapStudyTable('mount', sceneAnchorRef.current);
+    const t1 = window.setTimeout(() => snapStudyTable('t+1s', sceneAnchorRef.current), 1000);
+    const t2 = window.setTimeout(() => snapStudyTable('t+2.5s', sceneAnchorRef.current), 2500);
+    const t3 = window.setTimeout(() => snapStudyTable('t+5s', sceneAnchorRef.current), 5000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, []);
+
   // Immersive table: hide the phone's own system bars while the landscape
   // table shows, same as timer sessions. Fail-soft outside Fullscreen API.
   useEffect(() => {
@@ -334,7 +410,7 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
 
   return (
     <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-      <div className="absolute inset-0">
+      <div ref={sceneAnchorRef} className="absolute inset-0">
         <TableScene3D
           self={self}
           friends={seatedFriends}
