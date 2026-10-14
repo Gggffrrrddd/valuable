@@ -16,7 +16,13 @@ const PAINT_TX = -0.2815; // fraction of W
 const PAINT_TY = -0.10;   // fraction of H
 const PAINT_S  = 0.21;
 
-const PAINT_SRC = '/visuals/blade/easel-tune.jpg';
+// Painting pool — one is picked at random per session mount.
+// All paintings share the same placement + reveal animation.
+// Drop new files in public/visuals/blade/ and add the path here.
+const PAINTINGS = [
+  '/visuals/blade/paint-default.jpg',
+  '/visuals/blade/paint-sunflower.png',
+];
 
 const COUNT_DESKTOP = 2400;
 const COUNT_MOBILE  = 800;
@@ -402,11 +408,11 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     s.current.duration = duration;
   }, [progress, running, duration]);
 
-  // ── mount: load painting, init, loop ──────────────────────────────────────
+  // ── mount: pick a random painting, load it, init, loop ────────────────
 
   useEffect(() => {
     const img = new Image();
-    img.src = PAINT_SRC;
+    img.src = pick(PAINTINGS);
     img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
     s.current.img = img;
 
