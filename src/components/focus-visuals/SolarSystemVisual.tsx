@@ -859,6 +859,7 @@ const SOLAR_GAL_CENTER: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, o
 interface SolarSizeShare {
   expected: { w: number; h: number; aspect: number } | null;
   canvas: HTMLCanvasElement | null;
+  onFirstGoodFrame: (() => void) | null;
 }
 
 let solarCanvasMounts = 0;
@@ -894,6 +895,8 @@ function SolarRenderGate({ shareRef }: { shareRef: { current: SolarSizeShare } }
         skipCountRef.current = 0;
       }
       gl.render(scene, camera);
+      // First confirmed-correct painted frame → lift the mount cover (once).
+      shareRef.current.onFirstGoodFrame?.();
       return;
     }
     skipCountRef.current += 1;
@@ -930,7 +933,27 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   // Stashed R3F store setters (filled by SolarSizeBridge inside Canvas).
   const sizeApiRef = useRef<SolarSizeApi>({ setSize: null, camera: null, size: null });
   // Forced-size record for the render gate (written by forceSolarSize).
-  const sizeShareRef = useRef<SolarSizeShare>({ expected: null, canvas: null });
+  const sizeShareRef = useRef<SolarSizeShare>({ expected: null, canvas: null, onFirstGoodFrame: null });
+
+  // Mount cover (mobile locked context only): opaque until the first
+  // confirmed-correct frame, then smooth fade — once, mount only.
+  const [coverMounted, setCoverMounted] = useState(() => {
+    try {
+      return isSolarLockedContext();
+    } catch {
+      return false;
+    }
+  });
+  const [coverLifted, setCoverLifted] = useState(false);
+  const coverTimerRef = useRef(0);
+  // Ref-stable: only refs + stable setState, so the mount-captured instance
+  // stays valid forever.
+  const liftCover = () => {
+    sizeShareRef.current.onFirstGoodFrame = null;
+    setCoverLifted(true);
+    window.clearTimeout(coverTimerRef.current);
+    coverTimerRef.current = window.setTimeout(() => setCoverMounted(false), 250);
+  };
 
   // Mobile-only pre-paint force: single authoritative source
   // (wrapper clientWidth/clientHeight). No timers, no retries.
@@ -1059,16 +1082,26 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       }),
     );
     const onResize = () => {
-      if (!isSolarLockedContext()) return;
+      if (!isSolarLockedContext()) {
+        liftCover();
+        return;
+      }
       forceSolarSize('resize');
     };
     const onOrient = () => {
-      if (!isSolarLockedContext()) return;
+      if (!isSolarLockedContext()) {
+        liftCover();
+        return;
+      }
       forceSolarSize('orientationchange');
     };
+    // Gate-confirmed first good frame lifts the mount cover (once).
+    sizeShareRef.current.onFirstGoodFrame = liftCover;
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onOrient);
     return () => {
+      sizeShareRef.current.onFirstGoodFrame = null;
+      window.clearTimeout(coverTimerRef.current);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onOrient);
     };
@@ -1296,6 +1329,15 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
             'radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.35) 85%, rgba(0,0,0,1) 100%)',
         }}
       />
+      {/* Mount cover (mobile locked only): hides the one-time mount
+          wrong-frame until the gate confirms a correct frame, then fades. */}
+      {coverMounted && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 bg-[#090b0a] transition-opacity duration-200"
+          style={{ opacity: coverLifted ? 0 : 1 }}
+        />
+      )}
     </div>
   );
 }
