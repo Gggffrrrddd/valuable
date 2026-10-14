@@ -62,7 +62,7 @@ function spawn(W: number, H: number): Dot {
   const [cr, cg, cb] = pick(PALETTE);
   return {
     x: rng(0, W), y: rng(0, H),
-    vx: rng(-0.08, 0.08), vy: rng(-0.06, 0.03),
+    vx: rng(-0.25, 0.25), vy: rng(-0.18, 0.1),
     r: rng(0.6, 1.6),
     a: 0, ba: rng(0.25, 0.7),
     cr, cg, cb,
@@ -118,7 +118,21 @@ export default function ParticlePainting({ progress, running }: Props) {
     st.W = rect.width; st.H = rect.height; st.dpr = dpr;
     const n = rect.width < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
     st.dots = Array.from({ length: n }, () => spawn(rect.width, rect.height));
-    st.landed = 0; st.done = false; st.dirty = false;
+    st.landed = 0; st.done = false; st.dirty = true;
+
+    // start mask fully transparent → painting fully hidden
+    if (m) {
+      const mc = m.getContext('2d');
+      if (mc) mc.clearRect(0, 0, rect.width, rect.height);
+    }
+    // apply initial empty mask immediately so painting is hidden from frame 0
+    const img = paintImgRef.current;
+    if (img && m) {
+      const url = m.toDataURL();
+      img.style.maskImage = `url(${url})`;
+      img.style.webkitMaskImage = `url(${url})`;
+      img.style.opacity = '1'; // mask controls visibility now
+    }
   }, []);
 
   // ── draw loop ──────────────────────────────────────────────────────────────
@@ -160,9 +174,9 @@ export default function ParticlePainting({ progress, running }: Props) {
       const cos1 = Math.cos(d.age * d.wobbleY + d.pulse);
 
       if (d.phase === 0) {
-        // ambient — very slow ethereal float
-        d.x += (d.vx + sin1 * 0.06) * d.speed;
-        d.y += (d.vy + cos1 * 0.04) * d.speed;
+        // ambient — gentle float with slightly more movement
+        d.x += (d.vx + sin1 * 0.15) * d.speed;
+        d.y += (d.vy + cos1 * 0.10) * d.speed;
 
         // pulse alpha
         d.a = d.ba * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin(d.age * 0.02 + d.pulse)));
@@ -238,19 +252,23 @@ export default function ParticlePainting({ progress, running }: Props) {
 
     ctx.globalCompositeOperation = 'source-over';
 
-    // completion burst
+    // completion burst — fill the entire canvas zone to fully reveal painting
     if (prog >= DONE_AT && !st.done) {
       st.done = true;
       const mc = m.getContext('2d');
       if (mc) {
-        const R = Math.max(zhw, zhh) * 2.4;
-        const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
-        g.addColorStop(0, 'rgba(255,255,255,0.98)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
-        mc.fillStyle = g;
-        mc.beginPath();
-        mc.arc(zx, zy, R, 0, Math.PI * 2);
-        mc.fill();
+        // multiple overlapping washes for full opaque coverage
+        for (let i = 0; i < 5; i++) {
+          const R = Math.max(zhw, zhh) * (2.0 + i * 0.5);
+          const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
+          g.addColorStop(0, 'rgba(255,255,255,1)');
+          g.addColorStop(0.7, 'rgba(255,255,255,0.8)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          mc.fillStyle = g;
+          mc.beginPath();
+          mc.arc(zx, zy, R, 0, Math.PI * 2);
+          mc.fill();
+        }
         st.dirty = true;
       }
     }
@@ -297,8 +315,7 @@ export default function ParticlePainting({ progress, running }: Props) {
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         style={{
           transform: 'translate(-28.15%, -10%) scale(0.21)',
-          maskImage: 'none',
-          WebkitMaskImage: 'none',
+          opacity: 0,
           maskSize: '100% 100%',
           WebkitMaskSize: '100% 100%',
         }}
