@@ -1,273 +1,299 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-// ─── constants ────────────────────────────────────────────────────────────────
+// ─── Config ──────────────────────────────────────────────────────────────────
 
-// Canvas zone: the painting sits at translate(-28.15%, -10%) scale(0.21)
-// relative to the container. We map this to a rect on the screen canvas so
-// landing particles reveal that exact region.
 const CANVAS_ZONE = {
-  // normalised centre (0-1) of the canvas image within the container
-  cx: 0.5 - 0.2815,   // ≈ 0.2185
-  cy: 0.5 - 0.10,     // ≈ 0.40
-  // scale(0.21) means the image occupies 21 % of container width/height
-  // but object-cover means it fills its box — we just need a reasonable
-  // landing rectangle. Tune these if needed.
-  hw: 0.11,  // half-width  (fraction of container)
-  hh: 0.14,  // half-height (fraction of container)
+  cx: 0.5 - 0.2815,
+  cy: 0.5 - 0.10,
+  hw: 0.11,
+  hh: 0.14,
 };
 
-const PARTICLE_COUNT_DESKTOP = 1800;
-const PARTICLE_COUNT_MOBILE  = 600;
-const LAND_RADIUS_BASE       = 28; // px, soft brush stroke radius on mask
-const COMPLETION_THRESHOLD   = 0.98;
+const COUNT_DESKTOP = 2400;
+const COUNT_MOBILE  = 800;
+const LAND_RADIUS   = 26;
+const DONE_AT       = 0.97;
 
-// Gold/warm-white palette
-const COLORS = [
-  'rgba(246,227,186,',  // #f6e3ba
-  'rgba(255,220,140,',
-  'rgba(255,240,200,',
-  'rgba(230,200,150,',
-  'rgba(255,255,230,',
+// Vibrant multi-colour palette — each entry is [r, g, b]
+const PALETTE: [number, number, number][] = [
+  [255, 200,  80],   // warm gold
+  [255, 140,  60],   // amber
+  [255, 100, 120],   // rose
+  [200, 130, 255],   // lavender
+  [100, 200, 255],   // sky blue
+  [130, 255, 200],   // mint
+  [255, 220, 150],   // peach
+  [255,  80, 180],   // hot pink
+  [100, 255, 255],   // cyan
+  [255, 255, 180],   // cream
+  [220, 180, 255],   // lilac
+  [255, 160, 100],   // tangerine
+  [180, 255, 160],   // spring green
+  [255, 120, 200],   // magenta-pink
+  [255, 200, 200],   // blush
 ];
 
-// ─── types ────────────────────────────────────────────────────────────────────
+// ─── Particle type ───────────────────────────────────────────────────────────
 
-interface Particle {
-  x: number; y: number;       // current position (px)
-  vx: number; vy: number;     // velocity
-  size: number;               // radius
-  alpha: number;              // current opacity
-  baseAlpha: number;          // idle opacity
-  color: string;              // rgba prefix
-  phase: 'ambient' | 'drifting' | 'landing' | 'landed';
-  tx: number; ty: number;     // target (canvas zone) when drifting
-  age: number;                // frames alive
-  landTimer: number;          // countdown after landing
+interface Dot {
+  x: number; y: number;
+  vx: number; vy: number;
+  r: number;               // radius (very small)
+  a: number;               // current alpha
+  ba: number;              // base alpha
+  cr: number; cg: number; cb: number; // colour
+  glow: number;            // outer glow radius multiplier
+  phase: 0 | 1 | 2 | 3;   // 0 ambient, 1 drift, 2 land, 3 done
+  tx: number; ty: number;  // target
+  age: number;
+  lt: number;              // land timer
+  wobbleX: number;         // per-particle wobble seed
+  wobbleY: number;
+  speed: number;           // per-particle drift speed multiplier
+  pulse: number;           // pulse phase offset
 }
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function rand(a: number, b: number) { return a + Math.random() * (b - a); }
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+const rng = (a: number, b: number) => a + Math.random() * (b - a);
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-function makeParticle(W: number, H: number): Particle {
+function spawn(W: number, H: number): Dot {
+  const [cr, cg, cb] = pick(PALETTE);
   return {
-    x: rand(0, W), y: rand(0, H),
-    vx: rand(-0.3, 0.3), vy: rand(-0.25, 0.05),
-    size: rand(1.2, 3.2),
-    alpha: 0,
-    baseAlpha: rand(0.18, 0.55),
-    color: pick(COLORS),
-    phase: 'ambient',
+    x: rng(0, W), y: rng(0, H),
+    vx: rng(-0.08, 0.08), vy: rng(-0.06, 0.03),
+    r: rng(0.6, 1.6),
+    a: 0, ba: rng(0.25, 0.7),
+    cr, cg, cb,
+    glow: rng(2.5, 5),
+    phase: 0,
     tx: 0, ty: 0,
-    age: Math.floor(rand(0, 200)),
-    landTimer: 0,
+    age: Math.floor(rng(0, 500)),
+    lt: 0,
+    wobbleX: rng(0.006, 0.018),
+    wobbleY: rng(0.005, 0.014),
+    speed: rng(0.6, 1.4),
+    pulse: rng(0, Math.PI * 2),
   };
 }
 
-// ─── component ───────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────
 
-interface Props {
-  progress: number;   // 0-1
-  running: boolean;
-}
+interface Props { progress: number; running: boolean }
 
 export default function ParticlePainting({ progress, running }: Props) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const maskRef    = useRef<HTMLCanvasElement>(null);  // offscreen reveal mask
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const maskRef     = useRef<HTMLCanvasElement>(null);
   const paintImgRef = useRef<HTMLImageElement>(null);
-  const stateRef   = useRef({
-    particles: [] as Particle[],
-    W: 0, H: 0,
+
+  const s = useRef({
+    dots: [] as Dot[],
+    W: 0, H: 0, dpr: 1,
     raf: 0,
     progress: 0,
     running: false,
-    maskDirty: false,
-    completionFired: false,
-    landedCount: 0,
+    dirty: false,
+    done: false,
+    landed: 0,
   });
 
-  // initialise / resize
+  // ── init / resize ──────────────────────────────────────────────────────────
+
   const init = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const { width, height } = canvas.getBoundingClientRect();
+    const c = canvasRef.current;
+    if (!c) return;
+    const rect = c.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width  = width  * dpr;
-    canvas.height = height * dpr;
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.scale(dpr, dpr);
+    c.width  = rect.width  * dpr;
+    c.height = rect.height * dpr;
+    const ctx = c.getContext('2d');
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // offscreen mask canvas — same logical size
-    const mask = maskRef.current;
-    if (mask) {
-      mask.width  = width;
-      mask.height = height;
-    }
+    const m = maskRef.current;
+    if (m) { m.width = rect.width; m.height = rect.height; }
 
-    const isMobile = width < 768;
-    const count = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP;
-    const s = stateRef.current;
-    s.W = width; s.H = height;
-    s.particles = Array.from({ length: count }, () => makeParticle(width, height));
+    const st = s.current;
+    st.W = rect.width; st.H = rect.height; st.dpr = dpr;
+    const n = rect.width < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
+    st.dots = Array.from({ length: n }, () => spawn(rect.width, rect.height));
+    st.landed = 0; st.done = false; st.dirty = false;
   }, []);
 
-  // draw loop
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const mask   = maskRef.current;
-    const img    = paintImgRef.current;
-    if (!canvas || !mask) return;
+  // ── draw loop ──────────────────────────────────────────────────────────────
 
-    const ctx = canvas.getContext('2d');
+  const draw = useCallback(() => {
+    const c = canvasRef.current;
+    const m = maskRef.current;
+    const img = paintImgRef.current;
+    if (!c || !m) { s.current.raf = requestAnimationFrame(draw); return; }
+    const ctx = c.getContext('2d');
     if (!ctx) return;
 
-    const s = stateRef.current;
-    const { W, H, particles, progress: prog } = s;
-    if (W === 0) { s.raf = requestAnimationFrame(draw); return; }
+    const st = s.current;
+    const { W, H, dots, progress: prog } = st;
+    if (W < 1) { st.raf = requestAnimationFrame(draw); return; }
 
-    // canvas zone in px
-    const zoneX = W * CANVAS_ZONE.cx;
-    const zoneY = H * CANVAS_ZONE.cy;
-    const zoneHW = W * CANVAS_ZONE.hw;
-    const zoneHH = H * CANVAS_ZONE.hh;
+    // zone
+    const zx  = W * CANVAS_ZONE.cx;
+    const zy  = H * CANVAS_ZONE.cy;
+    const zhw = W * CANVAS_ZONE.hw;
+    const zhh = H * CANVAS_ZONE.hh;
 
-    // how many particles should have landed by now (eased)
-    const eased = Math.pow(prog, 0.7); // slightly faster towards end
-    const targetLanded = Math.floor(eased * particles.length * 0.72);
-    const needMore = Math.max(0, targetLanded - s.landedCount);
+    // target landed count
+    const ease = prog < 0.5
+      ? 2 * prog * prog                            // ease-in first half
+      : 1 - Math.pow(-2 * prog + 2, 2) / 2;        // ease-out second half
+    const target = Math.floor(ease * dots.length * 0.75);
+    const need   = Math.max(0, target - st.landed);
 
-    // clear main canvas
+    // clear
     ctx.clearRect(0, 0, W, H);
 
-    // update + draw particles
-    for (const p of particles) {
-      p.age++;
+    // batch: first draw all glows (additive), then dots
+    ctx.globalCompositeOperation = 'lighter';
 
-      if (p.phase === 'ambient') {
-        // slow drift
-        p.x += p.vx + Math.sin(p.age * 0.012) * 0.18;
-        p.y += p.vy + Math.cos(p.age * 0.009) * 0.12;
-        p.alpha = p.baseAlpha * (0.6 + 0.4 * Math.sin(p.age * 0.04));
+    for (const d of dots) {
+      d.age++;
+      const sin1 = Math.sin(d.age * d.wobbleX + d.pulse);
+      const cos1 = Math.cos(d.age * d.wobbleY + d.pulse);
+
+      if (d.phase === 0) {
+        // ambient — very slow ethereal float
+        d.x += (d.vx + sin1 * 0.06) * d.speed;
+        d.y += (d.vy + cos1 * 0.04) * d.speed;
+
+        // pulse alpha
+        d.a = d.ba * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin(d.age * 0.02 + d.pulse)));
+
         // wrap
-        if (p.x < -5) p.x = W + 5;
-        if (p.x > W + 5) p.x = -5;
-        if (p.y < -5) p.y = H + 5;
-        if (p.y > H + 5) p.y = -5;
+        if (d.x < -10) d.x = W + 10;
+        if (d.x > W + 10) d.x = -10;
+        if (d.y < -10) d.y = H + 10;
+        if (d.y > H + 10) d.y = -10;
 
-        // recruit to drift if needMore
-        if (needMore > 0 && s.running && Math.random() < 0.003 * needMore) {
-          p.phase = 'drifting';
-          p.tx = rand(zoneX - zoneHW, zoneX + zoneHW);
-          p.ty = rand(zoneY - zoneHH, zoneY + zoneHH);
+        // recruit
+        if (need > 0 && st.running && Math.random() < 0.002 * Math.min(need, 20)) {
+          d.phase = 1;
+          d.tx = rng(zx - zhw, zx + zhw);
+          d.ty = rng(zy - zhh, zy + zhh);
         }
-      } else if (p.phase === 'drifting') {
-        const dx = p.tx - p.x;
-        const dy = p.ty - p.y;
+      } else if (d.phase === 1) {
+        // drift toward canvas — graceful arc
+        const dx = d.tx - d.x;
+        const dy = d.ty - d.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const speed = Math.max(0.8, dist * 0.04);
-        p.x += (dx / dist) * speed;
-        p.y += (dy / dist) * speed;
-        p.alpha = Math.min(0.9, p.alpha + 0.04);
+        const spd = Math.max(0.5, dist * 0.025);
+        d.x += (dx / (dist || 1)) * spd + sin1 * 0.3;
+        d.y += (dy / (dist || 1)) * spd + cos1 * 0.2;
+        d.a = Math.min(0.95, d.a + 0.015);
 
-        if (dist < 2) {
-          p.phase = 'landing';
-          p.landTimer = 40;
-          s.landedCount++;
-          s.maskDirty = true;
-
-          // paint a soft glow on the reveal mask
-          const mc = mask.getContext('2d');
+        if (dist < 3) {
+          d.phase = 2;
+          d.lt = 50;
+          st.landed++;
+          st.dirty = true;
+          // stamp reveal mask
+          const mc = m.getContext('2d');
           if (mc) {
-            const r = LAND_RADIUS_BASE * rand(0.5, 1.4);
-            const grd = mc.createRadialGradient(p.tx, p.ty, 0, p.tx, p.ty, r);
-            grd.addColorStop(0, 'rgba(255,255,255,0.35)');
-            grd.addColorStop(1, 'rgba(255,255,255,0)');
-            mc.fillStyle = grd;
+            const r = LAND_RADIUS * rng(0.4, 1.3);
+            const g = mc.createRadialGradient(d.tx, d.ty, 0, d.tx, d.ty, r);
+            g.addColorStop(0, 'rgba(255,255,255,0.3)');
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            mc.fillStyle = g;
             mc.beginPath();
-            mc.arc(p.tx, p.ty, r, 0, Math.PI * 2);
+            mc.arc(d.tx, d.ty, r, 0, Math.PI * 2);
             mc.fill();
           }
         }
-      } else if (p.phase === 'landing') {
-        p.alpha *= 0.93;
-        p.landTimer--;
-        if (p.landTimer <= 0) {
-          p.phase = 'landed';
-          p.alpha = 0;
-        }
+      } else if (d.phase === 2) {
+        d.a *= 0.94;
+        d.lt--;
+        if (d.lt <= 0) { d.phase = 3; d.a = 0; }
       }
-      // 'landed' particles are invisible, skip draw
 
-      if (p.phase !== 'landed' && p.alpha > 0.01) {
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
-        grd.addColorStop(0, p.color + '1)');
-        grd.addColorStop(1, p.color + '0)');
-        ctx.fillStyle = grd;
+      // draw (skip phase 3 = done)
+      if (d.phase < 3 && d.a > 0.008) {
+        // outer glow
+        const gr = d.r * d.glow;
+        const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
+        g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
+        g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
+        g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+        ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+
+        // bright core
+        ctx.globalAlpha = d.a;
+        ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
+
+    ctx.globalCompositeOperation = 'source-over';
 
     // completion burst
-    if (prog >= COMPLETION_THRESHOLD && !s.completionFired) {
-      s.completionFired = true;
-      const mc = mask.getContext('2d');
+    if (prog >= DONE_AT && !st.done) {
+      st.done = true;
+      const mc = m.getContext('2d');
       if (mc) {
-        // flood the mask with a large soft wash to complete the reveal
-        const grd = mc.createRadialGradient(zoneX, zoneY, 0, zoneX, zoneY, Math.max(zoneHW, zoneHH) * 2.2);
-        grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-        grd.addColorStop(1, 'rgba(255,255,255,0)');
-        mc.fillStyle = grd;
+        const R = Math.max(zhw, zhh) * 2.4;
+        const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
+        g.addColorStop(0, 'rgba(255,255,255,0.98)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        mc.fillStyle = g;
         mc.beginPath();
-        mc.arc(zoneX, zoneY, Math.max(zoneHW, zoneHH) * 2.2, 0, Math.PI * 2);
+        mc.arc(zx, zy, R, 0, Math.PI * 2);
         mc.fill();
-        s.maskDirty = true;
+        st.dirty = true;
       }
     }
 
-    // apply mask canvas as CSS mask on the painting img
-    if (s.maskDirty && img) {
-      img.style.maskImage = `url(${mask.toDataURL()})`;
-      img.style.webkitMaskImage = `url(${mask.toDataURL()})`;
-      img.style.maskSize = '100% 100%';
-      img.style.webkitMaskSize = '100% 100%';
-      s.maskDirty = false;
+    // apply mask
+    if (st.dirty && img) {
+      const url = m.toDataURL();
+      img.style.maskImage = `url(${url})`;
+      img.style.webkitMaskImage = `url(${url})`;
+      st.dirty = false;
     }
 
-    s.raf = requestAnimationFrame(draw);
+    st.raf = requestAnimationFrame(draw);
   }, []);
 
+  // ── sync props ─────────────────────────────────────────────────────────────
+
   useEffect(() => {
-    stateRef.current.progress = progress;
-    stateRef.current.running  = running;
+    s.current.progress = progress;
+    s.current.running  = running;
   }, [progress, running]);
+
+  // ── mount ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     init();
-    stateRef.current.raf = requestAnimationFrame(draw);
+    s.current.raf = requestAnimationFrame(draw);
     const ro = new ResizeObserver(init);
     if (canvasRef.current) ro.observe(canvasRef.current);
-    return () => {
-      cancelAnimationFrame(stateRef.current.raf);
-      ro.disconnect();
-    };
+    return () => { cancelAnimationFrame(s.current.raf); ro.disconnect(); };
   }, [init, draw]);
+
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
-      {/* offscreen mask accumulator — hidden from view */}
       <canvas ref={maskRef} className="pointer-events-none absolute hidden" aria-hidden="true" />
 
-      {/* painting image — starts fully transparent; mask reveals it */}
       <img
         ref={paintImgRef}
         src="/visuals/blade/easel-tune.jpg"
-        alt="Particle painting reveal"
+        alt=""
+        aria-hidden="true"
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         style={{
           transform: 'translate(-28.15%, -10%) scale(0.21)',
@@ -279,7 +305,6 @@ export default function ParticlePainting({ progress, running }: Props) {
         draggable={false}
       />
 
-      {/* particle canvas — on top of everything */}
       <canvas
         ref={canvasRef}
         className="pointer-events-none absolute inset-0 h-full w-full"
