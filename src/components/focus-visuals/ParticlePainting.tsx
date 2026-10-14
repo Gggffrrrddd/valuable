@@ -155,18 +155,19 @@ export default function ParticlePainting({ progress, running }: Props) {
     const zhw = W * CANVAS_ZONE.hw;
     const zhh = H * CANVAS_ZONE.hh;
 
-    // target landed count
-    const ease = prog < 0.5
-      ? 2 * prog * prog                            // ease-in first half
-      : 1 - Math.pow(-2 * prog + 2, 2) / 2;        // ease-out second half
-    const target = Math.floor(ease * dots.length * 0.75);
-    const need   = Math.max(0, target - st.landed);
+    // target landed count — linear with progress, all particles can land
+    const target = Math.floor(prog * dots.length);
+    // recruit at most a few per frame for steady trickle
+    const need = Math.max(0, target - st.landed);
+    const maxRecruit = Math.max(1, Math.ceil(dots.length / 900)); // ~2-3 per frame
 
     // clear
     ctx.clearRect(0, 0, W, H);
 
     // batch: first draw all glows (additive), then dots
     ctx.globalCompositeOperation = 'lighter';
+
+    let recruited = 0;
 
     for (const d of dots) {
       d.age++;
@@ -187,11 +188,12 @@ export default function ParticlePainting({ progress, running }: Props) {
         if (d.y < -10) d.y = H + 10;
         if (d.y > H + 10) d.y = -10;
 
-        // recruit
-        if (need > 0 && st.running && Math.random() < 0.002 * Math.min(need, 20)) {
+        // recruit — steady trickle, capped per frame
+        if (need > 0 && st.running && recruited < maxRecruit && Math.random() < 0.06) {
           d.phase = 1;
           d.tx = rng(zx - zhw, zx + zhw);
           d.ty = rng(zy - zhh, zy + zhh);
+          recruited++;
         }
       } else if (d.phase === 1) {
         // drift toward canvas — graceful arc
@@ -208,12 +210,13 @@ export default function ParticlePainting({ progress, running }: Props) {
           d.lt = 50;
           st.landed++;
           st.dirty = true;
-          // stamp reveal mask
+          // stamp reveal mask — strong opacity for visible reveal
           const mc = m.getContext('2d');
           if (mc) {
-            const r = LAND_RADIUS * rng(0.4, 1.3);
+            const r = LAND_RADIUS * rng(0.6, 1.5);
             const g = mc.createRadialGradient(d.tx, d.ty, 0, d.tx, d.ty, r);
-            g.addColorStop(0, 'rgba(255,255,255,0.3)');
+            g.addColorStop(0, 'rgba(255,255,255,0.7)');
+            g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
             g.addColorStop(1, 'rgba(255,255,255,0)');
             mc.fillStyle = g;
             mc.beginPath();
@@ -252,23 +255,14 @@ export default function ParticlePainting({ progress, running }: Props) {
 
     ctx.globalCompositeOperation = 'source-over';
 
-    // completion burst — fill the entire canvas zone to fully reveal painting
+    // completion burst — fully reveal painting
     if (prog >= DONE_AT && !st.done) {
       st.done = true;
       const mc = m.getContext('2d');
       if (mc) {
-        // multiple overlapping washes for full opaque coverage
-        for (let i = 0; i < 5; i++) {
-          const R = Math.max(zhw, zhh) * (2.0 + i * 0.5);
-          const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
-          g.addColorStop(0, 'rgba(255,255,255,1)');
-          g.addColorStop(0.7, 'rgba(255,255,255,0.8)');
-          g.addColorStop(1, 'rgba(255,255,255,0)');
-          mc.fillStyle = g;
-          mc.beginPath();
-          mc.arc(zx, zy, R, 0, Math.PI * 2);
-          mc.fill();
-        }
+        // fill entire mask canvas white = painting fully visible
+        mc.fillStyle = 'rgba(255,255,255,1)';
+        mc.fillRect(0, 0, W, H);
         st.dirty = true;
       }
     }
