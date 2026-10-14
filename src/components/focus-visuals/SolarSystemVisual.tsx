@@ -808,6 +808,78 @@ function SolarSizeProbe() {
   return null;
 }
 
+/* Mirrors the exact media query that applies the generic rotated stage
+   (index.css `.mob-sim.mob-sim`). Desktop never matches → zero-touch. */
+const SOLAR_LOCKED_MEDIA = '(pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px)';
+
+function isSolarLockedContext(): boolean {
+  try {
+    return window.matchMedia(SOLAR_LOCKED_MEDIA).matches;
+  } catch {
+    return false;
+  }
+}
+
+/* Mobile-only fix (same as Study Table): force R3F to the wrapper's LAYOUT
+   size (clientWidth/clientHeight are transform-unaware, so they read the
+   true landscape stage 852×393 instead of the rotated bbox 393×852). */
+function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null } }) {
+  const sw = useThree((s) => s.size.width);
+  const sh = useThree((s) => s.size.height);
+  const setSize = useThree((s) => s.setSize);
+  const camera = useThree((s) => s.camera);
+
+  useEffect(() => {
+    if (!isSolarLockedContext()) return;
+    const apply = () => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w < 1 || h < 1) return;
+      setSize(w, h);
+      const cam = camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void };
+      if (typeof cam.aspect === 'number') {
+        cam.aspect = w / h;
+        cam.updateProjectionMatrix?.();
+      }
+      const glCanvas = el.querySelector('canvas');
+      console.log(
+        '[solar-system-measure] size-fix ' + JSON.stringify({
+          forcedW: w,
+          forcedH: h,
+          aspect: +(w / h).toFixed(3),
+          backing: glCanvas ? { w: (glCanvas as HTMLCanvasElement).width, h: (glCanvas as HTMLCanvasElement).height } : null,
+        }),
+      );
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', apply);
+    return () => {
+      window.removeEventListener('resize', apply);
+      window.removeEventListener('orientationchange', apply);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guard: if R3F's auto-measure overwrites with the rotated bbox later,
+  // re-force from layout dims (stable — no loop: forced size fails the check).
+  useEffect(() => {
+    if (!isSolarLockedContext()) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w < 1 || h < 1) return;
+    if (w > h && sw < sh) {
+      setSize(w, h);
+    }
+  }, [sw, sh, setSize, wrapRef]);
+
+  return null;
+}
+
 export default function SolarSystemVisual({ progress, running = false, depth = 0.5 }: FocusVisualProps & { depth?: number }) {
   const reducedMotion = useReducedMotion();
   const value = clamp01(progress);
@@ -822,6 +894,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   activeRef.current = running || complete;
 
   const [loop, setLoop] = useState(true);
+  // Stable ref for the mobile-only size fix (layout-dims measurement).
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   // Background galaxy placement (tuned via temporary panel, now hardcoded).
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
   const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
@@ -983,7 +1057,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     !!neptuneTex;
 
   return (
-    <div id="solar-system-canvas-wrap" className="relative h-full w-full overflow-hidden bg-black">
+    <div id="solar-system-canvas-wrap" ref={wrapRef} className="relative h-full w-full overflow-hidden bg-black">
       <Canvas
         camera={{ position: [0, 8.5 * camK, 13 * camK], fov: 40, near: 0.1, far: 120 }}
         dpr={[1, 1.75]}
@@ -995,6 +1069,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         style={{ position: 'absolute', inset: 0 }}
       >
         <SolarSizeProbe />
+        <SolarSizeFix wrapRef={wrapRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
         {galaxyWhirlpoolTex && galaxyAndromedaTex ? (
           <FarBackgroundGalaxies
