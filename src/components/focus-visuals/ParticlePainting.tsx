@@ -136,6 +136,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     budget: 0,          // time-paced recruitment budget (particles)
     done: false,        // finale flurry fired
     wash: 0,            // base-wash level applied so far (max-so-far)
+    shown: 0,           // smoothed progress (eases toward raw progress)
     imgReady: false,
     revealDirty: true,
     mask: null as HTMLCanvasElement | null,
@@ -168,6 +169,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     const n = W < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
     st.dots = Array.from({ length: n }, () => spawn(W, H));
     st.done = false; st.budget = 0; st.revealDirty = true;
+    st.shown = st.progress; // resize: stay in sync, never re-ease
 
     // pre-fill: keep reveal in sync with current progress across resizes —
     // base wash first (guaranteed curve), then particle stamps (texture),
@@ -244,11 +246,23 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     if (!ctx) return;
 
     const st = s.current;
-    const { W, H, dots, progress: prog } = st;
+    const { W, H, dots } = st;
     if (W < 1) { st.raf = requestAnimationFrame(draw); return; }
 
     const dt = Math.min(0.1, Math.max(0.001, (now - (st.last || now)) / 1000));
     st.last = now;
+
+    // ── smoothed progress ──
+    // The timer ticks in 1-second steps; easing toward the raw value hides
+    // every step — especially the final 0.99 → 1.0 jump that caused the
+    // last-second pop. Catch-up capped at ~3× real-time rate.
+    const raw = st.progress;
+    const dur0 = st.duration > 0 ? st.duration : 1500;
+    const maxStep = dt * (3 / dur0);
+    st.shown = raw >= 1 ? Math.min(1, st.shown + Math.max(maxStep, dt * 0.25))
+                        : Math.min(raw, st.shown + maxStep);
+    if (st.shown < raw - maxStep * 2) st.shown = raw - maxStep * 2; // never lag far
+    const prog = st.shown;
 
     const zx = W * ZONE.cx, zy = H * ZONE.cy;
     const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
@@ -295,11 +309,12 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       } else if (d.phase === 1) {
         const dx = d.tx - d.x, dy = d.ty - d.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        // fast enough to arrive ~1s after recruitment → landing tracks time
-        const spd = Math.max(3, dist * 0.08);
-        d.x += (dx / dist) * spd + sin1 * 0.3;
-        d.y += (dy / dist) * spd + cos1 * 0.2;
-        d.a = Math.min(0.95, d.a + 0.02);
+        // slow floating approach — taire hue canvas tak (~1.5s travel),
+        // never a fast dart. Wobble keeps it organic.
+        const spd = Math.max(0.5, dist * 0.012);
+        d.x += (dx / dist) * spd + sin1 * 0.45;
+        d.y += (dy / dist) * spd + cos1 * 0.35;
+        d.a = Math.min(0.95, d.a + 0.012);
 
         if (dist < 5) {
           d.phase = 2; d.lt = 50;
