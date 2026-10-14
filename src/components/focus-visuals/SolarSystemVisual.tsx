@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   AdditiveBlending,
@@ -820,132 +820,22 @@ function isSolarLockedContext(): boolean {
   }
 }
 
-/* Mobile-only fix (same as Study Table): force R3F to the wrapper's LAYOUT
-   size (clientWidth/clientHeight are transform-unaware, so they read the
-   true landscape stage 852×393 instead of the rotated bbox 393×852). */
-function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null } }) {
-  const sw = useThree((s) => s.size.width);
-  const sh = useThree((s) => s.size.height);
+interface SolarSizeApi {
+  setSize: ((w: number, h: number) => void) | null;
+  camera: unknown;
+  size: { width: number; height: number } | null;
+}
+
+/* Inside-Canvas bridge: stashes the R3F store setters for the parent's
+   pre-paint force effect. Layout effect (not passive) so the stash exists
+   before the parent's layout effect on the very first commit. */
+function SolarSizeBridge({ apiRef }: { apiRef: { current: SolarSizeApi } }) {
   const setSize = useThree((s) => s.setSize);
   const camera = useThree((s) => s.camera);
-  // Last forced stage dims (fresh layout values, never R3F state).
-  const expectedRef = useRef<{ w: number; h: number } | null>(null);
-
-  // Single source of truth for forcing: ALWAYS re-reads fresh
-  // clientWidth/clientHeight at call time — never stale R3F state.
-  const forceFromLayout = (src: string): boolean => {
-    const el = wrapRef.current;
-    if (!el) return false;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
-    if (w < 1 || h < 1 || w <= h) return false; // locked stage is landscape
-    console.log(
-      '[solar-system-measure] sizefix-apply ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        src,
-        forcedW: w,
-        forcedH: h,
-      }),
-    );
-    setSize(w, h);
-    const cam = camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void };
-    if (typeof cam.aspect === 'number') {
-      cam.aspect = w / h;
-      cam.updateProjectionMatrix?.();
-    }
-    expectedRef.current = { w, h };
-    const c = el.querySelector('canvas') as HTMLCanvasElement | null;
-    console.log(
-      '[solar-system-measure] sizefix-postset ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        src,
-        attr: c ? { w: c.width, h: c.height } : null,
-      }),
-    );
-    return true;
-  };
-
-  // Bounded settle: re-check backing buffer up to N times (150ms gap) until
-  // it stays landscape; then stop — never an open-ended loop.
-  const settle = (left: number) => {
-    if (left <= 0) return;
-    window.setTimeout(() => {
-      const el = wrapRef.current;
-      const c = el?.querySelector('canvas') as HTMLCanvasElement | null;
-      const exp = expectedRef.current;
-      if (!el || !c || !exp) return;
-      const portraitBacking = c.width < c.height;
-      console.log(
-        '[solar-system-measure] sizefix-retry ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          attemptsLeft: left,
-          attr: { w: c.width, h: c.height },
-          verdict: portraitBacking ? 'reforce' : 'stable',
-        }),
-      );
-      if (portraitBacking && forceFromLayout('retry')) settle(left - 1);
-    }, 150);
-  };
-
-  useEffect(() => {
-    // [5] gate visibility: log on narrow viewports only (desktop ≥1024 untouched).
-    if (window.innerWidth < 1024) {
-      let gate = false;
-      try {
-        gate = window.matchMedia(SOLAR_LOCKED_MEDIA).matches;
-      } catch {
-        gate = false;
-      }
-      console.log(
-        '[solar-system-measure] sizefix-mount ' + JSON.stringify({
-          t: Math.round(performance.now()),
-          gate,
-          media: SOLAR_LOCKED_MEDIA,
-          inner: { w: window.innerWidth, h: window.innerHeight },
-        }),
-      );
-    }
-    if (!isSolarLockedContext()) return;
-    if (forceFromLayout('mount')) settle(4);
-    const onResize = () => {
-      if (forceFromLayout('resize')) settle(4);
-    };
-    const onOrient = () => {
-      if (forceFromLayout('orientationchange')) settle(4);
-    };
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onOrient);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onOrient);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Guard: detects R3F auto-measure overwrites (size flips back to portrait)
-  // and re-forces from FRESH layout dims — stale R3F state is only the
-  // tripwire, never the value source.
-  useEffect(() => {
-    if (!isSolarLockedContext()) return;
-    const el = wrapRef.current;
-    if (!el) return;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
-    if (w < 1 || h < 1) return;
-    const mismatch = w > h && sw < sh;
-    console.log(
-      '[solar-system-measure] sizefix-guard ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        r3fW: Math.round(sw),
-        r3fH: Math.round(sh),
-        wrapW: w,
-        wrapH: h,
-        action: mismatch ? 'reforce' : 'noop',
-      }),
-    );
-    if (mismatch && forceFromLayout('guard')) settle(4);
-  }, [sw, sh, setSize, wrapRef]);
-
+  const size = useThree((s) => s.size);
+  useLayoutEffect(() => {
+    apiRef.current = { setSize, camera, size: { width: size.width, height: size.height } };
+  });
   return null;
 }
 
@@ -965,6 +855,52 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const [loop, setLoop] = useState(true);
   // Stable ref for the mobile-only size fix (layout-dims measurement).
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  // Stashed R3F store setters (filled by SolarSizeBridge inside Canvas).
+  const sizeApiRef = useRef<SolarSizeApi>({ setSize: null, camera: null, size: null });
+
+  // Mobile-only pre-paint force: single authoritative source
+  // (wrapper clientWidth/clientHeight). No timers, no retries.
+  const forceSolarSize = (src: string): boolean => {
+    const el = wrapRef.current;
+    const api = sizeApiRef.current;
+    if (!el || !api.setSize) return false;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w < 1 || h < 1 || w <= h) return false; // locked stage is landscape
+    api.setSize(w, h);
+    const cam = api.camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void } | null;
+    if (cam && typeof cam.aspect === 'number') {
+      cam.aspect = w / h;
+      cam.updateProjectionMatrix?.();
+    }
+    console.log(
+      '[solar-system-measure] size-force ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        src,
+        forcedW: w,
+        forcedH: h,
+        aspect: +(w / h).toFixed(3),
+      }),
+    );
+    return true;
+  };
+
+  // Runs after EVERY commit (child CanvasImpl's configure first, then this),
+  // always BEFORE paint — a wrong frame can never reach the screen.
+  // Desktop: gate fails → zero-touch.
+  useLayoutEffect(() => {
+    if (window.innerWidth >= 1024) return;
+    if (!isSolarLockedContext()) return;
+    const el = wrapRef.current;
+    const api = sizeApiRef.current;
+    if (!el || !api.setSize || !api.size) return;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w < 1 || h < 1 || w <= h) return;
+    if (Math.round(api.size.width) !== w || Math.round(api.size.height) !== h) {
+      forceSolarSize('commit');
+    }
+  });
   // Background galaxy placement (tuned via temporary panel, now hardcoded).
   const galLeft: GalaxyPlacement = { x: -21.5, y: -8, z: -32, size: 14, opacity: 0.31 };
   const galCenter: GalaxyPlacement = { x: 10, y: -10.5, z: -45, size: 20, opacity: 0.33 };
@@ -988,6 +924,41 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
+  }, []);
+
+  // TEMP DIAGNOSTIC: gate-visibility log + resize/orientation re-force
+  // (covers RO refires that don't re-render the parent).
+  useEffect(() => {
+    if (window.innerWidth >= 1024) return;
+    let gate = false;
+    try {
+      gate = window.matchMedia(SOLAR_LOCKED_MEDIA).matches;
+    } catch {
+      gate = false;
+    }
+    console.log(
+      '[solar-system-measure] sizefix-mount ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        gate,
+        media: SOLAR_LOCKED_MEDIA,
+        inner: { w: window.innerWidth, h: window.innerHeight },
+      }),
+    );
+    const onResize = () => {
+      if (!isSolarLockedContext()) return;
+      forceSolarSize('resize');
+    };
+    const onOrient = () => {
+      if (!isSolarLockedContext()) return;
+      forceSolarSize('orientationchange');
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onOrient);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onOrient);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { texture: sunTex, error: sunError, isLoading: sunLoading } = useTextureLoader(TEX.sun);
@@ -1138,7 +1109,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         style={{ position: 'absolute', inset: 0 }}
       >
         <SolarSizeProbe />
-        <SolarSizeFix wrapRef={wrapRef} />
+        <SolarSizeBridge apiRef={sizeApiRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
         {galaxyWhirlpoolTex && galaxyAndromedaTex ? (
           <FarBackgroundGalaxies
