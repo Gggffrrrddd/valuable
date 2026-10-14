@@ -830,19 +830,78 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
   const camera = useThree((s) => s.camera);
 
   useEffect(() => {
+    // [5] gate visibility: log on narrow viewports only (desktop ≥1024 untouched).
+    if (window.innerWidth < 1024) {
+      let gate = false;
+      try {
+        gate = window.matchMedia(SOLAR_LOCKED_MEDIA).matches;
+      } catch {
+        gate = false;
+      }
+      console.log(
+        '[solar-system-measure] sizefix-mount ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          gate,
+          media: SOLAR_LOCKED_MEDIA,
+          inner: { w: window.innerWidth, h: window.innerHeight },
+        }),
+      );
+    }
     if (!isSolarLockedContext()) return;
-    const apply = () => {
+    const readCanvas = () => {
+      const c = wrapRef.current?.querySelector('canvas') as HTMLCanvasElement | null;
+      return c ? { w: c.width, h: c.height } : null;
+    };
+    const apply = (src: string) => {
       const el = wrapRef.current;
       if (!el) return;
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (w < 1 || h < 1) return;
+      // [1] setSize call log with timestamp.
+      console.log(
+        '[solar-system-measure] sizefix-apply ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          src,
+          forcedW: w,
+          forcedH: h,
+        }),
+      );
       setSize(w, h);
       const cam = camera as unknown as { aspect?: number; updateProjectionMatrix?: () => void };
       if (typeof cam.aspect === 'number') {
         cam.aspect = w / h;
         cam.updateProjectionMatrix?.();
       }
+      // [2] canvas attrs IMMEDIATELY after setSize.
+      console.log(
+        '[solar-system-measure] sizefix-postset ' + JSON.stringify({
+          t: Math.round(performance.now()),
+          src,
+          attr: readCanvas(),
+        }),
+      );
+      // [3] re-read after delays — catches RO/auto-measure overwrite races.
+      window.setTimeout(() => {
+        console.log(
+          '[solar-system-measure] sizefix-recheck ' + JSON.stringify({
+            t: Math.round(performance.now()),
+            src,
+            delayMs: 100,
+            attr: readCanvas(),
+          }),
+        );
+      }, 100);
+      window.setTimeout(() => {
+        console.log(
+          '[solar-system-measure] sizefix-recheck ' + JSON.stringify({
+            t: Math.round(performance.now()),
+            src,
+            delayMs: 500,
+            attr: readCanvas(),
+          }),
+        );
+      }, 500);
       const glCanvas = el.querySelector('canvas');
       console.log(
         '[solar-system-measure] size-fix ' + JSON.stringify({
@@ -853,12 +912,14 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
         }),
       );
     };
-    apply();
-    window.addEventListener('resize', apply);
-    window.addEventListener('orientationchange', apply);
+    apply('mount');
+    const onResize = () => apply('resize');
+    const onOrient = () => apply('orientationchange');
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onOrient);
     return () => {
-      window.removeEventListener('resize', apply);
-      window.removeEventListener('orientationchange', apply);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onOrient);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -872,7 +933,19 @@ function SolarSizeFix({ wrapRef }: { wrapRef: { current: HTMLDivElement | null }
     const w = el.clientWidth;
     const h = el.clientHeight;
     if (w < 1 || h < 1) return;
-    if (w > h && sw < sh) {
+    // [4] log every guard evaluation + what it decides.
+    const mismatch = w > h && sw < sh;
+    console.log(
+      '[solar-system-measure] sizefix-guard ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        r3fW: Math.round(sw),
+        r3fH: Math.round(sh),
+        wrapW: w,
+        wrapH: h,
+        action: mismatch ? 'reforce' : 'noop',
+      }),
+    );
+    if (mismatch) {
       setSize(w, h);
     }
   }, [sw, sh, setSize, wrapRef]);
