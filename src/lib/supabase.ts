@@ -5,7 +5,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 // Guarded creation: without env vars (e.g. local previews of the standalone
-// tool routes like /test-3d-blade) the app must still mount instead of
+// tool routes like /leaf-stem-calibration) the app must still mount instead of
 // throwing at module scope. Any auth/data call will fail visibly instead.
 let client: SupabaseClient | null = null;
 if (supabaseUrl && supabaseAnonKey) {

@@ -7,7 +7,6 @@ import ParticlePainting from './ParticlePainting';
 import type { FocusVisualProps, FocusVisualTheme } from './types';
 import { ModelLoadingShimmer, ModelVisualErrorBoundary } from './model-core';
 
-const BladeVisual = lazy(() => lazyVisual(() => import('./BladeVisual')));
 const SolarSystemVisual = lazy(() => lazyVisual(() => import('./SolarSystemVisual')));
 
 /**
@@ -75,27 +74,17 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
     );
   }
   if (theme === 'blade') {
+    // Particle Painting on every breakpoint (mobile uses fewer particles).
     return (
-      <>
-        {/* Mobile: keep the 3D spin blade as-is. */}
-        <div className="h-full w-full lg:hidden">
-          <ModelVisualErrorBoundary visualLabel="Spin Blade" progress={progress} running={running} duration={duration ?? 0}>
-            <Suspense fallback={<ModelLoadingShimmer label="Spin Blade" />}>
-              <BladeVisual progress={progress} running={running} duration={duration} />
-            </Suspense>
-          </ModelVisualErrorBoundary>
-        </div>
-        {/* Desktop: easel base + particle painting reveal. */}
-        <div className="relative hidden h-full w-full items-center justify-center lg:flex">
-          <img
-            src="/visuals/blade/easel-base.png"
-            alt="Minimalist Easel with Blank Canvas"
-            className="absolute inset-0 h-full w-full object-cover"
-            draggable={false}
-          />
-          <ParticlePainting progress={progress} running={running ?? false} duration={duration ?? 0} />
-        </div>
-      </>
+      <div className="relative flex h-full w-full items-center justify-center">
+        <img
+          src="/visuals/blade/easel-base.png"
+          alt="Minimalist Easel with Blank Canvas"
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+        />
+        <ParticlePainting progress={progress} running={running ?? false} duration={duration ?? 0} />
+      </div>
     );
   }
   return <HourglassVisual progress={progress} duration={duration ?? 0} running={running ?? false} />;
