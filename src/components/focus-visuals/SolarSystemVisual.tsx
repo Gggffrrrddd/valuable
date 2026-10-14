@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   AdditiveBlending,
   BackSide,
@@ -719,6 +719,95 @@ function LoadingSun() {
   return null;
 }
 
+/* ── TEMP DIAGNOSTICS: [solar-system-measure] — remove after diagnosis. ──
+   Mobile-only (viewport < 768px); desktop path is untouched. */
+
+function solarIsQuarterTurn(t: string): boolean {
+  if (t === 'none') return false;
+  if (t.indexOf('rotate') !== -1) return true;
+  const m = t.match(/^matrix\(([^)]+)\)/);
+  if (!m) return false;
+  const p = m[1].split(',').map(Number);
+  return Math.abs(p[0]) < 0.05 && Math.abs(p[3]) < 0.05 && Math.abs(Math.abs(p[1]) - 1) < 0.05;
+}
+
+function snapSolarSystem(tag: string) {
+  const anchor = document.querySelector('#solar-system-canvas-wrap');
+  if (!anchor) {
+    console.log('[solar-system-measure] no-anchor ' + tag);
+    return;
+  }
+  const r = anchor.getBoundingClientRect();
+  const chain: object[] = [];
+  let rotatedAncestor: string | null = null;
+  let el: HTMLElement | null = anchor.parentElement;
+  let guard = 0;
+  while (el && guard < 10) {
+    const cs = getComputedStyle(el);
+    const er = el.getBoundingClientRect();
+    if (!rotatedAncestor && solarIsQuarterTurn(cs.transform)) {
+      rotatedAncestor = el.tagName + '.' + String(el.className).split(' ')[0];
+    }
+    chain.push({
+      tag: el.tagName,
+      cls: String(el.className).slice(0, 64),
+      cssH: cs.height,
+      cssW: cs.width,
+      pos: cs.position,
+      rectW: Math.round(er.width),
+      rectH: Math.round(er.height),
+    });
+    el = el.parentElement;
+    guard++;
+  }
+  const ownTf = getComputedStyle(anchor as HTMLElement).transform;
+  const canvas = anchor.querySelector('canvas');
+  const cr = canvas ? canvas.getBoundingClientRect() : null;
+  console.log(
+    '[solar-system-measure] snapshot ' + tag + ' ' + JSON.stringify({
+      anchorRect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+      anchorTransform: ownTf === 'none' ? 'none' : ownTf.slice(0, 72),
+      anchorRotated: solarIsQuarterTurn(ownTf),
+      canvasPresent: !!canvas,
+      canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+      canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
+      orientation: (window.screen.orientation && window.screen.orientation.type) || 'n/a',
+      portraitMQ: window.matchMedia('(orientation: portrait)').matches,
+      inner: { w: window.innerWidth, h: window.innerHeight },
+      landscapeLocked: !!rotatedAncestor,
+      rotatedAncestor,
+      chain,
+    }),
+  );
+}
+
+/* Inside-Canvas probe: R3F-measured size + resolved camera aspect. */
+function SolarSizeProbe() {
+  const w = useThree((s) => s.size.width);
+  const h = useThree((s) => s.size.height);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    const wrap = document.querySelector('#solar-system-canvas-wrap');
+    const wr = wrap?.getBoundingClientRect() ?? null;
+    const canvas = wrap?.querySelector('canvas') ?? null;
+    const cr = (canvas as HTMLCanvasElement | null)?.getBoundingClientRect() ?? null;
+    const aspect = (camera as unknown as { aspect?: number }).aspect;
+    console.log(
+      '[solar-system-measure] r3f-size ' + JSON.stringify({
+        r3fW: Math.round(w),
+        r3fH: Math.round(h),
+        zeroSize: w < 1 || h < 1,
+        cameraAspect: typeof aspect === 'number' ? +aspect.toFixed(3) : null,
+        wrapRect: wr ? { w: Math.round(wr.width), h: Math.round(wr.height) } : null,
+        canvasRect: cr ? { w: Math.round(cr.width), h: Math.round(cr.height) } : null,
+        canvasAttr: canvas ? { w: (canvas as HTMLCanvasElement).width, h: (canvas as HTMLCanvasElement).height } : null,
+      }),
+    );
+  }, [w, h, camera]);
+  return null;
+}
+
 export default function SolarSystemVisual({ progress, running = false, depth = 0.5 }: FocusVisualProps & { depth?: number }) {
   const reducedMotion = useReducedMotion();
   const value = clamp01(progress);
@@ -744,6 +833,18 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     const onVis = () => setLoop(!document.hidden);
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  // TEMP DIAGNOSTIC (mobile only): measure container/parent-chain/canvas.
+  useEffect(() => {
+    if (window.innerWidth >= 768) return;
+    snapSolarSystem('mount');
+    const t1 = window.setTimeout(() => snapSolarSystem('t+1s'), 1000);
+    const t2 = window.setTimeout(() => snapSolarSystem('t+2.5s'), 2500);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, []);
 
   const { texture: sunTex, error: sunError, isLoading: sunLoading } = useTextureLoader(TEX.sun);
@@ -882,7 +983,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     !!neptuneTex;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div id="solar-system-canvas-wrap" className="relative h-full w-full overflow-hidden bg-black">
       <Canvas
         camera={{ position: [0, 8.5 * camK, 13 * camK], fov: 40, near: 0.1, far: 120 }}
         dpr={[1, 1.75]}
@@ -893,6 +994,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         }}
         style={{ position: 'absolute', inset: 0 }}
       >
+        <SolarSizeProbe />
         <ambientLight intensity={0.38} color="#8fa8d8" />
         {galaxyWhirlpoolTex && galaxyAndromedaTex ? (
           <FarBackgroundGalaxies
