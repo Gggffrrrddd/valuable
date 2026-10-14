@@ -90,6 +90,33 @@ function stamp(mc: CanvasRenderingContext2D, x: number, y: number, strength = 1)
   mc.fill();
 }
 
+/**
+ * Base wash: guarantees the reveal curve. B(progress) = progress² —
+ * slow at start, accelerating, exactly 1.0 at session end.
+ * Applied as max-so-far so the reveal can never jump or go backwards.
+ */
+function baseWashAlpha(p: number) {
+  const c = Math.min(1, Math.max(0, p));
+  return c * c;
+}
+
+/** Soft zone-covering wash at the given alpha (feathered, no hard edges). */
+function applyWash(mc: CanvasRenderingContext2D, W: number, H: number, alpha: number) {
+  if (alpha <= 0) return;
+  const zx = W * ZONE.cx, zy = H * ZONE.cy;
+  // radius ≥ 2× zone half-diagonal → nearly uniform inside the zone
+  const R = Math.hypot(W * ZONE.hw, H * ZONE.hh) * 2;
+  const a = Math.min(1, alpha);
+  const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
+  g.addColorStop(0, `rgba(255,255,255,${a})`);
+  g.addColorStop(0.7, `rgba(255,255,255,${a * 0.85})`);
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  mc.fillStyle = g;
+  mc.beginPath();
+  mc.arc(zx, zy, R, 0, Math.PI * 2);
+  mc.fill();
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface Props { progress: number; running: boolean; duration?: number }
@@ -107,7 +134,8 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     duration: 0,
     landed: 0,
     budget: 0,          // time-paced recruitment budget (particles)
-    done: false,        // completion fill fired
+    done: false,        // finale flurry fired
+    wash: 0,            // base-wash level applied so far (max-so-far)
     imgReady: false,
     revealDirty: true,
     mask: null as HTMLCanvasElement | null,
@@ -142,10 +170,21 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     st.done = false; st.budget = 0; st.revealDirty = true;
 
     // pre-fill: keep reveal in sync with current progress across resizes —
-    // stamp random zone points + mark that many dots done.
+    // base wash first (guaranteed curve), then particle stamps (texture),
+    // and mark that many dots done.
     const mc = mask.getContext('2d');
     const zx = W * ZONE.cx, zy = H * ZONE.cy;
     const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
+    if (mc) {
+      const w0 = baseWashAlpha(st.progress);
+      st.wash = w0;
+      if (w0 >= 1) {
+        mc.fillStyle = '#fff';
+        mc.fillRect(0, 0, W, H);
+      } else if (w0 > 0) {
+        applyWash(mc, W, H, w0);
+      }
+    }
     const pre = Math.floor(st.progress * n);
     if (mc && pre > 0) {
       for (let i = 0; i < pre; i++) stamp(mc, rng(zx - zhw, zx + zhw), rng(zy - zhh, zy + zhh));
@@ -155,11 +194,8 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       }
     }
     st.landed = pre;
-    if (st.progress >= DONE_AT && mc) {
-      mc.fillStyle = '#fff';
-      mc.fillRect(0, 0, W, H);
-      st.done = true;
-    }
+    // NOTE: no instant fill here — the base wash already encodes the
+    // progress curve, so a resize can never cause a reveal jump.
   }, []);
 
   // ── compose reveal canvas: painting (transformed) clipped by mask ─────────
@@ -276,16 +312,30 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       }
     }
 
-    // ── finale: full reveal + EVERY remaining particle lands ──
-    // No particle is left floating: all ambient dots are sent to the
-    // canvas for a closing flurry, so the sky empties as the session ends.
-    if (prog >= DONE_AT && !st.done) {
-      st.done = true;
-      if (mc) {
-        mc.fillStyle = '#fff';
-        mc.fillRect(0, 0, W, H);
+    // ── base wash top-up: reveal follows progress² with no jumps ──
+    // Particle stamps add organic texture; the wash guarantees the curve
+    // completes exactly at session end.
+    if (mc) {
+      const wTarget = baseWashAlpha(prog);
+      if (wTarget > st.wash) {
+        if (wTarget >= 1 || st.wash >= 0.999) {
+          mc.fillStyle = '#fff';
+          mc.fillRect(0, 0, W, H);
+          st.wash = 1;
+        } else {
+          const delta = (wTarget - st.wash) / (1 - st.wash);
+          applyWash(mc, W, H, delta);
+          st.wash = wTarget;
+        }
         st.revealDirty = true;
       }
+    }
+
+    // ── finale flurry: EVERY remaining particle lands, none left floating ──
+    // (No mask fill here — the wash ramp already completes the reveal
+    // gradually, so there is no last-second pop.)
+    if (prog >= DONE_AT && !st.done) {
+      st.done = true;
       for (const d of dots) {
         if (d.phase === 0) {
           d.phase = 1;
