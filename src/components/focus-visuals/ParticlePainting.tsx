@@ -212,9 +212,12 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
   const init = useCallback(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const rect = c.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) return;
-    const W = rect.width, H = rect.height;
+    // LAYOUT dims only: clientWidth/Height ignore ancestor transforms.
+    // getBoundingClientRect() returns the POST-rotation bbox on mobile
+    // (393×852 instead of the 852×393 stage) — that mismatch put the
+    // painting somewhere the easel isn't. Same lesson as Study Table.
+    const W = c.clientWidth, H = c.clientHeight;
+    if (W < 1 || H < 1) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     c.width = W * dpr; c.height = H * dpr;
     c.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -249,7 +252,12 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     reveal.width = W; reveal.height = H;
     st.mask = mask; st.reveal = reveal;
 
-    const n = W < 768 ? COUNT_MOBILE : COUNT_DESKTOP;
+    const coarse =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches;
+    // Capability-based (not width-based): rotated stage is wide on mobile.
+    const n = coarse ? COUNT_MOBILE : COUNT_DESKTOP;
     st.dots = Array.from({ length: n }, () => spawn(W, H));
     st.done = false; st.budget = 0; st.revealDirty = true;
     st.shown = st.progress; // resize: stay in sync, never re-ease
