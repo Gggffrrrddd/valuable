@@ -14,12 +14,160 @@
 const FAVS_KEY = 'valuable-music-favs';
 const LAST_ID_KEY = 'valuable-music-last';
 const VOL_KEY = 'valuable-music-vol';
+/** Own-track metas only (id + file name). Never audio bytes, never uploads. */
+const OWN_KEY = 'valuable-music-own';
+const OWN_DB = 'valuable-music';
+const OWN_STORE = 'handles';
+/** Brief limit: maximum 2 own tracks. */
+export const MAX_OWN_TRACKS = 2;
+
+export interface OwnTrack {
+  id: string;
+  /** Original file name (display only). */
+  name: string;
+  /** True when a persistable file handle is stored (survives restart). */
+  persistent: boolean;
+}
+
+interface OwnMeta {
+  id: string;
+  name: string;
+  persistent: boolean;
+}
+
+/** File System Access API handle (Chromium only) — everything guarded. */
+type MaybeHandle = {
+  getFile: () => Promise<File>;
+  queryPermission?: (opts?: { mode?: string }) => Promise<string>;
+  requestPermission?: (opts?: { mode?: string }) => Promise<string>;
+  name?: string;
+} | null;
+
+function readOwnMetas(): OwnMeta[] {
+  try {
+    const raw = localStorage.getItem(OWN_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (x): x is OwnMeta =>
+          !!x && typeof x === 'object' && typeof (x as OwnMeta).id === 'string' && typeof (x as OwnMeta).name === 'string',
+      )
+      .slice(0, MAX_OWN_TRACKS)
+      .map((x) => ({ id: x.id, name: x.name, persistent: x.persistent === true }));
+  } catch {
+    return [];
+  }
+}
+
+function saveOwnMetas(list: OwnMeta[]): void {
+  try {
+    localStorage.setItem(OWN_KEY, JSON.stringify(list));
+  } catch {
+    /* persistence unavailable */
+  }
+}
+
+function saveFavs(favs: string[]): void {
+  try {
+    localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
+  } catch {
+    /* persistence unavailable */
+  }
+}
+
+function idbOpen(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    try {
+      const req = indexedDB.open(OWN_DB, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(OWN_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function idbPutHandle(id: string, handle: unknown): Promise<void> {
+  const db = await idbOpen();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(OWN_STORE, 'readwrite');
+      tx.objectStore(OWN_STORE).put(handle, id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    try {
+      db.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function idbGetHandle(id: string): Promise<MaybeHandle> {
+  try {
+    const db = await idbOpen();
+    try {
+      const value: unknown = await new Promise((resolve, reject) => {
+        const tx = db.transaction(OWN_STORE, 'readonly');
+        const rq = tx.objectStore(OWN_STORE).get(id);
+        rq.onsuccess = () => resolve(rq.result);
+        rq.onerror = () => reject(rq.error);
+      });
+      if (value && typeof value === 'object' && typeof (value as MaybeHandle)?.getFile === 'function') {
+        return value as MaybeHandle;
+      }
+      return null;
+    } finally {
+      try {
+        db.close();
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function idbDeleteHandle(id: string): Promise<void> {
+  try {
+    const db = await idbOpen();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(OWN_STORE, 'readwrite');
+        tx.objectStore(OWN_STORE).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      try {
+        db.close();
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Session object URLs for own tracks (never persisted, revoked on remove). */
+const ownUrls = new Map<string, string>();
 
 export interface MusicSnapshot {
   trackId: string;
   playing: boolean;
   volume: number;
   favs: string[];
+  ownTracks: OwnTrack[];
+  /** Own-track ids whose file is currently unreachable (re-select state). */
+  ownMissing: string[];
 }
 
 function readFavs(): string[] {
@@ -32,10 +180,13 @@ function readFavs(): string[] {
   }
 }
 
-function readLastId(): string {
+function readLastId(ownIds: string[]): string {
   try {
     const id = localStorage.getItem(LAST_ID_KEY);
-    return id && STUDY_TRACKS.some((t) => t.id === id) ? id : STUDY_TRACKS[0].id;
+    if (!id) return STUDY_TRACKS[0].id;
+    if (STUDY_TRACKS.some((t) => t.id === id)) return id;
+    if (ownIds.includes(id)) return id;
+    return STUDY_TRACKS[0].id;
   } catch {
     return STUDY_TRACKS[0].id;
   }
@@ -50,18 +201,28 @@ function readVolume(): number {
   }
 }
 
+const initialOwnMetas = readOwnMetas();
+
 let snapshot: MusicSnapshot = {
-  trackId: readLastId(),
+  trackId: readLastId(initialOwnMetas.map((m) => m.id)),
   playing: false,
   volume: readVolume(),
   favs: readFavs(),
+  ownTracks: initialOwnMetas,
+  // Session-only picks (no persistable handle) need re-select after restart.
+  ownMissing: initialOwnMetas.filter((m) => !m.persistent).map((m) => m.id),
 };
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
 function emit(): void {
-  snapshot = { ...snapshot, favs: [...snapshot.favs] };
+  snapshot = {
+    ...snapshot,
+    favs: [...snapshot.favs],
+    ownTracks: [...snapshot.ownTracks],
+    ownMissing: [...snapshot.ownMissing],
+  };
   listeners.forEach((l) => {
     try {
       l();
@@ -83,7 +244,19 @@ export function getSnapshot(): MusicSnapshot {
 }
 
 export function currentTrack(): TrackInfo {
-  return STUDY_TRACKS.find((t) => t.id === snapshot.trackId) ?? STUDY_TRACKS[0];
+  const bundled = STUDY_TRACKS.find((t) => t.id === snapshot.trackId);
+  if (bundled) return bundled;
+  const own = snapshot.ownTracks.find((t) => t.id === snapshot.trackId);
+  if (own) {
+    return {
+      id: own.id,
+      mood: 'Lo-fi',
+      title: own.name,
+      artist: 'Your device',
+      url: ownUrls.get(own.id) ?? '',
+    };
+  }
+  return STUDY_TRACKS[0];
 }
 
 let a1: HTMLAudioElement | null = null;
@@ -145,7 +318,8 @@ function ensureAudio(): boolean {
     el2.preload = 'auto';
     el1.volume = snapshot.volume;
     el2.volume = 0;
-    el1.src = currentTrack().url;
+    const firstUrl = currentTrack().url;
+    if (firstUrl) el1.src = firstUrl;
     a1 = el1;
     a2 = el2;
     bindMediaSession();
@@ -184,16 +358,9 @@ function crossfadeTo(url: string): void {
   }, 20);
 }
 
-/** Play a track (or toggle it if it's already active). Always user-initiated. */
-export function playTrack(id: string): void {
+/** Shared playback start (bundled + own tracks). Always user-initiated. */
+function startPlayback(id: string, url: string, title: string, artist: string): void {
   if (!ensureAudio()) return;
-  const t = STUDY_TRACKS.find((x) => x.id === id);
-  if (!t) return;
-  if (id === snapshot.trackId) {
-    if (snapshot.playing) pause();
-    else void resume();
-    return;
-  }
   snapshot.trackId = id;
   try {
     localStorage.setItem(LAST_ID_KEY, id);
@@ -202,8 +369,25 @@ export function playTrack(id: string): void {
   }
   snapshot.playing = true;
   emit();
-  updateMediaMeta(t);
-  crossfadeTo(t.url);
+  updateMediaMeta({ id, mood: 'Lo-fi', title, artist, url });
+  crossfadeTo(url);
+}
+
+/** Play a track (or toggle it if it's already active). Always user-initiated. */
+export function playTrack(id: string): void {
+  if (!ensureAudio()) return;
+  const t = STUDY_TRACKS.find((x) => x.id === id);
+  if (!t) {
+    // Might be an own track — resolve its file URL first (may need permission).
+    void playOwnTrack(id);
+    return;
+  }
+  if (id === snapshot.trackId) {
+    if (snapshot.playing) pause();
+    else void resume();
+    return;
+  }
+  startPlayback(t.id, t.url, t.title, t.artist);
 }
 
 /** Resume the current track (user tap or session resume). */
@@ -211,7 +395,11 @@ export function resume(): void {
   if (!ensureAudio()) return;
   const el = currentEl();
   if (!el) return;
-  if (!el.src) el.src = currentTrack().url;
+  if (!el.src) {
+    const url = currentTrack().url;
+    if (!url) return;
+    el.src = url;
+  }
   el.volume = snapshot.volume;
   updateMediaMeta(currentTrack());
   el.play().then(
@@ -290,6 +478,220 @@ export function toggleFav(id: string): void {
     localStorage.setItem(FAVS_KEY, JSON.stringify(snapshot.favs));
   } catch {
     /* persistence unavailable */
+  }
+  emit();
+}
+
+/* ── Own tracks (user's device audio, max 2, Favourites only) ──────────── */
+
+function markMissing(id: string): void {
+  if (!snapshot.ownMissing.includes(id)) {
+    snapshot.ownMissing = [...snapshot.ownMissing, id];
+    emit();
+  }
+}
+
+function clearMissing(id: string): void {
+  if (snapshot.ownMissing.includes(id)) {
+    snapshot.ownMissing = snapshot.ownMissing.filter((x) => x !== id);
+    emit();
+  }
+}
+
+/** True while another own track can be added (brief: max 2, then hide plus). */
+export function canAddOwnTrack(): boolean {
+  return snapshot.ownTracks.length < MAX_OWN_TRACKS;
+}
+
+/** Resolve a stored file handle to a playable File (permission-aware). */
+async function ensureHandleFile(id: string): Promise<File | null> {
+  const handle = await idbGetHandle(id);
+  if (!handle) return null;
+  try {
+    const qp = handle.queryPermission
+      ? await handle.queryPermission({ mode: 'read' })
+      : 'granted';
+    if (qp === 'granted') return await handle.getFile();
+    if (qp === 'denied') return null;
+    // 'prompt' — the play tap is a user gesture, so requesting is allowed.
+    const rp = handle.requestPermission
+      ? await handle.requestPermission({ mode: 'read' })
+      : 'denied';
+    if (rp !== 'granted') return null;
+    return await handle.getFile();
+  } catch {
+    return null;
+  }
+}
+
+function registerOwnTrack(id: string, name: string, url: string, persistent: boolean): void {
+  ownUrls.set(id, url);
+  snapshot.ownTracks = [...snapshot.ownTracks, { id, name, persistent }];
+  saveOwnMetas(snapshot.ownTracks);
+  clearMissing(id);
+  if (!snapshot.favs.includes(id)) {
+    snapshot.favs = [...snapshot.favs, id];
+    saveFavs(snapshot.favs);
+  }
+  emit();
+}
+
+/**
+ * Add an own track from a picked File (plain input fallback).
+ * Session-only unless a persistable handle is attached separately.
+ * Returns false when the 2-track cap is already reached.
+ */
+export function addOwnTrackFromFile(file: File): boolean {
+  if (!canAddOwnTrack()) return false;
+  try {
+    const id = 'own-' + Date.now();
+    const url = URL.createObjectURL(file);
+    registerOwnTrack(id, file.name || 'My track', url, false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Add an own track from a File System Access handle (Chromium).
+ * The handle is stored (IndexedDB) + permission persisted, so the track
+ * survives restarts without re-picking.
+ */
+export async function addOwnTrackFromHandle(handle: {
+  getFile: () => Promise<File>;
+  name?: string;
+}): Promise<boolean> {
+  if (!canAddOwnTrack()) return false;
+  try {
+    const file = await handle.getFile();
+    const id = 'own-' + Date.now();
+    const url = URL.createObjectURL(file);
+    try {
+      await idbPutHandle(id, handle);
+    } catch {
+      /* handle not storable — falls back to session-only */
+    }
+    const stored = await idbGetHandle(id);
+    registerOwnTrack(id, file.name || handle.name || 'My track', url, stored !== null);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Play an own track, resolving its file URL (permission-aware). */
+export async function playOwnTrack(id: string): Promise<void> {
+  const meta = snapshot.ownTracks.find((t) => t.id === id);
+  if (!meta) return;
+  let url = ownUrls.get(id);
+  if (!url) {
+    if (!meta.persistent) {
+      // Session-only pick from a previous load — file is gone.
+      markMissing(id);
+      return;
+    }
+    const file = await ensureHandleFile(id);
+    if (!file) {
+      // Missing file or lost permission — friendly re-select, no crash.
+      markMissing(id);
+      return;
+    }
+    try {
+      url = URL.createObjectURL(file);
+    } catch {
+      markMissing(id);
+      return;
+    }
+    ownUrls.set(id, url);
+  }
+  clearMissing(id);
+  if (id === snapshot.trackId) {
+    if (snapshot.playing) pause();
+    else {
+      if (!ensureAudio()) return;
+      startPlayback(id, url, meta.name, 'Your device');
+    }
+    return;
+  }
+  if (!ensureAudio()) return;
+  startPlayback(id, url, meta.name, 'Your device');
+}
+
+/**
+ * Re-pick the file for an own track (missing/permission-lost state).
+ * Accepts a File (plain input) or a persistable handle (FS API).
+ */
+export async function reselectOwnTrack(
+  id: string,
+  fileOrHandle: File | { getFile: () => Promise<File>; name?: string },
+): Promise<boolean> {
+  const meta = snapshot.ownTracks.find((t) => t.id === id);
+  if (!meta) return false;
+  try {
+    const isHandle =
+      !(fileOrHandle instanceof File) &&
+      typeof (fileOrHandle as { getFile?: unknown }).getFile === 'function';
+    const file = isHandle
+      ? await (fileOrHandle as { getFile: () => Promise<File> }).getFile()
+      : (fileOrHandle as File);
+    const oldUrl = ownUrls.get(id);
+    if (oldUrl) {
+      try {
+        URL.revokeObjectURL(oldUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+    const url = URL.createObjectURL(file);
+    ownUrls.set(id, url);
+    let persistent = false;
+    if (isHandle) {
+      try {
+        await idbPutHandle(id, fileOrHandle);
+        persistent = (await idbGetHandle(id)) !== null;
+      } catch {
+        persistent = false;
+      }
+    }
+    snapshot.ownTracks = snapshot.ownTracks.map((t) =>
+      t.id === id ? { ...t, name: file.name || t.name, persistent } : t,
+    );
+    saveOwnMetas(snapshot.ownTracks);
+    clearMissing(id);
+    emit();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Remove an own track fully (URL revoked, handle deleted, plus returns). */
+export function removeOwnTrack(id: string): void {
+  const url = ownUrls.get(id);
+  if (url) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+    ownUrls.delete(id);
+  }
+  void idbDeleteHandle(id);
+  const wasPlaying = snapshot.trackId === id && snapshot.playing;
+  snapshot.ownTracks = snapshot.ownTracks.filter((t) => t.id !== id);
+  snapshot.ownMissing = snapshot.ownMissing.filter((x) => x !== id);
+  snapshot.favs = snapshot.favs.filter((x) => x !== id);
+  saveFavs(snapshot.favs);
+  saveOwnMetas(snapshot.ownTracks);
+  if (wasPlaying) {
+    pause();
+    snapshot.trackId = STUDY_TRACKS[0].id;
+    try {
+      localStorage.setItem(LAST_ID_KEY, snapshot.trackId);
+    } catch {
+      /* ignore */
+    }
   }
   emit();
 }
