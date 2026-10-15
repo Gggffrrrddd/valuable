@@ -4,9 +4,9 @@ import { useEffect, useRef, useCallback } from 'react';
 //
 // The painting sits exactly on the easel's canvas, at ANY container aspect.
 // The old fixed transform (translate(-28.15%,-10%) scale(0.21)) only held at
-// one aspect; the base image is object-cover, so its crop shifts with aspect.
-// Instead we anchor to the TRUE canvas rect inside the base image and replay
-// the identical object-cover math in JS.
+// one aspect. Both the base <img> (object-contain) and this JS math use the
+// identical contain-fit, so the easel is never cropped and the painting
+// always lands on its canvas — letterbox blends into #090b0a.
 
 // Easel canvas rect in base-image fractions — MEASURED from easel-base.png
 // (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
@@ -20,15 +20,17 @@ const BASE_H = 941;
 
 interface PaintRect { x: number; y: number; w: number; h: number }
 
-/** object-cover fit of the base image into a W×H box (mirrors the CSS). */
-function baseCover(W: number, H: number) {
-  const s = Math.max(W / BASE_W, H / BASE_H);
+/** object-contain fit of the base image into a W×H box (mirrors the CSS).
+ *  Contain (min) keeps the whole scene — easel included — always fully
+ *  visible: never cropped, never off-screen. Letterbox blends into #090b0a. */
+function baseFit(W: number, H: number) {
+  const s = Math.min(W / BASE_W, H / BASE_H);
   return { s, ox: (W - BASE_W * s) / 2, oy: (H - BASE_H * s) / 2 };
 }
 
 /** On-screen rect of the easel canvas for the CURRENT container size. */
 function paintRectFor(W: number, H: number): PaintRect {
-  const { s, ox, oy } = baseCover(W, H);
+  const { s, ox, oy } = baseFit(W, H);
   return {
     x: ox + EASEL_CV.u0 * BASE_W * s,
     y: oy + EASEL_CV.v0 * BASE_H * s,
@@ -254,7 +256,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     rc.clearRect(0, 0, W, H);
 
     // Draw the painting cover-fit into the CURRENT easel-canvas screen rect
-    // (aspect-invariant — tracks the base image's cover crop exactly).
+    // (aspect-invariant — tracks the base image's contain fit exactly).
     const pr = paintRectFor(W, H);
     const iw = img.naturalWidth, ih = img.naturalHeight;
     if (iw > 0 && ih > 0) {

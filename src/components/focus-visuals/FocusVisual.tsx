@@ -75,12 +75,14 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
   }
   if (theme === 'blade') {
     // Particle Painting on every breakpoint (mobile uses fewer particles).
+    // Base scene is contain-fit (never cropped) + matching dark letterbox,
+    // so the easel — and the anchored painting — stay fully visible.
     return (
-      <div className="relative flex h-full w-full items-center justify-center">
+      <div className="relative flex h-full w-full items-center justify-center bg-[#090b0a]">
         <img
           src="/visuals/blade/easel-base.png"
           alt="Minimalist Easel with Blank Canvas"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain"
           draggable={false}
         />
         <ParticlePainting progress={progress} running={running ?? false} duration={duration ?? 0} />
