@@ -2,11 +2,11 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 //
-// The painting sits exactly on the easel's canvas, at ANY container aspect.
+// The painting sits exactly on the easel's canvas, at ANY container aspect
+// (Jar-exact pattern: always cover, one shared transform for scene + mask).
 // The old fixed transform (translate(-28.15%,-10%) scale(0.21)) only held at
-// one aspect. Base <img> fit and this JS math always use the IDENTICAL mode
-// (cover on wide mobile stages, contain elsewhere — synced in init), so the
-// painting always lands on the easel's canvas.
+// one aspect; now background crop and painting rect derive from the same
+// cover+anchor math, so they track each other at every size.
 
 // Easel canvas rect in base-image fractions — MEASURED from easel-base.png
 // (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
@@ -20,33 +20,27 @@ const BASE_H = 941;
 
 interface PaintRect { x: number; y: number; w: number; h: number }
 
-/** Stage-aware fit mode (mobile only).
- *  Wide mobile stages (rotated landscape, aspect ≥ 1.9) use COVER: the stage
- *  is wider than the base scene, so cover only trims sky/floor (never the
- *  easel) — full-bleed, no bars, desktop-fullscreen look.
- *  Everything else (desktop any size, squarer tablet stages) uses CONTAIN:
- *  whole scene always visible. Desktop behavior unchanged. */
-function useCoverFit(W: number, H: number): boolean {
-  if (H < 1 || W / H < 1.9) return false;
-  try {
-    return window.matchMedia('(pointer: coarse) and (max-width: 1023.5px)').matches;
-  } catch {
-    return false;
-  }
-}
-
-/** Base-image fit into a W×H box (mirrors the <img> fit, synced in init).
- *  Cover on wide mobile stages, contain everywhere else. */
-function baseFit(W: number, H: number) {
-  const s = useCoverFit(W, H)
-    ? Math.max(W / BASE_W, H / BASE_H)
-    : Math.min(W / BASE_W, H / BASE_H);
-  return { s, ox: (W - BASE_W * s) / 2, oy: (H - BASE_H * s) / 2 };
+/** Stage fit (Jar-exact pattern): ALWAYS cover, never mode-switch.
+ *  scale = max(W/BASE_W, H/BASE_H); overflow splits by object-position
+ *  anchors shared with the <img> CSS, so painting math and displayed base
+ *  can never misalign — mask values transform with the crop, like Jar.
+ *  x-anchor 0.15 (easel sits left; preserves left, trims right emptiness);
+ *  y-anchor 0.15 desktop / 0.75 mobile-compact (mirrors Jar: bottom-anchors
+ *  the easel+legs on small stages, keeps sky on desktop). */
+function baseCover(W: number, H: number) {
+  const compact =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 1023.5px)').matches;
+  const ax = 0.15;
+  const ay = compact ? 0.75 : 0.15;
+  const s = Math.max(W / BASE_W, H / BASE_H);
+  return { s, ox: (W - BASE_W * s) * ax, oy: (H - BASE_H * s) * ay };
 }
 
 /** On-screen rect of the easel canvas for the CURRENT container size. */
 function paintRectFor(W: number, H: number): PaintRect {
-  const { s, ox, oy } = baseFit(W, H);
+  const { s, ox, oy } = baseCover(W, H);
   return {
     x: ox + EASEL_CV.u0 * BASE_W * s,
     y: oy + EASEL_CV.v0 * BASE_H * s,
@@ -215,11 +209,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     const st = s.current;
     st.W = W; st.H = H;
-
-    // Sync the base <img> fit with the JS math mode (single decision point).
-    // Mobile-only effect: desktop always resolves to contain (unchanged).
-    const baseEl = c.parentElement?.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
-    if (baseEl) baseEl.style.objectFit = useCoverFit(W, H) ? 'cover' : 'contain';
 
     // fresh offscreens
     const mask = document.createElement('canvas');

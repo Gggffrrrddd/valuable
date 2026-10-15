@@ -1771,3 +1771,19 @@ button .butterfly-constellation {
     justify-content: center !important;
   }
 }
+
+/* Easel base anchors (Jar pattern): same cover+anchor transform as the
+   painting math in ParticlePainting, so scene crop and painting rect can
+   never misalign. x=15% preserves the left-sitting easel (trims right
+   emptiness first); y=15% desktop keeps sky, 75% compact bottom-anchors
+   easel+legs on small stages. Desktop layout/rhythm untouched. */
+.blade-focus-layout .blade-easel-base {
+  object-fit: cover;
+  object-position: 15% 15%;
+}
+
+@media (max-width: 1023.5px) {
+  .bd-sim .blade-focus-layout .blade-easel-base {
+    object-position: 15% 75%;
+  }
+}
