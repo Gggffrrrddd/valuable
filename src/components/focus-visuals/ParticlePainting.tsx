@@ -8,11 +8,24 @@ import { useEffect, useRef, useCallback } from 'react';
 // identical contain-fit, so the easel is never cropped and the painting
 // always lands on its canvas — letterbox blends into #090b0a.
 
-// Easel canvas rect in base-image fractions — MEASURED from easel-base.png
-// (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
-// Cross-check: the old hardcoded transform at 16:9 implies x∈[190,541],
-// y∈[277,475] — agrees within ~10px, so this preserves the approved look.
-const EASEL_CV = { u0: 184 / 1672, v0: 282 / 941, u1: 546 / 1672, v1: 475 / 941 };
+// YOUR hardcoded tuner values for the painting placement — single source of
+// truth for both the live rect (EASEL_CV below) and the hardcode-check log.
+const TUNER_ZOOM = 0.21;
+const TUNER_X = -28.15; // percent of W
+const TUNER_Y = -10; // percent of H
+
+// Easel canvas rect in base-image fractions — DERIVED FROM YOUR TUNER VALUES
+// (above), not from pixel measurement. At the 16:9 tune aspect the base
+// contain-fit is ~identity, so tuner container fractions == base fractions:
+// center (0.5+tx, 0.5+ty), half-size zoom/2.
+// This reproduces the approved look EXACTLY at 16:9, while the contain math
+// keeps it easel-anchored at every other aspect.
+const EASEL_CV = {
+  u0: 0.5 + TUNER_X / 100 - TUNER_ZOOM / 2,
+  v0: 0.5 + TUNER_Y / 100 - TUNER_ZOOM / 2,
+  u1: 0.5 + TUNER_X / 100 + TUNER_ZOOM / 2,
+  v1: 0.5 + TUNER_Y / 100 + TUNER_ZOOM / 2,
+};
 
 // Base image natural size (easel-base.png).
 const BASE_W = 1672;
@@ -97,11 +110,10 @@ function ppmLog(tag: string, data: Record<string, unknown>) {
  *  Recomputes the expected rect from those exact values (cover-fit painting
  *  into the W×H box, then scale-about-center + translate — the old CSS
  *  transform math) and compares with the actual paintRect.
- *  Any nonzero delta = tuner values NOT followed. */
-const TUNER_ZOOM = 0.21;
-const TUNER_X = -28.15; // percent of W
-const TUNER_Y = -10; // percent of H
-
+ *  Any nonzero delta = tuner values NOT followed.
+ *  NOTE: meaningful at ~16:9 (tune aspect). At other aspects the tuner
+ *  transform itself is wrong by design (the original bug) — there the
+ *  easel-anchoring governs, so aligned:false there is EXPECTED, not a bug. */
 function ppmHardcodeCheck(pr: PaintRect, W: number, H: number, iw: number, ih: number) {
   const sc0 = Math.max(W / iw, H / ih);
   const dw0 = iw * sc0, dh0 = ih * sc0;
