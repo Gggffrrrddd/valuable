@@ -92,31 +92,28 @@ function ppmLog(tag: string, data: Record<string, unknown>) {
   } catch { /* logging must never break the visual */ }
 }
 
-/** TEMP: independently verify the painting follows the hardcoded EASEL_CV.
- *  Recomputes the expected easel rect from the DISPLAYED base <img> element
- *  (its own natural size + box, not canvas state) and compares with the
- *  canvas paintRect. Any nonzero delta = hardcoded values NOT followed. */
-function ppmHardcodeCheck(pr: PaintRect) {
-  const baseEl = document.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
-  if (!baseEl) {
-    ppmLog('hardcode-check', { baseFound: false });
-    return;
-  }
-  const natW = baseEl.naturalWidth, natH = baseEl.naturalHeight;
-  const br = baseEl.getBoundingClientRect();
-  const s2 = Math.min(br.width / natW, br.height / natH);
-  const ox2 = br.x + (br.width - natW * s2) / 2;
-  const oy2 = br.y + (br.height - natH * s2) / 2;
-  const ex = ox2 + EASEL_CV.u0 * natW * s2;
-  const ey = oy2 + EASEL_CV.v0 * natH * s2;
-  const ew = (EASEL_CV.u1 - EASEL_CV.u0) * natW * s2;
-  const eh = (EASEL_CV.v1 - EASEL_CV.v0) * natH * s2;
+/** TEMP: verify the painting follows YOUR hardcoded tuner values
+ *  (Zoom 0.21 / X -28.15% / Y -10%) on every image.
+ *  Recomputes the expected rect from those exact values (cover-fit painting
+ *  into the W×H box, then scale-about-center + translate — the old CSS
+ *  transform math) and compares with the actual paintRect.
+ *  Any nonzero delta = tuner values NOT followed. */
+const TUNER_ZOOM = 0.21;
+const TUNER_X = -28.15; // percent of W
+const TUNER_Y = -10; // percent of H
+
+function ppmHardcodeCheck(pr: PaintRect, W: number, H: number, iw: number, ih: number) {
+  const sc0 = Math.max(W / iw, H / ih);
+  const dw0 = iw * sc0, dh0 = ih * sc0;
+  const tx = (TUNER_X / 100) * W, ty = (TUNER_Y / 100) * H;
+  const ecx = W / 2 + tx, ecy = H / 2 + ty;
+  const ew = TUNER_ZOOM * dw0, eh = TUNER_ZOOM * dh0;
+  const ex = ecx - ew / 2, ey = ecy - eh / 2;
   const r1 = (v: number) => Math.round(v * 10) / 10;
   ppmLog('hardcode-check', {
-    hardcoded: { u0: EASEL_CV.u0, v0: EASEL_CV.v0, u1: EASEL_CV.u1, v1: EASEL_CV.v1, baseW: BASE_W, baseH: BASE_H },
-    baseNaturalWH: [natW, natH],
-    baseMatchAssumed: natW === BASE_W && natH === BASE_H,
-    baseBoxWH: [r1(br.width), r1(br.height)],
+    tuner: { zoom: TUNER_ZOOM, xPct: TUNER_X, yPct: TUNER_Y },
+    containerWH: [r1(W), r1(H)],
+    paintingNaturalWH: [iw, ih],
     expectedRect: [r1(ex), r1(ey), r1(ew), r1(eh)],
     actualRect: [r1(pr.x), r1(pr.y), r1(pr.w), r1(pr.h)],
     delta: [r1(pr.x - ex), r1(pr.y - ey), r1(pr.w - ew), r1(pr.h - eh)],
@@ -323,7 +320,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           baseFitOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
           paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
         });
-        ppmHardcodeCheck(pr);
+        ppmHardcodeCheck(pr, W, H, iw, ih);
       }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
