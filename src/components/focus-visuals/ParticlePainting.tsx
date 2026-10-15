@@ -77,21 +77,6 @@ const PALETTE: [number, number, number][] = [
   [180, 255, 160], [255, 120, 200], [255, 200, 200],
 ];
 
-// ─── TEMP DIAGNOSTICS: [particle-painting-measure] ───────────────────────────
-// Logs only, zero visual/behavior change. Remove after diagnosis.
-const PPM_BUILD = 'contain-6a10144';
-
-function ppmLog(tag: string, data: Record<string, unknown>) {
-  try {
-    console.log('[particle-painting-measure] ' + tag + ' ' + JSON.stringify({
-      build: PPM_BUILD,
-      fs: !!document.fullscreenElement,
-      win: [window.innerWidth, window.innerHeight],
-      ...data,
-    }));
-  } catch { /* logging must never break the visual */ }
-}
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Dot {
@@ -198,7 +183,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     mask: null as HTMLCanvasElement | null,
     reveal: null as HTMLCanvasElement | null,
     img: null as HTMLImageElement | null,
-    ppmLastComposeKey: '', // TEMP: dims key of last logged compose
   });
 
   // ── init / resize ─────────────────────────────────────────────────────────
@@ -278,20 +262,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     if (iw > 0 && ih > 0) {
       const sc = Math.max(pr.w / iw, pr.h / ih);
       const dw = iw * sc, dh = ih * sc;
-      // TEMP: log placement when dims change (no spam).
-      const key = Math.round(W) + 'x' + Math.round(H);
-      if (key !== s.current.ppmLastComposeKey) {
-        s.current.ppmLastComposeKey = key;
-        const bc = baseFit(W, H);
-        ppmLog('compose', {
-          assumedWH: [Math.round(W * 10) / 10, Math.round(H * 10) / 10],
-          containerAspect: Math.round((W / H) * 1000) / 1000,
-          naturalWH: [iw, ih],
-          baseFitScale: Math.round(bc.s * 10000) / 10000,
-          baseFitOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
-          paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
-        });
-      }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
 
@@ -491,12 +461,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     let idx = readIdx();
     let attempts = 0;
     const img = new Image();
-    img.onload = () => {
-      s.current.imgReady = true;
-      s.current.revealDirty = true;
-      // TEMP: which painting + its natural size.
-      ppmLog('img-loaded', { src: PAINTINGS[idx], naturalWH: [img.naturalWidth, img.naturalHeight] });
-    };
+    img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
     img.onerror = () => {
       console.warn('[particle-painting] painting failed to load, skipping to next:', PAINTINGS[idx]);
       attempts += 1;
@@ -514,15 +479,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     init();
     s.current.raf = requestAnimationFrame(draw);
-    // TEMP: mount marker (proves fresh bundle) + container geometry.
-    {
-      const c = canvasRef.current;
-      const r = c ? c.getBoundingClientRect() : null;
-      ppmLog('mount', {
-        containerWH: r ? [Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10] : null,
-        containerAspect: r && r.height > 0 ? Math.round((r.width / r.height) * 1000) / 1000 : null,
-      });
-    }
     const ro = new ResizeObserver(init);
     if (canvasRef.current) ro.observe(canvasRef.current);
     return () => { cancelAnimationFrame(s.current.raf); ro.disconnect(); };
