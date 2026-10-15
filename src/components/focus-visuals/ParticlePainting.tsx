@@ -2,19 +2,40 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 //
-// The painting sits where the old hardcoded img sat:
-//   transform: translate(-28.15%, -10%) scale(0.21), origin 50% 50%.
-// We replicate that exact transform on canvas (no CSS-mask coordinate trap)
-// and render the painting reveal directly: painting (transformed, cover-fit)
-// clipped by an accumulated landing mask, blitted under the particles.
+// The painting sits exactly on the easel's canvas, at ANY container aspect.
+// The old fixed transform (translate(-28.15%,-10%) scale(0.21)) only held at
+// one aspect; the base image is object-cover, so its crop shifts with aspect.
+// Instead we anchor to the TRUE canvas rect inside the base image and replay
+// the identical object-cover math in JS.
 
-// Landing zone on screen (fraction of container) — matches the visible canvas.
-const ZONE = { cx: 0.5 - 0.2815, cy: 0.5 - 0.10, hw: 0.11, hh: 0.14 };
+// Easel canvas rect in base-image fractions — MEASURED from easel-base.png
+// (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
+// Cross-check: the old hardcoded transform at 16:9 implies x∈[190,541],
+// y∈[277,475] — agrees within ~10px, so this preserves the approved look.
+const EASEL_CV = { u0: 184 / 1672, v0: 282 / 941, u1: 546 / 1672, v1: 475 / 941 };
 
-// Must match the old CSS values exactly.
-const PAINT_TX = -0.2815; // fraction of W
-const PAINT_TY = -0.10;   // fraction of H
-const PAINT_S  = 0.21;
+// Base image natural size (easel-base.png).
+const BASE_W = 1672;
+const BASE_H = 941;
+
+interface PaintRect { x: number; y: number; w: number; h: number }
+
+/** object-cover fit of the base image into a W×H box (mirrors the CSS). */
+function baseCover(W: number, H: number) {
+  const s = Math.max(W / BASE_W, H / BASE_H);
+  return { s, ox: (W - BASE_W * s) / 2, oy: (H - BASE_H * s) / 2 };
+}
+
+/** On-screen rect of the easel canvas for the CURRENT container size. */
+function paintRectFor(W: number, H: number): PaintRect {
+  const { s, ox, oy } = baseCover(W, H);
+  return {
+    x: ox + EASEL_CV.u0 * BASE_W * s,
+    y: oy + EASEL_CV.v0 * BASE_H * s,
+    w: (EASEL_CV.u1 - EASEL_CV.u0) * BASE_W * s,
+    h: (EASEL_CV.v1 - EASEL_CV.v0) * BASE_H * s,
+  };
+}
 
 // Painting pool — sequence 1-10, round-robin per session (see mount effect).
 // 1-2 bundled (untouched, hardcoded values safe); 3-10 Cloudinary.
@@ -138,12 +159,12 @@ function baseWashAlpha(p: number) {
   return c * c;
 }
 
-/** Soft zone-covering wash at the given alpha (feathered, no hard edges). */
-function applyWash(mc: CanvasRenderingContext2D, W: number, H: number, alpha: number) {
+/** Soft rect-covering wash at the given alpha (feathered, no hard edges). */
+function applyWash(mc: CanvasRenderingContext2D, pr: PaintRect, alpha: number) {
   if (alpha <= 0) return;
-  const zx = W * ZONE.cx, zy = H * ZONE.cy;
-  // radius ≥ 2× zone half-diagonal → nearly uniform inside the zone
-  const R = Math.hypot(W * ZONE.hw, H * ZONE.hh) * 2;
+  const zx = pr.x + pr.w / 2, zy = pr.y + pr.h / 2;
+  // radius ≥ 2× rect half-diagonal → nearly uniform inside the rect
+  const R = Math.hypot(pr.w / 2, pr.h / 2) * 2;
   const a = Math.min(1, alpha);
   const g = mc.createRadialGradient(zx, zy, 0, zx, zy, R);
   g.addColorStop(0, `rgba(255,255,255,${a})`);
@@ -223,8 +244,9 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     // base wash first (guaranteed curve), then particle stamps (texture),
     // and mark that many dots done.
     const mc = mask.getContext('2d');
-    const zx = W * ZONE.cx, zy = H * ZONE.cy;
-    const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
+    const pr0 = paintRectFor(W, H);
+    const zx = pr0.x + pr0.w / 2, zy = pr0.y + pr0.h / 2;
+    const zhw = pr0.w / 2, zhh = pr0.h / 2;
     if (mc) {
       const w0 = baseWashAlpha(st.progress);
       st.wash = w0;
@@ -232,7 +254,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
         mc.fillStyle = '#fff';
         mc.fillRect(0, 0, W, H);
       } else if (w0 > 0) {
-        applyWash(mc, W, H, w0);
+        applyWash(mc, pr0, w0);
       }
     }
     const pre = Math.floor(st.progress * n);
@@ -261,17 +283,12 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     rc.globalCompositeOperation = 'source-over';
     rc.clearRect(0, 0, W, H);
 
-    // replicate CSS: origin centre → translate → scale → un-origin
-    rc.save();
-    rc.translate(W / 2, H / 2);
-    rc.translate(PAINT_TX * W, PAINT_TY * H);
-    rc.scale(PAINT_S, PAINT_S);
-    rc.translate(-W / 2, -H / 2);
-
-    // object-cover the image into the W×H local box
+    // Draw the painting cover-fit into the CURRENT easel-canvas screen rect
+    // (aspect-invariant — tracks the base image's cover crop exactly).
+    const pr = paintRectFor(W, H);
     const iw = img.naturalWidth, ih = img.naturalHeight;
     if (iw > 0 && ih > 0) {
-      const sc = Math.max(W / iw, H / ih);
+      const sc = Math.max(pr.w / iw, pr.h / ih);
       const dw = iw * sc, dh = ih * sc;
       // TEMP (#2/#3): log cover math + stretch ratios when dims change.
       const cvs = canvasRef.current;
@@ -281,10 +298,14 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
         s.current.ppmLastComposeKey = key;
         const attrW = cvs ? (cvs as HTMLCanvasElement).width : 0;
         const attrH = cvs ? (cvs as HTMLCanvasElement).height : 0;
+        const bc = baseCover(W, H);
         ppmLog('compose', {
           assumedWH: [Math.round(W * 10) / 10, Math.round(H * 10) / 10],
           cssWH: cssR ? [cssR.w, cssR.h] : null,
           naturalWH: [iw, ih],
+          baseCoverScale: Math.round(bc.s * 10000) / 10000,
+          baseCoverOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
+          paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
           coverScale: Math.round(sc * 1000) / 1000,
           drawnWH: [Math.round(dw * 10) / 10, Math.round(dh * 10) / 10],
           drawnAspect: Math.round((dw / dh) * 1000) / 1000,
@@ -298,9 +319,8 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           maskWH: [mask.width, mask.height],
         });
       }
-      rc.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
-    rc.restore();
 
     // clip to accumulated landings
     rc.globalCompositeOperation = 'destination-in';
@@ -337,8 +357,10 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     if (st.shown < raw - maxStep * 2) st.shown = raw - maxStep * 2; // never lag far
     const prog = st.shown;
 
-    const zx = W * ZONE.cx, zy = H * ZONE.cy;
-    const zhw = W * ZONE.hw, zhh = H * ZONE.hh;
+    // Landing zone = current easel-canvas screen rect (aspect-invariant).
+    const pz = paintRectFor(W, H);
+    const zx = pz.x + pz.w / 2, zy = pz.y + pz.h / 2;
+    const zhw = pz.w / 2, zhh = pz.h / 2;
 
     // ── time-paced recruitment ──
     // rate spreads ALL particles evenly across the whole session duration,
@@ -412,7 +434,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           st.wash = 1;
         } else {
           const delta = (wTarget - st.wash) / (1 - st.wash);
-          applyWash(mc, W, H, delta);
+          applyWash(mc, paintRectFor(W, H), delta);
           st.wash = wTarget;
         }
         st.revealDirty = true;
