@@ -83,7 +83,6 @@ export default function FocusVisual({ theme, progress, duration, running, leafAs
           src="/visuals/blade/easel-base.png"
           alt="Minimalist Easel with Blank Canvas"
           className="absolute inset-0 h-full w-full object-contain"
-          style={{ objectFit: 'contain' }}
           draggable={false}
         />
         <ParticlePainting progress={progress} running={running ?? false} duration={duration ?? 0} />
