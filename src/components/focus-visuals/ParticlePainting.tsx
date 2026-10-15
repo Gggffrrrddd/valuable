@@ -105,6 +105,34 @@ function ppmLog(tag: string, data: Record<string, unknown>) {
   } catch { /* logging must never break the visual */ }
 }
 
+/** TEMP: DOM-level proof of what the BASE image actually renders.
+ *  Reads the live <img> element: computed object-fit (catches stale CSS or
+ *  overrides beating the class), inline style, box, natural size, and what
+ *  contain SHOULD draw. If computedFit !== 'contain' → stale bundle/override
+ *  proven (contain can never crop; cover crops sides). */
+function ppmBaseCheck() {
+  const baseEl = document.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
+  if (!baseEl) {
+    ppmLog('base-check', { baseFound: false });
+    return;
+  }
+  const cs = getComputedStyle(baseEl);
+  const br = baseEl.getBoundingClientRect();
+  const natW = baseEl.naturalWidth, natH = baseEl.naturalHeight;
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  const s = natW > 0 && natH > 0 ? Math.min(br.width / natW, br.height / natH) : 0;
+  ppmLog('base-check', {
+    computedFit: cs.objectFit,
+    inlineFit: baseEl.style.objectFit || null,
+    hasContainClass: baseEl.className.indexOf('object-contain') !== -1,
+    hasCoverClass: baseEl.className.indexOf('object-cover') !== -1,
+    naturalWH: [natW, natH],
+    boxWH: [r1(br.width), r1(br.height)],
+    containDrawnWH: [r1(natW * s), r1(natH * s)],
+    containBars: [r1(br.width - natW * s), r1(br.height - natH * s)],
+  });
+}
+
 /** TEMP: verify the painting follows YOUR hardcoded tuner values
  *  (Zoom 0.21 / X -28.15% / Y -10%) on every image.
  *  Recomputes the expected rect from those exact values (cover-fit painting
@@ -333,6 +361,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
         });
         ppmHardcodeCheck(pr, W, H, iw, ih);
+        ppmBaseCheck();
       }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
