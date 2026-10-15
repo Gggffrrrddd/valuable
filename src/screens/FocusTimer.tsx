@@ -26,6 +26,8 @@ interface FocusTimerProps {
   onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, delayNavigation?: boolean) => Promise<() => void> | void;
   /** Peek at the study table mid-session. The wall-clock timer keeps running; visuals rehydrate on return. */
   onOpenStudyTable?: () => void;
+  /** System back-button exit: land directly on the home tab (not deeper). */
+  onExitToHome?: () => void;
 }
 
 type Phase = 'config' | 'focus' | 'paused' | 'completing';
@@ -82,7 +84,31 @@ function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerProps) {
+/** History entry marking a live focus session (system back-button trap).
+ *  Base entry ({app:'tab'}) is set once by App; the timer pushes its own
+ *  entry on session start, so back lands home (save + exit) and the next
+ *  back exits normally. No-ops where history is unavailable. */
+const TIMER_HISTORY_STATE = 'timer-session';
+
+function pushTimerHistory() {
+  try {
+    if (window.history.state?.app !== TIMER_HISTORY_STATE) {
+      window.history.pushState({ app: TIMER_HISTORY_STATE }, '');
+    }
+  } catch {
+    /* history unavailable — back falls back to default behavior */
+  }
+}
+
+function popTimerHistory() {
+  try {
+    if (window.history.state?.app === TIMER_HISTORY_STATE) window.history.back();
+  } catch {
+    /* ignore */
+  }
+}
+
+export default function FocusTimer({ onComplete, onOpenStudyTable, onExitToHome }: FocusTimerProps) {
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
@@ -195,6 +221,31 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
 
   const navigateToNextScreenRef = useRef<(() => void) | null>(null);
 
+  // Latest callbacks for the system back-button handler (registered once).
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const onExitToHomeRef = useRef(onExitToHome);
+  onExitToHomeRef.current = onExitToHome;
+
+  // System back button (phone/browser): bank elapsed time exactly like an
+  // early quit, then land directly on the home tab. The timer entry is
+  // already popped, so the NEXT back exits normally. No live session (config
+  // screen, finale done) → ignore and let the browser default apply.
+  useEffect(() => {
+    const onPopState = () => {
+      const s = readStoredSession();
+      if (!s || s.remainingMs <= 0) return;
+      const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
+      clearSessionStorage();
+      setPhase('config');
+      onCompleteRef.current(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
+      onExitToHomeRef.current?.();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const completeSession = useCallback(async () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -205,6 +256,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     const s = readStoredSession();
     const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
     clearSessionStorage();
+    // Session over: silently drop our history entry so the next system back
+    // exits instead of landing on a dead trap (popstate ignores: no session).
+    popTimerHistory();
     
     if (visualTheme === 'butterfly') {
       // For butterfly, save stats immediately but delay navigation until finale finishes.
@@ -227,6 +281,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     setActiveDurationSeconds(s.durationMs / 1000);
     if (s.remainingMs <= 0) {
       completeSession();
+    } else {
+      // Resumed live session (reload/table return) — trap back like a start.
+      pushTimerHistory();
     }
   }, [completeSession]);
 
@@ -274,6 +331,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase('focus');
+    // Trap the system back button for this session (no-op if already trapped).
+    pushTimerHistory();
   }
 
   function handlePause() {
@@ -305,6 +364,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       const s = readStoredSession();
       const elapsedSeconds = s ? Math.max(0, Math.round(s.elapsedMs / 1000)) : Math.max(0, totalFocusSeconds - secondsLeft);
       clearSessionStorage();
+      popTimerHistory();
       setPhase('config');
       onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
     } else {

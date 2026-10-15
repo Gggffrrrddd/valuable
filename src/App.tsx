@@ -111,6 +111,17 @@ function AppContent() {
     sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
   }, [screen]);
 
+  // System back-button base: mark the home entry once per page load so the
+  // focus timer can trap exactly one level above it (session → home → exit).
+  // Skipped when a timer entry already exists (reload mid-session order).
+  useEffect(() => {
+    try {
+      if (!window.history.state) window.history.replaceState({ app: 'tab' }, '');
+    } catch {
+      /* history unavailable — back falls back to default behavior */
+    }
+  }, []);
+
   // Publish this user's presence while the app is foregrounded, so friends'
   // study tables can see them. Skips beats while the tab is hidden.
   const userId = session?.user.id;
@@ -182,6 +193,7 @@ function AppContent() {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
+        onExitToHome={() => { setTab('home'); setScreen('tab'); }}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
           setScreen('table');
@@ -330,6 +342,7 @@ function AppContent() {
               </div>
               <FocusTimer
                 onComplete={handleSessionComplete}
+                onExitToHome={() => { setTab('home'); setScreen('tab'); }}
                 onOpenStudyTable={() => {
                   setTableFromTimer(true);
                   setScreen('table');
