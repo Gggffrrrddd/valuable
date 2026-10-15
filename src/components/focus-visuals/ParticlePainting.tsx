@@ -45,14 +45,14 @@ function paintRectFor(W: number, H: number): PaintRect {
 const PAINTINGS = [
   '/visuals/blade/paint-default.jpg', // 1 (bundled)
   '/visuals/blade/paint-sunflower.png', // 2 (bundled)
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791993074/image_3.png', // 3 (fixed: was image_3.pngv → 404)
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791993086/image_4.png', // 4
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791993100/image_6.png', // 5
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791993114/imaeg_8.jpg', // 6
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791994070/iamge_9_1_1.png', // 7
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791994180/image_5_1.jpg', // 8
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791994231/image_7_1.png', // 9
-  'https://res.cloudinary.com/r5wvbpys/image/upload/w_1920,q_auto,f_auto/v1791994451/image_10_2_-compressed.jpg', // 10
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993074/image_3.png', // 3 (fixed: was image_3.pngv → 404)
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993086/image_4.png', // 4
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993100/image_6.png', // 5
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791993114/imaeg_8.jpg', // 6
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994070/iamge_9_1_1.png', // 7
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994180/image_5_1.jpg', // 8
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994231/image_7_1.png', // 9
+  'https://res.cloudinary.com/r5wvbpys/image/upload/v1791994451/image_10_2_-compressed.jpg', // 10
 ];
 
 // Round-robin cursor: stores the NEXT index to show, so refresh/relogin
@@ -90,38 +90,6 @@ function ppmLog(tag: string, data: Record<string, unknown>) {
       ...data,
     }));
   } catch { /* logging must never break the visual */ }
-}
-
-/** TEMP: independently verify the painting follows the hardcoded EASEL_CV.
- *  Recomputes the expected easel rect from the DISPLAYED base <img> element
- *  (its own natural size + box, not canvas state) and compares with the
- *  canvas paintRect. Any nonzero delta = hardcoded values NOT followed. */
-function ppmHardcodeCheck(pr: PaintRect) {
-  const baseEl = document.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
-  if (!baseEl) {
-    ppmLog('hardcode-check', { baseFound: false });
-    return;
-  }
-  const natW = baseEl.naturalWidth, natH = baseEl.naturalHeight;
-  const br = baseEl.getBoundingClientRect();
-  const s2 = Math.min(br.width / natW, br.height / natH);
-  const ox2 = br.x + (br.width - natW * s2) / 2;
-  const oy2 = br.y + (br.height - natH * s2) / 2;
-  const ex = ox2 + EASEL_CV.u0 * natW * s2;
-  const ey = oy2 + EASEL_CV.v0 * natH * s2;
-  const ew = (EASEL_CV.u1 - EASEL_CV.u0) * natW * s2;
-  const eh = (EASEL_CV.v1 - EASEL_CV.v0) * natH * s2;
-  const r1 = (v: number) => Math.round(v * 10) / 10;
-  ppmLog('hardcode-check', {
-    hardcoded: { u0: EASEL_CV.u0, v0: EASEL_CV.v0, u1: EASEL_CV.u1, v1: EASEL_CV.v1, baseW: BASE_W, baseH: BASE_H },
-    baseNaturalWH: [natW, natH],
-    baseMatchAssumed: natW === BASE_W && natH === BASE_H,
-    baseBoxWH: [r1(br.width), r1(br.height)],
-    expectedRect: [r1(ex), r1(ey), r1(ew), r1(eh)],
-    actualRect: [r1(pr.x), r1(pr.y), r1(pr.w), r1(pr.h)],
-    delta: [r1(pr.x - ex), r1(pr.y - ey), r1(pr.w - ew), r1(pr.h - eh)],
-    aligned: Math.abs(pr.x - ex) < 1 && Math.abs(pr.y - ey) < 1 && Math.abs(pr.w - ew) < 1 && Math.abs(pr.h - eh) < 1,
-  });
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -323,7 +291,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
           baseFitOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
           paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
         });
-        ppmHardcodeCheck(pr);
       }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
