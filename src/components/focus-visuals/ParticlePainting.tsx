@@ -2,42 +2,55 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 //
-// Decoupled layers: the ambient background (blurred base, cover) always
-// fills the container; the EASEL GROUP (easel-group.png, 470×700 — cropped
-// from easel-base.png: x140,y140,470×700) is contain-fit centered, so the
-// easel is never cropped and never off-screen at any aspect. The painting
-// anchors to the canvas rect INSIDE the group asset.
+// The painting sits exactly on the easel's canvas, at ANY container aspect.
+// The old fixed transform (translate(-28.15%,-10%) scale(0.21)) only held at
+// one aspect. Both the base <img> (object-contain) and this JS math use the
+// identical contain-fit, so the easel is never cropped and the painting
+// always lands on its canvas — letterbox blends into #090b0a.
 
- // Easel canvas rect in group-asset fractions — canvas at (44,142,362,193)
-// in the 470×700 crop (measured, same detection as before).
-const EASEL_CV = { u0: 44 / 470, v0: 142 / 700, u1: 406 / 470, v1: 335 / 700 };
+// YOUR hardcoded tuner values for the painting placement — single source of
+// truth for both the live rect (EASEL_CV below) and the hardcode-check log.
+const TUNER_ZOOM = 0.21;
+const TUNER_X = -28.15; // percent of W
+const TUNER_Y = -10; // percent of H
 
-// Easel group asset natural size (easel-group.png).
-const GROUP_W = 470;
-const GROUP_H = 700;
+// Easel canvas rect in base-image fractions — DERIVED FROM YOUR TUNER VALUES
+// (above), not from pixel measurement. At the 16:9 tune aspect the base
+// contain-fit is ~identity, so tuner container fractions == base fractions:
+// center (0.5+tx, 0.5+ty), half-size zoom/2.
+// This reproduces the approved look EXACTLY at 16:9, while the contain math
+// keeps it easel-anchored at every other aspect.
+const EASEL_CV = {
+  u0: 0.5 + TUNER_X / 100 - TUNER_ZOOM / 2,
+  v0: 0.5 + TUNER_Y / 100 - TUNER_ZOOM / 2,
+  u1: 0.5 + TUNER_X / 100 + TUNER_ZOOM / 2,
+  v1: 0.5 + TUNER_Y / 100 + TUNER_ZOOM / 2,
+};
+
+// Base image natural size (easel-base.png).
+const BASE_W = 1672;
+const BASE_H = 941;
 
 interface PaintRect { x: number; y: number; w: number; h: number }
 
-/** object-contain fit of the easel group into a W×H box (mirrors the CSS).
- *  Contain (min) keeps the whole easel always fully visible and centered:
- *  never cropped, never off-screen. No letterbox — the blurred layer fills. */
-function groupFit(W: number, H: number) {
-  const s = Math.min(W / GROUP_W, H / GROUP_H);
-  return { s, ox: (W - GROUP_W * s) / 2, oy: (H - GROUP_H * s) / 2 };
+/** object-contain fit of the base image into a W×H box (mirrors the CSS).
+ *  Contain (min) keeps the whole scene — easel included — always fully
+ *  visible: never cropped, never off-screen. Letterbox blends into #090b0a. */
+function baseFit(W: number, H: number) {
+  const s = Math.min(W / BASE_W, H / BASE_H);
+  return { s, ox: (W - BASE_W * s) / 2, oy: (H - BASE_H * s) / 2 };
 }
 
 /** On-screen rect of the easel canvas for the CURRENT container size. */
 function paintRectFor(W: number, H: number): PaintRect {
-  const { s, ox, oy } = groupFit(W, H);
+  const { s, ox, oy } = baseFit(W, H);
   return {
-    x: ox + EASEL_CV.u0 * GROUP_W * s,
-    y: oy + EASEL_CV.v0 * GROUP_H * s,
-    w: (EASEL_CV.u1 - EASEL_CV.u0) * GROUP_W * s,
-    h: (EASEL_CV.v1 - EASEL_CV.v0) * GROUP_H * s,
+    x: ox + EASEL_CV.u0 * BASE_W * s,
+    y: oy + EASEL_CV.v0 * BASE_H * s,
+    w: (EASEL_CV.u1 - EASEL_CV.u0) * BASE_W * s,
+    h: (EASEL_CV.v1 - EASEL_CV.v0) * BASE_H * s,
   };
 }
-
-// ─── TEMP DIAGNOSTICS ────────────────────────────────────────────────────────
 
 // Painting pool — sequence 1-10, round-robin per session (see mount effect).
 // 1-2 bundled (untouched, hardcoded values safe); 3-10 Cloudinary.
@@ -97,28 +110,54 @@ function ppmLog(tag: string, data: Record<string, unknown>) {
  *  overrides beating the class), inline style, box, natural size, and what
  *  contain SHOULD draw. If computedFit !== 'contain' → stale bundle/override
  *  proven (contain can never crop; cover crops sides). */
-/** TEMP: DOM-level proof of the decoupled layers.
- *  bg layer (easel-base) must be cover (full-bleed, crop-tolerant);
- *  group layer (easel-group) must be contain (never cropped).
- *  Also asserts the computed group box stays within container bounds. */
-function ppmBaseCheck(W: number, H: number) {
+function ppmBaseCheck() {
+  const baseEl = document.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
+  if (!baseEl) {
+    ppmLog('base-check', { baseFound: false });
+    return;
+  }
+  const cs = getComputedStyle(baseEl);
+  const br = baseEl.getBoundingClientRect();
+  const natW = baseEl.naturalWidth, natH = baseEl.naturalHeight;
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  const bgEl = document.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
-  const grEl = document.querySelector('img[src*="easel-group"]') as HTMLImageElement | null;
-  const bgFit = bgEl ? getComputedStyle(bgEl).objectFit : null;
-  const grFit = grEl ? getComputedStyle(grEl).objectFit : null;
-  const gr = grEl ? grEl.getBoundingClientRect() : null;
-  const g = groupFit(W, H);
-  const groupBox = { x: g.ox, y: g.oy, w: 470 * g.s, h: 700 * g.s };
+  const s = natW > 0 && natH > 0 ? Math.min(br.width / natW, br.height / natH) : 0;
   ppmLog('base-check', {
-    bgFit,
-    groupFit: grFit,
-    groupNaturalWH: grEl ? [grEl.naturalWidth, grEl.naturalHeight] : null,
-    groupBoxWH: gr ? [r1(gr.width), r1(gr.height)] : null,
-    groupBoxComputed: [r1(groupBox.x), r1(groupBox.y), r1(groupBox.w), r1(groupBox.h)],
-    withinBounds:
-      groupBox.x >= -1 && groupBox.y >= -1 &&
-      groupBox.x + groupBox.w <= W + 1 && groupBox.y + groupBox.h <= H + 1,
+    computedFit: cs.objectFit,
+    inlineFit: baseEl.style.objectFit || null,
+    hasContainClass: baseEl.className.indexOf('object-contain') !== -1,
+    hasCoverClass: baseEl.className.indexOf('object-cover') !== -1,
+    naturalWH: [natW, natH],
+    boxWH: [r1(br.width), r1(br.height)],
+    containDrawnWH: [r1(natW * s), r1(natH * s)],
+    containBars: [r1(br.width - natW * s), r1(br.height - natH * s)],
+  });
+}
+
+/** TEMP: verify the painting follows YOUR hardcoded tuner values
+ *  (Zoom 0.21 / X -28.15% / Y -10%) on every image.
+ *  Recomputes the expected rect from those exact values (cover-fit painting
+ *  into the W×H box, then scale-about-center + translate — the old CSS
+ *  transform math) and compares with the actual paintRect.
+ *  Any nonzero delta = tuner values NOT followed.
+ *  NOTE: meaningful at ~16:9 (tune aspect). At other aspects the tuner
+ *  transform itself is wrong by design (the original bug) — there the
+ *  easel-anchoring governs, so aligned:false there is EXPECTED, not a bug. */
+function ppmHardcodeCheck(pr: PaintRect, W: number, H: number, iw: number, ih: number) {
+  const sc0 = Math.max(W / iw, H / ih);
+  const dw0 = iw * sc0, dh0 = ih * sc0;
+  const tx = (TUNER_X / 100) * W, ty = (TUNER_Y / 100) * H;
+  const ecx = W / 2 + tx, ecy = H / 2 + ty;
+  const ew = TUNER_ZOOM * dw0, eh = TUNER_ZOOM * dh0;
+  const ex = ecx - ew / 2, ey = ecy - eh / 2;
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  ppmLog('hardcode-check', {
+    tuner: { zoom: TUNER_ZOOM, xPct: TUNER_X, yPct: TUNER_Y },
+    containerWH: [r1(W), r1(H)],
+    paintingNaturalWH: [iw, ih],
+    expectedRect: [r1(ex), r1(ey), r1(ew), r1(eh)],
+    actualRect: [r1(pr.x), r1(pr.y), r1(pr.w), r1(pr.h)],
+    delta: [r1(pr.x - ex), r1(pr.y - ey), r1(pr.w - ew), r1(pr.h - eh)],
+    aligned: Math.abs(pr.x - ex) < 1 && Math.abs(pr.y - ey) < 1 && Math.abs(pr.w - ew) < 1 && Math.abs(pr.h - eh) < 1,
   });
 }
 
@@ -302,7 +341,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     rc.clearRect(0, 0, W, H);
 
     // Draw the painting cover-fit into the CURRENT easel-canvas screen rect
-    // (tracks the group layer's contain fit exactly).
+    // (aspect-invariant — tracks the base image's contain fit exactly).
     const pr = paintRectFor(W, H);
     const iw = img.naturalWidth, ih = img.naturalHeight;
     if (iw > 0 && ih > 0) {
@@ -312,17 +351,17 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       const key = Math.round(W) + 'x' + Math.round(H);
       if (key !== s.current.ppmLastComposeKey) {
         s.current.ppmLastComposeKey = key;
-        const gf = groupFit(W, H);
+        const bc = baseFit(W, H);
         ppmLog('compose', {
           assumedWH: [Math.round(W * 10) / 10, Math.round(H * 10) / 10],
           containerAspect: Math.round((W / H) * 1000) / 1000,
           naturalWH: [iw, ih],
-          groupFitScale: Math.round(gf.s * 10000) / 10000,
-          groupBox: [Math.round(gf.ox * 10) / 10, Math.round(gf.oy * 10) / 10, Math.round(470 * gf.s * 10) / 10, Math.round(700 * gf.s * 10) / 10],
+          baseFitScale: Math.round(bc.s * 10000) / 10000,
+          baseFitOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
           paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
-          withinBounds: pr.x >= -1 && pr.y >= -1 && pr.x + pr.w <= W + 1 && pr.y + pr.h <= H + 1,
         });
-        ppmBaseCheck(W, H);
+        ppmHardcodeCheck(pr, W, H, iw, ih);
+        ppmBaseCheck();
       }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
