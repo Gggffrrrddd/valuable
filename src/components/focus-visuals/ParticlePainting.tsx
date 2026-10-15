@@ -75,26 +75,6 @@ const PALETTE: [number, number, number][] = [
   [180, 255, 160], [255, 120, 200], [255, 200, 200],
 ];
 
-// ─── TEMP DIAGNOSTICS: [particle-painting-measure] ───────────────────────────
-// Logs only, zero visual/behavior change. Remove after diagnosis.
-
-function ppmLog(tag: string, data: Record<string, unknown>) {
-  try {
-    console.log('[particle-painting-measure] ' + tag + ' ' + JSON.stringify({
-      fs: !!document.fullscreenElement,
-      win: [window.innerWidth, window.innerHeight],
-      dpr: window.devicePixelRatio || 1,
-      ...data,
-    }));
-  } catch { /* logging must never break the visual */ }
-}
-
-function ppmRect(el: Element | null) {
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 };
-}
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Dot {
@@ -201,8 +181,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     mask: null as HTMLCanvasElement | null,
     reveal: null as HTMLCanvasElement | null,
     img: null as HTMLImageElement | null,
-    ppmInitSrc: 'mount', // TEMP: last init trigger source
-    ppmLastComposeKey: '', // TEMP: dims key of last logged compose
   });
 
   // ── init / resize ─────────────────────────────────────────────────────────
@@ -214,14 +192,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     if (rect.width < 1 || rect.height < 1) return;
     const W = rect.width, H = rect.height;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    // TEMP (#2): assumed math dims vs actual measured rect at init time.
-    ppmLog('init-run', {
-      src: s.current.ppmInitSrc,
-      assumedWH: [Math.round(s.current.W * 10) / 10, Math.round(s.current.H * 10) / 10],
-      measuredWH: [Math.round(W * 10) / 10, Math.round(H * 10) / 10],
-      dprUsed: dpr,
-      backingWH: [Math.round(W * dpr), Math.round(H * dpr)],
-    });
     c.width = W * dpr; c.height = H * dpr;
     c.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -290,35 +260,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     if (iw > 0 && ih > 0) {
       const sc = Math.max(pr.w / iw, pr.h / ih);
       const dw = iw * sc, dh = ih * sc;
-      // TEMP (#2/#3): log cover math + stretch ratios when dims change.
-      const cvs = canvasRef.current;
-      const cssR = cvs ? ppmRect(cvs) : null;
-      const key = Math.round(W) + 'x' + Math.round(H) + '|' + (cssR ? Math.round(cssR.w) + 'x' + Math.round(cssR.h) : 'none');
-      if (key !== s.current.ppmLastComposeKey) {
-        s.current.ppmLastComposeKey = key;
-        const attrW = cvs ? (cvs as HTMLCanvasElement).width : 0;
-        const attrH = cvs ? (cvs as HTMLCanvasElement).height : 0;
-        const bc = baseCover(W, H);
-        ppmLog('compose', {
-          assumedWH: [Math.round(W * 10) / 10, Math.round(H * 10) / 10],
-          cssWH: cssR ? [cssR.w, cssR.h] : null,
-          naturalWH: [iw, ih],
-          baseCoverScale: Math.round(bc.s * 10000) / 10000,
-          baseCoverOffset: [Math.round(bc.ox * 10) / 10, Math.round(bc.oy * 10) / 10],
-          paintRect: [Math.round(pr.x * 10) / 10, Math.round(pr.y * 10) / 10, Math.round(pr.w * 10) / 10, Math.round(pr.h * 10) / 10],
-          coverScale: Math.round(sc * 1000) / 1000,
-          drawnWH: [Math.round(dw * 10) / 10, Math.round(dh * 10) / 10],
-          drawnAspect: Math.round((dw / dh) * 1000) / 1000,
-          naturalAspect: Math.round((iw / ih) * 1000) / 1000,
-          backingWH: [attrW, attrH],
-          backingAspect: attrH > 0 ? Math.round((attrW / attrH) * 1000) / 1000 : null,
-          cssAspect: cssR && cssR.h > 0 ? Math.round((cssR.w / cssR.h) * 1000) / 1000 : null,
-          backingPerCssX: cssR && cssR.w > 0 ? Math.round((attrW / cssR.w) * 100) / 100 : null,
-          backingPerCssY: cssR && cssR.h > 0 ? Math.round((attrH / cssR.h) * 100) / 100 : null,
-          revealWH: [reveal.width, reveal.height],
-          maskWH: [mask.width, mask.height],
-        });
-      }
       rc.drawImage(img, pr.x + (pr.w - dw) / 2, pr.y + (pr.h - dh) / 2, dw, dh);
     }
 
@@ -518,12 +459,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     let idx = readIdx();
     let attempts = 0;
     const img = new Image();
-    img.onload = () => {
-      s.current.imgReady = true;
-      s.current.revealDirty = true;
-      // TEMP (#3): painting natural size at load.
-      ppmLog('img-loaded', { src: PAINTINGS[idx], naturalWH: [img.naturalWidth, img.naturalHeight] });
-    };
+    img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
     img.onerror = () => {
       console.warn('[particle-painting] painting failed to load, skipping to next:', PAINTINGS[idx]);
       attempts += 1;
@@ -541,39 +477,9 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     init();
     s.current.raf = requestAnimationFrame(draw);
-    // TEMP (#4): does re-measure fire on resize, or mount-only?
-    const ro = new ResizeObserver(() => {
-      const c = canvasRef.current;
-      s.current.ppmInitSrc = 'ro-fire';
-      ppmLog('ro-fire', { canvasWH: c ? ppmRect(c) : null, parentWH: c?.parentElement ? ppmRect(c.parentElement) : null });
-      init();
-    });
-    const onWinResize = () => {
-      const c = canvasRef.current;
-      ppmLog('win-resize', {
-        canvasWH: c ? ppmRect(c) : null,
-        parentWH: c?.parentElement ? ppmRect(c.parentElement) : null,
-        assumedWH: [Math.round(s.current.W * 10) / 10, Math.round(s.current.H * 10) / 10],
-      });
-    };
-    const onFsChange = () => {
-      const c = canvasRef.current;
-      // TEMP (#1): container rect fullscreen vs windowed.
-      ppmLog('fs-change', {
-        canvasWH: c ? ppmRect(c) : null,
-        parentWH: c?.parentElement ? ppmRect(c.parentElement) : null,
-        assumedWH: [Math.round(s.current.W * 10) / 10, Math.round(s.current.H * 10) / 10],
-      });
-    };
-    window.addEventListener('resize', onWinResize);
-    document.addEventListener('fullscreenchange', onFsChange);
+    const ro = new ResizeObserver(init);
     if (canvasRef.current) ro.observe(canvasRef.current);
-    return () => {
-      cancelAnimationFrame(s.current.raf);
-      ro.disconnect();
-      window.removeEventListener('resize', onWinResize);
-      document.removeEventListener('fullscreenchange', onFsChange);
-    };
+    return () => { cancelAnimationFrame(s.current.raf); ro.disconnect(); };
   }, [init, draw]);
 
   return (
