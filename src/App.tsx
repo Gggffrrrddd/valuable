@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { startPresenceHeartbeat } from '@/lib/presence';
+import { breadcrumb, installTelemetry } from '@/lib/telemetry';
 import AuthScreen from '@/screens/AuthScreen';
 import FocusTimer, { readStoredSession, clearSessionStorage } from '@/screens/FocusTimer';
 import StatsScreen from '@/screens/StatsScreen';
@@ -120,6 +121,7 @@ function AppContent() {
     } catch {
       /* history unavailable — back falls back to default behavior */
     }
+    installTelemetry();
   }, []);
 
   // Latest session-saver for the back-button handler (registered once).
@@ -140,7 +142,10 @@ function AppContent() {
       if (s && s.remainingMs > 0) {
         const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
         clearSessionStorage();
+        breadcrumb('nav', 'back-during-session saved', { elapsedSeconds });
         handleSessionCompleteRef.current(elapsedSeconds, s.subjectTag, false, s.breakMinutes);
+      } else {
+        breadcrumb('nav', 'back-to-home', {});
       }
       setTab('home');
       setScreen('tab');
@@ -234,8 +239,10 @@ function AppContent() {
         duration_seconds: durationSeconds,
         completed_fully: completedFully,
       });
+      breadcrumb('session', 'focus_sessions insert ok', { durationSeconds, completedFully });
     } catch (e) {
       console.error('Session log error:', e);
+      breadcrumb('session', 'focus_sessions insert failed', { durationSeconds, completedFully });
     }
 
     if (!delayNavigation) {

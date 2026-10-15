@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { breadcrumb } from '@/lib/telemetry';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 //
@@ -514,6 +515,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     img.onload = () => { s.current.imgReady = true; s.current.revealDirty = true; };
     img.onerror = () => {
       console.warn('[particle-painting] painting failed to load, skipping to next:', PAINTINGS[idx]);
+      breadcrumb('painting', 'load failed, skipping', { src: PAINTINGS[idx] });
       attempts += 1;
       if (attempts >= total) return; // all failed — stay blank, never loop forever
       idx = (idx + 1) % total;
