@@ -4,9 +4,9 @@ import { useEffect, useRef, useCallback } from 'react';
 //
 // The painting sits exactly on the easel's canvas, at ANY container aspect.
 // The old fixed transform (translate(-28.15%,-10%) scale(0.21)) only held at
-// one aspect. Both the base <img> (object-contain) and this JS math use the
-// identical contain-fit, so the easel is never cropped and the painting
-// always lands on its canvas — letterbox blends into #090b0a.
+// one aspect. Base <img> fit and this JS math always use the IDENTICAL mode
+// (cover on wide mobile stages, contain elsewhere — synced in init), so the
+// painting always lands on the easel's canvas.
 
 // Easel canvas rect in base-image fractions — MEASURED from easel-base.png
 // (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
@@ -20,11 +20,27 @@ const BASE_H = 941;
 
 interface PaintRect { x: number; y: number; w: number; h: number }
 
-/** object-contain fit of the base image into a W×H box (mirrors the CSS).
- *  Contain (min) keeps the whole scene — easel included — always fully
- *  visible: never cropped, never off-screen. Letterbox blends into #090b0a. */
+/** Stage-aware fit mode (mobile only).
+ *  Wide mobile stages (rotated landscape, aspect ≥ 1.9) use COVER: the stage
+ *  is wider than the base scene, so cover only trims sky/floor (never the
+ *  easel) — full-bleed, no bars, desktop-fullscreen look.
+ *  Everything else (desktop any size, squarer tablet stages) uses CONTAIN:
+ *  whole scene always visible. Desktop behavior unchanged. */
+function useCoverFit(W: number, H: number): boolean {
+  if (H < 1 || W / H < 1.9) return false;
+  try {
+    return window.matchMedia('(pointer: coarse) and (max-width: 1023.5px)').matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Base-image fit into a W×H box (mirrors the <img> fit, synced in init).
+ *  Cover on wide mobile stages, contain everywhere else. */
 function baseFit(W: number, H: number) {
-  const s = Math.min(W / BASE_W, H / BASE_H);
+  const s = useCoverFit(W, H)
+    ? Math.max(W / BASE_W, H / BASE_H)
+    : Math.min(W / BASE_W, H / BASE_H);
   return { s, ox: (W - BASE_W * s) / 2, oy: (H - BASE_H * s) / 2 };
 }
 
@@ -199,6 +215,11 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     const st = s.current;
     st.W = W; st.H = H;
+
+    // Sync the base <img> fit with the JS math mode (single decision point).
+    // Mobile-only effect: desktop always resolves to contain (unchanged).
+    const baseEl = c.parentElement?.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
+    if (baseEl) baseEl.style.objectFit = useCoverFit(W, H) ? 'cover' : 'contain';
 
     // fresh offscreens
     const mask = document.createElement('canvas');
