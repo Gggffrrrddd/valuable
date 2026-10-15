@@ -8,11 +8,23 @@ import { useEffect, useRef, useCallback } from 'react';
 // one aspect; now background crop and painting rect derive from the same
 // cover+anchor math, so they track each other at every size.
 
-// Easel canvas rect in base-image fractions — MEASURED from easel-base.png
-// (1672×941) via bright-canvas run detection: x=184, y=282, w=362, h=193.
-// Cross-check: the old hardcoded transform at 16:9 implies x∈[190,541],
-// y∈[277,475] — agrees within ~10px, so this preserves the approved look.
-const EASEL_CV = { u0: 184 / 1672, v0: 282 / 941, u1: 546 / 1672, v1: 475 / 941 };
+// YOUR hardcoded tuner values for the painting placement — single source of
+// truth for the live rect (matches the approved desktop look EXACTLY at 16:9;
+// the contain math keeps it easel-anchored at every other aspect).
+const TUNER_ZOOM = 0.21;
+const TUNER_X = -28.15; // percent of W
+const TUNER_Y = -10; // percent of H
+
+// Easel canvas rect in base-image fractions — DERIVED FROM YOUR TUNER VALUES
+// (above). At the 16:9 tune aspect the base cover-fit is ~identity, so tuner
+// container fractions == base fractions: center (0.5+tx, 0.5+ty),
+// half-size zoom/2.
+const EASEL_CV = {
+  u0: 0.5 + TUNER_X / 100 - TUNER_ZOOM / 2,
+  v0: 0.5 + TUNER_Y / 100 - TUNER_ZOOM / 2,
+  u1: 0.5 + TUNER_X / 100 + TUNER_ZOOM / 2,
+  v1: 0.5 + TUNER_Y / 100 + TUNER_ZOOM / 2,
+};
 
 // Base image natural size (easel-base.png).
 const BASE_W = 1672;
@@ -209,6 +221,26 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     const st = s.current;
     st.W = W; st.H = H;
+
+    // TEMP DIAGNOSTIC (mobile placement): log actual stage values once per
+    // init (mount/resize only, no per-frame spam). Remove after diagnosis.
+    try {
+      const pr0dbg = paintRectFor(W, H);
+      const baseElDbg = c.parentElement?.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
+      const csDbg = baseElDbg ? getComputedStyle(baseElDbg) : null;
+      const r1 = (v: number) => Math.round(v * 10) / 10;
+      console.log('[particle-painting-mobile] init ' + JSON.stringify({
+        containerWH: [r1(W), r1(H)],
+        aspect: Math.round((W / Math.max(1, H)) * 1000) / 1000,
+        coarse: window.matchMedia('(pointer: coarse)').matches,
+        compact: window.matchMedia('(max-width: 1023.5px)').matches,
+        orient: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
+        innerWH: [window.innerWidth, window.innerHeight],
+        imgFit: csDbg ? csDbg.objectFit : null,
+        imgPos: csDbg ? csDbg.objectPosition : null,
+        paintRect: [r1(pr0dbg.x), r1(pr0dbg.y), r1(pr0dbg.w), r1(pr0dbg.h)],
+      }));
+    } catch { /* logging must never break the visual */ }
 
     // fresh offscreens
     const mask = document.createElement('canvas');
