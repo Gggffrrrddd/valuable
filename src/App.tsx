@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { startPresenceHeartbeat } from '@/lib/presence';
 import AuthScreen from '@/screens/AuthScreen';
-import FocusTimer from '@/screens/FocusTimer';
+import FocusTimer, { readStoredSession, clearSessionStorage } from '@/screens/FocusTimer';
 import StatsScreen from '@/screens/StatsScreen';
 import BreakScreen from '@/screens/BreakScreen';
 import PremiumScreen from '@/screens/PremiumScreen';
@@ -111,16 +111,72 @@ function AppContent() {
     sessionStorage.setItem(SCREEN_STORAGE_KEY, screen);
   }, [screen]);
 
-  // System back-button base: mark the home entry once per page load so the
-  // focus timer can trap exactly one level above it (session → home → exit).
-  // Skipped when a timer entry already exists (reload mid-session order).
+  // System back-button base: mark the home entry once per page load so
+  // sections trap exactly one level above it (section → home → exit).
+  // Skipped when an entry already exists (reload mid-session order).
   useEffect(() => {
     try {
-      if (!window.history.state) window.history.replaceState({ app: 'tab' }, '');
+      if (!window.history.state) window.history.replaceState({ app: 'home' }, '');
     } catch {
       /* history unavailable — back falls back to default behavior */
     }
   }, []);
+
+  // Latest session-saver for the back-button handler (registered once).
+  const handleSessionCompleteRef = useRef(handleSessionComplete);
+  handleSessionCompleteRef.current = handleSessionComplete;
+
+  // System back-button protocol (single owner — FocusTimer never listens).
+  // Stack invariant: [home] or [home, section]; timer entries are pushed by
+  // FocusTimer on session start and replaced away by the reconcile effect.
+  // Back from anywhere: live session → bank time exactly like an early quit
+  // (same elapsed math: readStoredSession) and land on the home tab; no
+  // session → land home anyway. Either way the NEXT back exits (stack holds
+  // only home entries afterwards). Keys are cleared synchronously before the
+  // async save, so a rapid double-back can never double-insert.
+  useEffect(() => {
+    const onPopState = () => {
+      const s = readStoredSession();
+      if (s && s.remainingMs > 0) {
+        const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
+        clearSessionStorage();
+        handleSessionCompleteRef.current(elapsedSeconds, s.subjectTag, false, s.breakMinutes);
+      }
+      setTab('home');
+      setScreen('tab');
+      try {
+        window.history.replaceState({ app: 'home' }, '');
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // History reconcile: exactly one slot above home. Entering a section
+  // swaps the slot (replace); entering from home pushes it. Home collapses
+  // the slot. Timer screen entries are owned by FocusTimer — skipped here.
+  // Desktop: same rules, zero visual change (history only).
+  useEffect(() => {
+    if (screen === 'timer') return;
+    let key: string;
+    if (screen === 'tab' && tab === 'home') key = 'home';
+    else if (screen === 'tab') key = tab;
+    else key = screen; // break | premium | table
+    try {
+      const cur = (window.history.state as { app?: string } | null)?.app ?? null;
+      if (cur === key) return;
+      if (key === 'home' || (cur !== null && cur !== 'home')) {
+        window.history.replaceState({ app: key }, '');
+      } else {
+        window.history.pushState({ app: key }, '');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [screen, tab]);
 
   // Publish this user's presence while the app is foregrounded, so friends'
   // study tables can see them. Skips beats while the tab is hidden.
@@ -193,7 +249,6 @@ function AppContent() {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
-        onExitToHome={() => { setTab('home'); setScreen('tab'); }}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
           setScreen('table');
@@ -342,7 +397,6 @@ function AppContent() {
               </div>
               <FocusTimer
                 onComplete={handleSessionComplete}
-                onExitToHome={() => { setTab('home'); setScreen('tab'); }}
                 onOpenStudyTable={() => {
                   setTableFromTimer(true);
                   setScreen('table');
