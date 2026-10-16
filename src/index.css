@@ -1713,6 +1713,58 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
+   Compete fixed portrait stage (mobile only — desktop keeps its original
+   full-bleed layout byte-identical; gate with the same max-width query).
+   405×855 (~9:19) reference box, contain-fit centered; letterbox is covered
+   by sky/soil background fills so it reads as one continuous scene.
+   Pinch-zoom layers on top via inline transform (JS-driven); resting 1x is
+   always the contain fit. Gestures are scoped to the stage only.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1023.5px) {
+  .compete-fit {
+    background: #090b0a;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+  /* Sky above (same flat tone as the stage bg — guaranteed seamless). */
+  .compete-sky-fill {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 60%;
+    background: #090b0a;
+    pointer-events: none;
+  }
+  /* Soil below: transparent into a dark warm earth fade sampled from the
+     soil mound asset (bottom rows avg rgb(108,75,59)) — no hard seam. */
+  .compete-soil-fill {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 45%;
+    background: linear-gradient(
+      to bottom,
+      rgba(108, 75, 59, 0) 0%,
+      rgba(58, 40, 30, 0.55) 55%,
+      rgba(16, 11, 8, 0.92) 100%
+    );
+    pointer-events: none;
+  }
+  .compete-stage-fixed {
+    position: absolute;
+    left: 0;
+    top: 0;
+    min-height: 0 !important;
+    transform-origin: 0 0;
+    touch-action: none;
+    overscroll-behavior: contain;
+    will-change: transform;
+    overflow: hidden;
+  }
+}
+/* --------------------------------------------------------------------------
    Particle Painting mobile landscape lock (same pattern as the jar sim).
    Portrait phones/tablets: the whole session rotates into a landscape stage.
    Inside the sim the phone portrait-stacking is undone, so the desktop

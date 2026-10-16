@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import TreeVideo from '@/components/compete/TreeVideo';
@@ -6,6 +6,7 @@ import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
 import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
+import { useCompeteStage } from '@/components/compete/useCompeteStage';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
@@ -39,29 +40,15 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: 238, y: 195, zoom: 1.5 },
 ];
 /**
- * Mobile arc placement tuned on a reference portrait stage. Offsets are
- * stored as element-% (circle box = 56px) exactly as before, but at runtime
- * they are re-scaled against the *measured* stage so the crown tracks the
- * tree on any phone — never a fixed-px path for one device.
+ * Mobile arc placement tuned on the reference stage (element-% of the
+ * 56px circle box, exactly as before). The fixed stage keeps these
+ * constant — no per-device re-scaling needed anymore.
  */
-const MOBILE_DREAM_REF_STAGE = { w: 393, h: 700 } as const;
 const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -146, y: 593, zoom: 1.5 },
   { x: -2, y: 462, zoom: 1.6 },
   { x: 128, y: 593, zoom: 1.5 },
 ];
-
-/** Scale the tuned mobile arc to the live stage (ready-gated by the caller). */
-function mobileDreamTransformsFor(stageW: number, stageH: number): PlacementTransform[] {
-  const sx = stageW / MOBILE_DREAM_REF_STAGE.w;
-  const sy = stageH / MOBILE_DREAM_REF_STAGE.h;
-  return MOBILE_DREAM_CIRCLE_TRANSFORMS.map((t) => ({
-    // Tuned element-% offsets scale linearly with the stage vs the ref size.
-    x: t.x * sx,
-    y: t.y * sy,
-    zoom: t.zoom,
-  }));
-}
 /** TEMPORARY — dream-circle tuner is HIDDEN (values hardcoded above). */
 const SHOW_DREAM_XY_TUNER = false;
 
@@ -89,18 +76,12 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
-  const stageReady = stageBox.w >= 1 && stageBox.h >= 1;
+  // Fixed portrait stage (fit + pinch-zoom); remounts reset the view.
+  const { fitRef, stageRef, stageW, stageH, stageProps } = useCompeteStage();
   const isMobileVp =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(max-width: 1023.5px)').matches;
-  /** Live mobile arc: tuned values re-scaled to the measured stage (ready-gated). */
-  const mobileDreamTransforms = useMemo(
-    () => (stageReady ? mobileDreamTransformsFor(stageBox.w, stageBox.h) : MOBILE_DREAM_CIRCLE_TRANSFORMS),
-    [stageBox.w, stageBox.h, stageReady],
-  );
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
@@ -112,21 +93,6 @@ export default function CompeteScreen() {
 
   // Measure the stage so mobile dream placement scales with the real box
   // (never a 0×0 / stale value — gate before applying).
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      const h = entry.contentRect.height;
-      if (w < 1 || h < 1) return;
-      setStageBox((prev) =>
-        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
-      );
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   const refresh = useCallback(async () => {
     if (!session) return;
     try {
@@ -246,103 +212,112 @@ export default function CompeteScreen() {
   const complete = autoProgress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
-  return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-      <div ref={stageRef} className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-        {/* Mobile portrait: video + soil shifted down to touch the nav */}
-        <div className="compete-tree-stage absolute inset-0">
-          <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
-          <SoilOverlay transform={soilTune} />
+  // Shared scene pieces — identical markup on desktop and mobile; only the
+  // wrappers differ (desktop keeps the original full-bleed layout exactly,
+  // mobile uses the fixed portrait stage).
+  const renderTree = () => (
+    <div className="compete-tree-stage absolute inset-0">
+      <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+      <SoilOverlay transform={soilTune} />
+    </div>
+  );
+
+  const renderToday = () => (
+    <div
+      className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
+      style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
+    >
+      <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
+        <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+          Today's tree
         </div>
-
-        {/* Today's status (+ overall-tracker text link underneath) */}
-        <div
-          className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
-          style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
-        >
-          <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
-            <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-              Today's tree
-            </div>
-            <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
-              {(todayMinutes / 60).toFixed(1)}
-              <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
-            </div>
-            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
-                style={{ width: `${Math.round(progress * 100)}%` }}
-              />
-            </div>
-            <div className="mt-2 text-[11px] leading-4 text-stone-500">
-              {complete
-                ? 'Fully grown — target met.'
-                : `${remaining}m to full bloom · resets at midnight`}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setTrackerOpen(true)}
-            className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
-          >
-            See overall tracker
-          </button>
+        <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
+          {(todayMinutes / 60).toFixed(1)}
+          <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
         </div>
-
-        {/* Dream images: bare glow circles crowning the tree.
-            Mobile uses the stage-measured arc; desktop keeps its hardcoded slots. */}
-        <DreamPicker
-          images={goal.dream_images ?? []}
-          transforms={isMobileVp ? mobileDreamTransforms : dreamTune}
-          stretch={DEFAULT_DREAM_STRETCH}
-          ringWidth={DEFAULT_RING.ring}
-          busy={dreamBusy}
-          onAdd={addDream}
-          onRemove={removeDream}
-        />
-
-        {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/zoom).
-            Overlaps the plant; mobile only; hardcode + flip off when final. */}
-        {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-          <div className="compete-tuner absolute bottom-[28%] left-3 right-3 z-30 lg:hidden">
-            <div className="mb-1 flex gap-1">
-              {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((_, i) => (
-                <button
-                  key={`dream-tab-${i}`}
-                  type="button"
-                  onClick={() => setDreamTuneIdx(i)}
-                  className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
-                    dreamTuneIdx === i
-                      ? 'border-lime-300/60 bg-lime-300/15 text-lime-200'
-                      : 'border-white/10 bg-black/40 text-stone-500 hover:text-stone-300'
-                  }`}
-                >
-                  s{i + 1}
-                </button>
-              ))}
-            </div>
-            <PlacementTuner
-              title={`Dream ${dreamTuneIdx + 1} (temp)`}
-              logTag={`compete-dream-${dreamTuneIdx}`}
-              transform={dreamTune[dreamTuneIdx]}
-              rows={[
-                { key: 'x', label: 'Move X (left / right)', min: -800, max: 800, step: 1 },
-                { key: 'y', label: 'Move Y (up / down)', min: -400, max: 1000, step: 1 },
-                { key: 'zoom', label: 'Zoom (in / out)', min: 0.5, max: 3, step: 0.01 },
-              ]}
-              defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
-              onChange={(patch) =>
-                setDreamTune((prev) =>
-                  prev.map((p, j) => (j === dreamTuneIdx ? { ...p, ...patch } : p))
-                )
-              }
-              compact
-            />
-          </div>
-        )}
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </div>
+        <div className="mt-2 text-[11px] leading-4 text-stone-500">
+          {complete
+            ? 'Fully grown — target met.'
+            : `${remaining}m to full bloom · resets at midnight`}
+        </div>
       </div>
+      <button
+        type="button"
+        onClick={() => setTrackerOpen(true)}
+        className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
+      >
+        See overall tracker
+      </button>
+    </div>
+  );
 
+  const renderDreams = (transforms: PlacementTransform[]) => (
+    <>
+      {/* Dream images: bare glow circles crowning the tree. */}
+      <DreamPicker
+        images={goal.dream_images ?? []}
+        transforms={transforms}
+        stretch={DEFAULT_DREAM_STRETCH}
+        ringWidth={DEFAULT_RING.ring}
+        busy={dreamBusy}
+        onAdd={addDream}
+        onRemove={removeDream}
+      />
+    </>
+  );
+
+  const renderTuner = () => (
+    <>
+      {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/zoom).
+          Overlaps the plant; mobile only; hardcode + flip off when final. */}
+      {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
+        <div className="compete-tuner absolute bottom-[28%] left-3 right-3 z-30 lg:hidden">
+          <div className="mb-1 flex gap-1">
+            {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((_, i) => (
+              <button
+                key={`dream-tab-${i}`}
+                type="button"
+                onClick={() => setDreamTuneIdx(i)}
+                className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
+                  dreamTuneIdx === i
+                    ? 'border-lime-300/60 bg-lime-300/15 text-lime-200'
+                    : 'border-white/10 bg-black/40 text-stone-500 hover:text-stone-300'
+                }`}
+              >
+                s{i + 1}
+              </button>
+            ))}
+          </div>
+          <PlacementTuner
+            title={`Dream ${dreamTuneIdx + 1} (temp)`}
+            logTag={`compete-dream-${dreamTuneIdx}`}
+            transform={dreamTune[dreamTuneIdx]}
+            rows={[
+              { key: 'x', label: 'Move X (left / right)', min: -800, max: 800, step: 1 },
+              { key: 'y', label: 'Move Y (up / down)', min: -400, max: 1000, step: 1 },
+              { key: 'zoom', label: 'Zoom (in / out)', min: 0.5, max: 3, step: 0.01 },
+            ]}
+            defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
+            onChange={(patch) =>
+              setDreamTune((prev) =>
+                prev.map((p, j) => (j === dreamTuneIdx ? { ...p, ...patch } : p))
+              )
+            }
+            compact
+          />
+        </div>
+      )}
+    </>
+  );
+
+  const renderTracker = () => (
+    <>
       {/* Overall tracker module — big overlay with the growth calendar
           (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
       {trackerOpen && (
@@ -376,6 +351,46 @@ export default function CompeteScreen() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  // DESKTOP: original layout byte-identical (untouched).
+  if (!isMobileVp) {
+    return (
+      <div className="relative flex h-full w-full flex-col overflow-y-auto">
+        {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
+        <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+          {renderTree()}
+          {renderToday()}
+          {renderDreams(dreamTune)}
+          {renderTuner()}
+        </div>
+        {renderTracker()}
+      </div>
+    );
+  }
+
+  // MOBILE: fixed portrait stage (fit + pinch-zoom); UI stays outside it.
+  return (
+    <div className="relative flex h-full w-full flex-col overflow-hidden">
+      {/* ── Fit container: letterboxed stage + background fills ─────────── */}
+      <div ref={fitRef} className="compete-fit relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
+        <div className="compete-sky-fill" aria-hidden="true" />
+        <div className="compete-soil-fill" aria-hidden="true" />
+        {/* ── Fixed portrait stage (405×855): tree, soil, dreams, plus ─── */}
+        <div
+          ref={stageRef}
+          className="compete-stage compete-stage-fixed bg-[#090b0a]"
+          style={{ width: stageW, height: stageH }}
+          {...stageProps}
+        >
+          {renderTree()}
+          {renderDreams(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
+          {renderTuner()}
+        </div>
+        {renderToday()}
+      </div>
+      {renderTracker()}
     </div>
   );
 }
