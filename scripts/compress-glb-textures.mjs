@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, statSync } from 'node:fs';
 import sharp from 'sharp';
 
-const LONG_EDGE = 1536;
+const LONG_EDGE = Number(process.env.LONG_EDGE || '1536');
 const DEFAULT_FILES = [
   'public/visuals/table/girl_project_chair_polished.glb',
   'public/visuals/table/sitting-character-final.glb',
