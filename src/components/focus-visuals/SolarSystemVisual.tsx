@@ -21,11 +21,13 @@ import type {
   WebGLProgramParametersWithUniforms,
 } from 'three';
 import { TIFFLoader } from 'three/examples/jsm/loaders/TIFFLoader.js';
+import { getDeviceQuality } from '@/lib/devicePerf';
 import type { FocusVisualProps } from './types';
 import {
   clamp01,
   ConstellationPoints,
   createGlowTexture,
+  FpsProbe,
   ModelVisualFallback,
   preloadAssets,
   smoothstep,
@@ -810,6 +812,11 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const activeRef = useRef(running || complete);
   activeRef.current = running || complete;
 
+  // Perf: low-end budget phones get DPR 1.0, no antialiasing, and skip the
+  // CPU-heavy TIFF normal/specular decodes. Desktop is always 'high' →
+  // pixel-identical to before. Static per page load.
+  const lowQ = useMemo(() => getDeviceQuality() === 'low', []);
+
   const [loop, setLoop] = useState(true);
   // Stable ref for the mobile-only size fix (layout-dims measurement).
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -920,8 +927,8 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
   const { texture: earthDayTex, error: earthDayError, isLoading: earthDayLoading } = useTextureLoader(TEX.earthDay);
   const { texture: earthNightTex, error: earthNightError, isLoading: earthNightLoading } = useTextureLoader(TEX.earthNight);
   const { texture: earthCloudsTex, error: earthCloudsError, isLoading: earthCloudsLoading } = useTextureLoader(TEX.earthClouds);
-  const { texture: earthNormalTex, error: earthNormalError, isLoading: earthNormalLoading } = useTiffTexture(TEX.earthNormal);
-  const { texture: earthSpecTex, error: earthSpecError, isLoading: earthSpecLoading } = useTiffTexture(TEX.earthSpec);
+  const { texture: earthNormalTex, error: earthNormalError, isLoading: earthNormalLoading } = useTiffTexture(lowQ ? null : TEX.earthNormal);
+  const { texture: earthSpecTex, error: earthSpecError, isLoading: earthSpecLoading } = useTiffTexture(lowQ ? null : TEX.earthSpec);
   const { texture: marsTex, error: marsError, isLoading: marsLoading } = useTextureLoader(TEX.mars);
   const { texture: jupiterTex, error: jupiterError, isLoading: jupiterLoading } = useTextureLoader(TEX.jupiter);
   const { texture: saturnTex, error: saturnError, isLoading: saturnLoading } = useTextureLoader(TEX.saturn);
@@ -1056,14 +1063,15 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     return (
       <Canvas
         camera={{ position: [0, 8.5 * camK, 13 * camK], fov: 40, near: 0.1, far: 120 }}
-        dpr={[1, 1.75]}
+        dpr={lowQ ? [1, 1] : [1, 1.75]}
         frameloop={loop ? 'always' : 'never'}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: !lowQ, alpha: true, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           gl.toneMappingExposure = 1.12;
         }}
         style={{ position: 'absolute', inset: 0 }}
       >
+        <FpsProbe label="solar-system" />
         <SolarSizeBridge apiRef={sizeApiRef} />
         <SolarRenderGate shareRef={sizeShareRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
@@ -1120,7 +1128,7 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
     sunTex, mercuryTex, venusTex, earthDayTex, earthNightTex, earthCloudsTex,
     earthNormalTex, earthSpecTex, marsTex, jupiterTex, saturnTex, ringTex,
     uranusTex, neptuneTex, galaxyWhirlpoolTex, galaxyAndromedaTex,
-    ready, loop, camK, reducedMotion, glowCool, glowHot,
+    ready, loop, camK, reducedMotion, glowCool, glowHot, lowQ,
   ]);
 
   return (

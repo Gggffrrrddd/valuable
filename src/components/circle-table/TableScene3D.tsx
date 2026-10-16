@@ -5,10 +5,12 @@ import { CanvasTexture, ClampToEdgeWrapping, Group, Mesh, SRGBColorSpace, Textur
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
+  FpsProbe,
   normalizeModel,
   useModelLoader,
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
+import { getDeviceQuality } from '@/lib/devicePerf';
 import Books from './Books';
 import Chairs from './Chairs';
 import OpenBooks from './OpenBooks';
@@ -234,6 +236,9 @@ export default function TableScene3D({
   spin?: boolean;
 }) {
   const hue = useMemo(() => Math.random() * 360, []);
+  // Perf: low-end budget phones get DPR 1.0, no antialiasing, no shadow maps.
+  // Desktop is always 'high' → pixel-identical to before. Static per load.
+  const lowQ = useMemo(() => getDeviceQuality() === 'low', []);
   const { model, error: modelError } = useModelLoader(TABLE_OBJ_URL);
   const { texture, error: textureError } = useTextureLoader(TABLE_TEXTURE_URL);
   // Stable ref for the mobile-only size fix (layout-dims measurement).
@@ -256,11 +261,12 @@ export default function TableScene3D({
     <div id="study-table-canvas-wrap" ref={wrapRef} className="absolute inset-0">
       <Canvas
         camera={{ position: [0, transform.cameraHeight, transform.cameraDistance], fov: 38 }}
-        dpr={[1, 1.5]}
-        shadows
-        gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+        dpr={lowQ ? [1, 1] : [1, 1.5]}
+        shadows={!lowQ}
+        gl={{ alpha: true, antialias: !lowQ, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
+        <FpsProbe label="study-table" />
         <CanvasSizeFix wrapRef={wrapRef} />
         <ambientLight intensity={0.34} color="#d8d1c7" />
         <spotLight
@@ -271,7 +277,7 @@ export default function TableScene3D({
           penumbra={1}
           distance={14}
           decay={1.6}
-          castShadow
+          castShadow={!lowQ}
           shadow-mapSize={[1024, 1024]}
         />
         <pointLight position={[-2.2, 1.1, -1.6]} intensity={0.9} distance={7} decay={2} color={`hsl(${hue}, 75%, 63%)`} />
@@ -323,7 +329,7 @@ export default function TableScene3D({
             />
           ) : null}
         </ChairOrbit>
-        <Floor />
+        <Floor shadowsOn={!lowQ} />
         <Wall transform={wallTransform} />
         <WallSign transform={signTransform} />
       </Canvas>
@@ -331,9 +337,9 @@ export default function TableScene3D({
   );
 }
 
-function Floor() {
+function Floor({ shadowsOn }: { shadowsOn: boolean }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow={shadowsOn}>
       <circleGeometry args={[5.4, 64]} />
       <meshStandardMaterial color="#ffffff" roughness={0.92} metalness={0.04} />
     </mesh>
