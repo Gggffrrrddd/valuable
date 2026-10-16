@@ -97,7 +97,16 @@ export default function CompeteScreen() {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(max-width: 1023.5px)');
-    const sync = () => setIsMobileVp(window.matchMedia('(max-width: 1023.5px)').matches);
+    const sync = () => {
+      const next = window.matchMedia('(max-width: 1023.5px)').matches;
+      // TEMP DIAG: every breakpoint re-evaluation with old→new.
+      console.log('[compete-stage-measure] breakpoint-sync ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        next,
+        win: [window.innerWidth, window.innerHeight],
+      }));
+      setIsMobileVp(next);
+    };
     const onMqChange = () => sync();
     try {
       mq.addEventListener('change', onMqChange);
@@ -126,6 +135,22 @@ export default function CompeteScreen() {
     : 1;
   const fitOX = stageBox.w >= 1 ? (stageBox.w - FIT_W * fitS) / 2 : 0;
   const fitOY = stageBox.h >= 1 ? (stageBox.h - FIT_H * fitS) / 2 : 0;
+  // TEMP DIAG: snapshot of branch + fit math + dream slots on every change.
+  useEffect(() => {
+    console.log('[compete-stage-measure] snapshot ' + JSON.stringify({
+      t: Math.round(performance.now()),
+      branch: isMobileVp ? 'mobile-fixed' : 'desktop-orig',
+      win: [window.innerWidth, window.innerHeight],
+      stageBox: [Math.round(stageBox.w * 10) / 10, Math.round(stageBox.h * 10) / 10],
+      fit: {
+        s: Math.round(fitS * 1000) / 1000,
+        ox: Math.round(fitOX * 10) / 10,
+        oy: Math.round(fitOY * 10) / 10,
+      },
+      dream0y: dreamTune[0]?.y ?? null,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobileVp, stageBox.w, stageBox.h]);
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
@@ -140,11 +165,31 @@ export default function CompeteScreen() {
   // viewport crosses the mobile breakpoint (ref moves branches).
   useEffect(() => {
     const el = stageRef.current;
-    if (!el) return;
+    if (!el) {
+      // TEMP DIAG: no element to observe (desktop branch has no fit box).
+      console.log('[compete-stage-measure] ro-skip-no-el ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        isMobileVp,
+        win: [window.innerWidth, window.innerHeight],
+      }));
+      return;
+    }
+    // TEMP DIAG: observer attached.
+    console.log('[compete-stage-measure] ro-attached ' + JSON.stringify({
+      t: Math.round(performance.now()),
+      isMobileVp,
+      win: [window.innerWidth, window.innerHeight],
+    }));
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width;
       const h = entry.contentRect.height;
       if (w < 1 || h < 1) return;
+      // TEMP DIAG: every RO fire with the measured box.
+      console.log('[compete-stage-measure] ro-fire ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        w: Math.round(w * 10) / 10,
+        h: Math.round(h * 10) / 10,
+      }));
       setStageBox((prev) =>
         Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
       );
