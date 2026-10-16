@@ -1713,6 +1713,19 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
+   Compete fixed portrait stage (mobile only — desktop keeps its original
+   full-bleed layout byte-identical; same max-width gate as the rest).
+   The 405×855 reference box is contain-fit scaled via inline transform;
+   letterbox shows the same #090b0a as the stage, so no seam/line can appear.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1023.5px) {
+  .compete-fixed-stage {
+    position: absolute;
+    transform-origin: 0 0;
+    overflow: hidden;
+  }
+}
+/* --------------------------------------------------------------------------
    Particle Painting mobile landscape lock (same pattern as the jar sim).
    Portrait phones/tablets: the whole session rotates into a landscape stage.
    Inside the sim the phone portrait-stacking is undone, so the desktop
