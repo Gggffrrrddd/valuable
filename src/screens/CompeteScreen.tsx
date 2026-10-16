@@ -40,14 +40,19 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: 238, y: 195, zoom: 1.5 },
 ];
 /**
- * Mobile arc placement tuned on the reference stage (element-% of the
- * 56px circle box, exactly as before). The fixed stage keeps these
- * constant — no per-device re-scaling needed anymore.
+ * Mobile arc placement: tuned slot values (element-% of the 56px circle
+ * box) with the on-device factor baked in. The slots were authored against
+ * a 393×700 reference, but every real phone stage is ~852 tall — the old
+ * runtime code stretched Y by stageH/700 (≈1.217 on phones) and that
+ * stretched position is the approved composition (circles hugging the
+ * tree crown). Baked here as constants so the fixed stage reproduces it
+ * exactly with zero per-device math: 593→722, 462→562 (×1.217); X unchanged
+ * (stageW/393 = 1.0 on the reference width).
  */
 const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
-  { x: -146, y: 593, zoom: 1.5 },
-  { x: -2, y: 462, zoom: 1.6 },
-  { x: 128, y: 593, zoom: 1.5 },
+  { x: -146, y: 722, zoom: 1.5 },
+  { x: -2, y: 562, zoom: 1.6 },
+  { x: 128, y: 722, zoom: 1.5 },
 ];
 /** TEMPORARY — dream-circle tuner is HIDDEN (values hardcoded above). */
 const SHOW_DREAM_XY_TUNER = false;
@@ -259,7 +264,7 @@ export default function CompeteScreen() {
 
   const renderDreams = (transforms: PlacementTransform[]) => (
     <>
-      {/* Dream images: bare glow circles crowning the tree. */}
+      {/* Dream images: bare glow circles crowning the tree (fixed slots). */}
       <DreamPicker
         images={goal.dream_images ?? []}
         transforms={transforms}
