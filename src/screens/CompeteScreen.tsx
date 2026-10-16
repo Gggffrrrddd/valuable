@@ -85,10 +85,40 @@ export default function CompeteScreen() {
     w: typeof window !== 'undefined' ? window.innerWidth || 393 : 393,
     h: typeof window !== 'undefined' ? window.innerHeight || 852 : 852,
   }));
-  const isMobileVp =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(max-width: 1023.5px)').matches;
+  // Reactive viewport breakpoint (matchMedia + resize fallback): a bare
+  // window resize / device-preset switch / rotation MUST re-render, otherwise
+  // the branch never flips and the layout stays stale until hard refresh.
+  const [isMobileVp, setIsMobileVp] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 1023.5px)').matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 1023.5px)');
+    const sync = () => setIsMobileVp(window.matchMedia('(max-width: 1023.5px)').matches);
+    const onMqChange = () => sync();
+    try {
+      mq.addEventListener('change', onMqChange);
+    } catch {
+      /* older engines — resize fallback below covers it */
+    }
+    window.addEventListener('resize', sync);
+    return () => {
+      try {
+        mq.removeEventListener('change', onMqChange);
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('resize', sync);
+    };
+  }, []);
+  // Keep dream slots matched to the live branch (tuner is hidden, so there
+  // are no user edits to lose — a breakpoint switch means a fresh branch).
+  useEffect(() => {
+    setDreamTune(isMobileVp ? MOBILE_DREAM_CIRCLE_TRANSFORMS : DREAM_CIRCLE_TRANSFORMS);
+  }, [isMobileVp]);
   // Fit math (mobile only): contain-fit the fixed stage into the measured
   // box. Desktop never reads this (byte-identical branch below).
   const fitS = stageBox.w >= 1 && stageBox.h >= 1
