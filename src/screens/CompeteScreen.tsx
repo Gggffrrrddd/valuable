@@ -80,11 +80,59 @@ export default function CompeteScreen() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
-  const stageRef = useRef<HTMLDivElement | null>(null);
+  // Measure via callback ref (not useEffect+ref-object): it fires synchronously
+  // on DOM attach/detach, so measurement can never run against a missing node
+  // no matter the mount/branch-switch timing.
   const [stageBox, setStageBox] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth || 393 : 393,
     h: typeof window !== 'undefined' ? window.innerHeight || 852 : 852,
   }));
+  const roRef = useRef<ResizeObserver | null>(null);
+  const measureBox = useCallback((el: HTMLDivElement | null, src = 'jsx') => {
+    if (!el) {
+      // TEMP DIAG: detach path.
+      console.log('[compete-stage-measure] ref-detach ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        src,
+      }));
+      roRef.current?.disconnect();
+      roRef.current = null;
+      return;
+    }
+    // Layout dims (transform-unaware): the fit container itself is never
+    // transformed, so clientWidth/Height always equal its real box.
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    // TEMP DIAG: attach + immediate measure.
+    console.log('[compete-stage-measure] ref-attach ' + JSON.stringify({
+      t: Math.round(performance.now()),
+      src,
+      w: Math.round(w * 10) / 10,
+      h: Math.round(h * 10) / 10,
+    }));
+    if (w >= 1 && h >= 1) {
+      setStageBox((prev) =>
+        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
+      );
+    }
+    roRef.current?.disconnect();
+    const ro = new ResizeObserver(([entry]) => {
+      const rw = entry.contentRect.width;
+      const rh = entry.contentRect.height;
+      if (rw < 1 || rh < 1) return;
+      // TEMP DIAG: every RO fire with the measured box.
+      console.log('[compete-stage-measure] ro-fire ' + JSON.stringify({
+        t: Math.round(performance.now()),
+        w: Math.round(rw * 10) / 10,
+        h: Math.round(rh * 10) / 10,
+      }));
+      setStageBox((prev) =>
+        Math.abs(prev.w - rw) < 0.5 && Math.abs(prev.h - rh) < 0.5 ? prev : { w: rw, h: rh },
+      );
+    });
+    ro.observe(el);
+    roRef.current = ro;
+  }, []);
   // Reactive viewport breakpoint (matchMedia + resize fallback): a bare
   // window resize / device-preset switch / rotation MUST re-render, otherwise
   // the branch never flips and the layout stays stale until hard refresh.
@@ -160,43 +208,7 @@ export default function CompeteScreen() {
   /** Which dream circle the single tuner is editing (0/1/2). */
   const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
 
-  // Measure the fit container so the fixed stage scales to the real box
-  // (never a 0×0 / stale value — gate before applying). Re-runs if the
-  // viewport crosses the mobile breakpoint (ref moves branches).
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el) {
-      // TEMP DIAG: no element to observe (desktop branch has no fit box).
-      console.log('[compete-stage-measure] ro-skip-no-el ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        isMobileVp,
-        win: [window.innerWidth, window.innerHeight],
-      }));
-      return;
-    }
-    // TEMP DIAG: observer attached.
-    console.log('[compete-stage-measure] ro-attached ' + JSON.stringify({
-      t: Math.round(performance.now()),
-      isMobileVp,
-      win: [window.innerWidth, window.innerHeight],
-    }));
-    const ro = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      const h = entry.contentRect.height;
-      if (w < 1 || h < 1) return;
-      // TEMP DIAG: every RO fire with the measured box.
-      console.log('[compete-stage-measure] ro-fire ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        w: Math.round(w * 10) / 10,
-        h: Math.round(h * 10) / 10,
-      }));
-      setStageBox((prev) =>
-        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
-      );
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [isMobileVp]);
+  // (Fit-box measurement lives in the callback ref above — no effect needed.)
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -470,7 +482,7 @@ export default function CompeteScreen() {
   // markup inside — only the box is fixed, so nothing drifts per device.
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
-      <div ref={stageRef} className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
+      <div ref={measureBox} className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
         <div
           className="compete-fixed-stage bg-[#090b0a]"
           style={{
