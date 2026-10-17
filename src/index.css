@@ -1723,6 +1723,14 @@ button .butterfly-constellation {
     position: absolute;
     transform-origin: 0 0;
     overflow: hidden;
+    /* Prevent any visible edge line from sub-pixel rounding or anti-aliasing */
+    outline: none;
+    border: none;
+    box-shadow: none;
+  }
+  /* Ensure the fit container has no visible edge line from rounding/gaps */
+  .compete-fit {
+    background: #090b0a;
   }
 }
 /* --------------------------------------------------------------------------
