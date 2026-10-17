@@ -1723,22 +1723,34 @@ button .butterfly-constellation {
    full-bleed layout byte-identical; same max-width gate as the rest).
    The 405×855 reference box is contain-fit scaled via inline transform;
    letterbox shows the same #090b0a as the stage, so no seam/line can appear.
-   The scaled video/soil/glow reach the clipped side edges, so the clip's
-   anti-aliased edge bled a 1px dark line against the letterbox — a 2%
-   horizontal alpha fade dissolves that edge. Geometry (size/scale/position)
-   is untouched; only the invisible outermost sliver fades.
+   The stage box itself is neither clipped nor masked, so the dream circles'
+   rose-pink glow — which radiates well past the circles — can spill beyond the
+   fit edges instead of being sliced into a rectangle. Only the tree scene is
+   clipped/faded: its scaled video+soil reach the side edges and their
+   anti-aliased edge bled a 1px dark line, dissolved by a 2% horizontal alpha
+   fade. Because that mask makes the tree scene its own stacking context, it is
+   given the #090b0a background locally so the video's lighten blend keeps
+   keying to the stage colour (otherwise the dark content box returns).
+   Geometry (size/scale/position) is untouched.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-fixed-stage {
     position: absolute;
     transform-origin: 0 0;
-    overflow: hidden;
+    /* Unclipped + unmasked so the dream-circle glow is never cut at the fit. */
+    overflow: visible;
     /* Prevent any visible edge line from sub-pixel rounding or anti-aliasing */
     outline: none;
     border: none;
     box-shadow: none;
-    /* Fade the outer 2% to transparent so the composited clip edge can never
-       leave a visible seam; the letterbox behind is the identical #090b0a. */
+  }
+  /* Clip + fade only the tree scene (video + soil), same box as the stage. */
+  .compete-tree-stage {
+    overflow: hidden;
+    /* Local backdrop for the video's lighten blend (this mask creates a
+       stacking context, so the blend can no longer see the stage's bg). */
+    background: #090b0a;
+    /* Fade the outer 2% so the composited clip edge can never leave a seam. */
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 2%, #000 98%, transparent 100%);
     mask-image: linear-gradient(90deg, transparent 0, #000 2%, #000 98%, transparent 100%);
   }
