@@ -48,6 +48,20 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *  in this box; the box itself is contain-fit scaled, never re-authored. */
 const FIT_W = 405;
 const FIT_H = 855;
+/**
+ * Soil-overlay placement, mirrored from the mobile CSS
+ * (.compete-tree-stage > img: translate(-1%, 33%) scale(1.14) on the
+ * 1672×940 overlay inside the 405×855 stage). The uniform scale is
+ * 1.14 * FIT_W / 1672 stage-px per image-px, the image origin lands at
+ * (-32.4, 579.86) stage-px, and the mound's solid top at the stage sides
+ * sits at y≈719. Used only to continue the ground into the side gutters.
+ */
+const SOIL_IMG_W = 1672;
+const SOIL_IMG_H = 940;
+const SOIL_STAGE_PX_PER_IMG = (1.14 * FIT_W) / SOIL_IMG_W;
+const SOIL_ORIGIN_X = -32.4;
+const SOIL_ORIGIN_Y = 579.86;
+const SOIL_TOP_STAGE = 719;
 const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -146, y: 722, zoom: 1.5 },
   { x: -2, y: 562, zoom: 1.6 },
@@ -464,6 +478,14 @@ export default function CompeteScreen() {
 
   // MOBILE: fixed portrait stage (405×855 contain-fit, centered). Same scene
   // markup inside — only the box is fixed, so nothing drifts per device.
+  const stageW = FIT_W * fitS;
+  const soilFillTop = fitOY + SOIL_TOP_STAGE * fitS;
+  // Crossfade the fill over the stage's outer 2% alpha fade (same 2% as the
+  // .compete-tree-stage mask) so fill + real soil sum back to a solid edge.
+  const soilFillFade = 0.02 * stageW;
+  const soilFillMask =
+    `linear-gradient(90deg, #000 0, #000 ${fitOX}px, transparent ${fitOX + soilFillFade}px,` +
+    ` transparent ${fitOX + stageW - soilFillFade}px, #000 ${fitOX + stageW}px, #000 100%)`;
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div ref={measureBox} className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
@@ -480,6 +502,21 @@ export default function CompeteScreen() {
         >
           {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
         </div>
+        {/* Side-gap ground fill: the soil overlay tiled at its own on-screen
+            scale (so the texture continues outward) and masked to the two
+            letterbox gaps; stops at the bottom nav's top. Additive only —
+            stage geometry untouched. */}
+        <div
+          aria-hidden="true"
+          className="compete-soil-fill"
+          style={{
+            top: soilFillTop,
+            backgroundSize: `${SOIL_IMG_W * SOIL_STAGE_PX_PER_IMG * fitS}px ${SOIL_IMG_H * SOIL_STAGE_PX_PER_IMG * fitS}px`,
+            backgroundPosition: `${fitOX + SOIL_ORIGIN_X * fitS}px ${(SOIL_ORIGIN_Y - SOIL_TOP_STAGE) * fitS}px`,
+            WebkitMaskImage: soilFillMask,
+            maskImage: soilFillMask,
+          }}
+        />
       </div>
       {renderTracker()}
     </div>

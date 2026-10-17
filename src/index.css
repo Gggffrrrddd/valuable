@@ -1758,6 +1758,23 @@ button .butterfly-constellation {
   .compete-fit {
     background: #090b0a;
   }
+  /* Side-gap ground fill (additive): continues the soil into the letterbox
+     gutters. The soil overlay is tiled at its own on-screen scale — sized and
+     positioned inline in CompeteScreen so the texture lines up — and masked to
+     the gaps (opaque over the gutters, crossfading over the stage's 2% edge
+     fade). Ends exactly at the fixed bottom nav's top edge: its 0.75rem offset
+     + 75px box + the nav's own safe-area padding. Pointer-transparent, so it
+     never blocks the scene. */
+  .compete-soil-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(75px + max(0.75rem, env(safe-area-inset-bottom)));
+    z-index: 1;
+    pointer-events: none;
+    background-image: url(/visuals/compete/overlay-2.png);
+    background-repeat: repeat-x;
+  }
 }
 /* --------------------------------------------------------------------------
    Particle Painting mobile landscape lock (same pattern as the jar sim).
