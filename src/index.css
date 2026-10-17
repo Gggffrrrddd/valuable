@@ -1362,18 +1362,12 @@ button .butterfly-constellation {
     width: 41.6667%;
     margin-top: 0;
     justify-content: flex-start;
-    /* Pulled toward the hourglass so the clock stays on the letterboxed
-       backdrop instead of spilling into the side bars. */
-    padding-left: 0.5rem;
+    padding-left: 2rem;
     transform: translateY(-4%);
   }
   /* Flip clock at 80% in every landscape sim (all visuals, not 100). */
   .mob-sim .mob-clock-zone .flip-clock {
     zoom: 0.8;
-  }
-  /* Hourglass: shrink the clock a touch so it fits inside the backdrop. */
-  .hg-sim-hg .mob-clock-zone .flip-clock {
-    zoom: 0.72;
   }
 }
 
@@ -1447,14 +1441,16 @@ button .butterfly-constellation {
 }
 
 /* --------------------------------------------------------------------------
-   Hourglass fixed landscape stage — BACKGROUND ONLY (mobile landscape-lock).
-   The scene backdrop is authored in a fixed 1366×768 reference box (the
-   desktop viewport it is tuned for) and contain-fit scaled to the screen by
-   <HourglassStage>, so it is never stretched or cropped — extra space
-   letterboxes to #090b0a. The hourglass, flip clock, controls and text stay in
-   their existing sim layout and keep their original sizes (this box only wraps
-   the backdrop; it does not scale them). Desktop never matches this query, so
-   the wrapper collapses to display:contents and layout is unchanged.
+   Hourglass fixed landscape stage (mobile landscape-lock).
+   The backdrop AND the flip clock are authored in a fixed 1366×768 reference
+   box (the desktop viewport they are tuned for) and contain-fit scaled to the
+   screen by <HourglassStage>, so they are never stretched or cropped — extra
+   space letterboxes to #090b0a. Because the clock lives in this same scaled
+   frame as the backdrop, it resizes and moves with the fit and stays put
+   relative to the backdrop on every device, instead of drifting with the
+   device. The hourglass, controls and text keep their existing sim layout and
+   sizes (they are not in this box). Desktop never matches this query, so the
+   wrapper collapses to display:contents and layout is unchanged.
    -------------------------------------------------------------------------- */
 @media (pointer: coarse) and (max-width: 1023.5px) {
   .hg-sim-hg .hg-stage {
@@ -1462,10 +1458,31 @@ button .butterfly-constellation {
     width: 1366px;
     height: 768px;
     transform-origin: 0 0;
+    container-type: size;
     overflow: hidden;
     pointer-events: none;
     background: #090b0a;
   }
+  /* Flip clock sits where the desktop composition puts it (just right of the
+     hourglass, vertically centered) and is sized in stage units, so it scales
+     and moves with the fit. */
+  .hg-sim-hg .hg-stage-clock {
+    position: absolute;
+    top: 50%;
+    left: 58.3333%;
+    padding-left: 1rem;
+    transform: translateY(-50%);
+  }
+  .hg-sim-hg .hg-stage .flip-clock {
+    zoom: 1;
+    gap: clamp(0.7rem, 1.5cqw, 1.3rem);
+    padding: clamp(1rem, 1.8cqw, 1.5rem);
+  }
+  .hg-sim-hg .hg-stage .flip-clock-shell { align-items: normal; }
+  .hg-sim-hg .hg-stage .flip-clock-group { gap: clamp(0.38rem, 0.8cqw, 0.65rem); }
+  .hg-sim-hg .hg-stage .flip-colon { font-size: clamp(2.6rem, 5.4cqw, 4.4rem); }
+  .hg-sim-hg .hg-stage .flip-digit { width: clamp(3.8rem, 6.4cqw, 5.8rem); }
+  .hg-sim-hg .hg-stage .flip-digit__number { font-size: clamp(4rem, 7.4cqw, 6.6rem); }
 }
 
 @keyframes hg-sim-in {

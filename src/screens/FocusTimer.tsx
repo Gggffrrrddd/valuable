@@ -422,6 +422,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         <HourglassStage enabled={visualTheme === 'hourglass'}>
           {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
+          {visualTheme === 'hourglass' && (
+            <div className="hg-stage-clock">
+              <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+                <FlipClock secondsLeft={secondsLeft} />
+              </div>
+            </div>
+          )}
         </HourglassStage>
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
@@ -490,9 +497,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
           {/* Right zone: flip-clock timer (suppressed for solar-system — digits live on the Sun) */}
           {visualTheme !== 'solar-system' && (
             <div className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 mob-clock-zone ${visualTheme === 'hourglass' ? 'hg-clock-zone' : ''}`}>
-              <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
-                <FlipClock secondsLeft={secondsLeft} />
-              </div>
+              {/* Hourglass keeps this zone only as a layout placeholder; its
+                  clock lives inside the fixed stage so it tracks the backdrop. */}
+              {visualTheme !== 'hourglass' && (
+                <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+                  <FlipClock secondsLeft={secondsLeft} />
+                </div>
+              )}
             </div>
           )}
         </div>
