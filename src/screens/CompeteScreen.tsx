@@ -183,22 +183,6 @@ export default function CompeteScreen() {
     : 1;
   const fitOX = stageBox.w >= 1 ? (stageBox.w - FIT_W * fitS) / 2 : 0;
   const fitOY = stageBox.h >= 1 ? (stageBox.h - FIT_H * fitS) / 2 : 0;
-  // TEMP DIAG: snapshot of branch + fit math + dream slots on every change.
-  useEffect(() => {
-    console.log('[compete-stage-measure] snapshot ' + JSON.stringify({
-      t: Math.round(performance.now()),
-      branch: isMobileVp ? 'mobile-fixed' : 'desktop-orig',
-      win: [window.innerWidth, window.innerHeight],
-      stageBox: [Math.round(stageBox.w * 10) / 10, Math.round(stageBox.h * 10) / 10],
-      fit: {
-        s: Math.round(fitS * 1000) / 1000,
-        ox: Math.round(fitOX * 10) / 10,
-        oy: Math.round(fitOY * 10) / 10,
-      },
-      dream0y: dreamTune[0]?.y ?? null,
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobileVp, stageBox.w, stageBox.h]);
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
