@@ -1369,17 +1369,6 @@ button .butterfly-constellation {
   .mob-sim .mob-clock-zone .flip-clock {
     zoom: 0.8;
   }
-  /* Hourglass flip clock keeps the desktop sizing only — cancel the sim's 0.8
-     zoom and the phone clamps so it reads exactly like the desktop clock. */
-  .hg-sim-hg .mob-clock-zone .flip-clock {
-    zoom: 1;
-    gap: clamp(0.7rem, 1.5vw, 1.3rem);
-    padding: clamp(1rem, 1.8vw, 1.5rem);
-  }
-  .hg-sim-hg .flip-clock-shell { align-items: normal; }
-  .hg-sim-hg .flip-clock-group { gap: clamp(0.38rem, 0.8vw, 0.65rem); }
-  .hg-sim-hg .flip-digit { width: clamp(3.8rem, 6.4vw, 5.8rem); }
-  .hg-sim-hg .flip-digit__number { font-size: clamp(4rem, 7.4vw, 6.6rem); }
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
