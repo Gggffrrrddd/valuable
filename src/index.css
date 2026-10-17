@@ -1717,6 +1717,10 @@ button .butterfly-constellation {
    full-bleed layout byte-identical; same max-width gate as the rest).
    The 405×855 reference box is contain-fit scaled via inline transform;
    letterbox shows the same #090b0a as the stage, so no seam/line can appear.
+   The scaled video/soil/glow reach the clipped side edges, so the clip's
+   anti-aliased edge bled a 1px dark line against the letterbox — a 2%
+   horizontal alpha fade dissolves that edge. Geometry (size/scale/position)
+   is untouched; only the invisible outermost sliver fades.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
   .compete-fixed-stage {
@@ -1727,6 +1731,10 @@ button .butterfly-constellation {
     outline: none;
     border: none;
     box-shadow: none;
+    /* Fade the outer 2% to transparent so the composited clip edge can never
+       leave a visible seam; the letterbox behind is the identical #090b0a. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 2%, #000 98%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 2%, #000 98%, transparent 100%);
   }
   /* Ensure the fit container has no visible edge line from rounding/gaps */
   .compete-fit {
