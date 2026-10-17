@@ -1674,11 +1674,17 @@ button .butterfly-constellation {
     max-height: 68vh;
   }
   /* Full tree visible on mobile: contain instead of cover (no side crop).
-     Screen blend + dark stage bg makes the letterbox bars invisible.
-     !important overrides the inline desktop transform from TreeVideo. */
+     The 16:9 clip is letterboxed inside the portrait stage, so its dark
+     content rectangle used to read as a faint box (screen blend lightens the
+     backdrop by ~1). lighten takes max(backdrop, source): the clip's near-black
+     sky/letterbox resolves to the exact stage bg, so the rectangle and its hard
+     top/side edges vanish while the tree/soil stay put. !important overrides
+     the inline desktop transform + screen blend from TreeVideo (desktop keeps
+     screen unchanged). */
   .compete-tree-stage > video {
     object-fit: contain;
     transform: translate(-1%, 22%) scale(1.85) !important;
+    mix-blend-mode: lighten !important;
   }
   /* Soil mobile-tuned placement (desktop uses x-2 y41 zoom1.07 inline). */
   .compete-tree-stage > img {
