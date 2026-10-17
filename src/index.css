@@ -1362,12 +1362,18 @@ button .butterfly-constellation {
     width: 41.6667%;
     margin-top: 0;
     justify-content: flex-start;
-    padding-left: 2rem;
+    /* Pulled toward the hourglass so the clock stays on the letterboxed
+       backdrop instead of spilling into the side bars. */
+    padding-left: 0.5rem;
     transform: translateY(-4%);
   }
   /* Flip clock at 80% in every landscape sim (all visuals, not 100). */
   .mob-sim .mob-clock-zone .flip-clock {
     zoom: 0.8;
+  }
+  /* Hourglass: shrink the clock a touch so it fits inside the backdrop. */
+  .hg-sim-hg .mob-clock-zone .flip-clock {
+    zoom: 0.72;
   }
 }
 
