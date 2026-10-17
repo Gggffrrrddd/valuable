@@ -1441,14 +1441,14 @@ button .butterfly-constellation {
 }
 
 /* --------------------------------------------------------------------------
-   Hourglass fixed landscape stage (mobile landscape-lock only).
-   The full desktop composition is authored in a fixed 1366×768 reference box
-   (the desktop viewport it is tuned for) and contain-fit scaled to the screen
-   by <HourglassStage>, so nothing can stretch or crop — extra space letterboxes
-   to #090b0a. The box is a size container, so cqw/cqh mirror desktop vw/vh
-   exactly. Desktop (fine pointer / wide screens) never matches this query, so
-   the wrapper stays display:contents and layout is unchanged. Fit only: no
-   background-fill or pinch-zoom yet.
+   Hourglass fixed landscape stage — BACKGROUND ONLY (mobile landscape-lock).
+   The scene backdrop is authored in a fixed 1366×768 reference box (the
+   desktop viewport it is tuned for) and contain-fit scaled to the screen by
+   <HourglassStage>, so it is never stretched or cropped — extra space
+   letterboxes to #090b0a. The hourglass, flip clock, controls and text stay in
+   their existing sim layout and keep their original sizes (this box only wraps
+   the backdrop; it does not scale them). Desktop never matches this query, so
+   the wrapper collapses to display:contents and layout is unchanged.
    -------------------------------------------------------------------------- */
 @media (pointer: coarse) and (max-width: 1023.5px) {
   .hg-sim-hg .hg-stage {
@@ -1456,59 +1456,10 @@ button .butterfly-constellation {
     width: 1366px;
     height: 768px;
     transform-origin: 0 0;
-    container-type: size;
     overflow: hidden;
+    pointer-events: none;
     background: #090b0a;
   }
-  /* Desktop row composition at the 1366×768 reference: mirrors the lg/xl
-     utilities that win on desktop, re-expressed in stage units. */
-  .hg-sim-hg .hg-stage .hg-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 4rem 1.5rem 5rem;               /* lg:pt-16 · px-6 · lg:pb-20 */
-  }
-  .hg-sim-hg .hg-stage .hg-visual-zone {
-    flex: 0 0 auto;
-    width: 58.3333%;
-    height: auto;
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 5rem;                      /* xl:pr-20 */
-  }
-  .hg-sim-hg .hg-stage .hg-visual-box {
-    height: auto;
-    max-height: 76cqh;                        /* lg:max-h-[76vh] */
-    max-width: 42rem;                         /* lg:max-w-2xl */
-    align-items: center;
-  }
-  .hg-sim-hg .hg-stage .hg-visual-box .hybrid-hourglass {
-    width: min(82cqw, 46rem);                 /* base width:min(82vw,46rem) */
-    height: auto;
-    max-height: 74cqh;                        /* base max-height:74vh */
-  }
-  .hg-sim-hg .hg-stage .hg-clock-zone {
-    width: 41.6667%;
-    height: auto;
-    margin-top: 0;                            /* lg:mt-0 */
-    align-items: center;
-    justify-content: flex-start;              /* lg:justify-start */
-    padding-left: 3.5rem;                      /* xl:pl-14 */
-    transform: none;                           /* drop the sim's -4% nudge */
-  }
-  /* Flip clock at desktop scale: cancel the sim's 0.8 zoom + phone clamps and
-     re-express the base vw clamps in stage units. */
-  .hg-sim-hg .hg-stage .mob-clock-zone .flip-clock {
-    zoom: 1;
-    gap: clamp(0.7rem, 1.5cqw, 1.3rem);
-    padding: clamp(1rem, 1.8cqw, 1.5rem);
-  }
-  .hg-sim-hg .hg-stage .flip-clock-shell { align-items: normal; }
-  .hg-sim-hg .hg-stage .flip-clock-group { gap: clamp(0.38rem, 0.8cqw, 0.65rem); }
-  .hg-sim-hg .hg-stage .flip-colon { font-size: clamp(2.6rem, 5.4cqw, 4.4rem); }
-  .hg-sim-hg .hg-stage .flip-digit { width: clamp(3.8rem, 6.4cqw, 5.8rem); }
-  .hg-sim-hg .hg-stage .flip-digit__number { font-size: clamp(4rem, 7.4cqw, 6.6rem); }
 }
 
 @keyframes hg-sim-in {

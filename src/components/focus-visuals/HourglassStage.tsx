@@ -2,18 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 /**
- * Fixed-aspect landscape stage for the Hourglass focus session (mobile
+ * Fixed-aspect landscape stage for the Hourglass scene backdrop (mobile
  * landscape-lock only).
  *
- * The scene is authored in a fixed 1366×768 reference box — the desktop
- * viewport the composition is tuned for — and contain-fit scaled into whatever
- * stage the sim provides (scale = min(stageW/1366, stageH/768)). Anything that
- * doesn't fit letterboxes to #090b0a, so no element is ever stretched or
- * cropped. The box is declared a CSS size container, so the composition inside
- * is expressed in cqw/cqh that mirror the desktop vw/vh exactly.
+ * Wraps the backdrop layer only. The backdrop is authored in a fixed 1366×768
+ * reference box — the desktop viewport the composition is tuned for — and
+ * contain-fit scaled into whatever stage the sim provides (scale =
+ * min(stageW/1366, stageH/768)). Anything that doesn't fit letterboxes to
+ * #090b0a, so the backdrop is never stretched or cropped.
  *
- * Outside the locked context (desktop, or any non-hourglass theme) the wrapper
- * collapses to `display: contents`, leaving the existing layout byte-identical.
+ * The hourglass, flip clock, controls and text live outside this wrapper, so
+ * they keep their existing sim layout and sizes. Outside the locked context
+ * (desktop, or any non-hourglass theme) the wrapper collapses to
+ * `display: contents`, leaving the existing layout byte-identical.
  */
 export const HG_STAGE_W = 1366;
 export const HG_STAGE_H = 768;
