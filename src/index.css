@@ -1445,7 +1445,8 @@ button .butterfly-constellation {
    The backdrop AND the flip clock are authored in a fixed 1366×768 reference
    box (the desktop viewport they are tuned for) and contain-fit scaled to the
    screen by <HourglassStage>, so they are never stretched or cropped — extra
-   space letterboxes to #090b0a. Because the clock lives in this same scaled
+   space is filled by a blurred edge-extend of the scene (`.hg-fill`), which
+   fades to #090b0a at the screen edges. Because the clock lives in this same scaled
    frame as the backdrop, it resizes and moves with the fit and stays put
    relative to the backdrop on every device, instead of drifting with the
    device. The hourglass, controls and text keep their existing sim layout and
@@ -1453,6 +1454,39 @@ button .butterfly-constellation {
    wrapper collapses to display:contents and layout is unchanged.
    -------------------------------------------------------------------------- */
 @media (pointer: coarse) and (max-width: 1023.5px) {
+  /* Blurred edge-extend fill: the scene's four edges (blurred + cached in
+     <HourglassStage>) stretched outward to cover the letterbox around the
+     stage. Sits behind `.hg-stage`, so only the area outside the stage shows;
+     each strip's inner edge matches the backdrop exactly, so no hard seam. */
+  .hg-fill {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    background: #090b0a;
+  }
+  .hg-fill-edge {
+    position: absolute;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+  }
+  .hg-fill-top { left: 0; top: 0; width: 100%; height: var(--hg-oy, 0px); }
+  .hg-fill-bottom {
+    left: 0;
+    top: calc(var(--hg-oy, 0px) + var(--hg-sh, 0px));
+    width: 100%;
+    height: calc(100% - var(--hg-oy, 0px) - var(--hg-sh, 0px));
+  }
+  .hg-fill-left { left: 0; top: var(--hg-oy, 0px); width: var(--hg-ox, 0px); height: var(--hg-sh, 0px); }
+  .hg-fill-right {
+    left: calc(var(--hg-ox, 0px) + var(--hg-sw, 0px));
+    top: var(--hg-oy, 0px);
+    width: calc(100% - var(--hg-ox, 0px) - var(--hg-sw, 0px));
+    height: var(--hg-sh, 0px);
+  }
   .hg-sim-hg .hg-stage {
     position: absolute;
     width: 1366px;
