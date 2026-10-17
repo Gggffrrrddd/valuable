@@ -43,6 +43,36 @@ function isLockedContext(): boolean {
 }
 
 /**
+ * Reactive form of {@link HG_LOCKED_MEDIA}. Callers use it to decide whether a
+ * node belongs inside the scaled stage (mobile lock) or the normal flow
+ * (desktop) — e.g. the flip clock, which lives in the stage on mobile but in
+ * the layout's clock zone on desktop.
+ */
+export function useHgLocked(enabled = true): boolean {
+  const [locked, setLocked] = useState(() => {
+    try {
+      return window.matchMedia(HG_LOCKED_MEDIA).matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!enabled) return;
+    let mq: MediaQueryList;
+    try {
+      mq = window.matchMedia(HG_LOCKED_MEDIA);
+    } catch {
+      return;
+    }
+    const update = () => setLocked(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, [enabled]);
+  return enabled ? locked : false;
+}
+
+/**
  * Samples one edge band of the scene, blurring it (killing banding) and then
  * re-laying the exact boundary line on top, so the strip's inner edge matches
  * the backdrop pixel-for-pixel where the two meet.

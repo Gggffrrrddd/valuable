@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
-import HourglassStage from '@/components/focus-visuals/HourglassStage';
+import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
 import JarVisual from '@/components/focus-visuals/JarVisual';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
@@ -209,6 +209,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   // aquarium — same picker card, decided by the chosen rhythm.
   // Locked at session start so the visual never flips mid-session.
   const playsAquarium = activeDurationSeconds > 3600;
+
+  // On the mobile landscape lock the hourglass flip clock lives inside the
+  // scaled stage (so it tracks the fit); everywhere else it stays in the
+  // layout's clock zone, exactly as before.
+  const hgLocked = useHgLocked(visualTheme === 'hourglass');
 
   const navigateToNextScreenRef = useRef<(() => void) | null>(null);
 
@@ -422,7 +427,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         <HourglassStage enabled={visualTheme === 'hourglass'}>
           {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
-          {visualTheme === 'hourglass' && (
+          {visualTheme === 'hourglass' && hgLocked && (
             <div className="hg-stage-clock">
               <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
                 <FlipClock secondsLeft={secondsLeft} />
@@ -497,9 +502,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
           {/* Right zone: flip-clock timer (suppressed for solar-system — digits live on the Sun) */}
           {visualTheme !== 'solar-system' && (
             <div className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 mob-clock-zone ${visualTheme === 'hourglass' ? 'hg-clock-zone' : ''}`}>
-              {/* Hourglass keeps this zone only as a layout placeholder; its
-                  clock lives inside the fixed stage so it tracks the backdrop. */}
-              {visualTheme !== 'hourglass' && (
+              {/* Hourglass only vacates this zone on the mobile lock, where its
+                  clock lives inside the fixed stage to track the backdrop; on
+                  desktop (and every other theme) the clock sits here as before. */}
+              {(visualTheme !== 'hourglass' || !hgLocked) && (
                 <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
                   <FlipClock secondsLeft={secondsLeft} />
                 </div>
