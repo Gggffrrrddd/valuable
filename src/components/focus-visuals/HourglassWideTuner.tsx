@@ -13,9 +13,9 @@ import { useEffect, useState } from 'react';
  * component once the match is locked in.
  */
 
-const WIDE_SRC = '/visuals/hourglass/hourglass-scene-wide-2.png';
+const WIDE_SRC = '/visuals/hourglass/hourglass-scene-wide-3.png';
 const OLD_SRC = '/visuals/hourglass/hourglass-scene.png';
-const LS_KEY = 'hg-wide-tune-v2';
+const LS_KEY = 'hg-wide-tune-v3';
 
 type Tune = { x: number; y: number; z: number };
 
