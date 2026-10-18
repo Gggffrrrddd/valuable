@@ -13,13 +13,13 @@ import { useEffect, useState } from 'react';
  * component once the match is locked in.
  */
 
-const WIDE_SRC = '/visuals/hourglass/hourglass-scene-wide.png';
+const WIDE_SRC = '/visuals/hourglass/hourglass-scene-wide-2.png';
 const OLD_SRC = '/visuals/hourglass/hourglass-scene.png';
-const LS_KEY = 'hg-wide-tune-v1';
+const LS_KEY = 'hg-wide-tune-v2';
 
 type Tune = { x: number; y: number; z: number };
 
-const DEFAULTS: Tune = { x: 0, y: 0, z: 153.2 };
+const DEFAULTS: Tune = { x: 0, y: 0, z: 100 };
 
 function loadTune(): Tune {
   try {
