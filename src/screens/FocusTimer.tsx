@@ -3,6 +3,7 @@ import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
 import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
+import HourglassWideTuner from '@/components/focus-visuals/HourglassWideTuner';
 import JarVisual from '@/components/focus-visuals/JarVisual';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
@@ -426,7 +427,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     return (
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         <HourglassStage enabled={visualTheme === 'hourglass'}>
-          {visualTheme === 'hourglass' && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
+          {visualTheme === 'hourglass' && hgLocked && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
           {visualTheme === 'hourglass' && hgLocked && (
             <div className="hg-stage-clock">
               <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
@@ -435,6 +436,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             </div>
           )}
         </HourglassStage>
+        {visualTheme === 'hourglass' && !hgLocked && <HourglassWideTuner />}
         {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
