@@ -290,6 +290,34 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   user-select: none;
 }
 
+/*
+ * Desktop hourglass backdrop: the extended scene ("Moody Desk with Golden
+ * Inspiration"), locked to the confirmed crop — zoom 160.30 % of viewport
+ * width, x = 0, y = 0, centered. The parts of the image outside the viewport
+ * at this crop (the outpainted margins) are hidden by the clip window, not
+ * deleted from the asset. `.hourglass-focus-background` above continues to
+ * serve the mobile fixed stage and is untouched.
+ */
+.hg-ext-window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hourglass-focus-background-ext {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160.3vw;
+  height: auto;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+}
+
 .hourglass-focus-session .focus-atmosphere,
 .hourglass-focus-session .focus-grid,
 .hourglass-focus-session .focus-orbit,
