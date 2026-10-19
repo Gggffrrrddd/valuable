@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 /**
  * Fixed-aspect landscape stage for the classic Water Jar (mobile
@@ -29,29 +29,6 @@ function isLockedContext(): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Reactive form of {@link JR_LOCKED_MEDIA}. Callers use it to decide whether a
- * node belongs to themobile lock (fixed stage) or the desktop flow — e.g. the
- * desktop-only backdrop tuner.
- */
-export function useJrLocked(enabled = true): boolean {
-  const [locked, setLocked] = useState(() => isLockedContext());
-  useEffect(() => {
-    if (!enabled) return;
-    let mq: MediaQueryList;
-    try {
-      mq = window.matchMedia(JR_LOCKED_MEDIA);
-    } catch {
-      return;
-    }
-    const update = () => setLocked(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, [enabled]);
-  return enabled ? locked : false;
 }
 
 export default function JarStage({
