@@ -1623,7 +1623,6 @@ button .butterfly-constellation {
     container-type: size;
     overflow: hidden;
     pointer-events: none;
-    background: #090b0a;
   }
 
   /* Ambient continuation of the scene behind the fixed stage: a blurred,

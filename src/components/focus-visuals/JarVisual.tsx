@@ -25,6 +25,15 @@ const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
  *  original scene image does not have. */
 const SHOW_FLOOR_SHEEN = false;
 
+/**
+ * Soft dissolve of the scene's outer edges (scene px), applied on the mobile
+ * fixed stage only. The crisp image hand-off to the blurred ambient
+ * letterbox behind the stage becomes a gradient, so no seam/line is ever
+ * visible at the stage boundary — the scene melts into its own ambient
+ * continuation. Desktop keeps the untouched full-bleed scene.
+ */
+const EDGE_FADE = { left: 110, right: 110, top: 100, bottom: 84 };
+
 /** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
 const ARTWORK_BOTTOM = 569;
 
@@ -220,6 +229,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterGradientId = `jar-water-depth-${svgId}`;
   const rainGradientId = `jar-rain-${svgId}`;
   const floorGradientId = `jar-floor-${svgId}`;
+  const fadeLId = `jar-fade-l-${svgId}`;
+  const fadeRId = `jar-fade-r-${svgId}`;
+  const fadeTId = `jar-fade-t-${svgId}`;
+  const fadeBId = `jar-fade-b-${svgId}`;
+  const edgeFadeMaskId = `jar-edge-fade-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
@@ -535,14 +549,42 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
             <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
           </linearGradient>
+          {/* Edge dissolve gradients — black with fading opacity painted over
+              the mask's white base, so the masked content melts to nothing at
+              the viewport edges (luminance 1 → 0 across each band). */}
+          <linearGradient id={fadeLId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#000" stopOpacity="1" />
+            <stop offset="1" stopColor="#000" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={fadeRId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#000" stopOpacity="0" />
+            <stop offset="1" stopColor="#000" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id={fadeTId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#000" stopOpacity="1" />
+            <stop offset="1" stopColor="#000" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={fadeBId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#000" stopOpacity="0" />
+            <stop offset="1" stopColor="#000" stopOpacity="1" />
+          </linearGradient>
+          <mask id={edgeFadeMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
+            <rect x="0" y="0" width={IMG_W} height={IMG_H} fill="#fff" />
+            <rect x="0" y="0" width={EDGE_FADE.left} height={IMG_H} fill={`url(#${fadeLId})`} />
+            <rect x={IMG_W - EDGE_FADE.right} y="0" width={EDGE_FADE.right} height={IMG_H} fill={`url(#${fadeRId})`} />
+            <rect x="0" y="0" width={IMG_W} height={EDGE_FADE.top} fill={`url(#${fadeTId})`} />
+            <rect x="0" y={IMG_H - EDGE_FADE.bottom} width={IMG_W} height={EDGE_FADE.bottom} fill={`url(#${fadeBId})`} />
+          </mask>
         </defs>
 
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          <g mask={compact ? `url(#${edgeFadeMaskId})` : undefined}>
+            <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
-          {/* Cloud + rain artwork. */}
-          <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
-            <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+            {/* Cloud + rain artwork. */}
+            <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
+              <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+            </g>
           </g>
 
           {/* Dense animated rainfall beneath the artwork, offset hardcoded. */}
