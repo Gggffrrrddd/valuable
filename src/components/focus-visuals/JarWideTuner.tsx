@@ -13,9 +13,9 @@ import { useEffect, useState } from 'react';
  * component once the match is locked in.
  */
 
-const EXT_SRC = '/visuals/jar/jar-scene-ext.png';
+const EXT_SRC = '/visuals/jar/jar-scene-ext-2.png';
 const OLD_SRC = '/visuals/jar/jar-scene.png';
-const LS_KEY = 'jr-wide-tune-v1';
+const LS_KEY = 'jr-wide-tune-v2';
 
 type Tune = { x: number; y: number; z: number };
 
