@@ -20,6 +20,11 @@ const FISH_SURFACE_PADDING = 14;
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
 
+/** Rendered floor-sheen glow under the jar (wid shallow ellipse) — hidden:
+ *  over the near-black floor it reads as a faint horizontal "line" that the
+ *  original scene image does not have. */
+const SHOW_FLOOR_SHEEN = false;
+
 /** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
 const ARTWORK_BOTTOM = 569;
 
@@ -622,9 +627,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </g>
 
           {/* Floor sheen glow under the jar (no ground ripples). */}
-          <g>
-            <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
-          </g>
+          {SHOW_FLOOR_SHEEN && (
+            <g>
+              <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
+            </g>
+          )}
         </g>
       </svg>
 
