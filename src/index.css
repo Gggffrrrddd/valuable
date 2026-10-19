@@ -1625,6 +1625,28 @@ button .butterfly-constellation {
     pointer-events: none;
     background: #090b0a;
   }
+
+  /* Ambient continuation of the scene behind the fixed stage: a blurred,
+     oversized copy of the scene fills the whole visual box, and the opaque
+     contain-fit stage sits on top. Whatever area the stage does not cover
+     (the letterbox on any phone size) takes the scene's own tones, softly
+     diffused — the stage edge reads like the scene continuing outward, with
+     no flat-fill seam or hard line. The clip div contains the scale(1.2)
+     so the blur never leaks past the box. */
+  .jr-ambient-clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .jr-ambient {
+    position: absolute;
+    inset: 0;
+    background: url('/visuals/jar/jar-scene.png') center / cover no-repeat;
+    filter: blur(30px) brightness(0.82) saturate(1.05);
+    transform: scale(1.22);
+  }
 }
 
 /* Jar classic desktop: full-screen scene backdrop (hourglass desktop

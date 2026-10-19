@@ -4,7 +4,7 @@ import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
 import JarVisual from '@/components/focus-visuals/JarVisual';
-import JarStage from '@/components/focus-visuals/JarStage';
+import JarStage, { useJrLocked } from '@/components/focus-visuals/JarStage';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
@@ -215,6 +215,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   // scaled stage (so it tracks the fit); everywhere else it stays in the
   // layout's clock zone, exactly as before.
   const hgLocked = useHgLocked(visualTheme === 'hourglass');
+  // Mobile landscape-lock test for the jar — gates the ambient letterbox layer.
+  const jrLocked = useJrLocked(visualTheme === 'jar' && !playsAquarium);
 
   const navigateToNextScreenRef = useRef<(() => void) | null>(null);
 
@@ -508,9 +510,16 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <TankLife progress={progress} />
                 </>
                 ) : (
-                  <JarStage enabled={visualTheme === 'jar' && !playsAquarium}>
-                    <JarVisual progress={progress} running={phase === 'focus'} />
-                  </JarStage>
+                  <>
+                    {jrLocked && (
+                      <div className="jr-ambient-clip" aria-hidden="true">
+                        <div className="jr-ambient" />
+                      </div>
+                    )}
+                    <JarStage enabled={visualTheme === 'jar' && !playsAquarium}>
+                      <JarVisual progress={progress} running={phase === 'focus'} />
+                    </JarStage>
+                  </>
                 )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
