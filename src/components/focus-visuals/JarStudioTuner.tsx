@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
  * hand the numbers over to be hard-baked; remove this component then.
  */
 
-const LS_KEY = 'jr-studio-tune-v3';
+const LS_KEY = 'jr-studio-tune-v4';
 export const JAR_STUDIO_TUNE_EVENT = 'jr-studio-tune';
 
 type Tune = { z: number; x: number; y: number };
