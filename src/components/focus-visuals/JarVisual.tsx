@@ -11,25 +11,26 @@ const IMG_W = 1672;
 const IMG_H = 941;
 const OBJECT_POSITION = { x: 0.4, y: 0.15 };
 const WATER_IMAGE = { x: -57, y: 378, width: 956, height: 496 };
-const WATER_TOP = 461;
+// Water's highest reach = the top of the visible glass (JAR_KEEP.y). Above
+// the keep mask the image is faded out, so the water surface must stop there
+// or it would render in thin air.
+const WATER_TOP = 546;
 const WATER_BASE = 843;
 const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
 /**
- * Jar-only keep regions in scene pixels. The base scene image is masked so
- * ONLY the jar itself stays visible — wall, table sheen and floor
- * reflection all dissolve to transparent and the uniform dark backdrop
- * shows through instead. Two feathered rects trace the jar's actual contour
- * (narrower over the rim/neck, wider over the glass body), measured from
- * the jar-scene.png ASCII luminance map:
- *   rim/neck rows 448–540 span x ≈ 272–528; glass body rows 520–850 spans
- *   x ≈ 256–610; everything beyond is wall/sheen ≤ 58/255 luminance.
+ * Jar-only keep region in scene pixels. The base scene image is masked so
+ * ONLY the jar's glass body stays visible — rim/neck highlights, wall, table
+ * sheen and floor reflection all dissolve to transparent and the uniform
+ * dark backdrop shows through instead. Measured from the jar-scene.png
+ * ASCII luminance map: the bright rim band spans rows ≈ 448–540, the glass
+ * body rows ≈ 520–850 with edges x ≈ 256–610; the feather starts below the
+ * rim band so the top fades out like a rimless, transparent glass.
  */
-const JAR_KEEP_RIM = { x: 258, y: 436, width: 292, height: 112 };
-const JAR_KEEP_BODY = { x: 240, y: 492, width: 392, height: 360 };
-/** Gaussian feather of the keep-rect edges (scene px). */
+const JAR_KEEP = { x: 240, y: 546, width: 392, height: 306 };
+/** Gaussian feather of the keep-rect edge (scene px). */
 const JAR_KEEP_FEATHER = 20;
 
 /** Uniform studio-dark backdrop drawn behind the (masked-out) scene. */
@@ -71,7 +72,7 @@ const FISH = [
   { x: 465, y: 718, side: 'right', width: 62, hue: 165, speed: 1.08, bob: 4.8, delay: -2.1 },
   { x: 405, y: 665, side: 'left', width: 66, hue: -18, speed: 1, bob: 3.9, delay: -1.4 },
   { x: 475, y: 610, side: 'right', width: 56, hue: 44, speed: 1.16, bob: 4.5, delay: -3.2 },
-  { x: 370, y: 548, side: 'left', width: 58, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
+  { x: 370, y: 588, side: 'left', width: 58, hue: 210, speed: .86, bob: 3.7, delay: -2.6 },
 ] as const;
 
 type FishConfig = (typeof FISH)[number];
@@ -566,8 +567,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </filter>
           <mask id={keepMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
             <g filter={`url(#${keepBlurId})`} fill="#fff">
-              <rect x={JAR_KEEP_RIM.x} y={JAR_KEEP_RIM.y} width={JAR_KEEP_RIM.width} height={JAR_KEEP_RIM.height} />
-              <rect x={JAR_KEEP_BODY.x} y={JAR_KEEP_BODY.y} width={JAR_KEEP_BODY.width} height={JAR_KEEP_BODY.height} />
+              <rect x={JAR_KEEP.x} y={JAR_KEEP.y} width={JAR_KEEP.width} height={JAR_KEEP.height} />
             </g>
           </mask>
         </defs>
