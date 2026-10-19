@@ -4,7 +4,7 @@ import type { FocusVisualProps } from './types';
 import { JAR_STUDIO_TUNE_EVENT, readStudioTune } from './JarStudioTuner';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
-const JAR_STUDIO_BG_URL = '/visuals/jar/jar-studio-bg.png';
+const JAR_STUDIO_BG_URL = '/visuals/jar/jar-studio-bg-2.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
