@@ -18,18 +18,19 @@ const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
 /**
- * Jar-only keep region in scene pixels. The base scene image is masked so
- * ONLY the jar (plus its table glow and floor reflection) stays visible —
- * every other pixel fades to transparent and the component's own uniform
- * dark backdrop shows through instead. Measured from jar-scene.png: the jar
- * spans roughly x 256–640, y 440–940, with the table sheen around its base
- * reaching x 128–830; the feather sits entirely in near-black pixels
- * (max luminance ≤ 58/255 outside the keep core), so the fade is seamless
- * against the dark page/stage background.
+ * Jar-only keep regions in scene pixels. The base scene image is masked so
+ * ONLY the jar itself stays visible — wall, table sheen and floor
+ * reflection all dissolve to transparent and the uniform dark backdrop
+ * shows through instead. Two feathered rects trace the jar's actual contour
+ * (narrower over the rim/neck, wider over the glass body), measured from
+ * the jar-scene.png ASCII luminance map:
+ *   rim/neck rows 448–540 span x ≈ 272–528; glass body rows 520–850 spans
+ *   x ≈ 256–610; everything beyond is wall/sheen ≤ 58/255 luminance.
  */
-const JAR_KEEP = { x: 190, y: 400, width: 470, height: 541 };
-/** Gaussian feather of the keep-rect edge (scene px). */
-const JAR_KEEP_FEATHER = 46;
+const JAR_KEEP_RIM = { x: 258, y: 436, width: 292, height: 112 };
+const JAR_KEEP_BODY = { x: 240, y: 492, width: 392, height: 360 };
+/** Gaussian feather of the keep-rect edges (scene px). */
+const JAR_KEEP_FEATHER = 20;
 
 /** Uniform studio-dark backdrop drawn behind the (masked-out) scene. */
 const JAR_BACKDROP = '#0a0b0a';
@@ -37,6 +38,10 @@ const JAR_BACKDROP = '#0a0b0a';
 /** Cloud artwork is part of the old full-scene look — hidden now that only
  *  the jar is visible; rainfall still falls from above the scene top. */
 const SHOW_CLOUD_ART = false;
+
+/** Rendered floor-sheen glow under the jar (puddle of light) — hidden so the
+ *  jar floats alone on the dark backdrop. */
+const SHOW_FLOOR_SHEEN = false;
 
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
@@ -560,7 +565,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <feGaussianBlur stdDeviation={JAR_KEEP_FEATHER} />
           </filter>
           <mask id={keepMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
-            <rect x={JAR_KEEP.x} y={JAR_KEEP.y} width={JAR_KEEP.width} height={JAR_KEEP.height} fill="#fff" filter={`url(#${keepBlurId})`} />
+            <g filter={`url(#${keepBlurId})`} fill="#fff">
+              <rect x={JAR_KEEP_RIM.x} y={JAR_KEEP_RIM.y} width={JAR_KEEP_RIM.width} height={JAR_KEEP_RIM.height} />
+              <rect x={JAR_KEEP_BODY.x} y={JAR_KEEP_BODY.y} width={JAR_KEEP_BODY.width} height={JAR_KEEP_BODY.height} />
+            </g>
           </mask>
         </defs>
 
@@ -659,9 +667,11 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </g>
 
           {/* Floor sheen glow under the jar (no ground ripples). */}
-          <g>
-            <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
-          </g>
+          {SHOW_FLOOR_SHEEN && (
+            <g>
+              <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
+            </g>
+          )}
         </g>
       </svg>
 
