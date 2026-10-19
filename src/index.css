@@ -278,25 +278,16 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translate(41px, 38px) scale(1.27);
 }
 
-.hourglass-focus-background {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  pointer-events: none;
-  user-select: none;
-}
-
 /*
+ * Extended hourglass scene as the single backdrop, everywhere.
+ *
  * Desktop hourglass backdrop: the extended scene ("Moody Desk with Golden
  * Inspiration"), locked to the confirmed crop — zoom 160.30 % of viewport
  * width, x = 0, y = 0, centered. The parts of the image outside the viewport
  * at this crop (the outpainted margins) are hidden by the clip window, not
- * deleted from the asset. `.hourglass-focus-background` above continues to
- * serve the mobile fixed stage and is untouched.
+ * deleted from the asset. Mobile maps the same crop onto the contain-fit
+ * stage box (`.hg-ext-stage-bg` rule inside the landscape-lock block) and
+ * lets the margins spill over whatever letterbox the device leaves.
  */
 .hg-ext-window {
   position: absolute;
@@ -1470,50 +1461,45 @@ button .butterfly-constellation {
 
 /* --------------------------------------------------------------------------
    Hourglass fixed landscape stage (mobile landscape-lock).
-   The backdrop AND the flip clock are authored in a fixed 1366×768 reference
-   box (the desktop viewport they are tuned for) and contain-fit scaled to the
-   screen by <HourglassStage>, so they are never stretched or cropped — extra
-   space is filled by a blurred edge-extend of the scene (`.hg-fill`), which
-   fades to #090b0a at the screen edges. Because the clock lives in this same scaled
-   frame as the backdrop, it resizes and moves with the fit and stays put
-   relative to the backdrop on every device, instead of drifting with the
-   device. The hourglass, controls and text keep their existing sim layout and
-   sizes (they are not in this box). Desktop never matches this query, so the
-   wrapper collapses to display:contents and layout is unchanged.
+   The extended backdrop AND the flip clock are authored in a fixed 1366×768
+   reference box (the desktop viewport they are tuned for) and contain-fit
+   scaled to the screen by <HourglassStage>, so they are never stretched or
+   cropped. The backdrop image is sized to the locked desktop crop (160.30 %
+   of the box width, centered) relative to the stage box, so its outpainted
+   margins spill past the stage and cover whatever letterbox the device's
+   aspect ratio leaves — the reveal is driven entirely by the same
+   contain-fit calculation (no fill layer, no blur strips). Because the clock
+   lives in this same scaled frame as the backdrop, it resizes and moves with
+   the fit and stays put relative to the backdrop on every device, instead of
+   drifting with the device. The hourglass, controls and text keep their
+   existing sim layout and sizes (they are not in this box). Desktop never
+   matches this query, so the wrapper collapses to display:contents and
+   layout is unchanged.
    -------------------------------------------------------------------------- */
 @media (pointer: coarse) and (max-width: 1023.5px) {
-  /* Blurred edge-extend fill: the scene's four edges (blurred + cached in
-     <HourglassStage>) stretched outward to cover the letterbox around the
-     stage. Sits behind `.hg-stage`, so only the area outside the stage shows;
-     each strip's inner edge matches the backdrop exactly, so no hard seam. */
-  .hg-fill {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
+  /* The backdrop bleeds past the stage box, so the stage itself must not
+     clip it; the sim screen (.mob-sim) clips at the device edge instead. */
+  .mob-sim.hg-sim-hg {
     overflow: hidden;
+  }
+  .hg-sim-hg .hg-stage {
+    overflow: visible;
+  }
+  /* Extended backdrop, inside the stage: the desktop-locked crop maps onto
+     the stage box and the margins bleed out over the letterbox. cqw = 1 %
+     of the stage box width (= 1 % of the contain-fit reference box), so the
+     reveal is the fit math itself — no per-device values. */
+  .hg-ext-stage-bg {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 160.3cqw;
+    height: auto;
+    max-width: none;
+    transform: translate(-50%, -50%);
+    z-index: 0;
     pointer-events: none;
     user-select: none;
-    background: #090b0a;
-  }
-  .hg-fill-edge {
-    position: absolute;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%;
-  }
-  .hg-fill-top { left: 0; top: 0; width: 100%; height: var(--hg-oy, 0px); }
-  .hg-fill-bottom {
-    left: 0;
-    top: calc(var(--hg-oy, 0px) + var(--hg-sh, 0px));
-    width: 100%;
-    height: calc(100% - var(--hg-oy, 0px) - var(--hg-sh, 0px));
-  }
-  .hg-fill-left { left: 0; top: var(--hg-oy, 0px); width: var(--hg-ox, 0px); height: var(--hg-sh, 0px); }
-  .hg-fill-right {
-    left: calc(var(--hg-ox, 0px) + var(--hg-sw, 0px));
-    top: var(--hg-oy, 0px);
-    width: calc(100% - var(--hg-ox, 0px) - var(--hg-sw, 0px));
-    height: var(--hg-sh, 0px);
   }
   .hg-sim-hg .hg-stage {
     position: absolute;
@@ -1521,7 +1507,6 @@ button .butterfly-constellation {
     height: 768px;
     transform-origin: 0 0;
     container-type: size;
-    overflow: hidden;
     pointer-events: none;
     background: #090b0a;
   }

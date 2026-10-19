@@ -426,7 +426,15 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     return (
       <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
         <HourglassStage enabled={visualTheme === 'hourglass'}>
-          {visualTheme === 'hourglass' && hgLocked && <img className="hourglass-focus-background" src="/visuals/hourglass/hourglass-scene.png" alt="" aria-hidden="true" />}
+          {visualTheme === 'hourglass' && hgLocked && (
+            <img
+              className="hg-ext-stage-bg"
+              src="/visuals/hourglass/hourglass-scene-ext.png"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          )}
           {visualTheme === 'hourglass' && hgLocked && (
             <div className="hg-stage-clock">
               <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
