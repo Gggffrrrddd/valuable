@@ -1569,7 +1569,7 @@ button .butterfly-constellation {
     max-height: none !important;
     flex: none !important;
   }
-  .jr-sim .jar-focus-layout > div:first-child > div {
+  .jr-sim .jar-focus-layout > div:first-child > div:not(.jr-stage) {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
@@ -1577,13 +1577,6 @@ button .butterfly-constellation {
     max-height: none !important;
     max-width: none !important;
     display: block !important;
-  }
-  .jr-sim .jr-fit-classic {
-    display: block !important;
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
   }
   .jr-sim .focus-visual {
     position: absolute !important;
@@ -1610,6 +1603,61 @@ button .butterfly-constellation {
     justify-content: center !important;
   }
   /* No custom scale — standard mob-sim flip-clock zoom (0.8) applies. */
+}
+
+/* --------------------------------------------------------------------------
+   Jar classic fixed stage (mobile landscape-lock) — same pattern as the
+   hourglass stage. The jar scene composition is authored in a fixed 1366×768
+   reference box and contain-fit scaled by <JarStage>, so the jar, water,
+   rain and fish never stretch, crop or drift with the device. The letterbox
+   is left to the session background (#090b0a): the scene's edges are flat
+   near-black, so the plain code fill joins the image with no visible seam —
+   no outpainted asset required for this visual.
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  .jr-sim .jr-stage {
+    position: absolute;
+    width: 1366px;
+    height: 768px;
+    transform-origin: 0 0;
+    container-type: size;
+    overflow: hidden;
+    pointer-events: none;
+    background: #090b0a;
+  }
+}
+
+/* Jar classic desktop: full-screen scene backdrop (hourglass desktop
+   pattern). The composition is authored in the 1366×768 reference ≈ the
+   full desktop viewport, so the visual goes full-bleed and the flip clock
+   takes the right zone. Aquarium keeps its split panel (jr-classic-row only
+   exists for the classic jar). */
+.jr-classic-row .jr-visual-zone {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+}
+
+.jr-classic-row .jr-visual-box {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  max-height: none;
+  max-width: none;
+}
+
+.jr-classic-row .mob-clock-zone {
+  position: absolute;
+  left: 58.3333%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 41.6667%;
+  margin-top: 0;
+  justify-content: flex-start;
+  padding-left: 2rem;
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {

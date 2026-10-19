@@ -236,14 +236,27 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
     const element = containerRef.current;
     if (!element) return;
     const measure = () => {
+      let w = 0;
+      let h = 0;
+      let src = 'self';
+      // Inside the fixed <JarStage> the composition must measure the stage
+      // box itself (transform-unaware layout px, e.g. 1366×768), never the
+      // sim screen — the stage scale is applied outside the SVG.
+      const jarStage = element.closest('.jr-stage') as HTMLElement | null;
+      if (jarStage) {
+        const jw = element.offsetWidth;
+        const jh = element.offsetHeight;
+        if (jw > 0 && jh > 0) {
+          w = jw;
+          h = jh;
+          src = 'jar-stage';
+        }
+      }
       const compactNow =
         typeof window !== 'undefined' &&
         typeof window.matchMedia === 'function' &&
         window.matchMedia('(max-width: 1023.5px)').matches;
-      let w = 0;
-      let h = 0;
-      let src = 'self';
-      if (compactNow) {
+      if (src === 'self' && compactNow) {
         const stage = element.closest('.mob-sim') as HTMLElement | null;
         if (stage) {
           const sw = stage.offsetWidth;

@@ -4,6 +4,7 @@ import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-
 import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
 import JarVisual from '@/components/focus-visuals/JarVisual';
+import JarStage from '@/components/focus-visuals/JarStage';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
@@ -476,12 +477,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'hourglass' ? 'hg-row' : ''} ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
+        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'hourglass' ? 'hg-row' : ''} ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'jar' && !playsAquarium ? 'jr-classic-row' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
           {/* Left / center zone: hourglass visual. Solar System is always
               full-bleed (absolute inset-0) on every breakpoint — the clock
               is the top-right overlay, never a split-layout sibling. */}
-          <div className={`${visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : visualTheme === 'jar' ? 'absolute inset-0 z-0 h-full w-full lg:relative lg:flex lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'} ${visualTheme === 'hourglass' ? 'hg-visual-zone' : ''}`}>
-            <div className={`${visualTheme === 'solar-system' ? 'relative h-full w-full' : visualTheme === 'jar' ? 'relative h-full w-full lg:max-h-[76vh] lg:max-w-2xl lg:flex lg:items-center lg:justify-center' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'} ${visualTheme === 'hourglass' ? 'hg-visual-box' : ''}`}>
+          <div className={`${visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : visualTheme === 'jar' ? 'absolute inset-0 z-0 h-full w-full lg:relative lg:flex lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'} ${visualTheme === 'hourglass' ? 'hg-visual-zone' : ''} ${visualTheme === 'jar' ? 'jr-visual-zone' : ''}`}>
+            <div className={`${visualTheme === 'solar-system' ? 'relative h-full w-full' : visualTheme === 'jar' ? 'relative h-full w-full lg:max-h-[76vh] lg:max-w-2xl lg:flex lg:items-center lg:justify-center' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'} ${visualTheme === 'hourglass' ? 'hg-visual-box' : ''} ${visualTheme === 'jar' ? 'jr-visual-box' : ''}`}>
               {visualTheme === 'jar' ? (
                 playsAquarium ? (
                 <>
@@ -507,9 +508,9 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <TankLife progress={progress} />
                 </>
                 ) : (
-                  <div className="h-full w-full lg:contents jr-fit-classic">
+                  <JarStage enabled={visualTheme === 'jar' && !playsAquarium}>
                     <JarVisual progress={progress} running={phase === 'focus'} />
-                  </div>
+                  </JarStage>
                 )
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
