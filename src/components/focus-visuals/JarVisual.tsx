@@ -17,11 +17,29 @@ const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
+/**
+ * Jar-only keep region in scene pixels. The base scene image is masked so
+ * ONLY the jar (plus its table glow and floor reflection) stays visible —
+ * every other pixel fades to transparent and the component's own uniform
+ * dark backdrop shows through instead. Measured from jar-scene.png: the jar
+ * spans roughly x 256–640, y 440–940, with the table sheen around its base
+ * reaching x 128–830; the feather sits entirely in near-black pixels
+ * (max luminance ≤ 58/255 outside the keep core), so the fade is seamless
+ * against the dark page/stage background.
+ */
+const JAR_KEEP = { x: 190, y: 400, width: 470, height: 541 };
+/** Gaussian feather of the keep-rect edge (scene px). */
+const JAR_KEEP_FEATHER = 46;
+
+/** Uniform studio-dark backdrop drawn behind the (masked-out) scene. */
+const JAR_BACKDROP = '#0a0b0a';
+
+/** Cloud artwork is part of the old full-scene look — hidden now that only
+ *  the jar is visible; rainfall still falls from above the scene top. */
+const SHOW_CLOUD_ART = false;
+
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
-
-/** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
-const ARTWORK_BOTTOM = 569;
 
 /** Rain feel — mostly vertical streaks, gentle fall, minimal sway. */
 const RAIN = {
@@ -30,7 +48,10 @@ const RAIN = {
   length: 1.25,
   opacity: 0.9,
   wind: 0.18,
-  sourceY: ARTWORK_BOTTOM + 6,
+  // Drops materialise just above the scene's top edge (group offset -323 →
+  // scene y ≈ -60) so the fall begins out of frame now that the cloud
+  // artwork is hidden.
+  sourceY: 263,
   spread: 380,
 };
 
@@ -215,6 +236,8 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterGradientId = `jar-water-depth-${svgId}`;
   const rainGradientId = `jar-rain-${svgId}`;
   const floorGradientId = `jar-floor-${svgId}`;
+  const keepMaskId = `jar-keep-mask-${svgId}`;
+  const keepBlurId = `jar-keep-blur-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
@@ -530,15 +553,29 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
             <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
           </linearGradient>
+          {/* Jar-only isolation: feathered rect keeps the jar (rim, glass,
+              plants, base glow) and dissolves the rest of the scene into the
+              uniform backdrop rect drawn below. */}
+          <filter id={keepBlurId} x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation={JAR_KEEP_FEATHER} />
+          </filter>
+          <mask id={keepMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
+            <rect x={JAR_KEEP.x} y={JAR_KEEP.y} width={JAR_KEEP.width} height={JAR_KEEP.height} fill="#fff" filter={`url(#${keepBlurId})`} />
+          </mask>
         </defs>
 
+        {/* Uniform dark studio backdrop — replaces the hidden scene pixels. */}
+        <rect x="0" y="0" width="100%" height="100%" fill={JAR_BACKDROP} />
+
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} mask={`url(#${keepMaskId})`} />
 
           {/* Cloud + rain artwork. */}
-          <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
-            <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
-          </g>
+          {SHOW_CLOUD_ART && (
+            <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
+              <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+            </g>
+          )}
 
           {/* Dense animated rainfall beneath the artwork, offset hardcoded. */}
           <g transform={`translate(${RAIN_OFFSET.x} ${RAIN_OFFSET.y})`}>
