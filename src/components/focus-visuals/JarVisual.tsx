@@ -17,34 +17,11 @@ const MASK_ALPHA_THRESHOLD = 24;
 const FISH_WALL_PADDING = 12;
 const FISH_SURFACE_PADDING = 14;
 
-/**
- * Jar-only keep regions in scene pixels. The base scene image is masked so
- * ONLY the jar itself stays visible — wall, table sheen and floor
- * reflection all dissolve to transparent and the uniform dark backdrop
- * shows through instead. Two feathered rects trace the jar's actual contour
- * (narrower over the rim/neck, wider over the glass body), measured from
- * the jar-scene.png ASCII luminance map:
- *   rim/neck rows 448–540 span x ≈ 272–528; glass body rows 520–850 spans
- *   x ≈ 256–610; everything beyond is wall/sheen ≤ 58/255 luminance.
- */
-const JAR_KEEP_RIM = { x: 258, y: 436, width: 292, height: 112 };
-const JAR_KEEP_BODY = { x: 240, y: 492, width: 392, height: 360 };
-/** Gaussian feather of the keep-rect edges (scene px). */
-const JAR_KEEP_FEATHER = 20;
-
-/** Uniform studio-dark backdrop drawn behind the (masked-out) scene. */
-const JAR_BACKDROP = '#0a0b0a';
-
-/** Cloud artwork is part of the old full-scene look — hidden now that only
- *  the jar is visible; rainfall still falls from above the scene top. */
-const SHOW_CLOUD_ART = false;
-
-/** Rendered floor-sheen glow under the jar (puddle of light) — hidden so the
- *  jar floats alone on the dark backdrop. */
-const SHOW_FLOOR_SHEEN = false;
-
 /** Cloud + rain artwork placement (hardcoded from the live tuner). */
 const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
+
+/** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
+const ARTWORK_BOTTOM = 569;
 
 /** Rain feel — mostly vertical streaks, gentle fall, minimal sway. */
 const RAIN = {
@@ -53,10 +30,7 @@ const RAIN = {
   length: 1.25,
   opacity: 0.9,
   wind: 0.18,
-  // Drops materialise just above the scene's top edge (group offset -323 →
-  // scene y ≈ -60) so the fall begins out of frame now that the cloud
-  // artwork is hidden.
-  sourceY: 263,
+  sourceY: ARTWORK_BOTTOM + 6,
   spread: 380,
 };
 
@@ -241,8 +215,6 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterGradientId = `jar-water-depth-${svgId}`;
   const rainGradientId = `jar-rain-${svgId}`;
   const floorGradientId = `jar-floor-${svgId}`;
-  const keepMaskId = `jar-keep-mask-${svgId}`;
-  const keepBlurId = `jar-keep-blur-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
@@ -558,32 +530,15 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
             <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
           </linearGradient>
-          {/* Jar-only isolation: feathered rect keeps the jar (rim, glass,
-              plants, base glow) and dissolves the rest of the scene into the
-              uniform backdrop rect drawn below. */}
-          <filter id={keepBlurId} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation={JAR_KEEP_FEATHER} />
-          </filter>
-          <mask id={keepMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
-            <g filter={`url(#${keepBlurId})`} fill="#fff">
-              <rect x={JAR_KEEP_RIM.x} y={JAR_KEEP_RIM.y} width={JAR_KEEP_RIM.width} height={JAR_KEEP_RIM.height} />
-              <rect x={JAR_KEEP_BODY.x} y={JAR_KEEP_BODY.y} width={JAR_KEEP_BODY.width} height={JAR_KEEP_BODY.height} />
-            </g>
-          </mask>
         </defs>
 
-        {/* Uniform dark studio backdrop — replaces the hidden scene pixels. */}
-        <rect x="0" y="0" width="100%" height="100%" fill={JAR_BACKDROP} />
-
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} mask={`url(#${keepMaskId})`} />
+          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
 
           {/* Cloud + rain artwork. */}
-          {SHOW_CLOUD_ART && (
-            <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
-              <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
-            </g>
-          )}
+          <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
+            <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+          </g>
 
           {/* Dense animated rainfall beneath the artwork, offset hardcoded. */}
           <g transform={`translate(${RAIN_OFFSET.x} ${RAIN_OFFSET.y})`}>
@@ -667,11 +622,9 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </g>
 
           {/* Floor sheen glow under the jar (no ground ripples). */}
-          {SHOW_FLOOR_SHEEN && (
-            <g>
-              <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
-            </g>
-          )}
+          <g>
+            <ellipse cx={(jarExtentRef.current.left + jarExtentRef.current.right) / 2} cy={FLOOR_Y} rx={520} ry={44} fill={`url(#${floorGradientId})`} style={{ animation: reducedMotion ? undefined : 'jar-floor-sheen 9s ease-in-out infinite' }} />
+          </g>
         </g>
       </svg>
 
