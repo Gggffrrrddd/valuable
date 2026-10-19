@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
+const JAR_STUDIO_BG_URL = '/visuals/jar/jar-studio-bg.png';
 const FISH_LEFT_URL = '/visuals/jar/fish-left.png';
 const FISH_RIGHT_URL = '/visuals/jar/fish-right.png';
 const WATER_CALIBRATION_URL = '/visuals/jar/final-jar-water.png';
@@ -572,10 +573,10 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
           </mask>
         </defs>
 
-        {/* Uniform dark studio backdrop — replaces the hidden scene pixels. */}
-        <rect x="0" y="0" width="100%" height="100%" fill={JAR_BACKDROP} />
-
+        {/* Studio backdrop fills the scene; the jar (isolated from its own
+            scene pixels by the keep-mask) is layered on top of it. */}
         <g transform={sceneTransform}>
+          <image href={JAR_STUDIO_BG_URL} x="0" y="0" width={IMG_W} height={IMG_H} preserveAspectRatio="none" />
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} mask={`url(#${keepMaskId})`} />
 
           {/* Cloud + rain artwork. */}
