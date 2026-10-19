@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { FocusVisualProps } from './types';
+import { JAR_STUDIO_TUNE_EVENT, readStudioTune } from './JarStudioTuner';
 
 const JAR_SCENE_URL = '/visuals/jar/jar-scene.png';
 const JAR_STUDIO_BG_URL = '/visuals/jar/jar-studio-bg.png';
@@ -245,6 +246,18 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const keepMaskId = `jar-keep-mask-${svgId}`;
   const keepBlurId = `jar-keep-blur-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Tuned studio-backdrop framing (scene px, shared desktop + mobile via
+  // localStorage; written live by the desktop-only <JarStudioTuner>).
+  const [studioTune, setStudioTune] = useState(readStudioTune);
+  useEffect(() => {
+    const handler = () => setStudioTune(readStudioTune());
+    window.addEventListener(JAR_STUDIO_TUNE_EVENT, handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener(JAR_STUDIO_TUNE_EVENT, handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
@@ -574,9 +587,14 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
         </defs>
 
         {/* Studio backdrop fills the scene; the jar (isolated from its own
-            scene pixels by the keep-mask) is layered on top of it. */}
+            scene pixels by the keep-mask) is layered on top of it. The
+            backdrop honours the tuner's zoom/pan (center-anchored). */}
         <g transform={sceneTransform}>
-          <image href={JAR_STUDIO_BG_URL} x="0" y="0" width={IMG_W} height={IMG_H} preserveAspectRatio="none" />
+          <g
+            transform={`translate(${IMG_W * (1 - studioTune.z / 100) / 2 + studioTune.x} ${IMG_H * (1 - studioTune.z / 100) / 2 + studioTune.y}) scale(${studioTune.z / 100})`}
+          >
+            <image href={JAR_STUDIO_BG_URL} x="0" y="0" width={IMG_W} height={IMG_H} preserveAspectRatio="none" />
+          </g>
           <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} mask={`url(#${keepMaskId})`} />
 
           {/* Cloud + rain artwork. */}
