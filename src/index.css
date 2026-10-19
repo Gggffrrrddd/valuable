@@ -1615,40 +1615,6 @@ button .butterfly-constellation {
    no outpainted asset required for this visual.
    -------------------------------------------------------------------------- */
 @media (pointer: coarse) and (max-width: 1023.5px) {
-  /* Blurred edge-extend fill: the scene's four edges (blurred + cached in
-     <JarStage>) stretched outward to cover the letterbox around the stage,
-     so the image's own vignette continues past the boundary with no visible
-     seam (a flat fill would — the vignette is not exactly #090b0a). Each
-     strip's inner edge is re-laid pixel-exact over the scene edge. */
-  .jr-fill {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    overflow: hidden;
-    pointer-events: none;
-    user-select: none;
-    background: #090b0a;
-  }
-  .jr-fill-edge {
-    position: absolute;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 100% 100%;
-  }
-  .jr-fill-top { left: 0; top: 0; width: 100%; height: var(--jr-oy, 0px); }
-  .jr-fill-bottom {
-    left: 0;
-    top: calc(var(--jr-oy, 0px) + var(--jr-sh, 0px));
-    width: 100%;
-    height: calc(100% - var(--jr-oy, 0px) - var(--jr-sh, 0px));
-  }
-  .jr-fill-left { left: 0; top: var(--jr-oy, 0px); width: var(--jr-ox, 0px); height: var(--jr-sh, 0px); }
-  .jr-fill-right {
-    left: calc(var(--jr-ox, 0px) + var(--jr-sw, 0px));
-    top: var(--jr-oy, 0px);
-    width: calc(100% - var(--jr-ox, 0px) - var(--jr-sw, 0px));
-    height: var(--jr-sh, 0px);
-  }
   .jr-sim .jr-stage {
     position: absolute;
     width: 1366px;
