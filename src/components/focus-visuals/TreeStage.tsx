@@ -50,11 +50,6 @@ const SCENE_Y = (TR_STAGE_H - IMG_H * SCENE_SCALE) / 2;
 const SOIL_TOP = Math.round(IMG_H * 0.58);
 /** Feather the mirror's top so it blends into the sky instead of a hard line. */
 const MIRROR_FEATHER = 70;
-/** Depth of the bottom soil strip and how much of the left edge column it
- *  samples. The column is clean ground (no trunk/leaves), so stretching it
- *  across the bottom letterbox continues soil only. */
-const SOIL_BOTTOM_DEPTH = 300;
-const SOIL_STRIP_W = 140;
 
 function isLockedContext(): boolean {
   // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
@@ -187,22 +182,8 @@ function TreeBackdrop() {
           </g>
         </g>
 
-        {/* Bottom letterbox: a soil-only strip (left edge column, mirrored
-            down and stretched across) so no trunk or leaves appear. */}
-        <svg
-          x="0"
-          y={IMG_H}
-          width={IMG_W}
-          height={SOIL_BOTTOM_DEPTH}
-          viewBox={`0 ${IMG_H} ${SOIL_STRIP_W} ${SOIL_BOTTOM_DEPTH}`}
-          preserveAspectRatio="none"
-          overflow="hidden"
-        >
-          <g transform={`translate(0 ${2 * IMG_H}) scale(1 -1)`}>
-            <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
-          </g>
-        </svg>
-
+        {/* Bottom letterbox uses only the image's direct fade into the
+            backdrop; no extra strip. */}
         <g mask={`url(#${maskId})`}>
           <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
         </g>
