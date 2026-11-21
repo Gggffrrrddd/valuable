@@ -70,13 +70,13 @@ function TreeBackdrop() {
 
   const fadeStops = (
     <>
-      <stop offset="0" stopColor="#fff" stopOpacity="0" />
-      <stop offset=".15" stopColor="#fff" stopOpacity=".05" />
-      <stop offset=".35" stopColor="#fff" stopOpacity=".22" />
-      <stop offset=".55" stopColor="#fff" stopOpacity=".5" />
-      <stop offset=".75" stopColor="#fff" stopOpacity=".78" />
-      <stop offset=".9" stopColor="#fff" stopOpacity=".94" />
-      <stop offset="1" stopColor="#fff" stopOpacity="1" />
+      <stop offset="0" stopColor="#000" stopOpacity="1" />
+      <stop offset=".15" stopColor="#000" stopOpacity=".95" />
+      <stop offset=".35" stopColor="#000" stopOpacity=".78" />
+      <stop offset=".55" stopColor="#000" stopOpacity=".5" />
+      <stop offset=".75" stopColor="#000" stopOpacity=".22" />
+      <stop offset=".9" stopColor="#000" stopOpacity=".06" />
+      <stop offset="1" stopColor="#000" stopOpacity="0" />
     </>
   );
 
@@ -89,25 +89,29 @@ function TreeBackdrop() {
       aria-hidden="true"
     >
       <defs>
+        {/* Luminance mask: white base + black gradients. The black rect is
+            opaque at the scene edge and transparent inward, so the stage
+            image's alpha actually reaches 0 at the edge (a white-on-white
+            overlay would leave the mask fully opaque and show a hard line). */}
         <linearGradient id={leftId} x1="0" y1="0" x2="1" y2="0">{fadeStops}</linearGradient>
         <linearGradient id={rightId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="1" />
-          <stop offset=".1" stopColor="#fff" stopOpacity=".94" />
-          <stop offset=".25" stopColor="#fff" stopOpacity=".78" />
-          <stop offset=".45" stopColor="#fff" stopOpacity=".5" />
-          <stop offset=".65" stopColor="#fff" stopOpacity=".22" />
-          <stop offset=".85" stopColor="#fff" stopOpacity=".05" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0" stopColor="#000" stopOpacity="0" />
+          <stop offset=".1" stopColor="#000" stopOpacity=".06" />
+          <stop offset=".25" stopColor="#000" stopOpacity=".22" />
+          <stop offset=".45" stopColor="#000" stopOpacity=".5" />
+          <stop offset=".65" stopColor="#000" stopOpacity=".78" />
+          <stop offset=".85" stopColor="#000" stopOpacity=".95" />
+          <stop offset="1" stopColor="#000" stopOpacity="1" />
         </linearGradient>
         <linearGradient id={topId} x1="0" y1="0" x2="0" y2="1">{fadeStops}</linearGradient>
         <linearGradient id={bottomId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="1" />
-          <stop offset=".1" stopColor="#fff" stopOpacity=".94" />
-          <stop offset=".25" stopColor="#fff" stopOpacity=".78" />
-          <stop offset=".45" stopColor="#fff" stopOpacity=".5" />
-          <stop offset=".65" stopColor="#fff" stopOpacity=".22" />
-          <stop offset=".85" stopColor="#fff" stopOpacity=".05" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0" stopColor="#000" stopOpacity="0" />
+          <stop offset=".1" stopColor="#000" stopOpacity=".06" />
+          <stop offset=".25" stopColor="#000" stopOpacity=".22" />
+          <stop offset=".45" stopColor="#000" stopOpacity=".5" />
+          <stop offset=".65" stopColor="#000" stopOpacity=".78" />
+          <stop offset=".85" stopColor="#000" stopOpacity=".95" />
+          <stop offset="1" stopColor="#000" stopOpacity="1" />
         </linearGradient>
         <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
           <rect x="0" y="0" width={IMG_W} height={IMG_H} fill="#fff" />
