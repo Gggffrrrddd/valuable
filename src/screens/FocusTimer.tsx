@@ -5,6 +5,7 @@ import FocusVisual from '@/components/focus-visuals/FocusVisual';
 import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
 import JarVisual from '@/components/focus-visuals/JarVisual';
 import JarStage from '@/components/focus-visuals/JarStage';
+import TreeStage from '@/components/focus-visuals/TreeStage';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
@@ -454,7 +455,6 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             />
           </div>
         )}
-        {visualTheme === 'tree' && <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />}
         {/* Restrained architectural backdrop; the hourglass keeps its own ambient glow. */}
         <div className="focus-atmosphere" aria-hidden="true" />
         <div className="focus-grid" aria-hidden="true" />
@@ -512,8 +512,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                     <JarVisual progress={progress} running={phase === 'focus'} />
                   </JarStage>
                 )
+              ) : visualTheme === 'tree' ? (
+                <TreeStage enabled>
+                  <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />
+                  <FocusVisual theme="tree" progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={selectedLeaf} depth={SOLAR_DEPTH} />
+                </TreeStage>
               ) : (
-                <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={visualTheme === 'tree' ? selectedLeaf : undefined} depth={SOLAR_DEPTH} />
+                <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} depth={SOLAR_DEPTH} />
               )}
             </div>
           </div>

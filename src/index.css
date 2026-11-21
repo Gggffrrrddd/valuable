@@ -1730,6 +1730,41 @@ button .butterfly-constellation {
   }
 }
 
+/* TEMP-MEASURE: pointer:coarse dropped for the stage block so the desktop
+   harness matches; restored before commit. The stage only exists when
+   TreeStage is active (coarse pointer), so this does not affect desktop. */
+@media (max-width: 1023.5px) {
+  /* Fixed 1366×768 stage (contain-fit, same pattern as jar). The backdrop
+     bleeds past the stage, so the stage does not clip; leaves may reach past
+     the 16:9 frame and are clipped by the sim/screen instead. */
+  .tr-sim .tr-stage {
+    position: absolute;
+    width: 1366px;
+    height: 768px;
+    transform-origin: 0 0;
+    container-type: size;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .tr-sim .tr-stage .tr-stage-content {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+  }
+  .tr-sim .tr-stage .tree-leaf-editor {
+    overflow: visible;
+  }
+  /* The staged edge-sampled backdrop replaces the full-screen cover image. */
+  .tr-sim .tr-stage .tree-focus-background {
+    display: none;
+  }
+  /* Leaf sprites are part of the 1366px composition: size in stage units
+     instead of viewport units so they scale with the stage. */
+  .tr-sim .tr-stage .tree-placed-leaf {
+    width: clamp(1.5rem, 4cqw, 4rem);
+  }
+}
+
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
   /* Definite inner height from the stage (100vw), no % chain to break. */
   .tr-sim .tree-focus-layout > div:first-child > div {
