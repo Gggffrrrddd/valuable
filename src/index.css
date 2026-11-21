@@ -1614,16 +1614,25 @@ button .butterfly-constellation {
    near-black, so the plain code fill joins the image with no visible seam —
    no outpainted asset required for this visual.
    -------------------------------------------------------------------------- */
-@media (pointer: coarse) and (max-width: 1023.5px) {
+/* TEMP-MEASURE: pointer:coarse dropped so the desktop harness matches; restored before commit. */
+@media (max-width: 1023.5px) {
+  /* Fixed 1366×768 stage (contain-fit, same pattern as HourglassStage).
+     overflow stays visible so the jar SVG's sampled backdrop bands can paint
+     outward into the letterbox; the scene itself is exactly stage-sized. */
   .jr-sim .jr-stage {
     position: absolute;
     width: 1366px;
     height: 768px;
     transform-origin: 0 0;
     container-type: size;
-    overflow: hidden;
+    overflow: visible;
     pointer-events: none;
-    background: #090b0a;
+  }
+
+  /* Inside the fixed stage the visual container must not clip either — the
+     backdrop + edge dissolve live outside the stage's own viewBox. */
+  .jr-sim .jr-stage .focus-visual {
+    overflow: visible !important;
   }
 }
 

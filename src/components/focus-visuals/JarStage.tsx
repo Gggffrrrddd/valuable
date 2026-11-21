@@ -10,9 +10,10 @@ import type { ReactNode } from 'react';
  * whatever stage the sim provides (scale = min(stageW/1366, stageH/768)), so
  * the jar, water, rain and fish never stretch, crop or drift with the device.
  *
- * The letterbox around the stage is left to the session background
- * (#090b0a). The jar scene's edges are flat near-black, so a code fill is
- * seamlessly continuous with the image — no outpainted asset is needed.
+ * The letterbox around the stage is filled by the scene's own edge pixels
+ * (sampled and stretched outward by JarVisual) and the sheen is continued
+ * past the stage, so the stage joins the letterbox with no seam. No
+ * outpainted asset is needed for this visual.
  *
  * Outside the locked context (desktop, or any non-jar theme) the wrapper
  * collapses to `display: contents`, leaving the existing layout unchanged
@@ -24,6 +25,13 @@ export const JR_STAGE_H = 768;
 export const JR_LOCKED_MEDIA = '(pointer: coarse) and (max-width: 1023.5px)';
 
 function isLockedContext(): boolean {
+  // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
+  // boundary measurements (`?jrtest=1`). Removed before commit.
+  try {
+    if (new URLSearchParams(window.location.search).has('jrtest')) return true;
+  } catch {
+    /* ignore */
+  }
   try {
     return window.matchMedia(JR_LOCKED_MEDIA).matches;
   } catch {

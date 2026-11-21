@@ -25,8 +25,64 @@ const CLOUD_RAIN = { x: -8, y: 5, scale: 0.6, opacity: 0.57 };
  *  original scene image does not have. */
 const SHOW_FLOOR_SHEEN = false;
 
+/**
+ * Letterbox continuation for the mobile fixed stage (landscape-lock only).
+ *
+ * A flat/sampled colour can never match the *rendered* stage edge exactly: the
+ * scene is composited with the cloud overlay and then resampled by the stage
+ * scale, so its on-screen edge pixels differ from the raw PNG's edge pixels by
+ * a few levels — which is exactly what reads as a faint vertical/horizontal
+ * line in the letterbox.
+ *
+ * Instead of guessing that colour, each side is continued by stretching the
+ * scene's own outermost pixels outward (a nested <svg> whose viewBox is an
+ * EDGE_PX-wide strip of the artwork, drawn with preserveAspectRatio="none").
+ * The pad is therefore built from the very same image + cloud layers, so the
+ * last stage pixel and the first letterbox pixel are the same colour and no
+ * seam, line, band or colour step can form.
+ *
+ * BACKDROP_EXT is in scene px (~490 stage px at the smallest landscape scale),
+ * comfortably wider than any letterbox the contain-fit stage can produce.
+ */
+const BACKDROP_EXT = 3000;
+/** Width of the edge strip that is stretched into the letterbox (scene px). */
+const EDGE_PX = 2;
+
+/**
+ * Edge dissolve of the stage image into the backdrop (mobile fixed stage
+ * only), in scene px. Sized in stage-relative units so it scales with the
+ * stage and needs no per-device tuning:
+ *   4% of the 1366-wide stage  ≈ 67 scene px horizontally
+ *   4% of the 768-high stage   ≈ 38 scene px vertically
+ * The cloud is composited outside the masked group, so this band cannot
+ * dim, clip or cut it.
+ */
+const EDGE_FADE_X = 67;
+const EDGE_FADE_Y = 38;
+/** Deepest inward reach of any edge strip (must cover the widest fade). */
+const EDGE_FADE = Math.max(EDGE_FADE_X, EDGE_FADE_Y);
+
+/**
+ * CSS `linear-gradient(135deg, …)` line for the 1366×768 reference stage,
+ * in stage px. Used to reproduce the existing sheen overlay in SVG so it can
+ * continue past the stage into the letterbox (the CSS div is clipped to the
+ * stage and was the remaining source of a 10/255 edge step).
+ */
+const SHEEN_X1 = 149.6;
+const SHEEN_Y1 = -149.4;
+const SHEEN_X2 = 1216.4;
+const SHEEN_Y2 = 917.4;
+
 /** Cloud-rain artwork bottom edge in scene coordinates (940 * 0.6 + 5). */
 const ARTWORK_BOTTOM = 569;
+
+/** Fade the cloud over the first few scene px at the left edge (mobile
+ *  stage only) so its thin wisp is not stretched into the letterbox as a
+ *  long horizontal line, and does not end abruptly at the stage edge. */
+const CLOUD_LEFT_FADE = 10;
+/** The same fade expressed in the cloud image's own (pre-transform) pixels. */
+const CLOUD_LOCAL_X = -CLOUD_RAIN.x / CLOUD_RAIN.scale;
+const CLOUD_LOCAL_FADE = CLOUD_LEFT_FADE / CLOUD_RAIN.scale;
 
 /** Rain feel — mostly vertical streaks, gentle fall, minimal sway. */
 const RAIN = {
@@ -220,8 +276,20 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
   const waterGradientId = `jar-water-depth-${svgId}`;
   const rainGradientId = `jar-rain-${svgId}`;
   const floorGradientId = `jar-floor-${svgId}`;
+  const edgeFadeLId = `jar-efl-${svgId}`;
+  const edgeFadeRId = `jar-efr-${svgId}`;
+  const edgeFadeTId = `jar-eft-${svgId}`;
+  const edgeFadeBId = `jar-efb-${svgId}`;
+  const edgeFadeMaskId = `jar-efm-${svgId}`;
+  const cloudEdgeMaskId = `jar-cloud-edge-${svgId}`;
+  const cloudLeftFadeId = `jar-cloud-left-${svgId}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: IMG_W, height: IMG_H });
+  /** True while rendering inside the fixed mobile stage (.jr-stage). Gates
+   *  the sampled backdrop + edge dissolve so the desktop/portrait paths stay
+   *  pixel-identical to before. */
+  const [staged, setStaged] = useState(false);
+  const sheenGradientId = `jar-sheen-${svgId}`;
   const [maskRows, setMaskRows] = useState<MaskRow[]>([]);
   const [rains, setRains] = useState<FallingRain[]>([]);
   const [jarSplashes, setJarSplashes] = useState<JarSplash[]>([]);
@@ -248,6 +316,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       // box itself (transform-unaware layout px, e.g. 1366×768), never the
       // sim screen — the stage scale is applied outside the SVG.
       const jarStage = element.closest('.jr-stage') as HTMLElement | null;
+      setStaged(Boolean(jarStage));
       if (jarStage) {
         const jw = element.offsetWidth;
         const jh = element.offsetHeight;
@@ -512,7 +581,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       aria-label={`Water jar ${Math.round(value * 100)} percent complete`}
     >
       <style>{keyframes}</style>
-      <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
+      <svg width="100%" height="100%" viewBox={`0 0 ${viewport.width} ${viewport.height}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: staged ? 'visible' : 'hidden' }} aria-hidden="true">
         <defs>
           <mask id={waterMaskId} maskUnits="userSpaceOnUse" x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} mask-type="alpha">
             <image href={WATER_CALIBRATION_URL} x={WATER_IMAGE.x} y={WATER_IMAGE.y} width={WATER_IMAGE.width} height={WATER_IMAGE.height} preserveAspectRatio="none" />
@@ -535,14 +604,123 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             <stop offset="0" stopColor="#cfe9f6" stopOpacity="0" />
             <stop offset="1" stopColor="#a9d6ee" stopOpacity=".5" />
           </linearGradient>
+
+          {/* ---- Stage-image edge dissolve (smoothstep-eased alpha) ---- */}
+          <linearGradient id={edgeFadeLId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" />
+            <stop offset=".15" stopColor="#fff" stopOpacity=".05" />
+            <stop offset=".35" stopColor="#fff" stopOpacity=".22" />
+            <stop offset=".55" stopColor="#fff" stopOpacity=".5" />
+            <stop offset=".75" stopColor="#fff" stopOpacity=".78" />
+            <stop offset=".9" stopColor="#fff" stopOpacity=".94" />
+            <stop offset="1" stopColor="#fff" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id={edgeFadeRId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="1" />
+            <stop offset=".1" stopColor="#fff" stopOpacity=".94" />
+            <stop offset=".25" stopColor="#fff" stopOpacity=".78" />
+            <stop offset=".45" stopColor="#fff" stopOpacity=".5" />
+            <stop offset=".65" stopColor="#fff" stopOpacity=".22" />
+            <stop offset=".85" stopColor="#fff" stopOpacity=".05" />
+            <stop offset="1" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={edgeFadeTId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" />
+            <stop offset=".15" stopColor="#fff" stopOpacity=".05" />
+            <stop offset=".35" stopColor="#fff" stopOpacity=".22" />
+            <stop offset=".55" stopColor="#fff" stopOpacity=".5" />
+            <stop offset=".75" stopColor="#fff" stopOpacity=".78" />
+            <stop offset=".9" stopColor="#fff" stopOpacity=".94" />
+            <stop offset="1" stopColor="#fff" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id={edgeFadeBId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#fff" stopOpacity="1" />
+            <stop offset=".1" stopColor="#fff" stopOpacity=".94" />
+            <stop offset=".25" stopColor="#fff" stopOpacity=".78" />
+            <stop offset=".45" stopColor="#fff" stopOpacity=".5" />
+            <stop offset=".65" stopColor="#fff" stopOpacity=".22" />
+            <stop offset=".85" stopColor="#fff" stopOpacity=".05" />
+            <stop offset="1" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
+          <mask id={edgeFadeMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={IMG_W} height={IMG_H}>
+            <rect x="0" y="0" width={IMG_W} height={IMG_H} fill="#fff" />
+            <rect x="0" y="0" width={EDGE_FADE_X} height={IMG_H} fill={`url(#${edgeFadeLId})`} />
+            <rect x={IMG_W - EDGE_FADE_X} y="0" width={EDGE_FADE_X} height={IMG_H} fill={`url(#${edgeFadeRId})`} />
+            <rect x="0" y="0" width={IMG_W} height={EDGE_FADE_Y} fill={`url(#${edgeFadeTId})`} />
+            <rect x="0" y={IMG_H - EDGE_FADE_Y} width={IMG_W} height={EDGE_FADE_Y} fill={`url(#${edgeFadeBId})`} />
+          </mask>
+
+          {/* Stage-relative sheen (same gradient as the CSS overlay) in user
+              space, so it can be drawn across the whole screen and continue
+              the stage edge into the letterbox with no colour step. */}
+          <linearGradient id={sheenGradientId} gradientUnits="userSpaceOnUse" x1={SHEEN_X1} y1={SHEEN_Y1} x2={SHEEN_X2} y2={SHEEN_Y2}>
+            <stop offset="0" stopColor="#fff" stopOpacity=".06" />
+            <stop offset=".3" stopColor="#fff" stopOpacity="0" />
+            <stop offset=".7" stopColor="#fff" stopOpacity="0" />
+            <stop offset="1" stopColor="#fff" stopOpacity=".03" />
+          </linearGradient>
+
+          {/* Cloud edge: clip it to the scene rectangle and ease its leftmost
+              wisp out, so nothing paints outside the stage at the top-left. */}
+          <linearGradient id={cloudLeftFadeId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" />
+            <stop offset="1" stopColor="#fff" stopOpacity="1" />
+          </linearGradient>
+          <mask id={cloudEdgeMaskId} maskUnits="userSpaceOnUse" x={CLOUD_LOCAL_X} y="0" width={IMG_W - CLOUD_LOCAL_X} height="940">
+            <rect x={CLOUD_LOCAL_X} y="0" width={IMG_W - CLOUD_LOCAL_X} height="940" fill="#fff" />
+            <rect x={CLOUD_LOCAL_X} y="0" width={CLOUD_LOCAL_FADE} height="940" fill={`url(#${cloudLeftFadeId})`} />
+          </mask>
         </defs>
 
         <g transform={sceneTransform}>
-          <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          {/* Letterbox continuation (mobile fixed stage only). Each side is a
+              nested <svg> whose viewBox is an EDGE_PX-wide strip of the
+              artwork, stretched with preserveAspectRatio="none": the letterbox
+              is literally made of the stage edge's own pixels, so no colour
+              step can form where the two meet. Each strip also reaches EDGE_FADE
+              inward, so the scene's edge-dissolve fades into the very same edge
+              colour instead of into the session background. */}
+          {staged && (
+            <g>
+              {[
+                { key: 'l', x: -BACKDROP_EXT, y: 0, w: BACKDROP_EXT + EDGE_FADE, h: IMG_H, vb: `0 0 ${EDGE_PX} ${IMG_H}` },
+                { key: 'r', x: IMG_W - EDGE_FADE, y: 0, w: BACKDROP_EXT + EDGE_FADE, h: IMG_H, vb: `${IMG_W - EDGE_PX} 0 ${EDGE_PX} ${IMG_H}` },
+                { key: 't', x: 0, y: -BACKDROP_EXT, w: IMG_W, h: BACKDROP_EXT + EDGE_FADE, vb: `0 0 ${IMG_W} ${EDGE_PX}` },
+                { key: 'b', x: 0, y: IMG_H - EDGE_FADE, w: IMG_W, h: BACKDROP_EXT + EDGE_FADE, vb: `0 ${IMG_H - EDGE_PX} ${IMG_W} ${EDGE_PX}` },
+              ].map((pad) => (
+                <svg
+                  key={pad.key}
+                  x={pad.x}
+                  y={pad.y}
+                  width={pad.w}
+                  height={pad.h}
+                  viewBox={pad.vb}
+                  preserveAspectRatio="none"
+                  overflow="hidden"
+                >
+                  <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+                </svg>
+              ))}
+            </g>
+          )}
 
-          {/* Cloud + rain artwork. */}
+          <g mask={staged ? `url(#${edgeFadeMaskId})` : undefined}>
+            <image href={JAR_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          </g>
+
+          {/* Cloud + rain artwork — outside the edge mask so the top fade can
+              never dim or cut the cloud. On the mobile stage it is clipped to
+              the scene and its left wisp is eased out before the stage edge. */}
           <g transform={`translate(${CLOUD_RAIN.x} ${CLOUD_RAIN.y}) scale(${CLOUD_RAIN.scale})`} opacity={CLOUD_RAIN.opacity}>
-            <image href={CLOUD_RAIN_URL} x="0" y="0" width={IMG_W} height={940} preserveAspectRatio="none" />
+            <image
+              href={CLOUD_RAIN_URL}
+              x="0"
+              y="0"
+              width={IMG_W}
+              height={940}
+              preserveAspectRatio="none"
+              mask={staged ? `url(#${cloudEdgeMaskId})` : undefined}
+            />
           </g>
 
           {/* Dense animated rainfall beneath the artwork, offset hardcoded. */}
@@ -633,9 +811,25 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
             </g>
           )}
         </g>
+
+        {/* Mobile stage: the sheen must cover the letterbox as well, otherwise
+            its clipped edge is a visible 10/255 step where the stage meets
+            the backdrop. Same gradient recipe, in stage coordinates. */}
+        {staged && (
+          <rect
+            x={-BACKDROP_EXT}
+            y={-BACKDROP_EXT}
+            width={IMG_W + BACKDROP_EXT * 2}
+            height={IMG_H + BACKDROP_EXT * 2}
+            fill={`url(#${sheenGradientId})`}
+            pointerEvents="none"
+          />
+        )}
       </svg>
 
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
+      {!staged && (
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,.06), transparent 30%, transparent 70%, rgba(255,255,255,.03))', pointerEvents: 'none' }} aria-hidden="true" />
+      )}
       <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '60%', height: '20%', borderRadius: '50%', background: 'rgba(197,255,84,.12)', filter: 'blur(24px)', opacity: complete ? .28 : .05, pointerEvents: 'none' }} aria-hidden="true" />
     </div>
   );
