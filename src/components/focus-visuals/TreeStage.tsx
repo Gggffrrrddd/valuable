@@ -50,10 +50,11 @@ const SCENE_Y = (TR_STAGE_H - IMG_H * SCENE_SCALE) / 2;
 const SOIL_TOP = Math.round(IMG_H * 0.58);
 /** Feather the mirror's top so it blends into the sky instead of a hard line. */
 const MIRROR_FEATHER = 70;
-/** How far the bottom soil band is mirrored into the bottom letterbox, and the
- *  fade at its far end so a very tall viewport never shows a cut. */
-const SOIL_BOTTOM_DEPTH = 240;
-const BOTTOM_FEATHER = 80;
+/** Depth of the bottom soil strip and how much of the left edge column it
+ *  samples. The column is clean ground (no trunk/leaves), so stretching it
+ *  across the bottom letterbox continues soil only. */
+const SOIL_BOTTOM_DEPTH = 300;
+const SOIL_STRIP_W = 140;
 
 function isLockedContext(): boolean {
   // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
@@ -82,9 +83,6 @@ function TreeBackdrop() {
   const leftMirrorClipId = `tr-mirror-l-${id}`;
   const soilFadeId = `tr-soil-fade-${id}`;
   const soilMaskId = `tr-soil-mask-${id}`;
-  const bottomMirrorClipId = `tr-mirror-b-${id}`;
-  const bottomFadeId = `tr-bottom-fade-${id}`;
-  const bottomMaskId = `tr-bottom-mask-${id}`;
 
   const fadeStops = (
     <>
@@ -161,19 +159,7 @@ function TreeBackdrop() {
           <rect x={-BACKDROP_EXT} y={SOIL_TOP + MIRROR_FEATHER} width={BACKDROP_EXT + EDGE_FADE} height={IMG_H - SOIL_TOP - MIRROR_FEATHER} fill="#fff" />
         </mask>
 
-        {/* Bottom letterbox (tall viewports): mirror the soil band downward,
-            then fade it out so it reads as continuing ground, not a cut. */}
-        <clipPath id={bottomMirrorClipId}>
-          <rect x="0" y={IMG_H} width={IMG_W} height={SOIL_BOTTOM_DEPTH} />
-        </clipPath>
-        <linearGradient id={bottomFadeId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="1" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </linearGradient>
-        <mask id={bottomMaskId} maskUnits="userSpaceOnUse" x="0" y={IMG_H} width={IMG_W} height={SOIL_BOTTOM_DEPTH}>
-          <rect x="0" y={IMG_H} width={IMG_W} height={SOIL_BOTTOM_DEPTH - BOTTOM_FEATHER} fill="#fff" />
-          <rect x="0" y={IMG_H + SOIL_BOTTOM_DEPTH - BOTTOM_FEATHER} width={IMG_W} height={BOTTOM_FEATHER} fill={`url(#${bottomFadeId})`} />
-        </mask>
+
       </defs>
 
       <g transform={`translate(${SCENE_X} ${SCENE_Y}) scale(${SCENE_SCALE})`}>
@@ -201,11 +187,21 @@ function TreeBackdrop() {
           </g>
         </g>
 
-        <g clipPath={`url(#${bottomMirrorClipId})`} mask={`url(#${bottomMaskId})`}>
+        {/* Bottom letterbox: a soil-only strip (left edge column, mirrored
+            down and stretched across) so no trunk or leaves appear. */}
+        <svg
+          x="0"
+          y={IMG_H}
+          width={IMG_W}
+          height={SOIL_BOTTOM_DEPTH}
+          viewBox={`0 ${IMG_H} ${SOIL_STRIP_W} ${SOIL_BOTTOM_DEPTH}`}
+          preserveAspectRatio="none"
+          overflow="hidden"
+        >
           <g transform={`translate(0 ${2 * IMG_H}) scale(1 -1)`}>
             <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
           </g>
-        </g>
+        </svg>
 
         <g mask={`url(#${maskId})`}>
           <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
