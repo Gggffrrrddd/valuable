@@ -28,9 +28,10 @@ const IMG_H = 941;
 /** How far the backdrop reaches past the stage (scene px). */
 const BACKDROP_EXT = 3000;
 /**
- * Backdrop colour sampled from the tree-scene edge pixels (average of all
- * four edges ≈ rgb(3,2,2)). The stage image fades into this — no pixel
- * stretching.
+ * Backdrop base colour sampled from the tree-scene edge pixels (average of
+ * all four edges ≈ rgb(3,2,2)). The stage image fades into this, while the
+ * edge strips below continue the real scene pixels — including the soil —
+ * into the letterbox so the ground reads as a continuation, not a flat fill.
  */
 const BACKDROP_COLOR = '#030202';
 /**
@@ -39,10 +40,16 @@ const BACKDROP_COLOR = '#030202';
  */
 const EDGE_FADE_X = 67;
 const EDGE_FADE_Y = 38;
+const EDGE_FADE = Math.max(EDGE_FADE_X, EDGE_FADE_Y);
 
 const SCENE_SCALE = Math.max(TR_STAGE_W / IMG_W, TR_STAGE_H / IMG_H);
 const SCENE_X = (TR_STAGE_W - IMG_W * SCENE_SCALE) / 2;
 const SCENE_Y = (TR_STAGE_H - IMG_H * SCENE_SCALE) / 2;
+/** Below this line the left edge is soil/ground, so a mirror there reads as a
+ *  real continuation; above it the same mirror would duplicate tree canopy. */
+const SOIL_TOP = Math.round(IMG_H * 0.58);
+/** Feather the mirror's top so it blends into the sky instead of a hard line. */
+const MIRROR_FEATHER = 70;
 
 function isLockedContext(): boolean {
   // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
@@ -67,6 +74,10 @@ function TreeBackdrop() {
   const rightId = `tr-edge-r-${id}`;
   const topId = `tr-edge-t-${id}`;
   const bottomId = `tr-edge-b-${id}`;
+  const leftPatId = `tr-pat-l-${id}`;
+  const leftMirrorClipId = `tr-mirror-l-${id}`;
+  const soilFadeId = `tr-soil-fade-${id}`;
+  const soilMaskId = `tr-soil-mask-${id}`;
 
   const fadeStops = (
     <>
@@ -120,11 +131,35 @@ function TreeBackdrop() {
           <rect x="0" y="0" width={IMG_W} height={EDGE_FADE_Y} fill={`url(#${topId})`} />
           <rect x="0" y={IMG_H - EDGE_FADE_Y} width={IMG_W} height={EDGE_FADE_Y} fill={`url(#${bottomId})`} />
         </mask>
+
+        {/* 1-scene-px edge pattern: the left letterbox's soil band is the
+            scene's actual edge column repeated outward, so the ground texture
+            continues and the stage edge never steps in colour. */}
+        <pattern id={leftPatId} patternUnits="userSpaceOnUse" x="0" y="0" width="1" height={IMG_H}>
+          <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+        </pattern>
+
+        {/* Left letterbox: mirror the soil band only, so the ground texture
+            continues outward without duplicating the canopy above it. */}
+        <clipPath id={leftMirrorClipId}>
+          <rect x={-BACKDROP_EXT} y={SOIL_TOP} width={BACKDROP_EXT} height={IMG_H - SOIL_TOP} />
+        </clipPath>
+
+        <linearGradient id={soilFadeId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#fff" stopOpacity="1" />
+        </linearGradient>
+        <mask id={soilMaskId} maskUnits="userSpaceOnUse" x={-BACKDROP_EXT} y={SOIL_TOP} width={BACKDROP_EXT + EDGE_FADE} height={IMG_H - SOIL_TOP}>
+          <rect x={-BACKDROP_EXT} y={SOIL_TOP} width={BACKDROP_EXT + EDGE_FADE} height={MIRROR_FEATHER} fill={`url(#${soilFadeId})`} />
+          <rect x={-BACKDROP_EXT} y={SOIL_TOP + MIRROR_FEATHER} width={BACKDROP_EXT + EDGE_FADE} height={IMG_H - SOIL_TOP - MIRROR_FEATHER} fill="#fff" />
+        </mask>
       </defs>
 
       <g transform={`translate(${SCENE_X} ${SCENE_Y}) scale(${SCENE_SCALE})`}>
-        {/* Backdrop fills the whole stage + letterbox with the sampled edge
-            colour; the scene image fades into it at the edges. */}
+        {/* Backdrop base fills the whole stage + letterbox with the sampled
+            edge colour; the strips then continue the scene's real edge pixels
+            (soil texture at the bottom-left) outward, and the image fades
+            into them at the edges. */}
         <rect
           x={-BACKDROP_EXT}
           y={-BACKDROP_EXT}
@@ -132,6 +167,18 @@ function TreeBackdrop() {
           height={IMG_H + BACKDROP_EXT * 2}
           fill={BACKDROP_COLOR}
         />
+
+        {/* Edge continuation: only the left soil band continues outward via
+            its mirrored real texture; the remaining edges dissolve straight
+            into the sampled backdrop, so cut leaves at the top never streak. */}
+        <rect x={-BACKDROP_EXT} y={SOIL_TOP} width={BACKDROP_EXT + EDGE_FADE} height={IMG_H - SOIL_TOP} fill={`url(#${leftPatId})`} mask={`url(#${soilMaskId})`} />
+
+        {/* Left soil band: real ground texture instead of a single column. */}
+        <g clipPath={`url(#${leftMirrorClipId})`} mask={`url(#${soilMaskId})`}>
+          <g transform="scale(-1 1)">
+            <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
+          </g>
+        </g>
 
         <g mask={`url(#${maskId})`}>
           <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
