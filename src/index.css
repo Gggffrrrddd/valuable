@@ -1758,6 +1758,19 @@ button .butterfly-constellation {
   .tr-sim .tr-stage .tree-focus-background {
     display: none;
   }
+  /* Tall viewports only: fill the top letterbox with the same sampled
+     backdrop and fade the stage's top edge into it, so overflowing canopy
+     leaves never show a hard cut above the stage. */
+  .tr-sim .tr-stage .tr-stage-topfade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -2000px;
+    height: 2038px;
+    z-index: 40;
+    pointer-events: none;
+    background: linear-gradient(to bottom, #030202 0, #030202 2000px, rgba(3, 2, 2, 0) 2038px);
+  }
   /* Leaf sprites are part of the 1366px composition: size in stage units
      instead of viewport units so they scale with the stage. */
   .tr-sim .tr-stage .tree-placed-leaf {

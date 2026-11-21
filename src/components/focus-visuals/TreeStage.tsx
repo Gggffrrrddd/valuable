@@ -254,6 +254,7 @@ export default function TreeStage({
     >
       {active && <TreeBackdrop />}
       <div className={active ? 'tr-stage-content' : 'contents'}>{children}</div>
+      {active && fit && fit.top > 0.5 && <div className="tr-stage-topfade" aria-hidden="true" />}
     </div>
   );
 }
