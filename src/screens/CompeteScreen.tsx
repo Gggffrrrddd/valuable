@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import TreeVideo from '@/components/compete/TreeVideo';
 import SoilOverlay from '@/components/compete/SoilOverlay';
 import DreamPicker from '@/components/compete/DreamPicker';
 import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
+import CompeteTour from '@/components/compete/CompeteTour';
+import CompeteHelp from '@/components/compete/CompeteHelp';
 import {
   DEFAULT_VIDEO_TRANSFORM,
   DEFAULT_IMAGE_TRANSFORM,
@@ -29,8 +32,8 @@ import {
 } from '@/lib/compete';
 import type { CompeteGoal } from '@/types';
 
-/** Scrub cap: progress sits at a static 97%. */
-const PROGRESS_CAP = 0.97;
+/** Stores the one-time guided-tour flag when the DB column is unavailable. */
+const TOUR_SEEN_KEY = 'valuable.compete-tour-seen.v1';
 
 /** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -78,20 +81,26 @@ const SHOW_DREAM_XY_TUNER = false;
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
- *   Video / image placement + progress are hardcoded too (progress static
- *   97%, slider hidden). Small Today's-tree card sits top-left, hardcoded
- *   to 84% size, with a small "See overall tracker" text link under it
- *   that opens the growth-calendar module (overlay, not a page). Heatmap
- *   inline + other tuner panels stay hidden; dream circles are flat photo
- *   circles with a premium gold ring (hardcoded 0.55) + rose-pink glow.
+ *   Video / image placement stays hardcoded; tree progress comes from
+ *   today's tracked focus vs the goal's daily target. Small Today's-tree
+ *   card sits top-left, hardcoded to 84% size, with a small "See overall
+ *   tracker" text link under it that opens the growth-calendar module
+ *   (overlay, not a page). Heatmap inline + other tuner panels stay hidden;
+ *   dream circles are flat photo circles with a premium gold ring
+ *   (hardcoded 0.55) + rose-pink glow.
  */
 export default function CompeteScreen() {
-  const { session } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [dreamBusy, setDreamBusy] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [help, setHelp] = useState<{ type: 'dreams' | 'tracker'; anchor: HTMLElement } | null>(
+    null,
+  );
+  const tourAutoRef = useRef(false);
   const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
   const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
   // Measure via callback ref (not useEffect+ref-object): it fires synchronously
@@ -286,6 +295,35 @@ export default function CompeteScreen() {
     };
   }, [session, refresh]);
 
+  // One-time guided tour. The profile flag is authoritative; localStorage is
+  // only a fallback for projects where the new migration has not run yet.
+  useEffect(() => {
+    if (!goal || !profile || tourAutoRef.current) return;
+    tourAutoRef.current = true;
+    let seenLocally = false;
+    try {
+      seenLocally = window.localStorage.getItem(TOUR_SEEN_KEY) === '1';
+    } catch {
+      /* storage can be unavailable in private mode */
+    }
+    if (!profile.compete_tour_seen && !seenLocally) setTourOpen(true);
+  }, [goal, profile]);
+
+  const dismissTour = useCallback(async () => {
+    setTourOpen(false);
+    try {
+      window.localStorage.setItem(TOUR_SEEN_KEY, '1');
+    } catch {
+      /* non-fatal fallback */
+    }
+    if (!session) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ compete_tour_seen: true })
+      .eq('id', session.user.id);
+    if (!error) await refreshProfile();
+  }, [session, refreshProfile]);
+
   // Tracker module: Escape closes it.
   useEffect(() => {
     if (!trackerOpen) return;
@@ -323,7 +361,7 @@ export default function CompeteScreen() {
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
-  const progress = PROGRESS_CAP;
+  const progress = autoProgress;
   const complete = autoProgress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
@@ -332,8 +370,14 @@ export default function CompeteScreen() {
   // mobile wraps it in the fixed portrait stage below).
   const renderScene = (transforms: PlacementTransform[]) => (
     <>
+      {/* Top tagline: aligned with the tracker card's top edge on desktop,
+          and centered in the free space beside it on the fixed mobile stage. */}
+      <div className="compete-grow-label">
+        Grow your <span className="text-[#c5ff54]">tree</span> every day
+      </div>
+
       {/* Mobile portrait: video + soil shifted down to touch the nav */}
-      <div className="compete-tree-stage absolute inset-0">
+      <div className="compete-tree-stage absolute inset-0" data-tour="tree">
         <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
         <SoilOverlay transform={soilTune} />
       </div>
@@ -342,10 +386,21 @@ export default function CompeteScreen() {
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
         style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
+        data-tour="tracker"
       >
         <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
-          <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
-            Today's tree
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
+              Today's tree
+            </div>
+            <button
+              type="button"
+              aria-label="About today's tree"
+              onClick={(e) => setHelp({ type: 'tracker', anchor: e.currentTarget })}
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[9px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
+            >
+              ?
+            </button>
           </div>
           <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
             {(todayMinutes / 60).toFixed(1)}
@@ -381,6 +436,7 @@ export default function CompeteScreen() {
         busy={dreamBusy}
         onAdd={addDream}
         onRemove={removeDream}
+        onHelp={(anchor) => setHelp({ type: 'dreams', anchor })}
       />
 
       {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/zoom).
@@ -463,6 +519,30 @@ export default function CompeteScreen() {
     </>
   );
 
+  const renderOverlays = () => (
+    <>
+      {tourOpen && <CompeteTour onClose={dismissTour} />}
+      {help && (
+        <CompeteHelp
+          anchor={help.anchor}
+          title={help.type === 'dreams' ? 'Your dreams' : "Today's tree"}
+          body={
+            help.type === 'dreams'
+              ? (goal.dream_images?.length ?? 0) >= 3
+                ? 'You already have three dreams. Tap × on a dream to remove one, and the + button returns. Seeing them every day keeps you going.'
+                : 'Add what you are working toward — a car, a place, a goal. Tap + to add a dream, or × on a dream to remove it. Seeing it every day keeps you going.'
+              : "This card shows today's tracked focus against your daily goal. It resets every midnight. Open 'See overall tracker' for your full history."
+          }
+          onClose={() => setHelp(null)}
+          onReplay={() => {
+            setHelp(null);
+            setTourOpen(true);
+          }}
+        />
+      )}
+    </>
+  );
+
   // DESKTOP: original layout byte-identical (untouched).
   if (!isMobileVp) {
     return (
@@ -472,6 +552,7 @@ export default function CompeteScreen() {
           {renderScene(dreamTune)}
         </div>
         {renderTracker()}
+        {renderOverlays()}
       </div>
     );
   }
@@ -519,6 +600,7 @@ export default function CompeteScreen() {
         />
       </div>
       {renderTracker()}
+      {renderOverlays()}
     </div>
   );
 }

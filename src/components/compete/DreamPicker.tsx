@@ -38,6 +38,7 @@ function DreamCircle({
     <div className={`group relative h-14 w-14 shrink-0 sm:h-16 sm:w-16 ${offsetClass}`}>
       <div
         className="relative h-full w-full"
+        data-dream-circle
         style={{
           transform: `translate(${transform.x}%, ${transform.y}%) scale(${transform.zoom})`,
         }}
@@ -91,6 +92,7 @@ export default function DreamPicker({
   busy = false,
   onAdd,
   onRemove,
+  onHelp,
 }: {
   images: string[];
   /** Per-index transform (zoom / move X / move Y); missing entries = identity. */
@@ -102,6 +104,8 @@ export default function DreamPicker({
   busy?: boolean;
   onAdd: (file: File) => void;
   onRemove: (index: number) => void;
+  /** Opens the small help popover anchored to the "?" beside the label. */
+  onHelp?: (anchor: HTMLElement) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +122,7 @@ export default function DreamPicker({
       onClick={() => inputRef.current?.click()}
       disabled={busy}
       aria-label="Add dream image"
+      data-tour="add-dream"
       className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40 sm:h-16 sm:w-16 ${extraClass}`}
     >
       <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -191,12 +196,32 @@ export default function DreamPicker({
 
   return (
     <div
-      className={`compete-dreams absolute left-1/2 top-4 z-20 -translate-x-1/2 sm:top-6 ${images.length === 1 ? 'has-one' : ''}`}
+      className={`compete-dreams absolute left-1/2 top-4 z-20 h-14 -translate-x-1/2 sm:top-6 sm:h-16 ${images.length === 1 ? 'has-one' : ''}`}
+      data-tour="dreams"
     >
       <div className="relative flex items-start justify-center gap-3 sm:gap-4">
         {plus}
         {items}
       </div>
+
+      {images.length === 0 && (
+        <div className="compete-empty-dream">Add your first dream</div>
+      )}
+
+      <div className="compete-dreams-label" data-tour="dreams-label">
+        <span>Your dreams</span>
+        {onHelp && (
+          <button
+            type="button"
+            aria-label="About your dreams"
+            onClick={(e) => onHelp(e.currentTarget)}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[9px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
+          >
+            ?
+          </button>
+        )}
+      </div>
+
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>
   );

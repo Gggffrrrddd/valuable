@@ -10,6 +10,8 @@ export interface Profile {
   avatar_character: AvatarCharacter;
   /** False until the first-time character picker has been resolved. */
   character_chosen: boolean;
+  /** True once the Compete guided tour has been completed or skipped. */
+  compete_tour_seen: boolean;
   created_at: string;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   buildVideoMask,
   DEFAULT_VIDEO_MASK,
@@ -28,35 +28,82 @@ export default function TreeVideo({
   progress?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const target = Math.min(1, Math.max(0, progress));
+  /** Last frame shown, so a refresh eases from the old stage to the new one. */
+  const shownRef = useRef(target);
+  const rafRef = useRef<number | null>(null);
   const { image, size, repeat } = useMemo(() => buildVideoMask(mask), [mask]);
 
-  // drive playback position from the progress value
+  const seekTo = useCallback((value: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      try {
+        video.currentTime = video.duration * value;
+      } catch {
+        /* slow mobile networks may reject early seeks — canplay retries */
+      }
+    }
+  }, []);
+
+  // The first frame can arrive after metadata; always restore the latest
+  // progress (and any in-flight easing) when the clip becomes seekable.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const setTime = () => {
-      if (Number.isFinite(video.duration) && video.duration > 0) {
-        try {
-          video.currentTime = video.duration * progress;
-        } catch {
-          /* slow mobile networks may reject early seeks — canplay retries */
-        }
-      }
-    };
-
-    // Slow networks (real mobile) often have metadata but no frame data yet;
-    // retry on canplay so the 97% frame always lands.
-    if (video.readyState >= 1) {
-      setTime();
-    }
+    const setTime = () => seekTo(shownRef.current);
+    if (video.readyState >= 1) setTime();
     video.addEventListener('loadedmetadata', setTime);
     video.addEventListener('canplay', setTime);
     return () => {
       video.removeEventListener('loadedmetadata', setTime);
       video.removeEventListener('canplay', setTime);
     };
-  }, [progress]);
+  }, [seekTo]);
+
+  // Ease the video playhead to the new progress instead of cutting to it.
+  // The displayed value tracks every tick, while actual seeks are throttled
+  // so mobile browsers are not flooded with decoder requests.
+  useEffect(() => {
+    const from = shownRef.current;
+    const to = target;
+    if (Math.abs(to - from) < 0.001) {
+      shownRef.current = to;
+      seekTo(to);
+      return;
+    }
+
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    const started = performance.now();
+    const DURATION_MS = 900;
+    let lastSeek = 0;
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / DURATION_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const value = from + (to - from) * eased;
+      shownRef.current = value;
+
+      if (now - lastSeek >= 70 || t === 1) {
+        seekTo(value);
+        lastSeek = now;
+      }
+
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        shownRef.current = to;
+        seekTo(to);
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [target, seekTo]);
 
   return (
     <video

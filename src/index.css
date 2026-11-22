@@ -1991,6 +1991,73 @@ button .butterfly-constellation {
   }
 }
 /* --------------------------------------------------------------------------
+   Compete scene labels (inside the stage, so they scale with the fixed
+   mobile fit and stay clear of the dream circles and tracker card).
+   -------------------------------------------------------------------------- */
+.compete-grow-label {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(246, 227, 186, 0.8);
+}
+.compete-dreams-label {
+  position: absolute;
+  left: 50%;
+  top: calc(710% + 0.5rem);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #f6e3ba;
+}
+.compete-dreams-label button {
+  pointer-events: auto;
+  letter-spacing: 0;
+}
+.compete-empty-dream {
+  position: absolute;
+  left: 50%;
+  top: calc(655% + 0.35rem);
+  z-index: 30;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(246, 227, 186, 0.7);
+}
+@media (max-width: 1023.5px) {
+  .compete-grow-label {
+    top: 6rem;
+    left: 68.5%;
+    font-size: 14px;
+    letter-spacing: 0.18em;
+  }
+}
+@media (min-width: 1024px) {
+  .compete-dreams-label {
+    top: calc(240% + 0.5rem);
+  }
+}
+/* --------------------------------------------------------------------------
    Particle Painting mobile landscape lock (same pattern as the jar sim).
    Portrait phones/tablets: the whole session rotates into a landscape stage.
    Inside the sim the phone portrait-stacking is undone, so the desktop
