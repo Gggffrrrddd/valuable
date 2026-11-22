@@ -5,17 +5,27 @@ import { fetchFriendStat, type FriendStat } from '@/lib/stats';
 import { characterLabel, resolveAvatarCharacter } from '@/lib/character';
 import CharacterPicker, { CharacterPortrait, type CharacterPickerMode } from '@/components/CharacterPicker';
 import type { AvatarCharacter } from '@/types';
-import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
+import { UserPlus, Copy, Check, X, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
+}
+
+interface FriendRequest {
+  request_id: string;
+  direction: 'incoming' | 'outgoing';
+  other_id: string;
+  display_name: string;
+  avatar_character: string | null;
+  created_at: string;
 }
 
 export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
   const { profile, session, updateAvatarCharacter } = useAuth();
   const [codeInput, setCodeInput] = useState('');
   const [friends, setFriends] = useState<FriendStat[]>([]);
-  const [pendingIncoming, setPendingIncoming] = useState<{ id: string; display_name: string; friend_code: string }[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -33,9 +43,9 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const currentCharacter = resolveAvatarCharacter(profile?.avatar_character);
 
 
-  const loadFriends = useCallback(async () => {
+  const loadFriends = useCallback(async (silent = false) => {
     if (!session) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { data: friendships, error: fErr } = await supabase
         .from('friendships')
@@ -44,35 +54,41 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       if (fErr) throw fErr;
 
       const accepted = (friendships || []).filter((f) => f.status === 'accepted');
-      const pending = (friendships || []).filter(
-        (f) => f.status === 'pending' && f.friend_id === session.user.id
-      );
-
       const friendIds = accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id));
       const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
       const stats = await Promise.all(statsPromises);
       setFriends(stats.filter((s): s is FriendStat => s !== null));
 
-      const pendingPromises = pending.map(async (p) => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('id, display_name, friend_code')
-          .eq('id', p.user_id)
-          .maybeSingle();
-        return data as { id: string; display_name: string; friend_code: string } | null;
-      });
-      const pendingProfiles = await Promise.all(pendingPromises);
-      setPendingIncoming(pendingProfiles.filter((p): p is { id: string; display_name: string; friend_code: string } => p !== null));
+      // RPC (not profiles): the sender is not an accepted friend yet, so the
+      // profiles RLS policy would hide the row needed by the request card.
+      const { data: requestRows, error: reqErr } = await supabase.rpc('list_my_friend_requests');
+      if (reqErr) throw reqErr;
+      const requests = (requestRows || []) as FriendRequest[];
+      setIncomingRequests(requests.filter((r) => r.direction === 'incoming'));
+      setOutgoingRequests(requests.filter((r) => r.direction === 'outgoing'));
     } catch (e) {
       console.error('Friends load error:', e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
       setLastRefresh(new Date());
     }
   }, [session]);
 
+  // Short polling mirrors the study-table pattern, so a new request appears
+  // without a manual refresh. Hidden tabs skip the query.
   useEffect(() => {
-    loadFriends();
+    void loadFriends();
+    const id = window.setInterval(() => {
+      if (!document.hidden) void loadFriends(true);
+    }, 15_000);
+    const onVisible = () => {
+      if (!document.hidden) void loadFriends(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [loadFriends]);
 
   async function handleAddFriend() {
@@ -119,12 +135,31 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         );
       if (exErr) throw exErr;
       const rows = existing ?? [];
+      const ownRow = rows.find((f) => f.user_id === session.user.id);
+      const reverseRow = rows.find((f) => f.user_id === target.profile_id);
+
       if (rows.some((f) => f.status === 'accepted')) {
         setError('Already in your circle.');
         setAdding(false);
         return;
       }
-      if (rows.some((f) => f.user_id === session.user.id && f.status === 'pending')) {
+      if (rows.some((f) => f.status === 'rejected')) {
+        setError('Request was rejected.');
+        setAdding(false);
+        return;
+      }
+      if (ownRow?.status === 'pending') {
+        // Both users asked each other: accept the incoming half atomically,
+        // which also converts our outgoing half to accepted.
+        if (reverseRow?.status === 'pending') {
+          const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
+            p_request_id: reverseRow.id,
+          });
+          if (acceptErr) throw acceptErr;
+          setCodeInput('');
+          await loadFriends(true);
+          return;
+        }
         setError('Request already sent.');
         setAdding(false);
         return;
@@ -145,25 +180,17 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         return;
       }
 
-      const { data: reverse } = await supabase
-        .from('friendships')
-        .select('id')
-        .eq('user_id', target.profile_id)
-        .eq('friend_id', session.user.id)
-        .maybeSingle();
-
-      if (reverse) {
-        await supabase.from('friendships')
-          .update({ status: 'accepted' })
-          .eq('id', reverse.id);
-        await supabase.from('friendships')
-          .update({ status: 'accepted' })
-          .eq('user_id', session.user.id)
-          .eq('friend_id', target.profile_id);
+      // They had already requested us: accept their incoming request, which
+      // creates the reciprocal accepted row as well.
+      if (reverseRow?.status === 'pending') {
+        const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
+          p_request_id: reverseRow.id,
+        });
+        if (acceptErr) throw acceptErr;
       }
 
       setCodeInput('');
-      await loadFriends();
+      await loadFriends(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add friend');
     } finally {
@@ -171,19 +198,43 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     }
   }
 
-  async function handleAccept(requesterId: string) {
+  async function handleAccept(requestId: string) {
     if (!session) return;
-    await supabase.from('friendships')
-      .update({ status: 'accepted' })
-      .eq('user_id', requesterId)
-      .eq('friend_id', session.user.id);
-    await supabase.from('friendships')
-      .insert({
-        user_id: session.user.id,
-        friend_id: requesterId,
-        status: 'accepted',
-      });
-    await loadFriends();
+    setError(null);
+    const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
+      p_request_id: requestId,
+    });
+    if (acceptErr) {
+      setError(acceptErr.message);
+      return;
+    }
+    await loadFriends(true);
+  }
+
+  async function handleReject(requestId: string) {
+    if (!session) return;
+    setError(null);
+    const { error: rejectErr } = await supabase.rpc('reject_friend_request', {
+      p_request_id: requestId,
+    });
+    if (rejectErr) {
+      setError(rejectErr.message);
+      return;
+    }
+    await loadFriends(true);
+  }
+
+  async function handleCancelRequest(requestId: string) {
+    if (!session) return;
+    setError(null);
+    const { error: cancelErr } = await supabase.rpc('cancel_friend_request', {
+      p_request_id: requestId,
+    });
+    if (cancelErr) {
+      setError(cancelErr.message);
+      return;
+    }
+    await loadFriends(true);
   }
 
   function copyCode() {
@@ -195,7 +246,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
 
   async function handleRefresh() {
     setRefreshing(true);
-    await loadFriends();
+    await loadFriends(true);
     setRefreshing(false);
   }
 
@@ -407,19 +458,86 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       </div>
       </div>
 
-      {pendingIncoming.length > 0 && (
+      {incomingRequests.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-slate-300 mb-2">Pending requests</h3>
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            <UserPlus className="h-4 w-4 text-[#f6e3ba]" /> Friend requests
+          </h3>
           <div className="space-y-2">
-            {pendingIncoming.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <span className="text-white text-sm font-medium">{p.display_name}</span>
-                <button
-                  onClick={() => handleAccept(p.id)}
-                  className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-sm font-medium hover:bg-amber-400 transition-colors"
-                >
-                  Accept
-                </button>
+            {incomingRequests.map((r) => (
+              <div
+                key={r.request_id}
+                className="surface-soft flex flex-col gap-3 border-[#f6e3ba]/25 bg-[#f6e3ba]/[.04] p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#f6e3ba]/20 bg-gradient-to-b from-[#f6e3ba]/10 to-transparent">
+                    <CharacterPortrait
+                      character={resolveAvatarCharacter(r.avatar_character)}
+                      className="h-full w-full"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-bold text-stone-100">{r.display_name}</div>
+                    <div className="text-xs text-stone-500">wants to join your circle</div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleAccept(r.request_id)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-extrabold text-slate-950 transition-colors hover:bg-emerald-400"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Accept
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(r.request_id)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[.03] px-3 py-1.5 text-xs font-bold text-stone-300 transition-colors hover:border-red-400/40 hover:text-red-300"
+                  >
+                    <X className="h-3.5 w-3.5" /> Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {outgoingRequests.length > 0 && (
+        <div className="mb-6">
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-300">
+            <Clock className="h-4 w-4 text-[#f6e3ba]" /> Pending requests
+          </h3>
+          <div className="space-y-2">
+            {outgoingRequests.map((r) => (
+              <div
+                key={r.request_id}
+                className="surface-soft flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[.03]">
+                    <CharacterPortrait
+                      character={resolveAvatarCharacter(r.avatar_character)}
+                      className="h-full w-full"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-bold text-stone-100">{r.display_name}</div>
+                    <div className="text-xs text-stone-500">Waiting for them to accept</div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                  <span className="rounded-full border border-[#f6e3ba]/25 bg-[#f6e3ba]/10 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[.12em] text-[#f6e3ba]">
+                    Pending
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelRequest(r.request_id)}
+                    className="rounded-lg border border-white/10 bg-white/[.03] px-3 py-1.5 text-xs font-bold text-stone-400 transition-colors hover:border-white/20 hover:text-stone-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ))}
           </div>
