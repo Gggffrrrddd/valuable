@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PaintRect } from './ParticlePainting';
+import { getGlowSprite } from './ParticlePainting';
 
 /**
  * Extra particles for the empty letterbox around the fixed stage.
@@ -102,9 +103,9 @@ export default function BladeLetterboxParticles({
         speed: rand(0.35, 0.65),
         wobble: rand(0.15, 0.45),
         phase: rand(0, Math.PI * 2),
-        r: rand(0.35, 0.9),
+        r: rand(0.6, 1.6),
         cr, cg, cb,
-        glow: rand(1.6, 2.8),
+        glow: rand(2.5, 5),
       });
     };
 
@@ -155,16 +156,10 @@ export default function BladeLetterboxParticles({
         if (d.x > sx + 1 && d.x < sx + sw - 1 && d.y > sy + 1 && d.y < sy + sh - 1) return false;
 
         const gr = d.r * d.glow;
-        const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
-        g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},0.28)`);
-        g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},0.08)`);
-        g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
-        ctx.fill();
-
+        const sprite = getGlowSprite(d.cr, d.cg, d.cb);
         ctx.globalAlpha = 0.55;
+        ctx.drawImage(sprite, d.x - gr, d.y - gr, gr * 2, gr * 2);
+
         ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
         ctx.beginPath();
         ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);

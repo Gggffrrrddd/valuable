@@ -86,7 +86,7 @@ const COUNT_DESKTOP = 2400;
 const COUNT_MOBILE  = 1200;
 /** The mobile stage is scaled down, so match desktop's on-screen particle
  *  size/motion by boosting the stage-space values a little. */
-const MOBILE_PARTICLE_BOOST = 1.4;
+const MOBILE_PARTICLE_BOOST = 1.35;
 // Small, weak stamps: full coverage needs nearly ALL particles,
 // so the reveal stays gradual across the whole session instead of
 // saturating white after the first few hundred landings.
@@ -124,15 +124,38 @@ interface Dot {
 const rng = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
+/** Cached soft-glow sprite per palette colour: avoids rebuilding a radial
+ *  gradient for every particle on every frame (the source of mobile jank). */
+const GLOW_SPRITES = new Map<string, HTMLCanvasElement>();
+export function getGlowSprite(cr: number, cg: number, cb: number): HTMLCanvasElement {
+  const key = `${cr},${cg},${cb}`;
+  const cached = GLOW_SPRITES.get(key);
+  if (cached) return cached;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const r = size / 2;
+  const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+  g.addColorStop(0, `rgba(${cr},${cg},${cb},0.5)`);
+  g.addColorStop(0.4, `rgba(${cr},${cg},${cb},0.15)`);
+  g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  GLOW_SPRITES.set(key, canvas);
+  return canvas;
+}
+
 function spawn(W: number, H: number, boost = 1): Dot {
   const [cr, cg, cb] = pick(PALETTE);
   return {
     x: rng(0, W), y: rng(0, H),
     vx: rng(-0.25, 0.25) * boost, vy: rng(-0.18, 0.1) * boost,
-    r: rng(0.35, 0.9) * boost,
+    r: rng(0.6, 1.6) * boost,
     a: 0, ba: rng(0.25, 0.7),
     cr, cg, cb,
-    glow: rng(1.6, 2.8) * boost,
+    glow: rng(2.5, 5) * boost,
     phase: 0,
     tx: 0, ty: 0,
     age: Math.floor(rng(0, 500)),
@@ -206,6 +229,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     shown: 0,           // smoothed progress (eases toward raw progress)
     imgReady: false,
     revealDirty: true,
+    lastCompose: 0,
     mask: null as HTMLCanvasElement | null,
     reveal: null as HTMLCanvasElement | null,
     img: null as HTMLImageElement | null,
@@ -453,7 +477,12 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     }
 
     // ── render ──
-    if (st.revealDirty) composeReveal();
+    // Throttle the expensive mask/painting composite so landing stamps do
+    // not force a full-canvas rebuild on every frame (mobile jank/flicker).
+    if (st.revealDirty && now - st.lastCompose > 50) {
+      composeReveal();
+      st.lastCompose = now;
+    }
 
     ctx.clearRect(0, 0, W, H);
 
@@ -465,16 +494,10 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     for (const d of dots) {
       if (d.phase >= 3 || d.a <= 0.008) continue;
       const gr = d.r * d.glow;
-      const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
-      g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
-      g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
-      g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
-      ctx.fill();
-
+      const sprite = getGlowSprite(d.cr, d.cg, d.cb);
       ctx.globalAlpha = d.a;
+      ctx.drawImage(sprite, d.x - gr, d.y - gr, gr * 2, gr * 2);
+
       ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
