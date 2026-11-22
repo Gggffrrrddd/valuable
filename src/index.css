@@ -1769,7 +1769,7 @@ button .butterfly-constellation {
     height: 2038px;
     z-index: 40;
     pointer-events: none;
-    background: linear-gradient(to bottom, #030202 0, #030202 2000px, rgba(3, 2, 2, 0) 2038px);
+    background: linear-gradient(to bottom, #020202 0, #020202 calc(100% - 180px), #050404 calc(100% - 38px), rgba(5, 4, 4, 0) 100%);
   }
   /* Leaf sprites are part of the 1366px composition: size in stage units
      instead of viewport units so they scale with the stage. */
