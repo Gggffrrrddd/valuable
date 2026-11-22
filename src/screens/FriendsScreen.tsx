@@ -80,32 +80,64 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     setAdding(true);
     setError(null);
     try {
-      const code = codeInput.trim().toUpperCase();
-      const { data: target, error: tErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('friend_code', code)
-        .maybeSingle();
+      const code = codeInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 6) {
+        setError('Enter the 6-character friend code.');
+        setAdding(false);
+        return;
+      }
+
+      // SECURITY DEFINER lookup: profiles RLS intentionally hides non-friends,
+      // so a direct profiles query can never find a code before the add.
+      const { data: lookupRows, error: tErr } = await supabase.rpc(
+        'lookup_profile_by_friend_code',
+        { p_code: code }
+      );
       if (tErr) throw tErr;
+      const target = (Array.isArray(lookupRows) ? lookupRows[0] : lookupRows) as
+        | { profile_id: string; display_name: string; avatar_character: string }
+        | undefined;
       if (!target) {
         setError('No user found with that code.');
         setAdding(false);
         return;
       }
-      if (target.id === session.user.id) {
-        setError("You can't add yourself.");
+      if (target.profile_id === session.user.id) {
+        setError("That's your own code.");
+        setAdding(false);
+        return;
+      }
+
+      // Check both directions first. A reverse pending request is allowed:
+      // the insert below completes the mutual add, exactly as before.
+      const { data: existing, error: exErr } = await supabase
+        .from('friendships')
+        .select('id, user_id, friend_id, status')
+        .or(
+          `and(user_id.eq.${session.user.id},friend_id.eq.${target.profile_id}),` +
+            `and(user_id.eq.${target.profile_id},friend_id.eq.${session.user.id})`
+        );
+      if (exErr) throw exErr;
+      const rows = existing ?? [];
+      if (rows.some((f) => f.status === 'accepted')) {
+        setError('Already in your circle.');
+        setAdding(false);
+        return;
+      }
+      if (rows.some((f) => f.user_id === session.user.id && f.status === 'pending')) {
+        setError('Request already sent.');
         setAdding(false);
         return;
       }
 
       const { error: insErr } = await supabase.from('friendships').insert({
         user_id: session.user.id,
-        friend_id: target.id,
+        friend_id: target.profile_id,
         status: 'pending',
       });
       if (insErr) {
         if (insErr.code === '23505') {
-          setError('Already added or requested.');
+          setError('Already in your circle.');
         } else {
           throw insErr;
         }
@@ -116,7 +148,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       const { data: reverse } = await supabase
         .from('friendships')
         .select('id')
-        .eq('user_id', target.id)
+        .eq('user_id', target.profile_id)
         .eq('friend_id', session.user.id)
         .maybeSingle();
 
@@ -127,7 +159,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         await supabase.from('friendships')
           .update({ status: 'accepted' })
           .eq('user_id', session.user.id)
-          .eq('friend_id', target.id);
+          .eq('friend_id', target.profile_id);
       }
 
       setCodeInput('');
@@ -358,8 +390,8 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
           <input
             type="text"
             value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-            placeholder="6-letter code"
+            onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            placeholder="6-character code"
             maxLength={6}
             className="premium-input flex-1 uppercase tracking-[0.2em]"
           />
