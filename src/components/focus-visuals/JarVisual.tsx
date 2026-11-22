@@ -108,8 +108,6 @@ const FLOOR_Y = 884;
 const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 /** Even horizontal lanes so drops never clump into one side or column. */
 const RAIN_LANES = 32;
-/** Only the main cloud mass (skip the faint right-hand wisps). */
-const RAIN_ACTIVE_LANES = 27;
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
@@ -398,7 +396,7 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
       // Walk only the cloud footprint, one lane at a time, so every drop
       // starts under an actual cloud instead of in empty sky.
       const laneWidth = (CLOUD_RAIN_X1 - CLOUD_RAIN_X0) / RAIN_LANES;
-      const lane = rainLaneCursor.current % RAIN_ACTIVE_LANES;
+      const lane = rainLaneCursor.current % RAIN_LANES;
       rainLaneCursor.current += 1;
       const x = CLOUD_RAIN_X0 + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
       const toJar = x >= extent.left && x <= extent.right;
