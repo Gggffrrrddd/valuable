@@ -83,7 +83,10 @@ const PAINTINGS = [
 const PAINT_INDEX_KEY = 'valuable-particle-painting-index';
 
 const COUNT_DESKTOP = 2400;
-const COUNT_MOBILE  = 800;
+const COUNT_MOBILE  = 2400;
+/** The mobile stage is scaled down, so match desktop's on-screen particle
+ *  size/motion by boosting the stage-space values a little. */
+const MOBILE_PARTICLE_BOOST = 1.35;
 // Small, weak stamps: full coverage needs nearly ALL particles,
 // so the reveal stays gradual across the whole session instead of
 // saturating white after the first few hundred landings.
@@ -121,21 +124,21 @@ interface Dot {
 const rng = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-function spawn(W: number, H: number): Dot {
+function spawn(W: number, H: number, boost = 1): Dot {
   const [cr, cg, cb] = pick(PALETTE);
   return {
     x: rng(0, W), y: rng(0, H),
-    vx: rng(-0.25, 0.25), vy: rng(-0.18, 0.1),
-    r: rng(0.6, 1.6),
+    vx: rng(-0.25, 0.25) * boost, vy: rng(-0.18, 0.1) * boost,
+    r: rng(0.6, 1.6) * boost,
     a: 0, ba: rng(0.25, 0.7),
     cr, cg, cb,
-    glow: rng(2.5, 5),
+    glow: rng(2.5, 5) * boost,
     phase: 0,
     tx: 0, ty: 0,
     age: Math.floor(rng(0, 500)),
     lt: 0,
     wobX: rng(0.006, 0.018), wobY: rng(0.005, 0.014),
-    speed: rng(0.6, 1.4),
+    speed: rng(0.6, 1.4) * boost,
     pulse: rng(0, Math.PI * 2),
   };
 }
@@ -259,7 +262,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
       window.matchMedia('(pointer: coarse)').matches;
     // Capability-based (not width-based): rotated stage is wide on mobile.
     const n = coarse ? COUNT_MOBILE : COUNT_DESKTOP;
-    st.dots = Array.from({ length: n }, () => spawn(W, H));
+    st.dots = Array.from({ length: n }, () => spawn(W, H, coarse ? MOBILE_PARTICLE_BOOST : 1));
     st.done = false; st.budget = 0; st.revealDirty = true;
     st.shown = st.progress; // resize: stay in sync, never re-ease
 
