@@ -12,7 +12,6 @@ import {
 } from '@/components/focus-visuals/model-core';
 import { getDeviceQuality } from '@/lib/devicePerf';
 import { resolveAvatarCharacter } from '@/lib/character';
-import Books from './Books';
 import Chairs from './Chairs';
 import OpenBooks from './OpenBooks';
 import PenHolders from './PenHolders';
@@ -196,12 +195,10 @@ export default function TableScene3D({
   chairs = [],
   characterTransforms,
   girlTransforms,
-  bookTransforms,
   openBookTransforms,
   plantTransforms,
   penHolderTransforms,
   chairsVisible = false,
-  booksVisible = false,
   charactersVisible = false,
   wallTransform = DEFAULT_WALL_TRANSFORM,
   signTransform = DEFAULT_SIGN_TRANSFORM,
@@ -217,8 +214,6 @@ export default function TableScene3D({
   characterTransforms?: ObjectTransform[];
   /** Per-seat girl character transforms; one girl renders per entry. */
   girlTransforms?: ObjectTransform[];
-  /** Per-seat book transforms; one book renders per entry. */
-  bookTransforms?: ObjectTransform[];
   /** Per-seat open-book transforms; one open book renders per entry. */
   openBookTransforms?: ObjectTransform[];
   /** Plant transforms; one plant renders per entry. */
@@ -227,8 +222,6 @@ export default function TableScene3D({
   penHolderTransforms?: ObjectTransform[];
   /** Hide the empty OBJ chairs without unmounting them. */
   chairsVisible?: boolean;
-  /** Hide the closed books without unmounting them. */
-  booksVisible?: boolean;
   /** Hide the boy sitting characters without unmounting them. */
   charactersVisible?: boolean;
   /** Back-wall image placement (left/right, up/down, zoom). */
@@ -267,8 +260,6 @@ export default function TableScene3D({
   }, [self, friends]);
 
   const presentSeats = occupancy.filter((seat) => seat.occupant.status !== 'offline');
-  const focusingSeats = presentSeats.filter((seat) => seat.occupant.status === 'focusing');
-  const idleSeats = presentSeats.filter((seat) => seat.occupant.status !== 'focusing');
   const absentFriendSeats = occupancy.filter(
     (seat) => seat.index > 0 && seat.occupant.status === 'offline',
   );
@@ -293,11 +284,9 @@ export default function TableScene3D({
       )
     : [];
 
-  // Open book only while focusing; present-but-idle/paused gets the closed book.
-  const openBookSeats = pick(focusingSeats.map((seat) => openBookTransforms?.[seat.index]));
-  const closedBookSeats = booksVisible
-    ? pick(idleSeats.map((seat) => bookTransforms?.[seat.index]))
-    : [];
+  // Books keep the EXACT original model, transform, orientation and position.
+  // Every present seat gets the same open-book rendering the table always had.
+  const openBookSeats = pick(presentSeats.map((seat) => openBookTransforms?.[seat.index]));
 
   // Only assigned friend seats that are offline show an empty chair. Unassigned
   // seats stay hidden exactly as before, so a full table looks unchanged.
@@ -358,12 +347,6 @@ export default function TableScene3D({
           {girlSeatTransforms.length > 0 ? (
             <SittingGirl
               transforms={girlSeatTransforms}
-              origin={[transform.positionX, transform.positionZ]}
-            />
-          ) : null}
-          {closedBookSeats.length > 0 ? (
-            <Books
-              transforms={closedBookSeats}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
