@@ -267,8 +267,6 @@ export default function TableScene3D({
   }, [self, friends]);
 
   const presentSeats = occupancy.filter((seat) => seat.occupant.status !== 'offline');
-  const focusingSeats = presentSeats.filter((seat) => seat.occupant.status === 'focusing');
-  const idleSeats = presentSeats.filter((seat) => seat.occupant.status !== 'focusing');
   const absentFriendSeats = occupancy.filter(
     (seat) => seat.index > 0 && seat.occupant.status === 'offline',
   );
@@ -293,11 +291,22 @@ export default function TableScene3D({
       )
     : [];
 
-  // Same concept and same pre-tuned transforms as before:
-  // focusing -> open book, present-but-idle/paused -> closed book.
-  const openBookSeats = pick(focusingSeats.map((seat) => openBookTransforms?.[seat.index]));
+  // Your own seat (index 0) is the active study view: open book whenever you
+  // are present and not paused. Friends keep the timer rule — only an active
+  // focus session opens their book; idle/paused keeps it closed.
+  const hasOpenBook = (seat: { index: number; occupant: SeatOccupant }) =>
+    seat.occupant.status === 'focusing' ||
+    (seat.index === 0 && seat.occupant.status === 'online-idle');
+
+  const openBookSeats = pick(
+    presentSeats.filter(hasOpenBook).map((seat) => openBookTransforms?.[seat.index]),
+  );
   const closedBookSeats = booksVisible
-    ? pick(idleSeats.map((seat) => bookTransforms?.[seat.index]))
+    ? pick(
+        presentSeats
+          .filter((seat) => !hasOpenBook(seat))
+          .map((seat) => bookTransforms?.[seat.index]),
+      )
     : [];
 
   // Only assigned friend seats that are offline show an empty chair. Unassigned
