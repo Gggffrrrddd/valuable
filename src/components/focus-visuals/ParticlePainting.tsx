@@ -31,7 +31,7 @@ const EASEL_CV = {
 const BASE_W = 1672;
 const BASE_H = 941;
 
-export interface PaintRect { x: number; y: number; w: number; h: number }
+interface PaintRect { x: number; y: number; w: number; h: number }
 
 /** Stage fit (Jar-exact pattern): ALWAYS cover, never mode-switch.
  *  scale = max(W/BASE_W, H/BASE_H); overflow splits by object-position
@@ -52,7 +52,7 @@ function baseCover(W: number, H: number) {
 }
 
 /** On-screen rect of the easel canvas for the CURRENT container size. */
-export function paintRectFor(W: number, H: number): PaintRect {
+function paintRectFor(W: number, H: number): PaintRect {
   const { s, ox, oy } = baseCover(W, H);
   return {
     x: ox + EASEL_CV.u0 * BASE_W * s,
