@@ -2056,6 +2056,10 @@ button .butterfly-constellation {
   .compete-dreams-label {
     top: calc(240% + 0.5rem);
   }
+  /* Desktop uses the centre slot's 108% transform, not the mobile 562%. */
+  .compete-empty-dream {
+    top: calc(180% + 0.5rem);
+  }
 }
 /* --------------------------------------------------------------------------
    Particle Painting mobile landscape lock (same pattern as the jar sim).
