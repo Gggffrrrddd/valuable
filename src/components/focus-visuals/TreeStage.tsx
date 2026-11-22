@@ -50,10 +50,6 @@ const SCENE_Y = (TR_STAGE_H - IMG_H * SCENE_SCALE) / 2;
 const SOIL_TOP = Math.round(IMG_H * 0.58);
 /** Feather the mirror's top so it blends into the sky instead of a hard line. */
 const MIRROR_FEATHER = 70;
-/** Bottom letterbox: a soil-only strip from the clean left edge column,
- *  mirrored down and stretched across, so no trunk/leaves appear. */
-const SOIL_BOTTOM_DEPTH = 300;
-const SOIL_STRIP_W = 140;
 
 function isLockedContext(): boolean {
   // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
@@ -186,24 +182,8 @@ function TreeBackdrop() {
           </g>
         </g>
 
-        {/* Bottom letterbox uses only the image's direct fade into the
-            backdrop; no extra strip. */}
-        {/* Bottom letterbox: mirror the clean left soil column downward, so
-            the ground continues as a strip without any trunk or leaves. */}
-        <svg
-          x="0"
-          y={IMG_H}
-          width={IMG_W}
-          height={SOIL_BOTTOM_DEPTH}
-          viewBox={`0 ${IMG_H} ${SOIL_STRIP_W} ${SOIL_BOTTOM_DEPTH}`}
-          preserveAspectRatio="none"
-          overflow="hidden"
-        >
-          <g transform={`translate(0 ${2 * IMG_H}) scale(1 -1)`}>
-            <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
-          </g>
-        </svg>
-
+        {/* Bottom letterbox is filled by the sampled soil→dark gradient
+            overlay in TreeStage (only when a bottom letterbox exists). */}
         <g mask={`url(#${maskId})`}>
           <image href={TREE_SCENE_URL} x="0" y="0" width={IMG_W} height={IMG_H} />
         </g>
@@ -274,7 +254,13 @@ export default function TreeStage({
     >
       {active && <TreeBackdrop />}
       <div className={active ? 'tr-stage-content' : 'contents'}>{children}</div>
-      {active && fit && fit.top > 0.5 && <div className="tr-stage-topfade" aria-hidden="true" />}
+      {active && fit && fit.top > 0.5 && (
+        <div
+          className="tr-stage-topfade"
+          aria-hidden="true"
+        />
+      )}
+      {active && fit && fit.top > 0.5 && <div className="tr-stage-bottomfade" aria-hidden="true" />}
     </div>
   );
 }

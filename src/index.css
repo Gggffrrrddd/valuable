@@ -1769,7 +1769,24 @@ button .butterfly-constellation {
     height: 2038px;
     z-index: 40;
     pointer-events: none;
-    background: linear-gradient(to bottom, #020202 0, #020202 calc(100% - 180px), #050404 calc(100% - 38px), rgba(5, 4, 4, 0) 100%);
+    background: linear-gradient(to right, #010101 0%, #030303 11%, #050504 22%, #070706 33%, #090909 44%, #0a0a09 55%, #090909 66%, #070606 77%, #040304 88%, #010101 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 38px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 38px), transparent 100%);
+  }
+  /* Bottom letterbox: same soil→dark transition as the image's own bottom
+     band (sampled across the width), so the right side stays dark instead of
+     showing soil under the dark background. */
+  .tr-sim .tr-stage .tr-stage-bottomfade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 2000px;
+    z-index: 40;
+    pointer-events: none;
+    background: linear-gradient(to right, #0d0802 0%, #120c04 11%, #140d06 22%, #120c05 33%, #110b04 44%, #0f0a04 55%, #080502 66%, #030202 77%, #020202 88%, #010101 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 100%);
   }
   /* Leaf sprites are part of the 1366px composition: size in stage units
      instead of viewport units so they scale with the stage. */
