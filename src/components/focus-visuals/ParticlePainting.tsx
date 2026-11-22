@@ -202,6 +202,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     wash: 0,            // base-wash level applied so far (max-so-far)
     shown: 0,           // smoothed progress (eases toward raw progress)
     imgReady: false,
+    staged: false,
     revealDirty: true,
     mask: null as HTMLCanvasElement | null,
     reveal: null as HTMLCanvasElement | null,
@@ -225,6 +226,7 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
 
     const st = s.current;
     st.W = W; st.H = H;
+    st.staged = !!c.closest('.bl-stage');
 
     // TEMP DIAGNOSTIC (mobile placement): log actual stage values once per
     // init (mount/resize only, no per-frame spam). Remove after diagnosis.
@@ -457,28 +459,31 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     // painting reveal under everything
     if (st.reveal) ctx.drawImage(st.reveal, 0, 0, W, H);
 
-    // particles on top (additive glow)
-    ctx.globalCompositeOperation = 'lighter';
-    for (const d of dots) {
-      if (d.phase >= 3 || d.a <= 0.008) continue;
-      const gr = d.r * d.glow;
-      const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
-      g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
-      g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
-      g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
-      ctx.fill();
+    // particles on top (additive glow) — hidden inside the fixed stage on
+    // mobile; BladeParticles scatters them across the full screen instead.
+    if (!st.staged) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const d of dots) {
+        if (d.phase >= 3 || d.a <= 0.008) continue;
+        const gr = d.r * d.glow;
+        const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, gr);
+        g.addColorStop(0, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.5})`);
+        g.addColorStop(0.4, `rgba(${d.cr},${d.cg},${d.cb},${d.a * 0.15})`);
+        g.addColorStop(1, `rgba(${d.cr},${d.cg},${d.cb},0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, gr, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.globalAlpha = d.a;
-      ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+        ctx.globalAlpha = d.a;
+        ctx.fillStyle = `rgb(${Math.min(255, d.cr + 60)},${Math.min(255, d.cg + 60)},${Math.min(255, d.cb + 60)})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.globalCompositeOperation = 'source-over';
     }
-    ctx.globalCompositeOperation = 'source-over';
 
     st.raf = requestAnimationFrame(draw);
   }, [composeReveal]);

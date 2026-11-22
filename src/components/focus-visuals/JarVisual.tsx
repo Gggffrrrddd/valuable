@@ -91,15 +91,25 @@ const RAIN = {
   length: 1.25,
   opacity: 0.9,
   wind: 0.18,
-  sourceY: ARTWORK_BOTTOM + 6,
-  spread: 380,
 };
+
+/** Cloud underside per rain lane (scene y of the lowest cloud pixel), sampled
+ *  from cloud-rain.png. Rain now starts at the cloud bottom and only inside
+ *  the cloud footprint, instead of falling from empty sky. */
+const CLOUD_UNDERSIDES = [
+  227, 247, 256, 263, 264, 263, 271, 278, 283, 282, 282, 281, 276, 274, 277, 265,
+  267, 262, 261, 273, 283, 284, 274, 267, 268, 258, 259, 258, 216, 203, 187, 163,
+];
+const CLOUD_RAIN_X0 = CLOUD_RAIN.x;
+const CLOUD_RAIN_X1 = CLOUD_RAIN.x + 1672 * CLOUD_RAIN.scale;
 
 const RAIN_OFFSET = { x: 40, y: -323 };
 const FLOOR_Y = 884;
 const JAR_EXTENT_FALLBACK = { left: -57, right: 899 };
 /** Even horizontal lanes so drops never clump into one side or column. */
 const RAIN_LANES = 32;
+/** Only the main cloud mass (skip the faint right-hand wisps). */
+const RAIN_ACTIVE_LANES = 27;
 
 const FISH = [
   { x: 370, y: 760, side: 'left', width: 72, hue: 5, speed: .92, bob: 4.2, delay: -.7 },
@@ -385,16 +395,16 @@ export default function JarVisual({ progress, running = false }: FocusVisualProp
 
     const emitOne = () => {
       const extent = jarExtentRef.current;
-      // Cycle through equal horizontal lanes (with light jitter inside each
-      // lane) so the rainfall is spread evenly, left to right.
-      const minX = extent.left - RAIN.spread;
-      const maxX = extent.right + RAIN.spread;
-      const laneWidth = (maxX - minX) / RAIN_LANES;
-      const lane = rainLaneCursor.current % RAIN_LANES;
+      // Walk only the cloud footprint, one lane at a time, so every drop
+      // starts under an actual cloud instead of in empty sky.
+      const laneWidth = (CLOUD_RAIN_X1 - CLOUD_RAIN_X0) / RAIN_LANES;
+      const lane = rainLaneCursor.current % RAIN_ACTIVE_LANES;
       rainLaneCursor.current += 1;
-      const x = minX + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
+      const x = CLOUD_RAIN_X0 + laneWidth * lane + randomBetween(laneWidth * 0.18, laneWidth * 0.82);
       const toJar = x >= extent.left && x <= extent.right;
-      const y = RAIN.sourceY + randomBetween(-26, 26);
+      // Visual start = drop.y + RAIN_OFFSET.y, so this lands exactly on the
+      // cloud's underside for that lane.
+      const y = CLOUD_UNDERSIDES[lane] - RAIN_OFFSET.y + randomBetween(2, 8);
       const landY = toJar ? waterYRef.current : FLOOR_Y;
       // Account for the group offset so the drop's final position lands exactly
       // on the floor / water surface: final = y + RAIN_OFFSET.y + fall.

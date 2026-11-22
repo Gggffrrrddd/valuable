@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import BladeParticles from './BladeParticles';
 
 /**
  * Fixed-aspect landscape stage for the Particle Painting (mobile
@@ -147,17 +148,20 @@ export default function BladeStage({
   const active = enabled && fit !== null;
 
   return (
-    <div
-      ref={ref}
-      className={active ? 'bl-stage' : 'contents'}
-      style={
-        active && fit
-          ? { left: fit.left, top: fit.top, transform: `scale(${fit.scale})` }
-          : undefined
-      }
-    >
-      {active && <BladeBackdrop />}
-      {children}
-    </div>
+    <>
+      {active && <BladeParticles />}
+      <div
+        ref={ref}
+        className={active ? 'bl-stage' : 'contents'}
+        style={
+          active && fit
+            ? { left: fit.left, top: fit.top, transform: `scale(${fit.scale})` }
+            : undefined
+        }
+      >
+        {active && <BladeBackdrop />}
+        {children}
+      </div>
+    </>
   );
 }
