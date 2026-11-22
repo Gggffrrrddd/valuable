@@ -74,6 +74,64 @@ const GIRL_CHAIRS = replicateChairs(GIRL_REFERENCE, TABLE_CENTER);
 const SEAT_BOYS = CHARACTER_CHAIRS;
 const SEAT_GIRLS = GIRL_CHAIRS;
 
+/** Final hand-tuned books, one per seat (values captured from the live tuner). */
+const BOOK_TRANSFORMS: ObjectTransform[] = [
+  {
+    scale: 0.5,
+    positionX: 0.85,
+    positionY: 1.09,
+    positionZ: 0.8201923788646686,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: -1.81,
+  },
+  {
+    scale: 0.5,
+    positionX: 0.53,
+    positionY: 1.09,
+    positionZ: -0.01980762113533141,
+    rotationX: 1.52,
+    rotationY: -3.13,
+    rotationZ: -0.81,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.34999999999999987,
+    positionY: 1.09,
+    positionZ: -0.17999999999999994,
+    rotationX: 1.58,
+    rotationY: -3.14,
+    rotationZ: 0.31,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.9274613391789284,
+    positionY: 1.09,
+    positionZ: 0.49980762113533117,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: 1.14,
+  },
+  {
+    scale: 0.5,
+    positionX: -0.6,
+    positionY: 1.09,
+    positionZ: 1.38,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: 2.31,
+  },
+  {
+    scale: 0.5,
+    positionX: 0.25,
+    positionY: 1.09,
+    positionZ: 1.5,
+    rotationX: 1.55,
+    rotationY: -3.14,
+    rotationZ: -2.86,
+  },
+];
+
 /** Final hand-tuned plant on the table (values captured from the live tuner). */
 const PLANT_TRANSFORM: ObjectTransform = {
   scale: 0.99,
@@ -308,10 +366,12 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
           chairs={CHAIR_SEATS}
           characterTransforms={SEAT_BOYS}
           girlTransforms={SEAT_GIRLS}
+          bookTransforms={BOOK_TRANSFORMS}
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
           chairsVisible
+          booksVisible
           charactersVisible
           spin
         />
