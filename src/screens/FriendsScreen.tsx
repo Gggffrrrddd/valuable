@@ -1,24 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
+import { characterLabel, resolveAvatarCharacter } from '@/lib/character';
+import CharacterPicker, { CharacterPortrait, type CharacterPickerMode } from '@/components/CharacterPicker';
+import type { AvatarCharacter } from '@/types';
 import { UserPlus, Copy, Check, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
 }
 
-// TEMPORARY demo friends for UI preview — remove before release.
-const TEMP_FRIENDS: FriendStat[] = [
-  { profile: { id: 'temp-1', display_name: 'Aarav', friend_code: 'ARV001' }, todayMinutes: 30, currentStreak: 12 },
-  { profile: { id: 'temp-2', display_name: 'Diya', friend_code: 'DIYA02' }, todayMinutes: 30, currentStreak: 7 },
-  { profile: { id: 'temp-3', display_name: 'Kabir', friend_code: 'KBR003' }, todayMinutes: 30, currentStreak: 21 },
-  { profile: { id: 'temp-4', display_name: 'Meera', friend_code: 'MRA004' }, todayMinutes: 30, currentStreak: 5 },
-  { profile: { id: 'temp-5', display_name: 'Rohan', friend_code: 'RHN005' }, todayMinutes: 30, currentStreak: 9 },
-];
-
 export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
-  const { profile, session } = useAuth();
+  const { profile, session, updateAvatarCharacter } = useAuth();
   const [codeInput, setCodeInput] = useState('');
   const [friends, setFriends] = useState<FriendStat[]>([]);
   const [pendingIncoming, setPendingIncoming] = useState<{ id: string; display_name: string; friend_code: string }[]>([]);
@@ -30,7 +24,13 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [removeTarget, setRemoveTarget] = useState<FriendStat | null>(null);
   const [removing, setRemoving] = useState(false);
-  const hiddenTempRef = useRef<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<CharacterPickerMode>('first');
+  const [selectedCharacter, setSelectedCharacter] = useState<AvatarCharacter>('boy');
+  const [savingCharacter, setSavingCharacter] = useState(false);
+  const [characterError, setCharacterError] = useState<string | null>(null);
+
+  const currentCharacter = resolveAvatarCharacter(profile?.avatar_character);
 
 
   const loadFriends = useCallback(async () => {
@@ -51,10 +51,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       const friendIds = accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id));
       const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
       const stats = await Promise.all(statsPromises);
-      setFriends([
-        ...TEMP_FRIENDS.filter((t) => !hiddenTempRef.current.has(t.profile.id)),
-        ...stats.filter((s): s is FriendStat => s !== null),
-      ]);
+      setFriends(stats.filter((s): s is FriendStat => s !== null));
 
       const pendingPromises = pending.map(async (p) => {
         const { data } = await supabase
@@ -195,9 +192,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   async function handleRemoveFriend(f: FriendStat) {
     setRemoving(true);
     try {
-      if (f.profile.id.startsWith('temp-')) {
-        hiddenTempRef.current.add(f.profile.id);
-      } else if (session) {
+      if (session) {
         const myId = session.user.id;
         const fid = f.profile.id;
         const { error: delErr } = await supabase
@@ -215,6 +210,65 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     }
   }
 
+  /**
+   * The study table is gated by the one-time character choice. The picker only
+   * appears when the profile has never been resolved; after that the table
+   * opens directly and the choice lives on the Circle page.
+   */
+  function openTableWithCharacterGate() {
+    if (!onOpenStudyTable) return;
+    if (!profile?.character_chosen) {
+      setSelectedCharacter(resolveAvatarCharacter(profile?.avatar_character));
+      setPickerMode('first');
+      setCharacterError(null);
+      setPickerOpen(true);
+      return;
+    }
+    onOpenStudyTable();
+  }
+
+  function openCharacterPicker() {
+    setSelectedCharacter(currentCharacter);
+    setPickerMode('change');
+    setCharacterError(null);
+    setPickerOpen(true);
+  }
+
+  async function saveCharacter(character: AvatarCharacter): Promise<boolean> {
+    setSavingCharacter(true);
+    setCharacterError(null);
+    const { error: saveErr } = await updateAvatarCharacter(character);
+    setSavingCharacter(false);
+    if (saveErr) {
+      setCharacterError(saveErr);
+      return false;
+    }
+    return true;
+  }
+
+  async function confirmCharacter() {
+    if (savingCharacter) return;
+    const saved = await saveCharacter(selectedCharacter);
+    if (!saved) return;
+    setPickerOpen(false);
+    if (pickerMode === 'first') onOpenStudyTable?.();
+  }
+
+  async function dismissCharacterPicker() {
+    if (savingCharacter) return;
+    if (pickerMode === 'change') {
+      setPickerOpen(false);
+      setCharacterError(null);
+      return;
+    }
+    // First-time skip/dismiss always keeps the default Boy and marks the
+    // choice resolved so the picker never appears automatically again.
+    const saved = await saveCharacter('boy');
+    if (!saved) return;
+    setPickerOpen(false);
+    onOpenStudyTable?.();
+  }
+
   return (
     <div className="page-wrap pb-24">
       <div className="page-kicker">Accountability circle</div>
@@ -223,7 +277,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
 
       {onOpenStudyTable && (
         <button
-          onClick={onOpenStudyTable}
+          onClick={openTableWithCharacterGate}
           className="group relative mb-8 block w-full overflow-hidden rounded-[1.8rem] border border-[#f6e3ba]/25 text-left shadow-[0_20px_80px_rgba(0,0,0,.5)] transition hover:border-[#f6e3ba]/50"
         >
           <div className="relative h-44 overflow-hidden sm:h-56">
@@ -259,6 +313,26 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
           </div>
         </button>
       )}
+
+      <div className="surface mb-4 flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#f6e3ba]/20 bg-gradient-to-b from-[#f6e3ba]/10 to-transparent">
+            <CharacterPortrait character={currentCharacter} className="h-full w-full" />
+          </div>
+          <div>
+            <div className="page-kicker">Your character</div>
+            <div className="mt-0.5 text-sm font-bold text-stone-100">{characterLabel(currentCharacter)} at the table</div>
+            <div className="mt-0.5 text-xs text-stone-500">Your friends see the character you choose here.</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={openCharacterPicker}
+          className="shrink-0 rounded-xl border border-white/[.09] bg-white/[.03] px-4 py-2.5 text-xs font-bold text-stone-200 transition hover:border-white/20 hover:bg-white/[.06]"
+        >
+          Change your character
+        </button>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
       <div className="surface mb-2 p-5 sm:p-6 lg:mb-8">
@@ -336,10 +410,15 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       {loading ? (
         <div className="text-slate-500 text-sm animate-pulse-soft">Loading friends…</div>
       ) : friends.length === 0 ? (
-        <div className="surface-soft flex min-h-48 flex-col items-center justify-center px-6 text-center text-slate-500">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[.04]"><Users className="h-5 w-5 text-stone-600" /></div>
-          <div className="text-sm font-semibold text-stone-400">Your circle is quiet</div>
-          <div className="mt-1 text-xs">Add someone with their code above.</div>
+        <div className="surface-soft relative flex min-h-52 flex-col items-center justify-center overflow-hidden px-6 py-10 text-center">
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#f6e3ba]/35 to-transparent" />
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f6e3ba]/20 bg-[#f6e3ba]/[.06] shadow-[0_0_40px_rgba(246,227,186,.08)]">
+            <Users className="h-5 w-5 text-[#f6e3ba]" />
+          </div>
+          <div className="font-display text-base font-bold text-stone-200">Your table is waiting</div>
+          <div className="mt-1.5 max-w-xs text-xs leading-5 text-stone-500">
+            Add a friend with their code above. Their seat fills the moment they join your circle.
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -395,6 +474,18 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
             );
           })}
         </div>
+      )}
+
+      {pickerOpen && (
+        <CharacterPicker
+          mode={pickerMode}
+          value={selectedCharacter}
+          onChange={setSelectedCharacter}
+          onConfirm={confirmCharacter}
+          onDismiss={dismissCharacterPicker}
+          saving={savingCharacter}
+          error={characterError}
+        />
       )}
 
       {removeTarget && (

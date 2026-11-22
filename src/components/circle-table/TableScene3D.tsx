@@ -11,6 +11,7 @@ import {
   useTextureLoader,
 } from '@/components/focus-visuals/model-core';
 import { getDeviceQuality } from '@/lib/devicePerf';
+import { resolveAvatarCharacter } from '@/lib/character';
 import Books from './Books';
 import Chairs from './Chairs';
 import OpenBooks from './OpenBooks';
@@ -189,6 +190,8 @@ function CanvasSizeFix({ wrapRef }: { wrapRef: React.RefObject<HTMLDivElement | 
 }
 
 export default function TableScene3D({
+  self,
+  friends = [],
   transform = DEFAULT_TABLE_TRANSFORM,
   chairs = [],
   characterTransforms,
@@ -244,6 +247,64 @@ export default function TableScene3D({
   // Stable ref for the mobile-only size fix (layout-dims measurement).
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
+  /*
+   * Seat contract (matches the 2D scene): seat 0 is you, seats 1-5 are friends
+   * in their stable sorted order. Presence decides whether a seat is occupied:
+   *   offline      -> empty chair, no character
+   *   focusing     -> character seated, open book
+   *   idle/paused  -> character seated, closed book
+   * The character comes from the occupant's own saved profile choice, never the
+   * viewer's, so friends always see each other's real avatar.
+   */
+  const occupancy = useMemo(() => {
+    const seats: { index: number; occupant: SeatOccupant }[] = [];
+    if (self) seats.push({ index: 0, occupant: self });
+    for (const friend of friends) {
+      if (seats.length >= 6) break;
+      seats.push({ index: seats.length, occupant: friend });
+    }
+    return seats;
+  }, [self, friends]);
+
+  const presentSeats = occupancy.filter((seat) => seat.occupant.status !== 'offline');
+  const focusingSeats = presentSeats.filter((seat) => seat.occupant.status === 'focusing');
+  const idleSeats = presentSeats.filter((seat) => seat.occupant.status !== 'focusing');
+  const absentFriendSeats = occupancy.filter(
+    (seat) => seat.index > 0 && seat.occupant.status === 'offline',
+  );
+
+  const pick = <T,>(items: (T | undefined)[]): T[] =>
+    items.filter((item): item is T => item !== undefined);
+
+  // One character model per PRESENT seat, using that seat's transform for the
+  // occupant's chosen character. Absent seats contribute nothing.
+  const boySeatTransforms = charactersVisible
+    ? pick(
+        presentSeats
+          .filter((seat) => resolveAvatarCharacter(seat.occupant.avatarCharacter) === 'boy')
+          .map((seat) => characterTransforms?.[seat.index]),
+      )
+    : [];
+  const girlSeatTransforms = charactersVisible
+    ? pick(
+        presentSeats
+          .filter((seat) => resolveAvatarCharacter(seat.occupant.avatarCharacter) === 'girl')
+          .map((seat) => girlTransforms?.[seat.index]),
+      )
+    : [];
+
+  // Open book only while focusing; present-but-idle/paused gets the closed book.
+  const openBookSeats = pick(focusingSeats.map((seat) => openBookTransforms?.[seat.index]));
+  const closedBookSeats = booksVisible
+    ? pick(idleSeats.map((seat) => bookTransforms?.[seat.index]))
+    : [];
+
+  // Only assigned friend seats that are offline show an empty chair. Unassigned
+  // seats stay hidden exactly as before, so a full table looks unchanged.
+  const emptyChairSeats = chairsVisible
+    ? pick(absentFriendSeats.map((seat) => chairs[seat.index]))
+    : [];
+
   const error = modelError ?? textureError;
 
   if (error) {
@@ -285,34 +346,30 @@ export default function TableScene3D({
 
         <TableModel model={model} texture={texture} transform={transform} spin={spin} />
         <ChairOrbit enabled={spin} center={[transform.positionX, transform.positionZ]}>
-          <group visible={chairsVisible}>
-            <Chairs transforms={chairs} origin={[transform.positionX, transform.positionZ]} />
-          </group>
-          <group visible={charactersVisible}>
-            {characterTransforms ? (
-              <SittingCharacter
-                transforms={characterTransforms}
-                origin={[transform.positionX, transform.positionZ]}
-              />
-            ) : null}
-          </group>
-          {girlTransforms ? (
-            <SittingGirl
-              transforms={girlTransforms}
+          {emptyChairSeats.length > 0 ? (
+            <Chairs transforms={emptyChairSeats} origin={[transform.positionX, transform.positionZ]} />
+          ) : null}
+          {boySeatTransforms.length > 0 ? (
+            <SittingCharacter
+              transforms={boySeatTransforms}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}
-          <group visible={booksVisible}>
-            {bookTransforms ? (
-              <Books
-                transforms={bookTransforms}
-                origin={[transform.positionX, transform.positionZ]}
-              />
-            ) : null}
-          </group>
-          {openBookTransforms ? (
+          {girlSeatTransforms.length > 0 ? (
+            <SittingGirl
+              transforms={girlSeatTransforms}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
+          {closedBookSeats.length > 0 ? (
+            <Books
+              transforms={closedBookSeats}
+              origin={[transform.positionX, transform.positionZ]}
+            />
+          ) : null}
+          {openBookSeats.length > 0 ? (
             <OpenBooks
-              transforms={openBookTransforms}
+              transforms={openBookSeats}
               origin={[transform.positionX, transform.positionZ]}
             />
           ) : null}

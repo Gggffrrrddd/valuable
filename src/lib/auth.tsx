@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { RESTRICTION_ENABLED, RESTRICTION_MESSAGE, isAllowedUser } from './restriction';
-import type { Profile } from '../types';
+import type { AvatarCharacter, Profile } from '../types';
 
 interface AuthContextValue {
   session: Session | null;
@@ -12,6 +12,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateAvatarCharacter: (character: AvatarCharacter) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -153,8 +154,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) await loadProfile(session.user.id);
   }
 
+  async function updateAvatarCharacter(character: AvatarCharacter) {
+    if (!session) return { error: 'Not signed in' };
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_character: character, character_chosen: true })
+      .eq('id', session.user.id);
+    if (error) return { error: error.message };
+    await loadProfile(session.user.id);
+    return { error: null };
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ session, profile, loading, signUp, signIn, signOut, refreshProfile, updateAvatarCharacter }}>
       {children}
     </AuthContext.Provider>
   );

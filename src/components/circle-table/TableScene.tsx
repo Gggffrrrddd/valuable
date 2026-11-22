@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import SeatOverlay from './SeatOverlay';
 import { SCENE, SEATS } from './tableConfig';
 import type { CirclePresenceStatus } from '@/lib/presence';
+import type { AvatarCharacter } from '@/types';
 
 export interface SeatOccupant {
   id: string;
   name: string;
   status: CirclePresenceStatus;
+  /** The occupant's own saved character choice. Missing values mean 'boy'. */
+  avatarCharacter?: AvatarCharacter;
 }
 
 interface TableSceneProps {

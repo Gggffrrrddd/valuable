@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchCirclePresence, type CirclePresenceStatus } from '@/lib/presence';
 import { readLocalFocusState, type LocalFocusState } from '@/lib/localSession';
+import { resolveAvatarCharacter } from '@/lib/character';
 import TableScene3D, { type SeatOccupant } from '@/components/circle-table/TableScene3D';
 import {
   DEFAULT_TABLE_TRANSFORM,
@@ -66,11 +67,12 @@ const CHAIR_SEATS = replicateChairs(CHAIR_REFERENCE, TABLE_CENTER);
 const GIRL_CHAIRS = replicateChairs(GIRL_REFERENCE, TABLE_CENTER);
 
 /**
- * Seat order around the table: boy, girl, boy, girl, boy, girl.
- * Empty chairs stay mounted but hidden (chairsVisible defaults to false).
+ * Transform per seat for each character. The scene picks the array that matches
+ * the occupant's own saved choice, so a friend's character is never inferred
+ * from the viewer's preference or from the seat position.
  */
-const SEAT_BOYS = [CHARACTER_CHAIRS[0], CHARACTER_CHAIRS[2], CHARACTER_CHAIRS[4]];
-const SEAT_GIRLS = [GIRL_CHAIRS[1], GIRL_CHAIRS[3], GIRL_CHAIRS[5]];
+const SEAT_BOYS = CHARACTER_CHAIRS;
+const SEAT_GIRLS = GIRL_CHAIRS;
 
 /** Final hand-tuned books, one per seat (values captured from the live tuner). */
 const BOOK_TRANSFORMS: ObjectTransform[] = [
@@ -196,6 +198,7 @@ interface StudyTableScreenProps {
 interface CircleFriend {
   id: string;
   display_name: string;
+  avatar_character?: string | null;
 }
 
 async function fetchCircleFriends(userId: string): Promise<CircleFriend[]> {
@@ -211,9 +214,18 @@ async function fetchCircleFriends(userId: string): Promise<CircleFriend[]> {
 
   const { data: profiles, error: pErr } = await supabase
     .from('profiles')
-    .select('id, display_name')
+    .select('id, display_name, avatar_character')
     .in('id', ids);
-  if (pErr) throw pErr;
+  if (pErr) {
+    // Migration not applied yet: still show real friends with the default
+    // character instead of emptying the whole circle.
+    const { data: fallback, error: fErr } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .in('id', ids);
+    if (fErr) throw fErr;
+    return ((fallback || []) as CircleFriend[]).sort((a, b) => a.id.localeCompare(b.id));
+  }
   // Deterministic order keeps friends in stable seats across polls/reloads.
   return ((profiles || []) as CircleFriend[]).sort((a, b) => a.id.localeCompare(b.id));
 }
@@ -251,8 +263,18 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
     let cancelled = false;
     const tick = async () => {
       if (document.hidden) return;
-      const result = await fetchCirclePresence(ids);
-      if (!cancelled) setStatuses(result);
+      const [result, latestFriends] = await Promise.all([
+        fetchCirclePresence(ids),
+        session
+          ? fetchCircleFriends(session.user.id).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (!cancelled) {
+        setStatuses(result);
+        // Refresh profiles too: a friend may change character while this table
+        // is open, and everyone should see the new avatar on the next poll.
+        if (latestFriends) setFriends(latestFriends);
+      }
     };
     void tick();
     const timer = setInterval(() => void tick(), POLL_MS);
@@ -265,7 +287,7 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [friendIdsKey]);
+  }, [friendIdsKey, session]);
 
   // Own seat mirrors the local session state driving the flip-clock — never polled.
   useEffect(() => {
@@ -285,6 +307,7 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
     id: 'self',
     name: profile?.display_name || 'You',
     status: OWN_STATUS_BY_STATE[ownState],
+    avatarCharacter: resolveAvatarCharacter(profile?.avatar_character),
   };
 
   // Immersive table: hide the phone's own system bars while the landscape
@@ -320,6 +343,7 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
     id: f.id,
     name: f.display_name,
     status: statuses[f.id] ?? 'offline',
+    avatarCharacter: resolveAvatarCharacter(f.avatar_character),
   }));
 
   const counts = useMemo(() => {
@@ -346,6 +370,8 @@ export default function StudyTableScreen({ onBack, backLabel = 'Circle' }: Study
           openBookTransforms={openBookTransforms}
           plantTransforms={[PLANT_TRANSFORM]}
           penHolderTransforms={PEN_HOLDER_TRANSFORMS}
+          chairsVisible
+          booksVisible
           charactersVisible
           spin
         />

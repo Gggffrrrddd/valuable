@@ -1,9 +1,15 @@
+export type AvatarCharacter = 'boy' | 'girl';
+
 export interface Profile {
   id: string;
   display_name: string;
   friend_code: string;
   is_premium: boolean;
   premium_expires_at: string | null;
+  /** Which 3D character the user appears as at the circle table. Always set. */
+  avatar_character: AvatarCharacter;
+  /** False until the first-time character picker has been resolved. */
+  character_chosen: boolean;
   created_at: string;
 }
 
