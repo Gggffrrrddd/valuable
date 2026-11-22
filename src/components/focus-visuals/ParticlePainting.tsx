@@ -83,10 +83,10 @@ const PAINTINGS = [
 const PAINT_INDEX_KEY = 'valuable-particle-painting-index';
 
 const COUNT_DESKTOP = 2400;
-const COUNT_MOBILE  = 1600;
+const COUNT_MOBILE  = 1200;
 /** The mobile stage is scaled down, so match desktop's on-screen particle
  *  size/motion by boosting the stage-space values a little. */
-const MOBILE_PARTICLE_BOOST = 1.35;
+const MOBILE_PARTICLE_BOOST = 1.4;
 // Small, weak stamps: full coverage needs nearly ALL particles,
 // so the reveal stays gradual across the whole session instead of
 // saturating white after the first few hundred landings.
@@ -129,10 +129,10 @@ function spawn(W: number, H: number, boost = 1): Dot {
   return {
     x: rng(0, W), y: rng(0, H),
     vx: rng(-0.25, 0.25) * boost, vy: rng(-0.18, 0.1) * boost,
-    r: rng(0.6, 1.6) * boost,
+    r: rng(0.35, 0.9) * boost,
     a: 0, ba: rng(0.25, 0.7),
     cr, cg, cb,
-    glow: rng(2.5, 5) * boost,
+    glow: rng(1.6, 2.8) * boost,
     phase: 0,
     tx: 0, ty: 0,
     age: Math.floor(rng(0, 500)),
