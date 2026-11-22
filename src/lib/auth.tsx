@@ -1,18 +1,25 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { RESTRICTION_ENABLED, RESTRICTION_MESSAGE, isAllowedUser } from './restriction';
 import type { AvatarCharacter, Profile } from '../types';
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, displayName: string) => Promise<AuthResult>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  verifyEmailCode: (email: string, token: string) => Promise<AuthResult>;
+  resendVerification: (email: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateAvatarCharacter: (character: AvatarCharacter) => Promise<{ error: string | null }>;
+}
+
+interface AuthResult {
+  error: string | null;
+  /** True when Supabase sent a code and the user must verify before signing in. */
+  needsVerification?: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -103,45 +110,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signUp(email: string, password: string, displayName: string) {
-    if (!isAllowedUser(displayName)) {
-      return { error: RESTRICTION_MESSAGE };
-    }
+  async function signUp(email: string, password: string, displayName: string): Promise<AuthResult> {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName } },
     });
     if (error) return { error: error.message };
-    if (data.user) {
-      await loadProfile(data.user.id);
+    // Supabase returns an empty identities array when the email already exists.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: 'An account with this email already exists. Sign in instead.' };
     }
-    return { error: null };
+    if (data.session) {
+      if (data.user) await loadProfile(data.user.id);
+      return { error: null, needsVerification: false };
+    }
+    // Email confirmation is on: no session until the code is verified.
+    return { error: null, needsVerification: true };
   }
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string): Promise<AuthResult> {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (error.message.toLowerCase().includes('invalid login credentials')) {
-        return { error: 'Email or password is incorrect. If you just signed up, confirm your email first.' };
+      const message = error.message.toLowerCase();
+      if (message.includes('email not confirmed')) {
+        return {
+          error: 'Your email is not verified yet. Enter the code we sent to your inbox.',
+          needsVerification: true,
+        };
       }
-      if (error.message.toLowerCase().includes('email not confirmed')) {
-        return { error: 'Confirm your email from the Supabase verification message, then sign in.' };
+      if (message.includes('invalid login credentials')) {
+        return { error: 'Email or password is incorrect.' };
       }
       return { error: error.message };
     }
-    // Owner-only gate: sign in succeeds only for the allowed username.
-    if (RESTRICTION_ENABLED && data.user) {
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('id', data.user.id)
-        .maybeSingle();
-      if (!isAllowedUser(prof?.display_name)) {
-        await supabase.auth.signOut();
-        return { error: RESTRICTION_MESSAGE };
-      }
-    }
+    if (data.user) await loadProfile(data.user.id);
+    return { error: null };
+  }
+
+  async function verifyEmailCode(email: string, token: string): Promise<AuthResult> {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: token.trim(),
+      type: 'signup',
+    });
+    if (error) return { error: error.message };
+    if (data.session?.user) await loadProfile(data.session.user.id);
+    return { error: null };
+  }
+
+  async function resendVerification(email: string): Promise<AuthResult> {
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) return { error: error.message };
     return { error: null };
   }
 
@@ -166,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signUp, signIn, signOut, refreshProfile, updateAvatarCharacter }}>
+    <AuthContext.Provider value={{ session, profile, loading, signUp, signIn, verifyEmailCode, resendVerification, signOut, refreshProfile, updateAvatarCharacter }}>
       {children}
     </AuthContext.Provider>
   );

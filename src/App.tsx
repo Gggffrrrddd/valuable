@@ -11,8 +11,6 @@ import PremiumScreen from '@/screens/PremiumScreen';
 import FriendsScreen from '@/screens/FriendsScreen';
 import StudyTableScreen from '@/screens/StudyTableScreen';
 import CompeteScreen from '@/screens/CompeteScreen';
-import RestrictedScreen from '@/screens/RestrictedScreen';
-import { isAllowedUser } from '@/lib/restriction';
 import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, TreePine, MoreVertical, Download, Check } from 'lucide-react';
 
 type Tab = 'home' | 'stats' | 'compete' | 'friends';
@@ -206,10 +204,6 @@ function AppContent() {
     return <AuthScreen />;
   }
 
-  // Owner-only gate: any signed-in non-owner sees the restriction screen.
-  if (!isAllowedUser(profile.display_name)) {
-    return <RestrictedScreen />;
-  }
 
   async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number, delayNavigation: boolean = false) {
     const doNavigate = () => {
