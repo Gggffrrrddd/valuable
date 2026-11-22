@@ -209,7 +209,9 @@ async function fetchCircleFriends(userId: string): Promise<CircleFriend[]> {
     .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
   if (error) throw error;
 
-  const ids = (friendships || []).map((f) => (f.user_id === userId ? f.friend_id : f.user_id));
+  const ids = Array.from(
+    new Set((friendships || []).map((f) => (f.user_id === userId ? f.friend_id : f.user_id)))
+  );
   if (ids.length === 0) return [];
 
   const { data: profiles, error: pErr } = await supabase

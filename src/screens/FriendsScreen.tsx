@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fetchFriendStat, type FriendStat } from '@/lib/stats';
@@ -20,6 +20,16 @@ interface FriendRequest {
   created_at: string;
 }
 
+/** One request per other user, even if legacy duplicate rows exist. */
+function dedupeRequests(list: FriendRequest[]): FriendRequest[] {
+  const seen = new Set<string>();
+  return list.filter((r) => {
+    if (seen.has(r.other_id)) return false;
+    seen.add(r.other_id);
+    return true;
+  });
+}
+
 export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
   const { profile, session, updateAvatarCharacter } = useAuth();
   const [codeInput, setCodeInput] = useState('');
@@ -39,12 +49,14 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [selectedCharacter, setSelectedCharacter] = useState<AvatarCharacter>('boy');
   const [savingCharacter, setSavingCharacter] = useState(false);
   const [characterError, setCharacterError] = useState<string | null>(null);
+  const loadSeqRef = useRef(0);
 
   const currentCharacter = resolveAvatarCharacter(profile?.avatar_character);
 
 
   const loadFriends = useCallback(async (silent = false) => {
     if (!session) return;
+    const seq = ++loadSeqRef.current;
     if (!silent) setLoading(true);
     try {
       const { data: friendships, error: fErr } = await supabase
@@ -52,25 +64,34 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         .select('id, user_id, friend_id, status')
         .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
       if (fErr) throw fErr;
+      if (seq !== loadSeqRef.current) return;
 
       const accepted = (friendships || []).filter((f) => f.status === 'accepted');
-      const friendIds = accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id));
+      // Dedupe by the other user's id: legacy reciprocal rows must never show
+      // the same friend twice, and the count must match the rendered cards.
+      const friendIds = Array.from(
+        new Set(accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id)))
+      );
       const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
       const stats = await Promise.all(statsPromises);
+      if (seq !== loadSeqRef.current) return;
       setFriends(stats.filter((s): s is FriendStat => s !== null));
 
       // RPC (not profiles): the sender is not an accepted friend yet, so the
       // profiles RLS policy would hide the row needed by the request card.
       const { data: requestRows, error: reqErr } = await supabase.rpc('list_my_friend_requests');
       if (reqErr) throw reqErr;
+      if (seq !== loadSeqRef.current) return;
       const requests = (requestRows || []) as FriendRequest[];
-      setIncomingRequests(requests.filter((r) => r.direction === 'incoming'));
-      setOutgoingRequests(requests.filter((r) => r.direction === 'outgoing'));
+      setIncomingRequests(dedupeRequests(requests.filter((r) => r.direction === 'incoming')));
+      setOutgoingRequests(dedupeRequests(requests.filter((r) => r.direction === 'outgoing')));
     } catch (e) {
       console.error('Friends load error:', e);
     } finally {
-      if (!silent) setLoading(false);
-      setLastRefresh(new Date());
+      if (seq === loadSeqRef.current) {
+        if (!silent) setLoading(false);
+        setLastRefresh(new Date());
+      }
     }
   }, [session]);
 
@@ -135,8 +156,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         );
       if (exErr) throw exErr;
       const rows = existing ?? [];
-      const ownRow = rows.find((f) => f.user_id === session.user.id);
-      const reverseRow = rows.find((f) => f.user_id === target.profile_id);
+      const ownPending = rows.find(
+        (f) => f.user_id === session.user.id && f.status === 'pending'
+      );
+      const incomingPending = rows.find(
+        (f) => f.user_id === target.profile_id && f.status === 'pending'
+      );
 
       if (rows.some((f) => f.status === 'accepted')) {
         setError('Already in your circle.');
@@ -148,12 +173,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         setAdding(false);
         return;
       }
-      if (ownRow?.status === 'pending') {
-        // Both users asked each other: accept the incoming half atomically,
-        // which also converts our outgoing half to accepted.
-        if (reverseRow?.status === 'pending') {
+      if (ownPending) {
+        // Legacy data could still have both directions pending. Accept the
+        // incoming half; otherwise this is simply an already-sent request.
+        if (incomingPending) {
           const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
-            p_request_id: reverseRow.id,
+            p_request_id: incomingPending.id,
           });
           if (acceptErr) throw acceptErr;
           setCodeInput('');
@@ -165,6 +190,18 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         return;
       }
 
+      // They already requested us: adding their code accepts that request.
+      // Do not insert a reciprocal row; one unordered pair = one row.
+      if (incomingPending) {
+        const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
+          p_request_id: incomingPending.id,
+        });
+        if (acceptErr) throw acceptErr;
+        setCodeInput('');
+        await loadFriends(true);
+        return;
+      }
+
       const { error: insErr } = await supabase.from('friendships').insert({
         user_id: session.user.id,
         friend_id: target.profile_id,
@@ -172,21 +209,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       });
       if (insErr) {
         if (insErr.code === '23505') {
-          setError('Already in your circle.');
+          setError('Already added or requested.');
         } else {
           throw insErr;
         }
         setAdding(false);
         return;
-      }
-
-      // They had already requested us: accept their incoming request, which
-      // creates the reciprocal accepted row as well.
-      if (reverseRow?.status === 'pending') {
-        const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
-          p_request_id: reverseRow.id,
-        });
-        if (acceptErr) throw acceptErr;
       }
 
       setCodeInput('');
@@ -274,6 +302,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
 
   async function handleRemoveFriend(f: FriendStat) {
     setRemoving(true);
+    const snapshot = friends;
+    // Invalidate any in-flight poll so it cannot restore the removed card.
+    loadSeqRef.current += 1;
+    setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
     try {
       if (session) {
         const myId = session.user.id;
@@ -284,8 +316,9 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
           .or(`and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`);
         if (delErr) throw delErr;
       }
-      setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
+      await loadFriends(true);
     } catch (e) {
+      setFriends(snapshot);
       setError(e instanceof Error ? e.message : 'Could not remove friend');
     } finally {
       setRemoving(false);
@@ -649,7 +682,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
           >
             <h3 className="font-display text-base font-bold text-white">Remove friend?</h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Do you really want to remove{' '}
+              Remove{' '}
               <span className="font-bold text-slate-200">{removeTarget.profile.display_name}</span> from your
               circle?
             </p>
