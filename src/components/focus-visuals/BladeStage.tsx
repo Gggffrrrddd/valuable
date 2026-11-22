@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import BladeLetterboxParticles from './BladeLetterboxParticles';
-import { paintRectFor } from './ParticlePainting';
 
 /**
  * Fixed-aspect landscape stage for the Particle Painting (mobile
@@ -147,29 +145,19 @@ export default function BladeStage({
   }, [enabled]);
 
   const active = enabled && fit !== null;
-  const letterbox = active && fit ? (fit.left > 0.5 || fit.top > 0.5) : false;
-  const easel = active ? paintRectFor(BL_STAGE_W, BL_STAGE_H) : null;
 
   return (
-    <>
-      <div
-        ref={ref}
-        className={active ? 'bl-stage' : 'contents'}
-        style={
-          active && fit
-            ? { left: fit.left, top: fit.top, transform: `scale(${fit.scale})` }
-            : undefined
-        }
-      >
-        {active && <BladeBackdrop />}
-        {children}
-      </div>
-      {active && fit && letterbox && easel && (
-        <BladeLetterboxParticles
-          stage={{ left: fit.left, top: fit.top, scale: fit.scale }}
-          easel={easel}
-        />
-      )}
-    </>
+    <div
+      ref={ref}
+      className={active ? 'bl-stage' : 'contents'}
+      style={
+        active && fit
+          ? { left: fit.left, top: fit.top, transform: `scale(${fit.scale})` }
+          : undefined
+      }
+    >
+      {active && <BladeBackdrop />}
+      {children}
+    </div>
   );
 }
