@@ -6,6 +6,7 @@ import HourglassStage, { useHgLocked } from '@/components/focus-visuals/Hourglas
 import JarVisual from '@/components/focus-visuals/JarVisual';
 import JarStage from '@/components/focus-visuals/JarStage';
 import TreeStage from '@/components/focus-visuals/TreeStage';
+import BladeStage from '@/components/focus-visuals/BladeStage';
 import CloudRain from '@/components/focus-visuals/CloudRain';
 import TankLife from '@/components/focus-visuals/TankLife';
 import GardenVisual from '@/components/focus-visuals/GardenVisual';
@@ -517,6 +518,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                   <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />
                   <FocusVisual theme="tree" progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={selectedLeaf} depth={SOLAR_DEPTH} />
                 </TreeStage>
+              ) : visualTheme === 'blade' ? (
+                <BladeStage enabled>
+                  <FocusVisual theme="blade" progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} depth={SOLAR_DEPTH} />
+                </BladeStage>
               ) : (
                 <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} depth={SOLAR_DEPTH} />
               )}

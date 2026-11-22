@@ -2015,6 +2015,30 @@ button .butterfly-constellation {
     max-width: none !important;
     display: block !important;
   }
+  /* Fixed 1366×768 stage (contain-fit, same pattern as JarStage). Overflow
+     stays visible so the easel image's edge strips can fill the letterbox. */
+  .bd-sim .bl-stage {
+    position: absolute;
+    width: 1366px;
+    height: 768px;
+    transform-origin: 0 0;
+    container-type: size;
+    overflow: visible;
+    pointer-events: none;
+  }
+  /* Fade the particle canvas at the stage edges so floating dots are not
+     hard-cut where the letterbox strips begin. The base image itself stays
+     crisp: its edge pixels continue into the strips. */
+  .bd-sim .bl-stage canvas {
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+    mask-composite: intersect;
+  }
   /* Flip clock overlaid on the right side (same position as desktop). */
   .bd-sim .blade-focus-layout > div:last-child {
     position: absolute !important;
