@@ -34,6 +34,8 @@ import type { CompeteGoal } from '@/types';
 
 /** Stores the one-time guided-tour flag when the DB column is unavailable. */
 const TOUR_SEEN_KEY = 'valuable.compete-tour-seen.v1';
+/** The clip's full-bloom frame lives at 97%, not the very last frame. */
+const TREE_PROGRESS_END = 0.97;
 
 /** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -362,6 +364,9 @@ export default function CompeteScreen() {
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   const progress = autoProgress;
+  // The tracker reports true 0–100%; the tree stops on its full-bloom frame
+  // at 97% so the final 3% of the clip is never shown.
+  const treeProgress = autoProgress * TREE_PROGRESS_END;
   const complete = autoProgress >= 1;
   const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
@@ -378,7 +383,7 @@ export default function CompeteScreen() {
 
       {/* Mobile portrait: video + soil shifted down to touch the nav */}
       <div className="compete-tree-stage absolute inset-0" data-tour="tree">
-        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={progress} />
+        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={treeProgress} />
         <SoilOverlay transform={soilTune} />
       </div>
 
