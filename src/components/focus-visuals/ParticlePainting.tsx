@@ -83,7 +83,7 @@ const PAINTINGS = [
 const PAINT_INDEX_KEY = 'valuable-particle-painting-index';
 
 const COUNT_DESKTOP = 2400;
-const COUNT_MOBILE  = 2400;
+const COUNT_MOBILE  = 1600;
 /** The mobile stage is scaled down, so match desktop's on-screen particle
  *  size/motion by boosting the stage-space values a little. */
 const MOBILE_PARTICLE_BOOST = 1.35;
