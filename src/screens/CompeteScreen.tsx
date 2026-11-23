@@ -338,10 +338,6 @@ export default function CompeteScreen() {
   const treeProgress = FORCE_FULL_BLOOM
     ? TREE_PROGRESS_END
     : autoProgress * TREE_PROGRESS_END;
-  const todayHours = (todayMinutes / 60).toFixed(1);
-  const targetHoursLabel = String(Number(goal.daily_target_hours));
-  const minutesToGoal = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
-
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
   // mobile wraps it in the fixed portrait stage below).
@@ -367,25 +363,8 @@ export default function CompeteScreen() {
               ?
             </button>
           </div>
-          <div className="rounded-[0.8rem] border border-white/[.08] bg-white/[.03] px-2.5 py-2">
-            <div className="flex items-baseline gap-1">
-              <span className="font-display text-[20px] font-extrabold leading-none text-stone-100">
-                {todayHours}
-              </span>
-              <span className="text-[10px] font-semibold text-stone-500">/ {targetHoursLabel}h</span>
-            </div>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-[#f6e3ba]"
-                style={{ width: `${Math.min(100, autoProgress * 100)}%` }}
-              />
-            </div>
-            <div className="mt-1 text-[8px] leading-tight text-stone-500">
-              {minutesToGoal > 0 ? `${minutesToGoal}m to full bloom` : 'Full bloom reached'} · resets at midnight
-            </div>
-          </div>
           <div
-            className="mt-1.5 overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
+            className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
           >
             <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
