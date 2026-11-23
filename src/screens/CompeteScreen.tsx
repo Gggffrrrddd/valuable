@@ -2,17 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Sprout, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import TreeVideo from '@/components/compete/TreeVideo';
-import SoilOverlay from '@/components/compete/SoilOverlay';
+import TreeScene from '@/components/compete/TreeScene';
 import DreamPicker from '@/components/compete/DreamPicker';
 import PlacementTuner from '@/components/compete/PlacementTuner';
 import GoalHeatmap from '@/components/compete/GoalHeatmap';
 import CompeteTour from '@/components/compete/CompeteTour';
 import CompeteHelp from '@/components/compete/CompeteHelp';
 import {
-  DEFAULT_VIDEO_TRANSFORM,
-  DEFAULT_IMAGE_TRANSFORM,
-  DEFAULT_VIDEO_MASK,
   DEFAULT_DREAM_STRETCH,
   DEFAULT_RING,
   type PlacementTransform,
@@ -53,20 +49,6 @@ const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
  *  in this box; the box itself is contain-fit scaled, never re-authored. */
 const FIT_W = 405;
 const FIT_H = 855;
-/**
- * Soil-overlay placement, mirrored from the mobile CSS
- * (.compete-tree-stage > img: translate(-1%, 33%) scale(1.14) on the
- * 1672×940 overlay inside the 405×855 stage). The uniform scale is
- * 1.14 * FIT_W / 1672 stage-px per image-px, the image origin lands at
- * (-32.4, 579.86) stage-px, and the mound's solid top at the stage sides
- * sits at y≈719. Used only to continue the ground into the side gutters.
- */
-const SOIL_IMG_W = 1672;
-const SOIL_IMG_H = 940;
-const SOIL_STAGE_PX_PER_IMG = (1.14 * FIT_W) / SOIL_IMG_W;
-const SOIL_ORIGIN_X = -32.4;
-const SOIL_ORIGIN_Y = 579.86;
-const SOIL_TOP_STAGE = 719;
 const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
   { x: -146, y: 722, zoom: 1.5 },
   { x: -2, y: 562, zoom: 1.6 },
@@ -84,11 +66,11 @@ const SHOW_DREAM_XY_TUNER = false;
  *   bare seedling, over a static soil overlay.
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement stays hardcoded; tree progress comes from
- *   today's tracked focus vs the goal's daily target. Small Today's-tree
- *   card sits top-left, hardcoded to 84% size, with a small "See overall
- *   tracker" text link under it that opens the growth-calendar module
- *   (overlay, not a page). Heatmap inline + other tuner panels stay hidden;
- *   dream circles are flat photo circles with a premium gold ring
+ *   today's tracked focus vs the goal's daily target. The Today's-tree card
+ *   sits top-left and embeds the complete scene at 16:9, with a small
+ *   "See overall tracker" text link under it that opens the growth-calendar
+ *   module (overlay, not a page). Heatmap inline + other tuner panels stay
+ *   hidden; dream circles are flat photo circles with a premium gold ring
  *   (hardcoded 0.55) + rose-pink glow.
  */
 export default function CompeteScreen() {
@@ -103,8 +85,6 @@ export default function CompeteScreen() {
     null,
   );
   const tourAutoRef = useRef(false);
-  const treeTune: PlacementTransform = DEFAULT_VIDEO_TRANSFORM;
-  const soilTune: PlacementTransform = DEFAULT_IMAGE_TRANSFORM;
   // Measure via callback ref (not useEffect+ref-object): it fires synchronously
   // on DOM attach/detach, so measurement can never run against a missing node
   // no matter the mount/branch-switch timing.
@@ -363,12 +343,8 @@ export default function CompeteScreen() {
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
-  const progress = autoProgress;
-  // The tracker reports true 0–100%; the tree stops on its full-bloom frame
-  // at 97% so the final 3% of the clip is never shown.
+  // The tree stops on its full-bloom frame at 97%, not the final clip frame.
   const treeProgress = autoProgress * TREE_PROGRESS_END;
-  const complete = autoProgress >= 1;
-  const remaining = Math.max(0, Math.ceil(targetMinutes - todayMinutes));
 
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
@@ -381,20 +357,13 @@ export default function CompeteScreen() {
         Grow your <span className="text-[#c5ff54]">tree</span> every day
       </div>
 
-      {/* Mobile portrait: video + soil shifted down to touch the nav */}
-      <div className="compete-tree-stage absolute inset-0" data-tour="tree">
-        <TreeVideo transform={treeTune} mask={DEFAULT_VIDEO_MASK} progress={treeProgress} />
-        <SoilOverlay transform={soilTune} />
-      </div>
-
-      {/* Today's status (+ overall-tracker text link underneath) */}
+      {/* Today's tree: the full scene now lives inside this left card. */}
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
-        style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
         data-tour="tracker"
       >
-        <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-black/40 p-4 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2">
+        <div className="w-[240px] rounded-[1.2rem] border border-white/[.07] bg-black/40 p-2 backdrop-blur-xl lg:w-[360px]">
+          <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-0.5">
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
               Today's tree
             </div>
@@ -407,26 +376,17 @@ export default function CompeteScreen() {
               ?
             </button>
           </div>
-          <div className="mt-2 flex items-baseline gap-1.5 font-display text-3xl font-extrabold tracking-[-.03em] text-stone-50">
-            {(todayMinutes / 60).toFixed(1)}
-            <span className="text-base text-stone-500">/ {goal.daily_target_hours}h</span>
-          </div>
-          <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-lime-300 to-[#f6e3ba] transition-all duration-700"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
-          <div className="mt-2 text-[11px] leading-4 text-stone-500">
-            {complete
-              ? 'Fully grown — target met.'
-              : `${remaining}m to full bloom · resets at midnight`}
+          <div
+            className="overflow-hidden rounded-[0.95rem] border border-white/[.06] bg-[#090b0a]"
+            data-tour="tree"
+          >
+            <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
           </div>
         </div>
         <button
           type="button"
           onClick={() => setTrackerOpen(true)}
-          className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
+          className="mt-2 w-[240px] cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4 lg:w-[360px]"
         >
           See overall tracker
         </button>
@@ -564,14 +524,6 @@ export default function CompeteScreen() {
 
   // MOBILE: fixed portrait stage (405×855 contain-fit, centered). Same scene
   // markup inside — only the box is fixed, so nothing drifts per device.
-  const stageW = FIT_W * fitS;
-  const soilFillTop = fitOY + SOIL_TOP_STAGE * fitS;
-  // Crossfade the fill over the stage's outer 2% alpha fade (same 2% as the
-  // .compete-tree-stage mask) so fill + real soil sum back to a solid edge.
-  const soilFillFade = 0.02 * stageW;
-  const soilFillMask =
-    `linear-gradient(90deg, #000 0, #000 ${fitOX}px, transparent ${fitOX + soilFillFade}px,` +
-    ` transparent ${fitOX + stageW - soilFillFade}px, #000 ${fitOX + stageW}px, #000 100%)`;
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div ref={measureBox} className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
@@ -588,21 +540,6 @@ export default function CompeteScreen() {
         >
           {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
         </div>
-        {/* Side-gap ground fill: the soil overlay tiled at its own on-screen
-            scale (so the texture continues outward) and masked to the two
-            letterbox gaps; stops at the bottom nav's top. Additive only —
-            stage geometry untouched. */}
-        <div
-          aria-hidden="true"
-          className="compete-soil-fill"
-          style={{
-            top: soilFillTop,
-            backgroundSize: `${SOIL_IMG_W * SOIL_STAGE_PX_PER_IMG * fitS}px ${SOIL_IMG_H * SOIL_STAGE_PX_PER_IMG * fitS}px`,
-            backgroundPosition: `${fitOX + SOIL_ORIGIN_X * fitS}px ${(SOIL_ORIGIN_Y - SOIL_TOP_STAGE) * fitS}px`,
-            WebkitMaskImage: soilFillMask,
-            maskImage: soilFillMask,
-          }}
-        />
       </div>
       {renderTracker()}
       {renderOverlays()}
