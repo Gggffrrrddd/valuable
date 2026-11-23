@@ -412,33 +412,6 @@ export default function CompeteScreen() {
         onHelp={(anchor) => setHelp({ type: 'dreams', anchor })}
       />
 
-      {/* TEMPORARY — scrub the embedded tree without waiting for focus time. */}
-      <div className="compete-tree-preview absolute bottom-24 left-1/2 z-30 w-[min(88%,340px)] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/70 p-3 backdrop-blur-xl lg:bottom-6">
-        <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[.18em] text-stone-400">
-          <span>Tree preview</span>
-          <div className="flex items-center gap-2">
-            <span className="text-[#f6e3ba]">{previewLabel}%</span>
-            <button
-              type="button"
-              onClick={() => setPreviewPercent(null)}
-              className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] tracking-[.12em] text-stone-400 transition hover:border-[#f6e3ba]/40 hover:text-[#f6e3ba]"
-            >
-              Live
-            </button>
-          </div>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={previewLabel}
-          onChange={(e) => setPreviewPercent(Number(e.target.value))}
-          aria-label="Tree animation preview"
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#c5ff54]"
-        />
-      </div>
-
       {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/Zoom).
           Overlaps the plant; mobile only; hardcode + flip off when final. */}
       {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
@@ -543,6 +516,34 @@ export default function CompeteScreen() {
     </>
   );
 
+  const renderPreview = () => (
+    <div className="fixed bottom-24 right-4 z-[55] w-[min(88vw,340px)] rounded-2xl border border-[#f6e3ba]/20 bg-black/80 p-3 shadow-[0_16px_50px_rgba(0,0,0,.55)] backdrop-blur-xl lg:bottom-6">
+      <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[.18em] text-stone-400">
+        <span>Tree preview</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[#f6e3ba]">{previewLabel}%</span>
+          <button
+            type="button"
+            onClick={() => setPreviewPercent(null)}
+            className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] tracking-[.12em] text-stone-400 transition hover:border-[#f6e3ba]/40 hover:text-[#f6e3ba]"
+          >
+            Live
+          </button>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={previewLabel}
+        onChange={(e) => setPreviewPercent(Number(e.target.value))}
+        aria-label="Tree animation preview"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#c5ff54]"
+      />
+    </div>
+  );
+
   // DESKTOP: original layout byte-identical (untouched).
   if (!isMobileVp) {
     return (
@@ -551,6 +552,7 @@ export default function CompeteScreen() {
         <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
           {renderScene(dreamTune)}
         </div>
+        {renderPreview()}
         {renderTracker()}
         {renderOverlays()}
       </div>
@@ -576,6 +578,7 @@ export default function CompeteScreen() {
           {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
         </div>
       </div>
+      {renderPreview()}
       {renderTracker()}
       {renderOverlays()}
     </div>
