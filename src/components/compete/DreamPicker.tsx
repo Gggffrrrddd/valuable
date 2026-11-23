@@ -205,18 +205,7 @@ export default function DreamPicker({
       </div>
 
       <div className="compete-dreams-label" data-tour="dreams-label">
-        <span>Your dreams</span>
-        {images.length === 0 && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            aria-label="Add dream image"
-            className="compete-add-word"
-          >
-            Add
-          </button>
-        )}
+        <span>{images.length === 0 ? 'Add your dreams' : 'Your dreams'}</span>
         {onHelp && (
           <button
             type="button"
