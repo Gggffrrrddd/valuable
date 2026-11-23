@@ -33,6 +33,8 @@ import type { CompeteGoal } from '@/types';
 const TOUR_SEEN_KEY = 'valuable.compete-tour-seen.v1';
 /** The clip's full-bloom frame lives at 97%, not the very last frame. */
 const TREE_PROGRESS_END = 0.97;
+/** TEMP: pin the scene to full bloom until growth pacing is changed again. */
+const FORCE_FULL_BLOOM = true;
 
 /** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -92,13 +94,8 @@ export default function CompeteScreen() {
     h: typeof window !== 'undefined' ? window.innerHeight || 852 : 852,
   }));
   const roRef = useRef<ResizeObserver | null>(null);
-  const measureBox = useCallback((el: HTMLDivElement | null, src = 'jsx') => {
+  const measureBox = useCallback((el: HTMLDivElement | null) => {
     if (!el) {
-      // TEMP DIAG: detach path.
-      console.log('[compete-stage-measure] ref-detach ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        src,
-      }));
       roRef.current?.disconnect();
       roRef.current = null;
       return;
@@ -107,13 +104,6 @@ export default function CompeteScreen() {
     // transformed, so clientWidth/Height always equal its real box.
     const w = el.clientWidth;
     const h = el.clientHeight;
-    // TEMP DIAG: attach + immediate measure.
-    console.log('[compete-stage-measure] ref-attach ' + JSON.stringify({
-      t: Math.round(performance.now()),
-      src,
-      w: Math.round(w * 10) / 10,
-      h: Math.round(h * 10) / 10,
-    }));
     if (w >= 1 && h >= 1) {
       setStageBox((prev) =>
         Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
@@ -124,12 +114,6 @@ export default function CompeteScreen() {
       const rw = entry.contentRect.width;
       const rh = entry.contentRect.height;
       if (rw < 1 || rh < 1) return;
-      // TEMP DIAG: every RO fire with the measured box.
-      console.log('[compete-stage-measure] ro-fire ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        w: Math.round(rw * 10) / 10,
-        h: Math.round(rh * 10) / 10,
-      }));
       setStageBox((prev) =>
         Math.abs(prev.w - rw) < 0.5 && Math.abs(prev.h - rh) < 0.5 ? prev : { w: rw, h: rh },
       );
@@ -150,14 +134,7 @@ export default function CompeteScreen() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mq = window.matchMedia('(max-width: 1023.5px)');
     const sync = () => {
-      const next = window.matchMedia('(max-width: 1023.5px)').matches;
-      // TEMP DIAG: every breakpoint re-evaluation with old→new.
-      console.log('[compete-stage-measure] breakpoint-sync ' + JSON.stringify({
-        t: Math.round(performance.now()),
-        next,
-        win: [window.innerWidth, window.innerHeight],
-      }));
-      setIsMobileVp(next);
+      setIsMobileVp(window.matchMedia('(max-width: 1023.5px)').matches);
     };
     const onMqChange = () => sync();
     try {
@@ -349,7 +326,9 @@ export default function CompeteScreen() {
     (records.find((r) => r.date === today)?.minutesCompleted ?? 0) + liveFocusSeconds / 60;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   // The tree stops on its full-bloom frame at 97%, not the final clip frame.
-  const treeProgress = autoProgress * TREE_PROGRESS_END;
+  const treeProgress = FORCE_FULL_BLOOM
+    ? TREE_PROGRESS_END
+    : autoProgress * TREE_PROGRESS_END;
 
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
@@ -486,7 +465,7 @@ export default function CompeteScreen() {
   if (!isMobileVp) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-y-auto">
-        <div className="compete-stage relative h-[min(100dvh,560px)] min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <div className="compete-stage relative h-[clamp(280px,36vh,320px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
           {renderScene(dreamTune)}
         </div>
         {renderDisciplineTracker()}
