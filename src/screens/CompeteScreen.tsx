@@ -360,9 +360,10 @@ export default function CompeteScreen() {
       {/* Today's tree: the full scene now lives inside this left card. */}
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
+        style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
         data-tour="tracker"
       >
-        <div className="w-[240px] rounded-[1.2rem] border border-white/[.07] bg-black/40 p-2 backdrop-blur-xl lg:w-[360px]">
+        <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-0.5">
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
               Today's tree
@@ -377,7 +378,7 @@ export default function CompeteScreen() {
             </button>
           </div>
           <div
-            className="overflow-hidden rounded-[0.95rem] border border-white/[.06] bg-[#090b0a]"
+            className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
           >
             <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
@@ -386,7 +387,7 @@ export default function CompeteScreen() {
         <button
           type="button"
           onClick={() => setTrackerOpen(true)}
-          className="mt-2 w-[240px] cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4 lg:w-[360px]"
+          className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
         >
           See overall tracker
         </button>

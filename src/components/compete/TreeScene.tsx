@@ -52,6 +52,7 @@ export default function TreeScene({
           height: REF_H,
           transform: `translate(-50%, -50%) scale(${scale || 1})`,
           opacity: scale > 0 ? 1 : 0,
+          backgroundColor: '#090b0a',
         }}
       >
         <TreeVideo
