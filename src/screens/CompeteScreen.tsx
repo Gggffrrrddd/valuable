@@ -164,6 +164,15 @@ export default function CompeteScreen() {
     : 1;
   const fitOX = stageBox.w >= 1 ? (stageBox.w - FIT_W * fitS) / 2 : 0;
   const fitOY = stageBox.h >= 1 ? (stageBox.h - FIT_H * fitS) / 2 : 0;
+  // On portrait phones the 855px stage has a lot of empty air under the
+  // dream row. Pull the inline tracker up over that empty area so it starts
+  // just below the dreams, without rescaling or moving the scene itself.
+  const dreamCount = goal?.dream_images?.length ?? 0;
+  const mobileDreamBottom = dreamCount >= 2 ? 484 : 440;
+  const compactTracker = isMobileVp && stageBox.h >= stageBox.w;
+  const mobileTrackerOverlap = compactTracker
+    ? Math.max(0, stageBox.h - (fitOY + mobileDreamBottom * fitS) - 12)
+    : 0;
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
@@ -419,7 +428,10 @@ export default function CompeteScreen() {
   );
 
   const renderDisciplineTracker = () => (
-    <div className="relative z-10 w-full px-4 pb-28 pt-2 sm:px-6 lg:px-10 lg:pb-12">
+    <div
+      className="relative z-10 w-full px-4 pb-28 pt-2 sm:px-6 lg:px-10 lg:pb-12"
+      style={mobileTrackerOverlap > 0 ? { marginTop: -mobileTrackerOverlap } : undefined}
+    >
       <div className="mx-auto w-full max-w-6xl" data-tour="discipline-tracker">
         <GoalHeatmap
           startDate={goal.start_date || goal.created_at.slice(0, 10)}

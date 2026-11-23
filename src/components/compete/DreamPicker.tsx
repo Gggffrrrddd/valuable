@@ -196,7 +196,7 @@ export default function DreamPicker({
 
   return (
     <div
-      className={`compete-dreams absolute left-1/2 top-9 z-20 h-14 -translate-x-1/2 sm:top-10 sm:h-16 ${images.length === 1 ? 'has-one' : ''}`}
+      className={`compete-dreams absolute left-1/2 top-6 z-20 h-14 -translate-x-1/2 sm:top-10 sm:h-16 ${images.length === 1 ? 'has-one' : ''}`}
       data-tour="dreams"
     >
       <div className="relative flex items-start justify-center gap-3 sm:gap-4">
