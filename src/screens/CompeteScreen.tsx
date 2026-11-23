@@ -81,6 +81,8 @@ export default function CompeteScreen() {
   const [dreamBusy, setDreamBusy] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  /** Temporary scene-test scrubber; null = follow today's real progress. */
+  const [previewPercent, setPreviewPercent] = useState<number | null>(null);
   const [help, setHelp] = useState<{ type: 'dreams' | 'tracker'; anchor: HTMLElement } | null>(
     null,
   );
@@ -345,6 +347,11 @@ export default function CompeteScreen() {
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   // The tree stops on its full-bloom frame at 97%, not the final clip frame.
   const treeProgress = autoProgress * TREE_PROGRESS_END;
+  const sceneProgress =
+    previewPercent === null
+      ? treeProgress
+      : (previewPercent / 100) * TREE_PROGRESS_END;
+  const previewLabel = previewPercent ?? Math.round(autoProgress * 100);
 
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
@@ -381,7 +388,7 @@ export default function CompeteScreen() {
             className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
           >
-            <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
+            <TreeScene progress={sceneProgress} className="aspect-[16/9] w-full" />
           </div>
         </div>
         <button
@@ -405,7 +412,34 @@ export default function CompeteScreen() {
         onHelp={(anchor) => setHelp({ type: 'dreams', anchor })}
       />
 
-      {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/zoom).
+      {/* TEMPORARY — scrub the embedded tree without waiting for focus time. */}
+      <div className="compete-tree-preview absolute bottom-24 left-1/2 z-30 w-[min(88%,340px)] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/70 p-3 backdrop-blur-xl lg:bottom-6">
+        <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[.18em] text-stone-400">
+          <span>Tree preview</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[#f6e3ba]">{previewLabel}%</span>
+            <button
+              type="button"
+              onClick={() => setPreviewPercent(null)}
+              className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] tracking-[.12em] text-stone-400 transition hover:border-[#f6e3ba]/40 hover:text-[#f6e3ba]"
+            >
+              Live
+            </button>
+          </div>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={previewLabel}
+          onChange={(e) => setPreviewPercent(Number(e.target.value))}
+          aria-label="Tree animation preview"
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#c5ff54]"
+        />
+      </div>
+
+      {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/Zoom).
           Overlaps the plant; mobile only; hardcode + flip off when final. */}
       {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
         <div className="compete-tuner absolute bottom-[28%] left-3 right-3 z-30 lg:hidden">
