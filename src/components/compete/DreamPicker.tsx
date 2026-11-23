@@ -196,7 +196,7 @@ export default function DreamPicker({
 
   return (
     <div
-      className={`compete-dreams absolute left-1/2 top-4 z-20 h-14 -translate-x-1/2 sm:top-6 sm:h-16 ${images.length === 1 ? 'has-one' : ''}`}
+      className={`compete-dreams absolute left-1/2 top-9 z-20 h-14 -translate-x-1/2 sm:top-10 sm:h-16 ${images.length === 1 ? 'has-one' : ''}`}
       data-tour="dreams"
     >
       <div className="relative flex items-start justify-center gap-3 sm:gap-4">
@@ -204,12 +204,19 @@ export default function DreamPicker({
         {items}
       </div>
 
-      {images.length === 0 && (
-        <div className="compete-empty-dream">Add your first dream</div>
-      )}
-
       <div className="compete-dreams-label" data-tour="dreams-label">
         <span>Your dreams</span>
+        {images.length === 0 && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            aria-label="Add dream image"
+            className="compete-add-word"
+          >
+            Add
+          </button>
+        )}
         {onHelp && (
           <button
             type="button"

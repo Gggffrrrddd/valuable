@@ -335,12 +335,6 @@ export default function CompeteScreen() {
   // mobile wraps it in the fixed portrait stage below).
   const renderScene = (transforms: PlacementTransform[]) => (
     <>
-      {/* Top tagline: aligned with the tracker card's top edge on desktop,
-          and centered in the free space beside it on the fixed mobile stage. */}
-      <div className="compete-grow-label">
-        Grow your <span className="text-[#c5ff54]">tree</span> every day
-      </div>
-
       {/* Today's tree: the full scene now lives inside this left card. */}
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
@@ -465,7 +459,7 @@ export default function CompeteScreen() {
   if (!isMobileVp) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-y-auto">
-        <div className="compete-stage relative h-[clamp(280px,36vh,320px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <div className="compete-stage relative h-[clamp(300px,38vh,340px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
           {renderScene(dreamTune)}
         </div>
         {renderDisciplineTracker()}

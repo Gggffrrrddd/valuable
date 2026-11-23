@@ -1994,21 +1994,6 @@ button .butterfly-constellation {
    Compete scene labels (inside the stage, so they scale with the fixed
    mobile fit and stay clear of the dream circles and tracker card).
    -------------------------------------------------------------------------- */
-.compete-grow-label {
-  position: absolute;
-  top: 1.5rem;
-  left: 50%;
-  z-index: 30;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  pointer-events: none;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(246, 227, 186, 0.8);
-}
 .compete-dreams-label {
   position: absolute;
   left: 50%;
@@ -2031,34 +2016,16 @@ button .butterfly-constellation {
   pointer-events: auto;
   letter-spacing: 0;
 }
-.compete-empty-dream {
-  position: absolute;
-  left: 50%;
-  top: calc(655% + 0.35rem);
-  z-index: 30;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  pointer-events: none;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  color: rgba(246, 227, 186, 0.7);
-}
-@media (max-width: 1023.5px) {
-  .compete-grow-label {
-    top: 6rem;
-    left: 68.5%;
-    font-size: 14px;
-    letter-spacing: 0.18em;
-  }
+.compete-dreams-label button.compete-add-word {
+  pointer-events: auto;
+  letter-spacing: 0.18em;
+  color: #c5ff54;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 @media (min-width: 1024px) {
   .compete-dreams-label {
     top: calc(240% + 0.5rem);
-  }
-  /* Desktop uses the centre slot's 108% transform, not the mobile 562%. */
-  .compete-empty-dream {
-    top: calc(180% + 0.5rem);
   }
 }
 /* --------------------------------------------------------------------------
