@@ -43,7 +43,7 @@ const STEPS: TourStep[] = [
   {
     id: 'tracker',
     title: 'Daily tracker',
-    body: "Today's tree shows your focus time against your daily goal. Open 'See overall tracker' for your full history.",
+    body: "Today's tree shows your focus time against your daily goal. The Discipline tracker below your dreams has your full history.",
     selectors: ['[data-tour="tracker"]'],
     radius: 18,
   },

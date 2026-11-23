@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Sprout, X } from 'lucide-react';
+import { Loader2, Sprout } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { readLiveFocusElapsedMs } from '@/lib/localSession';
 import TreeScene from '@/components/compete/TreeScene';
 import DreamPicker from '@/components/compete/DreamPicker';
 import PlacementTuner from '@/components/compete/PlacementTuner';
@@ -67,11 +68,9 @@ const SHOW_DREAM_XY_TUNER = false;
  * - Dream circles crown the tree (max 3), placement hardcoded per circle.
  *   Video / image placement stays hardcoded; tree progress comes from
  *   today's tracked focus vs the goal's daily target. The Today's-tree card
- *   sits top-left and embeds the complete scene at 16:9, with a small
- *   "See overall tracker" text link under it that opens the growth-calendar
- *   module (overlay, not a page). Heatmap inline + other tuner panels stay
- *   hidden; dream circles are flat photo circles with a premium gold ring
- *   (hardcoded 0.55) + rose-pink glow.
+ *   sits top-left and embeds the complete scene at 16:9. The growth calendar
+ *   now sits inline on the page below the dreams. Dream circles are flat
+ *   photo circles with a premium gold ring (hardcoded 0.55) + rose-pink glow.
  */
 export default function CompeteScreen() {
   const { session, profile, refreshProfile } = useAuth();
@@ -79,10 +78,8 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [dreamBusy, setDreamBusy] = useState(false);
-  const [trackerOpen, setTrackerOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  /** Temporary scene-test scrubber; null = follow today's real progress. */
-  const [previewPercent, setPreviewPercent] = useState<number | null>(null);
+  const [liveFocusSeconds, setLiveFocusSeconds] = useState(0);
   const [help, setHelp] = useState<{ type: 'dreams' | 'tracker'; anchor: HTMLElement } | null>(
     null,
   );
@@ -279,6 +276,21 @@ export default function CompeteScreen() {
     };
   }, [session, refresh]);
 
+  // Live focus growth for the Compete tab while a timer runs in another tab.
+  useEffect(() => {
+    const tick = () => setLiveFocusSeconds(readLiveFocusElapsedMs() / 1000);
+    tick();
+    const id = window.setInterval(tick, 1_000);
+    const onVisible = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   // One-time guided tour. The profile flag is authoritative; localStorage is
   // only a fallback for projects where the new migration has not run yet.
   useEffect(() => {
@@ -308,16 +320,6 @@ export default function CompeteScreen() {
     if (!error) await refreshProfile();
   }, [session, refreshProfile]);
 
-  // Tracker module: Escape closes it.
-  useEffect(() => {
-    if (!trackerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setTrackerOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [trackerOpen]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-stone-500">
@@ -343,15 +345,11 @@ export default function CompeteScreen() {
 
   const today = dateKey(new Date());
   const targetMinutes = Number(goal.daily_target_hours) * 60;
-  const todayMinutes = records.find((r) => r.date === today)?.minutesCompleted ?? 0;
+  const todayMinutes =
+    (records.find((r) => r.date === today)?.minutesCompleted ?? 0) + liveFocusSeconds / 60;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   // The tree stops on its full-bloom frame at 97%, not the final clip frame.
   const treeProgress = autoProgress * TREE_PROGRESS_END;
-  const sceneProgress =
-    previewPercent === null
-      ? treeProgress
-      : (previewPercent / 100) * TREE_PROGRESS_END;
-  const previewLabel = previewPercent ?? Math.round(autoProgress * 100);
 
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
@@ -388,16 +386,9 @@ export default function CompeteScreen() {
             className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
           >
-            <TreeScene progress={sceneProgress} className="aspect-[16/9] w-full" />
+            <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setTrackerOpen(true)}
-          className="mt-2 w-56 cursor-pointer text-left text-[11px] font-semibold uppercase tracking-[.16em] text-[#f6e3ba]/70 transition hover:text-[#f6e3ba] hover:underline hover:underline-offset-4"
-        >
-          See overall tracker
-        </button>
       </div>
 
       {/* Dream images: bare glow circles crowning the tree. */}
@@ -454,42 +445,17 @@ export default function CompeteScreen() {
     </>
   );
 
-  const renderTracker = () => (
-    <>
-      {/* Overall tracker module — big overlay with the growth calendar
-          (GoalHeatmap), not a page. Backdrop click / X / Escape closes. */}
-      {trackerOpen && (
-        <div
-          className="compete-tracker fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          onClick={() => setTrackerOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Overall tracker"
-        >
-          <div
-            className="relative w-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="compete-tracker-scroll max-h-[86vh] overflow-y-auto">
-              <GoalHeatmap
-                startDate={goal.start_date || goal.created_at.slice(0, 10)}
-                examDate={goal.exam_date}
-                targetHours={Number(goal.daily_target_hours)}
-                records={records}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setTrackerOpen(false)}
-              aria-label="Close tracker"
-              className="absolute -top-4 right-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/75 text-stone-300 transition hover:border-[#f6e3ba]/60 hover:text-[#f6e3ba]"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+  const renderDisciplineTracker = () => (
+    <div className="relative z-10 w-full px-4 pb-28 pt-2 sm:px-6 lg:px-10 lg:pb-12">
+      <div className="mx-auto w-full max-w-6xl" data-tour="discipline-tracker">
+        <GoalHeatmap
+          startDate={goal.start_date || goal.created_at.slice(0, 10)}
+          examDate={goal.exam_date}
+          targetHours={Number(goal.daily_target_hours)}
+          records={records}
+        />
+      </div>
+    </div>
   );
 
   const renderOverlays = () => (
@@ -504,7 +470,7 @@ export default function CompeteScreen() {
               ? (goal.dream_images?.length ?? 0) >= 3
                 ? 'You already have three dreams. Tap × on a dream to remove one, and the + button returns. Seeing them every day keeps you going.'
                 : 'Add what you are working toward — a car, a place, a goal. Tap + to add a dream, or × on a dream to remove it. Seeing it every day keeps you going.'
-              : "This card shows today's tracked focus against your daily goal. It resets every midnight. Open 'See overall tracker' for your full history."
+              : "This card shows today's tracked focus against your daily goal. It resets every midnight. The Discipline tracker below your dreams has your full history."
           }
           onClose={() => setHelp(null)}
           onReplay={() => {
@@ -516,54 +482,24 @@ export default function CompeteScreen() {
     </>
   );
 
-  const renderPreview = () => (
-    <div className="fixed bottom-24 right-4 z-[55] w-[min(88vw,340px)] rounded-2xl border border-[#f6e3ba]/20 bg-black/80 p-3 shadow-[0_16px_50px_rgba(0,0,0,.55)] backdrop-blur-xl lg:bottom-6">
-      <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[.18em] text-stone-400">
-        <span>Tree preview</span>
-        <div className="flex items-center gap-2">
-          <span className="text-[#f6e3ba]">{previewLabel}%</span>
-          <button
-            type="button"
-            onClick={() => setPreviewPercent(null)}
-            className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] tracking-[.12em] text-stone-400 transition hover:border-[#f6e3ba]/40 hover:text-[#f6e3ba]"
-          >
-            Live
-          </button>
-        </div>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={1}
-        value={previewLabel}
-        onChange={(e) => setPreviewPercent(Number(e.target.value))}
-        aria-label="Tree animation preview"
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#c5ff54]"
-      />
-    </div>
-  );
-
-  // DESKTOP: original layout byte-identical (untouched).
+  // DESKTOP: a compact hero keeps the inline tracker close to the dreams.
   if (!isMobileVp) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-y-auto">
-        {/* ── Daily tree stage (full-bleed) ───────────────────────────────── */}
-        <div className="compete-stage relative h-full min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <div className="compete-stage relative h-[min(100dvh,560px)] min-h-[480px] w-full shrink-0 overflow-hidden bg-[#090b0a]">
           {renderScene(dreamTune)}
         </div>
-        {renderPreview()}
-        {renderTracker()}
+        {renderDisciplineTracker()}
         {renderOverlays()}
       </div>
     );
   }
 
-  // MOBILE: fixed portrait stage (405×855 contain-fit, centered). Same scene
-  // markup inside — only the box is fixed, so nothing drifts per device.
+  // MOBILE: fixed portrait stage (405×855 contain-fit, centered), then the
+  // tracker scrolls in below it.
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden">
-      <div ref={measureBox} className="relative min-h-0 w-full flex-1 overflow-hidden bg-[#090b0a]">
+    <div className="relative flex h-full w-full flex-col overflow-y-auto">
+      <div ref={measureBox} className="relative h-full min-h-0 w-full shrink-0 overflow-hidden bg-[#090b0a]">
         <div
           className="compete-fixed-stage bg-[#090b0a]"
           style={{
@@ -578,8 +514,7 @@ export default function CompeteScreen() {
           {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
         </div>
       </div>
-      {renderPreview()}
-      {renderTracker()}
+      {renderDisciplineTracker()}
       {renderOverlays()}
     </div>
   );

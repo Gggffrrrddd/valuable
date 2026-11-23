@@ -1,8 +1,9 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Sprout, Flame, CalendarDays } from 'lucide-react';
 import { addDays, daysBetween, dateKey, parseDay, type DayRecord } from '@/lib/compete';
 
-const CELL = 16;
+const MIN_CELL = 8;
+const MAX_CELL = 30;
 const GAP = 4;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Sun', '', '', 'Wed', '', '', 'Sat'];
@@ -38,6 +39,8 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
   const [pinned, setPinned] = useState<string | null>(null);
   /** Which 5-month window is on screen (0 = first). */
   const [page, setPage] = useState(0);
+  const [cell, setCell] = useState(16);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const today = dateKey(new Date());
   const targetMinutes = targetHours * 60;
@@ -115,6 +118,24 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
     return { columns, cells, monthLabels };
   }, [pageStart, pageEnd]);
 
+  // Fill the available section width with square day cells instead of
+  // stranding a fixed 16px grid in the corner.
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const width = el.clientWidth;
+      if (width <= 0) return;
+      const available = width - 40 - GAP * Math.max(0, columns - 1);
+      const next = Math.floor(available / columns);
+      setCell(Math.max(MIN_CELL, Math.min(MAX_CELL, next)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [columns]);
+
   const stats = useMemo(() => {
     // Stats cover the whole (capped) range, not just the visible page.
     let daysCompleted = 0;
@@ -155,7 +176,7 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
   const cellClass = (date: string) => {
     const isFuture = date > today;
     const rec = byDate.get(date);
-    const base = 'block h-4 w-4 rounded-[4px] transition duration-150';
+    const base = 'block rounded-[4px] transition duration-150';
     let cls: string;
     if (isFuture) cls = 'bg-white/[.03] ring-1 ring-inset ring-white/[.05]';
     else if (!rec || rec.minutesCompleted <= 0) cls = 'bg-[#f6e3ba]/[.08]';
@@ -179,10 +200,7 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
       <div className="relative">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="page-kicker">Daily tree</div>
-            <h3 className="font-display text-2xl font-extrabold tracking-[-.02em] text-stone-50 sm:text-3xl">
-              Discipline tracker
-            </h3>
+            <div className="page-kicker">Discipline tracker</div>
             <p className="mt-1 max-w-lg text-sm leading-6 text-stone-500">
               Every tended day, from {cappedStart} through exam day on {examDate}. One square per
               day — the fuller the gold, the closer you were to your daily target. Shows 5 months
@@ -209,11 +227,11 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
           </div>
         </div>
 
-        <div className="relative mt-6 overflow-x-auto pb-1">
-          <div className="flex min-w-max gap-2">
+        <div ref={gridRef} className="relative mt-6 pb-1">
+          <div className="flex w-full gap-2">
             <div
               className="w-7 pt-[22px] text-[9px] font-bold uppercase tracking-wider text-stone-600"
-              style={{ display: 'grid', gridTemplateRows: `repeat(7, ${CELL}px)`, rowGap: GAP }}
+              style={{ display: 'grid', gridTemplateRows: `repeat(7, ${cell}px)`, rowGap: GAP }}
             >
               {WEEKDAYS.map((d, i) => (
                 <span key={i} className="leading-4">
@@ -227,7 +245,7 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
                 className="mb-1 h-4 text-[9px] font-bold uppercase tracking-wider text-stone-600"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${columns}, ${CELL}px)`,
+                  gridTemplateColumns: `repeat(${columns}, ${cell}px)`,
                   columnGap: GAP,
                 }}
               >
@@ -242,8 +260,8 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
                 style={{
                   display: 'grid',
                   gridAutoFlow: 'column',
-                  gridTemplateRows: `repeat(7, ${CELL}px)`,
-                  gridAutoColumns: `${CELL}px`,
+                  gridTemplateRows: `repeat(7, ${cell}px)`,
+                  gridAutoColumns: `${cell}px`,
                   gap: GAP,
                 }}
               >
@@ -254,6 +272,7 @@ export default function GoalHeatmap({ startDate, examDate, targetHours, records 
                     <span
                       key={date}
                       className={cellClass(date)}
+                      style={{ width: cell, height: cell }}
                       onMouseEnter={(e) => {
                         if (!future && !pinned) showTip(date, e.currentTarget);
                       }}

@@ -24,6 +24,8 @@ import {
   SESSION_SUBJECT_KEY,
   SESSION_BREAK_KEY,
   SESSION_PHRASE_KEY,
+  syncLiveFocus,
+  clearLiveFocus,
 } from '@/lib/localSession';
 
 interface FocusTimerProps {
@@ -78,6 +80,7 @@ export function readStoredSession(): StoredSession | null {
 }
 
 export function clearSessionStorage() {
+  clearLiveFocus();
   sessionStorage.removeItem(SESSION_START_KEY);
   sessionStorage.removeItem(SESSION_DURATION_KEY);
   sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
@@ -296,6 +299,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
     sessionStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
     sessionStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
+    syncLiveFocus();
     // New session, new phrase: clear the cached pick so the garden draws a
     // fresh one (GardenVisual mounts after this, once phase becomes 'focus').
     sessionStorage.removeItem(SESSION_PHRASE_KEY);
@@ -309,6 +313,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   function handlePause() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
+    syncLiveFocus();
     setPhase('paused');
   }
 
@@ -318,6 +323,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       const prevTotal = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
       sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
       sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
+      syncLiveFocus();
     }
     setPhase('focus');
   }
@@ -325,6 +331,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   function handleQuitRequest() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
+    syncLiveFocus();
     setPhase('paused');
     setShowQuitConfirm(true);
   }
