@@ -338,6 +338,8 @@ export default function CompeteScreen() {
   const treeProgress = FORCE_FULL_BLOOM
     ? TREE_PROGRESS_END
     : autoProgress * TREE_PROGRESS_END;
+  const todayHours = (todayMinutes / 60).toFixed(1);
+  const targetHoursLabel = String(Number(goal.daily_target_hours));
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
   // mobile wraps it in the fixed portrait stage below).
@@ -346,10 +348,10 @@ export default function CompeteScreen() {
       {/* Today's tree: the full scene now lives inside this left card. */}
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
-        style={{ transform: 'scale(0.84)', transformOrigin: 'top left' }}
+        style={{ transform: 'scale(0.9)', transformOrigin: 'top left' }}
         data-tour="tracker"
       >
-        <div className="w-56 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
+        <div className="w-60 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-0.5">
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
               Today's tree
@@ -363,6 +365,12 @@ export default function CompeteScreen() {
               ?
             </button>
           </div>
+          <div className="px-1.5 pb-2">
+            <span className="font-display text-[20px] font-extrabold leading-none text-stone-100">
+              {todayHours}
+            </span>
+            <span className="ml-1 text-[10px] font-semibold text-stone-500">/ {targetHoursLabel}h</span>
+          </div>
           <div
             className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
@@ -370,7 +378,7 @@ export default function CompeteScreen() {
             <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
           </div>
         </div>
-        <div className="mt-1.5 w-56 text-[10px] font-semibold uppercase tracking-[.18em] text-[#f6e3ba]/70">
+        <div className="mt-1.5 w-60 text-[10px] font-semibold uppercase tracking-[.18em] text-[#f6e3ba]/70">
           Grow your <span className="text-[#c5ff54]">tree</span> every day
         </div>
       </div>
