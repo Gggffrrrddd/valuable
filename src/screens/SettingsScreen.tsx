@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ExternalLink,
   FileText,
-  LifeBuoy,
   LogOut,
   Shield,
   Trash2,
@@ -102,16 +101,6 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
               <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
             </a>
           ))}
-          <a
-            href="/delete-account"
-            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-stone-300 transition hover:bg-white/[.04]"
-          >
-            <span className="flex items-center gap-3">
-              <LifeBuoy className="h-4 w-4 text-stone-600" />
-              Public deletion request
-            </span>
-            <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
-          </a>
         </section>
 
         <section className="mt-4 rounded-[1.5rem] border border-white/[.07] bg-white/[.025] p-2">
