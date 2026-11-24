@@ -11,6 +11,9 @@ const PublicDeleteAccountPage = lazy(
 
 export default function RootRoute() {
   const path = window.location.pathname.replace(/\/$/, "");
+  const publicDeleteRequested =
+    path === "/delete-account" ||
+    new URLSearchParams(window.location.search).has("delete-account");
   if (path === "/leaf-stem-calibration") {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#090b09]" />}>
@@ -25,7 +28,7 @@ export default function RootRoute() {
       </Suspense>
     );
   }
-  if (path === "/delete-account") {
+  if (publicDeleteRequested) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#090b0a]" />}>
         <PublicDeleteAccountPage />

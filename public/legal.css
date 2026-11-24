@@ -13,3 +13,5 @@ ul { padding-left:22px; }
 .note { border:1px solid var(--line); background:var(--card); border-radius:16px; padding:16px 18px; margin:24px 0; color:#d6d3d1; }
 .meta { color:var(--muted); font-size:12px; margin-bottom:32px; }
 footer { border-top:1px solid var(--line); margin-top:48px; padding-top:18px; color:var(--muted); font-size:12px; display:flex; flex-wrap:wrap; gap:16px; }
+.back { display:inline-flex; align-items:center; gap:6px; margin-bottom:22px; color:#a8a29e; font-size:12px; font-weight:700; text-decoration:none; }
+.back:hover { color:#f6e3ba; }
