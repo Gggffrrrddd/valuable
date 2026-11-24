@@ -12,7 +12,6 @@ export default function DreamPicker({
   busy = false,
   onAdd,
   onRemove,
-  onHelp,
 }: {
   images: string[];
   /** Kept for compatibility with the old arc tuner. */
@@ -39,9 +38,9 @@ export default function DreamPicker({
       className="compete-dreams absolute left-[calc(50%+116px)] top-[96px] z-20 -translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2"
       data-tour="dreams"
     >
-      <div className="flex w-32 flex-col items-center gap-2.5">
+      <div className="flex w-max flex-col items-center gap-3">
         {hasDream ? (
-          <div className="group relative h-16 w-16 shrink-0">
+          <div className="group relative h-24 w-24 shrink-0">
             <div className="relative h-full w-full" data-dream-circle>
               <div
                 className="h-full w-full rounded-full"
@@ -81,27 +80,17 @@ export default function DreamPicker({
             disabled={busy}
             aria-label="Add dream image"
             data-tour="add-dream"
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40"
+            className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40"
           >
-            <Plus className="h-6 w-6" />
+            <Plus className="h-8 w-8" />
           </button>
         )}
 
         <div
-          className="flex items-center justify-center gap-1.5 text-center text-[12px] font-extrabold uppercase leading-tight tracking-[.16em] text-[#f6e3ba] sm:text-[13px]"
+          className="flex items-center justify-center whitespace-nowrap text-center text-[12px] font-extrabold uppercase leading-none tracking-[.16em] text-[#f6e3ba] sm:text-[13px]"
           data-tour="dreams-label"
         >
           <span>{hasDream ? "Your dream" : "Add your dream"}</span>
-          {onHelp && (
-            <button
-              type="button"
-              aria-label="About your dream"
-              onClick={(e) => onHelp(e.currentTarget)}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[10px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
-            >
-              ?
-            </button>
-          )}
         </div>
       </div>
 

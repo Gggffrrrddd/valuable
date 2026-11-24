@@ -571,7 +571,7 @@ export default function CompeteScreen() {
   if (!isMobileVp) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-y-auto">
-        <div className="compete-stage relative h-[clamp(220px,30vh,250px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+        <div className="compete-stage relative h-[clamp(235px,32vh,265px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
           {renderScene()}
         </div>
         {renderDisciplineTracker()}

@@ -2346,7 +2346,7 @@ button .butterfly-constellation {
 .compete-dreams .compete-dreams-label {
   position: static;
   transform: none;
-  white-space: normal;
+  white-space: nowrap;
   pointer-events: auto;
   font-size: 12px;
   line-height: 1.15;
