@@ -459,6 +459,22 @@ export default function FocusTimer({
           </div>
         </div>
 
+        {/* See your friends + focus music — same bottom-right cluster as other visuals */}
+        {onOpenStudyTable && phase !== "completing" && (
+          <div className="absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={onOpenStudyTable}
+              className="text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+            >
+              see your friends →
+            </button>
+            <PremiumLock feature="focus_music" compact>
+              <StudyMusicPlayer />
+            </PremiumLock>
+          </div>
+        )}
+
         {/* Session controls — same as jar/tree */}
         {phase !== "completing" && (
           <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">

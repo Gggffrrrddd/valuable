@@ -2270,3 +2270,74 @@ button .butterfly-constellation {
     animation: none;
   }
 }
+
+/* Focus-music drawer: viewport-bound on every real phone size. */
+.music-drawer {
+  position: fixed;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  width: 18rem;
+  max-height: calc(
+    100dvh - max(1.5rem, env(safe-area-inset-bottom)) -
+      max(0.75rem, env(safe-area-inset-top))
+  );
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+@media (min-width: 640px) {
+  .music-drawer { width: 20rem; }
+}
+.music-drawer-header,
+.music-volume,
+.music-favorites,
+.music-tabs { flex: 0 0 auto; }
+.music-track-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.18) transparent;
+  padding-right: 2px;
+}
+.music-track-list::-webkit-scrollbar { width: 4px; }
+.music-track-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.18);
+  border-radius: 999px;
+}
+.music-track-list::-webkit-scrollbar-track { background: transparent; }
+
+@media (max-height: 520px) {
+  .music-drawer {
+    width: clamp(14rem, calc(100vw - 28rem), 20rem);
+    padding: 0.75rem;
+    border-radius: 1rem;
+  }
+  .music-drawer-header { margin-bottom: 0.5rem; }
+  .music-volume { margin-bottom: 0.65rem; }
+  .music-favorites { margin-bottom: 0.5rem; }
+  .music-tabs { margin-bottom: 0.5rem; }
+  .music-tabs button { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+  .music-track-row { padding-top: 0.35rem; padding-bottom: 0.35rem; min-height: 2.5rem; }
+  .music-track-icon { width: 1.75rem; height: 1.75rem; }
+}
+
+/* Keep the drawer clear of the centered pause/quit pill on portrait phones. */
+@media (max-width: 640px) and (min-height: 521px) {
+  .music-drawer {
+    bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 5.75rem);
+    max-height: calc(
+      100dvh - max(1.5rem, env(safe-area-inset-bottom)) - 6.5rem -
+        max(0.75rem, env(safe-area-inset-top))
+    );
+  }
+}
+
+/* Touch targets stay usable in the compact landscape drawer. */
+@media (max-height: 520px) {
+  .music-drawer button { min-height: 2.5rem; }
+  .music-tabs button { font-size: 10px; line-height: 1.15; }
+}
