@@ -397,7 +397,7 @@ export default function CompeteScreen() {
         style={{ transform: "scale(0.9)", transformOrigin: "top left" }}
         data-tour="tracker"
       >
-        <div className="w-60 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
+        <div className="w-64 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-0.5">
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
               Today's tree
@@ -443,7 +443,7 @@ export default function CompeteScreen() {
             />
           </div>
         </div>
-        <div className="mt-1.5 w-60 text-[10px] font-semibold uppercase tracking-[.18em] text-[#f6e3ba]/70">
+        <div className="mt-1.5 w-64 text-[10px] font-semibold uppercase tracking-[.18em] text-[#f6e3ba]/70">
           Grow your <span className="text-[#c5ff54]">tree</span> every day
         </div>
       </div>

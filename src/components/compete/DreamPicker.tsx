@@ -2,8 +2,6 @@ import { useRef, type ChangeEvent } from "react";
 import { Plus, X } from "lucide-react";
 import { DEFAULT_DREAM_STRETCH, type DreamStretch } from "./placementConfig";
 
-const GLOW = "0 0 44px 14px rgba(236, 72, 153, 0.25)";
-
 /** One dream only: to the right of Today's tree, centred in the gap. */
 export default function DreamPicker({
   images,
@@ -35,12 +33,12 @@ export default function DreamPicker({
 
   return (
     <div
-      className="compete-dreams absolute left-[calc(50%+116px)] top-[96px] z-20 -translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2"
+      className="compete-dreams absolute left-[calc(50%+123px)] top-[96px] z-20 -translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2"
       data-tour="dreams"
     >
       <div className="flex w-max flex-col items-center gap-3">
         {hasDream ? (
-          <div className="group relative h-24 w-24 shrink-0">
+          <div className="group relative h-20 w-20 sm:h-24 sm:w-24 shrink-0">
             <div className="relative h-full w-full" data-dream-circle>
               <div
                 className="h-full w-full rounded-full"
@@ -48,7 +46,6 @@ export default function DreamPicker({
                   padding: ringWidth ?? 3,
                   background:
                     "linear-gradient(145deg, #fdf0cd 0%, #f0d089 22%, #cf9f3a 50%, #a87b25 68%, #f2d48f 88%, #fff8e6 100%)",
-                  boxShadow: GLOW,
                 }}
               >
                 <div className="h-full w-full overflow-hidden rounded-full">
@@ -80,9 +77,9 @@ export default function DreamPicker({
             disabled={busy}
             aria-label="Add dream image"
             data-tour="add-dream"
-            className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40"
+            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-dashed border-[#f6e3ba]/45 text-[#f6e3ba]/70 transition hover:border-[#f6e3ba]/80 hover:bg-[#f6e3ba]/10 hover:text-[#f6e3ba] disabled:opacity-40"
           >
-            <Plus className="h-8 w-8" />
+            <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
           </button>
         )}
 
