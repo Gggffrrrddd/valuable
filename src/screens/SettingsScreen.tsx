@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import SettingsSubjects from "@/components/SettingsSubjects";
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -86,6 +87,8 @@ export default function SettingsScreen({ onBack }: SettingsScreenProps) {
             </div>
           </div>
         </section>
+
+        <SettingsSubjects />
 
         <section className="mt-4 rounded-[1.5rem] border border-white/[.07] bg-white/[.025] p-2">
           {LEGAL.map((item) => (

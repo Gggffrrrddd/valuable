@@ -6,6 +6,7 @@ import {
   X,
   Check,
   ChevronDown,
+  Plus,
   Clock3,
   Coffee,
   Zap,
@@ -26,6 +27,8 @@ import FlipClock from "@/components/FlipClock";
 import LeafPicker from "@/components/LeafPicker";
 import StudyMusicPlayer from "@/components/StudyMusicPlayer";
 import PremiumLock from "@/components/premium/PremiumLock";
+import { useAuth } from "@/lib/auth";
+import { SUBJECTS_CHANGED_EVENT, fetchUserSubjects } from "@/lib/subjects";
 import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
 import { useEntitlement } from "@/lib/premium/useEntitlement";
 import { isFeatureLocked, visualFeature } from "@/lib/premium/features";
@@ -58,6 +61,8 @@ interface FocusTimerProps {
   ) => Promise<() => void> | void;
   /** Peek at the study table mid-session. The wall-clock timer keeps running; visuals rehydrate on return. */
   onOpenStudyTable?: () => void;
+  /** Opens Settings scrolled to the subjects section. */
+  onOpenSettings?: () => void;
 }
 
 type Phase = "config" | "focus" | "paused" | "completing";
@@ -141,7 +146,9 @@ function pushTimerHistory() {
 export default function FocusTimer({
   onComplete,
   onOpenStudyTable,
+  onOpenSettings,
 }: FocusTimerProps) {
+  const { session } = useAuth();
   const { config } = usePremiumConfig();
   const { isPremium } = useEntitlement();
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
@@ -150,6 +157,30 @@ export default function FocusTimer({
   const [isCustom, setIsCustom] = useState(false);
   const [subjectTag, setSubjectTag] = useState<string>("");
   const [showSubjects, setShowSubjects] = useState(false);
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [subjectInfoOpen, setSubjectInfoOpen] = useState(false);
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    const load = () => {
+      fetchUserSubjects(session.user.id)
+        .then((rows) => {
+          if (cancelled) return;
+          const names = rows.filter((s) => !s.archived_at).map((s) => s.name);
+          setSubjectOptions(names);
+          setSubjectTag((prev) => (prev && !names.includes(prev) ? "" : prev));
+        })
+        .catch(() => {
+          if (!cancelled) setSubjectOptions(SUBJECT_PRESETS.slice(0, 5));
+        });
+    };
+    load();
+    window.addEventListener(SUBJECTS_CHANGED_EVENT, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SUBJECTS_CHANGED_EVENT, load);
+    };
+  }, [session]);
 
   const [phase, setPhase] = useState<Phase>(() => {
     const s = readStoredSession();
@@ -879,19 +910,58 @@ export default function FocusTimer({
         </div>
         <div className="mb-6">
           <button
-            onClick={() => setIsCustom(true)}
+            onClick={() => setIsCustom((v) => !v)}
             className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-colors ${
               isCustom
                 ? "bg-emerald-500/10 border-emerald-500/40 text-white"
                 : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
             }`}
           >
-            <span className="font-semibold">Custom session</span>
+            <span className="font-semibold">Set your own time</span>
             <span className="text-sm tabular-nums">
               {customFocus}m focus · {customBreak}m break
             </span>
           </button>
         </div>
+
+        {isCustom && (
+          <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Focus (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={180}
+                value={customFocus}
+                onChange={(e) =>
+                  setCustomFocus(
+                    Math.max(1, Math.min(180, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Break (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={customBreak}
+                onChange={(e) =>
+                  setCustomBreak(
+                    Math.max(1, Math.min(60, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="mb-3 flex items-end justify-between px-1">
@@ -1013,79 +1083,102 @@ export default function FocusTimer({
           </p>
         </div>
 
-        {isCustom && (
-          <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in">
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                Focus (min)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={180}
-                value={customFocus}
-                onChange={(e) =>
-                  setCustomFocus(
-                    Math.max(1, Math.min(180, Number(e.target.value) || 1)),
-                  )
-                }
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                Break (min)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                value={customBreak}
-                onChange={(e) =>
-                  setCustomBreak(
-                    Math.max(1, Math.min(60, Number(e.target.value) || 1)),
-                  )
-                }
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-        )}
-
         <div className="mb-6">
           <label className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-stone-500">
             What are you focusing on?
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={subjectTag}
-              onChange={(e) => setSubjectTag(e.target.value)}
-              onFocus={() => setShowSubjects(true)}
-              onBlur={() => setTimeout(() => setShowSubjects(false), 150)}
-              placeholder="e.g. Maths, Physics, Revision…"
-              className="premium-input pr-10"
-            />
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-            {showSubjects && (
-              <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 max-h-48 overflow-auto">
-                {SUBJECT_PRESETS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onMouseDown={() => {
-                      setSubjectTag(s);
-                      setShowSubjects(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-stretch gap-2">
+            <div className="relative min-w-0 flex-1">
+              <input
+                type="text"
+                readOnly
+                value={subjectTag}
+                onClick={() => setShowSubjects((v) => !v)}
+                onFocus={() => setShowSubjects(true)}
+                onBlur={() => setTimeout(() => setShowSubjects(false), 150)}
+                placeholder="Choose a subject (optional)"
+                className="premium-input cursor-pointer pr-10"
+              />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              {showSubjects && (
+                <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-900 py-1 shadow-xl">
+                  {subjectOptions.length === 0 ? (
+                    <p className="px-4 py-2 text-xs text-slate-500">
+                      No subjects yet. Add one in Settings.
+                    </p>
+                  ) : (
+                    subjectOptions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onMouseDown={() => {
+                          setSubjectTag(s);
+                          setShowSubjects(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                      >
+                        {s}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSubjects(false);
+                setSubjectInfoOpen(true);
+              }}
+              aria-label="Change your subjects"
+              title="Change your subjects"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[.03] text-stone-400 transition hover:border-[#f6e3ba]/40 hover:text-[#f6e3ba]"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
         </div>
+
+        {subjectInfoOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Change your subjects"
+            onClick={() => setSubjectInfoOpen(false)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#101310] p-5 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-bold text-stone-100">
+                Change your subjects
+              </h3>
+              <p className="mt-2 text-xs leading-5 text-stone-400">
+                You can add or remove subjects in Settings.
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSubjectInfoOpen(false)}
+                  className="h-10 rounded-xl px-3 text-xs font-bold text-stone-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubjectInfoOpen(false);
+                    onOpenSettings?.();
+                  }}
+                  className="h-10 rounded-xl bg-lime-300 px-3 text-xs font-extrabold text-[#11130f] hover:bg-lime-200"
+                >
+                  Go to Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleStart}

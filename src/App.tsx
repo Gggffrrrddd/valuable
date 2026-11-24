@@ -311,10 +311,20 @@ function AppContent() {
     return doNavigate;
   }
 
+  const openSettingsSubjects = () => {
+    setScreen("settings");
+    window.setTimeout(() => {
+      document
+        .getElementById("your-subjects")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  };
+
   if (screen === "timer") {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
+        onOpenSettings={openSettingsSubjects}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
           setScreen("table");
@@ -592,6 +602,7 @@ function AppContent() {
                 </div>
                 <FocusTimer
                   onComplete={handleSessionComplete}
+                  onOpenSettings={openSettingsSubjects}
                   onOpenStudyTable={() => {
                     if (
                       isFeatureLocked("study_table", config.flags, isPremium)

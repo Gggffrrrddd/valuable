@@ -308,6 +308,7 @@ export default function StatsScreen({
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<30 | 90>(30);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [showArchivedSubjects, setShowArchivedSubjects] = useState(false);
   const [compete, setCompete] = useState<CompeteSummary | null>(null);
   const [hasGoal, setHasGoal] = useState<boolean | null>(null);
 
@@ -693,6 +694,45 @@ export default function StatsScreen({
                     }}
                   />
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {stats.archivedSubjects.length > 0 && (
+          <div className="mt-4 border-t border-white/[.06] pt-3">
+            <button
+              type="button"
+              onClick={() => setShowArchivedSubjects((v) => !v)}
+              className="text-xs font-bold text-[#f6e3ba]/80 transition hover:text-[#f6e3ba]"
+            >
+              {showArchivedSubjects ? "Hide archived" : "More"}
+            </button>
+            {showArchivedSubjects && (
+              <div className="mt-3 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-600">
+                  Archived subjects · still counted in totals
+                </p>
+                {stats.archivedSubjects.map((s) => (
+                  <div key={s.name}>
+                    <div className="mb-1 flex items-baseline justify-between text-sm">
+                      <span className="font-semibold text-slate-500">
+                        {s.name}
+                      </span>
+                      <span className="text-xs text-slate-600">
+                        {formatMinutes(s.minutes)} · {Math.round(s.percentage)}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-800/60">
+                      <div
+                        className="h-full rounded-full bg-slate-600"
+                        style={{
+                          width: `${Math.max(2, Math.min(100, s.percentage))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
