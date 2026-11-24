@@ -8,12 +8,14 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { continueWithGoogle as startGoogleOAuth } from "./googleAuth";
 import type { AvatarCharacter, Profile } from "../types";
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  continueWithGoogle: () => Promise<AuthResult>;
   signUp: (
     email: string,
     password: string,
@@ -36,6 +38,21 @@ interface AuthResult {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+/** Remove OAuth code/hash after a successful redirect without touching app state. */
+function cleanAuthUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const hasAuthCode =
+      url.searchParams.has("code") ||
+      url.searchParams.has("error") ||
+      /access_token=|refresh_token=|error_description=/.test(url.hash);
+    if (!hasAuthCode) return;
+    window.history.replaceState({}, document.title, url.origin + url.pathname);
+  } catch {
+    /* history unavailable */
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       currentUserIdRef.current = data.session?.user?.id ?? null;
       if (data.session) {
+        cleanAuthUrl();
         loadProfile(data.session.user.id).finally(() => {
           if (mounted) setLoading(false);
         });
@@ -88,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (event === "SIGNED_IN" && sess) {
+        cleanAuthUrl();
         const incomingUserId = sess.user?.id ?? null;
         if (
           currentUserIdRef.current &&
@@ -146,6 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
+
+  async function continueWithGoogle(): Promise<AuthResult> {
+    const result = await startGoogleOAuth();
+    return { error: result.error };
+  }
 
   async function signUp(
     email: string,
@@ -245,6 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        continueWithGoogle,
         signUp,
         signIn,
         verifyEmailCode,
