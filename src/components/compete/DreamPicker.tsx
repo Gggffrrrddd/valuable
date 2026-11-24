@@ -33,7 +33,7 @@ export default function DreamPicker({
 
   return (
     <div
-      className="compete-dreams absolute left-[calc(50%+123px)] top-[96px] z-20 -translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2"
+      className="compete-dreams absolute left-[calc(50%+123px)] top-[118px] z-20 -translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2"
       data-tour="dreams"
     >
       <div className="flex w-max flex-col items-center gap-3">
