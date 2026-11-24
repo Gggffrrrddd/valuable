@@ -1,11 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/auth';
-import { fetchFriendStat, type FriendStat } from '@/lib/stats';
-import { characterLabel, resolveAvatarCharacter } from '@/lib/character';
-import CharacterPicker, { CharacterPortrait, type CharacterPickerMode } from '@/components/CharacterPicker';
-import type { AvatarCharacter } from '@/types';
-import { UserPlus, Copy, Check, X, Flame, Clock, Users, RefreshCw, BookOpen, ArrowUpRight, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
+import { fetchFriendStat, type FriendStat } from "@/lib/stats";
+import { characterLabel, resolveAvatarCharacter } from "@/lib/character";
+import CharacterPicker, {
+  CharacterPortrait,
+  type CharacterPickerMode,
+} from "@/components/CharacterPicker";
+import type { AvatarCharacter } from "@/types";
+import {
+  UserPlus,
+  Copy,
+  Check,
+  X,
+  Flame,
+  Clock,
+  Users,
+  RefreshCw,
+  BookOpen,
+  ArrowUpRight,
+  Trash2,
+} from "lucide-react";
+import PremiumLock from "@/components/premium/PremiumLock";
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
@@ -13,7 +29,7 @@ interface FriendsScreenProps {
 
 interface FriendRequest {
   request_id: string;
-  direction: 'incoming' | 'outgoing';
+  direction: "incoming" | "outgoing";
   other_id: string;
   display_name: string;
   avatar_character: string | null;
@@ -30,9 +46,11 @@ function dedupeRequests(list: FriendRequest[]): FriendRequest[] {
   });
 }
 
-export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) {
+export default function FriendsScreen({
+  onOpenStudyTable,
+}: FriendsScreenProps) {
   const { profile, session, updateAvatarCharacter } = useAuth();
-  const [codeInput, setCodeInput] = useState('');
+  const [codeInput, setCodeInput] = useState("");
   const [friends, setFriends] = useState<FriendStat[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
@@ -45,55 +63,72 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   const [removeTarget, setRemoveTarget] = useState<FriendStat | null>(null);
   const [removing, setRemoving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerMode, setPickerMode] = useState<CharacterPickerMode>('first');
-  const [selectedCharacter, setSelectedCharacter] = useState<AvatarCharacter>('boy');
+  const [pickerMode, setPickerMode] = useState<CharacterPickerMode>("first");
+  const [selectedCharacter, setSelectedCharacter] =
+    useState<AvatarCharacter>("boy");
   const [savingCharacter, setSavingCharacter] = useState(false);
   const [characterError, setCharacterError] = useState<string | null>(null);
   const loadSeqRef = useRef(0);
 
   const currentCharacter = resolveAvatarCharacter(profile?.avatar_character);
 
+  const loadFriends = useCallback(
+    async (silent = false) => {
+      if (!session) return;
+      const seq = ++loadSeqRef.current;
+      if (!silent) setLoading(true);
+      try {
+        const { data: friendships, error: fErr } = await supabase
+          .from("friendships")
+          .select("id, user_id, friend_id, status")
+          .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
+        if (fErr) throw fErr;
+        if (seq !== loadSeqRef.current) return;
 
-  const loadFriends = useCallback(async (silent = false) => {
-    if (!session) return;
-    const seq = ++loadSeqRef.current;
-    if (!silent) setLoading(true);
-    try {
-      const { data: friendships, error: fErr } = await supabase
-        .from('friendships')
-        .select('id, user_id, friend_id, status')
-        .or(`user_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
-      if (fErr) throw fErr;
-      if (seq !== loadSeqRef.current) return;
+        const accepted = (friendships || []).filter(
+          (f) => f.status === "accepted",
+        );
+        // Dedupe by the other user's id: legacy reciprocal rows must never show
+        // the same friend twice, and the count must match the rendered cards.
+        const friendIds = Array.from(
+          new Set(
+            accepted.map((f) =>
+              f.user_id === session.user.id ? f.friend_id : f.user_id,
+            ),
+          ),
+        );
+        const statsPromises = friendIds.map((id) =>
+          fetchFriendStat(id).catch(() => null),
+        );
+        const stats = await Promise.all(statsPromises);
+        if (seq !== loadSeqRef.current) return;
+        setFriends(stats.filter((s): s is FriendStat => s !== null));
 
-      const accepted = (friendships || []).filter((f) => f.status === 'accepted');
-      // Dedupe by the other user's id: legacy reciprocal rows must never show
-      // the same friend twice, and the count must match the rendered cards.
-      const friendIds = Array.from(
-        new Set(accepted.map((f) => (f.user_id === session.user.id ? f.friend_id : f.user_id)))
-      );
-      const statsPromises = friendIds.map((id) => fetchFriendStat(id).catch(() => null));
-      const stats = await Promise.all(statsPromises);
-      if (seq !== loadSeqRef.current) return;
-      setFriends(stats.filter((s): s is FriendStat => s !== null));
-
-      // RPC (not profiles): the sender is not an accepted friend yet, so the
-      // profiles RLS policy would hide the row needed by the request card.
-      const { data: requestRows, error: reqErr } = await supabase.rpc('list_my_friend_requests');
-      if (reqErr) throw reqErr;
-      if (seq !== loadSeqRef.current) return;
-      const requests = (requestRows || []) as FriendRequest[];
-      setIncomingRequests(dedupeRequests(requests.filter((r) => r.direction === 'incoming')));
-      setOutgoingRequests(dedupeRequests(requests.filter((r) => r.direction === 'outgoing')));
-    } catch (e) {
-      console.error('Friends load error:', e);
-    } finally {
-      if (seq === loadSeqRef.current) {
-        if (!silent) setLoading(false);
-        setLastRefresh(new Date());
+        // RPC (not profiles): the sender is not an accepted friend yet, so the
+        // profiles RLS policy would hide the row needed by the request card.
+        const { data: requestRows, error: reqErr } = await supabase.rpc(
+          "list_my_friend_requests",
+        );
+        if (reqErr) throw reqErr;
+        if (seq !== loadSeqRef.current) return;
+        const requests = (requestRows || []) as FriendRequest[];
+        setIncomingRequests(
+          dedupeRequests(requests.filter((r) => r.direction === "incoming")),
+        );
+        setOutgoingRequests(
+          dedupeRequests(requests.filter((r) => r.direction === "outgoing")),
+        );
+      } catch (e) {
+        console.error("Friends load error:", e);
+      } finally {
+        if (seq === loadSeqRef.current) {
+          if (!silent) setLoading(false);
+          setLastRefresh(new Date());
+        }
       }
-    }
-  }, [session]);
+    },
+    [session],
+  );
 
   // Short polling mirrors the study-table pattern, so a new request appears
   // without a manual refresh. Hidden tabs skip the query.
@@ -105,10 +140,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     const onVisible = () => {
       if (!document.hidden) void loadFriends(true);
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [loadFriends]);
 
@@ -117,9 +152,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     setAdding(true);
     setError(null);
     try {
-      const code = codeInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const code = codeInput
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
       if (code.length !== 6) {
-        setError('Enter the 6-character friend code.');
+        setError("Enter the 6-character friend code.");
         setAdding(false);
         return;
       }
@@ -127,15 +165,17 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       // SECURITY DEFINER lookup: profiles RLS intentionally hides non-friends,
       // so a direct profiles query can never find a code before the add.
       const { data: lookupRows, error: tErr } = await supabase.rpc(
-        'lookup_profile_by_friend_code',
-        { p_code: code }
+        "lookup_profile_by_friend_code",
+        { p_code: code },
       );
       if (tErr) throw tErr;
-      const target = (Array.isArray(lookupRows) ? lookupRows[0] : lookupRows) as
+      const target = (
+        Array.isArray(lookupRows) ? lookupRows[0] : lookupRows
+      ) as
         | { profile_id: string; display_name: string; avatar_character: string }
         | undefined;
       if (!target) {
-        setError('No user found with that code.');
+        setError("No user found with that code.");
         setAdding(false);
         return;
       }
@@ -148,28 +188,28 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       // Check both directions first. A reverse pending request is allowed:
       // the insert below completes the mutual add, exactly as before.
       const { data: existing, error: exErr } = await supabase
-        .from('friendships')
-        .select('id, user_id, friend_id, status')
+        .from("friendships")
+        .select("id, user_id, friend_id, status")
         .or(
           `and(user_id.eq.${session.user.id},friend_id.eq.${target.profile_id}),` +
-            `and(user_id.eq.${target.profile_id},friend_id.eq.${session.user.id})`
+            `and(user_id.eq.${target.profile_id},friend_id.eq.${session.user.id})`,
         );
       if (exErr) throw exErr;
       const rows = existing ?? [];
       const ownPending = rows.find(
-        (f) => f.user_id === session.user.id && f.status === 'pending'
+        (f) => f.user_id === session.user.id && f.status === "pending",
       );
       const incomingPending = rows.find(
-        (f) => f.user_id === target.profile_id && f.status === 'pending'
+        (f) => f.user_id === target.profile_id && f.status === "pending",
       );
 
-      if (rows.some((f) => f.status === 'accepted')) {
-        setError('Already in your circle.');
+      if (rows.some((f) => f.status === "accepted")) {
+        setError("Already in your circle.");
         setAdding(false);
         return;
       }
-      if (rows.some((f) => f.status === 'rejected')) {
-        setError('Request was rejected.');
+      if (rows.some((f) => f.status === "rejected")) {
+        setError("Request was rejected.");
         setAdding(false);
         return;
       }
@@ -177,15 +217,18 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         // Legacy data could still have both directions pending. Accept the
         // incoming half; otherwise this is simply an already-sent request.
         if (incomingPending) {
-          const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
-            p_request_id: incomingPending.id,
-          });
+          const { error: acceptErr } = await supabase.rpc(
+            "accept_friend_request",
+            {
+              p_request_id: incomingPending.id,
+            },
+          );
           if (acceptErr) throw acceptErr;
-          setCodeInput('');
+          setCodeInput("");
           await loadFriends(true);
           return;
         }
-        setError('Request already sent.');
+        setError("Request already sent.");
         setAdding(false);
         return;
       }
@@ -193,23 +236,26 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       // They already requested us: adding their code accepts that request.
       // Do not insert a reciprocal row; one unordered pair = one row.
       if (incomingPending) {
-        const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
-          p_request_id: incomingPending.id,
-        });
+        const { error: acceptErr } = await supabase.rpc(
+          "accept_friend_request",
+          {
+            p_request_id: incomingPending.id,
+          },
+        );
         if (acceptErr) throw acceptErr;
-        setCodeInput('');
+        setCodeInput("");
         await loadFriends(true);
         return;
       }
 
-      const { error: insErr } = await supabase.from('friendships').insert({
+      const { error: insErr } = await supabase.from("friendships").insert({
         user_id: session.user.id,
         friend_id: target.profile_id,
-        status: 'pending',
+        status: "pending",
       });
       if (insErr) {
-        if (insErr.code === '23505') {
-          setError('Already added or requested.');
+        if (insErr.code === "23505") {
+          setError("Already added or requested.");
         } else {
           throw insErr;
         }
@@ -217,10 +263,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         return;
       }
 
-      setCodeInput('');
+      setCodeInput("");
       await loadFriends(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add friend');
+      setError(e instanceof Error ? e.message : "Could not add friend");
     } finally {
       setAdding(false);
     }
@@ -229,7 +275,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   async function handleAccept(requestId: string) {
     if (!session) return;
     setError(null);
-    const { error: acceptErr } = await supabase.rpc('accept_friend_request', {
+    const { error: acceptErr } = await supabase.rpc("accept_friend_request", {
       p_request_id: requestId,
     });
     if (acceptErr) {
@@ -242,7 +288,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   async function handleReject(requestId: string) {
     if (!session) return;
     setError(null);
-    const { error: rejectErr } = await supabase.rpc('reject_friend_request', {
+    const { error: rejectErr } = await supabase.rpc("reject_friend_request", {
       p_request_id: requestId,
     });
     if (rejectErr) {
@@ -255,7 +301,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
   async function handleCancelRequest(requestId: string) {
     if (!session) return;
     setError(null);
-    const { error: cancelErr } = await supabase.rpc('cancel_friend_request', {
+    const { error: cancelErr } = await supabase.rpc("cancel_friend_request", {
       p_request_id: requestId,
     });
     if (cancelErr) {
@@ -284,8 +330,13 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     let bestId: string | null = null;
     let tied = false;
     for (const f of friends) {
-      if (f.currentStreak > best) { best = f.currentStreak; bestId = f.profile.id; tied = false; }
-      else if (f.currentStreak === best) { tied = true; }
+      if (f.currentStreak > best) {
+        best = f.currentStreak;
+        bestId = f.profile.id;
+        tied = false;
+      } else if (f.currentStreak === best) {
+        tied = true;
+      }
     }
     return tied ? null : bestId;
   })();
@@ -294,8 +345,13 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     let bestId: string | null = null;
     let tied = false;
     for (const f of friends) {
-      if (f.todayMinutes > best) { best = f.todayMinutes; bestId = f.profile.id; tied = false; }
-      else if (f.todayMinutes === best) { tied = true; }
+      if (f.todayMinutes > best) {
+        best = f.todayMinutes;
+        bestId = f.profile.id;
+        tied = false;
+      } else if (f.todayMinutes === best) {
+        tied = true;
+      }
     }
     return tied ? null : bestId;
   })();
@@ -311,15 +367,17 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
         const myId = session.user.id;
         const fid = f.profile.id;
         const { error: delErr } = await supabase
-          .from('friendships')
+          .from("friendships")
           .delete()
-          .or(`and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`);
+          .or(
+            `and(user_id.eq.${myId},friend_id.eq.${fid}),and(user_id.eq.${fid},friend_id.eq.${myId})`,
+          );
         if (delErr) throw delErr;
       }
       await loadFriends(true);
     } catch (e) {
       setFriends(snapshot);
-      setError(e instanceof Error ? e.message : 'Could not remove friend');
+      setError(e instanceof Error ? e.message : "Could not remove friend");
     } finally {
       setRemoving(false);
       setRemoveTarget(null);
@@ -335,7 +393,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     if (!onOpenStudyTable) return;
     if (!profile?.character_chosen) {
       setSelectedCharacter(resolveAvatarCharacter(profile?.avatar_character));
-      setPickerMode('first');
+      setPickerMode("first");
       setCharacterError(null);
       setPickerOpen(true);
       return;
@@ -345,7 +403,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
 
   function openCharacterPicker() {
     setSelectedCharacter(currentCharacter);
-    setPickerMode('change');
+    setPickerMode("change");
     setCharacterError(null);
     setPickerOpen(true);
   }
@@ -367,19 +425,19 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     const saved = await saveCharacter(selectedCharacter);
     if (!saved) return;
     setPickerOpen(false);
-    if (pickerMode === 'first') onOpenStudyTable?.();
+    if (pickerMode === "first") onOpenStudyTable?.();
   }
 
   async function dismissCharacterPicker() {
     if (savingCharacter) return;
-    if (pickerMode === 'change') {
+    if (pickerMode === "change") {
       setPickerOpen(false);
       setCharacterError(null);
       return;
     }
     // First-time skip/dismiss always keeps the default Boy and marks the
     // choice resolved so the picker never appears automatically again.
-    const saved = await saveCharacter('boy');
+    const saved = await saveCharacter("boy");
     if (!saved) return;
     setPickerOpen(false);
     onOpenStudyTable?.();
@@ -389,7 +447,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
     <div className="page-wrap pb-24">
       <div className="page-kicker">Accountability circle</div>
       <h2 className="page-title">Focus together</h2>
-      <p className="page-copy mb-7">Quiet accountability with the people you trust. No feeds and no performance theatre.</p>
+      <p className="page-copy mb-7">
+        Quiet accountability with the people you trust. No feeds and no
+        performance theatre.
+      </p>
 
       {onOpenStudyTable && (
         <button
@@ -406,7 +467,10 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#090b0a] via-[#090b0a]/70 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#090b0a]/85 via-transparent to-transparent" />
-            <div className="table-shimmer pointer-events-none absolute inset-0" aria-hidden="true" />
+            <div
+              className="table-shimmer pointer-events-none absolute inset-0"
+              aria-hidden="true"
+            />
             <div className="absolute left-5 top-1/2 flex -translate-y-1/2 items-center gap-4 sm:left-7">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#f6e3ba]/30 bg-black/55 text-[#f6e3ba] backdrop-blur">
                 <BookOpen className="h-5 w-5" />
@@ -419,7 +483,8 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                   </span>
                 </span>
                 <span className="mt-1 block max-w-[220px] text-xs leading-5 text-stone-400 sm:max-w-xs">
-                  See who&apos;s at the table right now — books open when a session runs.
+                  See who&apos;s at the table right now — books open when a
+                  session runs.
                 </span>
                 <span className="mt-2.5 inline-flex items-center gap-1 rounded-xl bg-[#f6e3ba] px-3 py-1.5 text-[11px] font-extrabold text-[#11130f] transition-all group-hover:gap-2">
                   Open table <ArrowUpRight className="h-3.5 w-3.5" />
@@ -433,12 +498,19 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       <div className="surface mb-4 flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3.5">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#f6e3ba]/20 bg-gradient-to-b from-[#f6e3ba]/10 to-transparent">
-            <CharacterPortrait character={currentCharacter} className="h-full w-full" />
+            <CharacterPortrait
+              character={currentCharacter}
+              className="h-full w-full"
+            />
           </div>
           <div>
             <div className="page-kicker">Your character</div>
-            <div className="mt-0.5 text-sm font-bold text-stone-100">{characterLabel(currentCharacter)} at the table</div>
-            <div className="mt-0.5 text-xs text-stone-500">Your friends see the character you choose here.</div>
+            <div className="mt-0.5 text-sm font-bold text-stone-100">
+              {characterLabel(currentCharacter)} at the table
+            </div>
+            <div className="mt-0.5 text-xs text-stone-500">
+              Your friends see the character you choose here.
+            </div>
           </div>
         </div>
         <button
@@ -451,44 +523,58 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-      <div className="surface mb-2 p-5 sm:p-6 lg:mb-8">
-        <div className="text-xs text-slate-400 mb-2">Your friend code</div>
-        <div className="flex items-center gap-3">
-          <div className="font-display flex-1 text-3xl font-extrabold tracking-[0.28em] text-emerald-400">
-            {profile?.friend_code || '------'}
+        <div className="surface mb-2 p-5 sm:p-6 lg:mb-8">
+          <div className="text-xs text-slate-400 mb-2">Your friend code</div>
+          <div className="flex items-center gap-3">
+            <div className="font-display flex-1 text-3xl font-extrabold tracking-[0.28em] text-emerald-400">
+              {profile?.friend_code || "------"}
+            </div>
+            <button
+              onClick={copyCode}
+              className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+              aria-label="Copy code"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          <button
-            onClick={copyCode}
-            className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
-            aria-label="Copy code"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-          </button>
+          <p className="text-xs text-slate-500 mt-2">
+            Share this code so friends can add you.
+          </p>
         </div>
-        <p className="text-xs text-slate-500 mt-2">Share this code so friends can add you.</p>
-      </div>
 
-      <div className="surface-soft mb-8 p-4 sm:p-6">
-        <label className="block text-sm font-medium text-slate-300 mb-2">Add a friend by code</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-            placeholder="6-character code"
-            maxLength={6}
-            className="premium-input flex-1 uppercase tracking-[0.2em]"
-          />
-          <button
-            onClick={handleAddFriend}
-            disabled={adding || codeInput.length < 6}
-            className="px-4 rounded-xl bg-emerald-500 text-slate-950 font-medium hover:bg-emerald-400 disabled:opacity-50 transition-colors flex items-center gap-1"
-          >
-            <UserPlus className="w-4 h-4" />
-          </button>
-        </div>
-        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-      </div>
+        <PremiumLock feature="unlimited_friends" className="mb-8">
+          <div className="surface-soft p-4 sm:p-6">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Add a friend by code
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={codeInput}
+                onChange={(e) =>
+                  setCodeInput(
+                    e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+                  )
+                }
+                placeholder="6-character code"
+                maxLength={6}
+                className="premium-input flex-1 uppercase tracking-[0.2em]"
+              />
+              <button
+                onClick={handleAddFriend}
+                disabled={adding || codeInput.length < 6}
+                className="px-4 rounded-xl bg-emerald-500 text-slate-950 font-medium hover:bg-emerald-400 disabled:opacity-50 transition-colors flex items-center gap-1"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            </div>
+            {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+          </div>
+        </PremiumLock>
       </div>
 
       {incomingRequests.length > 0 && (
@@ -510,8 +596,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                     />
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-bold text-stone-100">{r.display_name}</div>
-                    <div className="text-xs text-stone-500">wants to join your circle</div>
+                    <div className="truncate text-sm font-bold text-stone-100">
+                      {r.display_name}
+                    </div>
+                    <div className="text-xs text-stone-500">
+                      wants to join your circle
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
@@ -555,8 +645,12 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                     />
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-bold text-stone-100">{r.display_name}</div>
-                    <div className="text-xs text-stone-500">Waiting for them to accept</div>
+                    <div className="truncate text-sm font-bold text-stone-100">
+                      {r.display_name}
+                    </div>
+                    <div className="text-xs text-stone-500">
+                      Waiting for them to accept
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
@@ -585,22 +679,29 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
           onClick={handleRefresh}
           className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors"
         >
-          <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
-          {lastRefresh ? `Updated ${timeAgo(lastRefresh)}` : 'Refresh'}
+          <RefreshCw
+            className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`}
+          />
+          {lastRefresh ? `Updated ${timeAgo(lastRefresh)}` : "Refresh"}
         </button>
       </div>
 
       {loading ? (
-        <div className="text-slate-500 text-sm animate-pulse-soft">Loading friends…</div>
+        <div className="text-slate-500 text-sm animate-pulse-soft">
+          Loading friends…
+        </div>
       ) : friends.length === 0 ? (
         <div className="surface-soft relative flex min-h-52 flex-col items-center justify-center overflow-hidden px-6 py-10 text-center">
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#f6e3ba]/35 to-transparent" />
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f6e3ba]/20 bg-[#f6e3ba]/[.06] shadow-[0_0_40px_rgba(246,227,186,.08)]">
             <Users className="h-5 w-5 text-[#f6e3ba]" />
           </div>
-          <div className="font-display text-base font-bold text-stone-200">Your table is waiting</div>
+          <div className="font-display text-base font-bold text-stone-200">
+            Your table is waiting
+          </div>
           <div className="mt-1.5 max-w-xs text-xs leading-5 text-stone-500">
-            Add a friend with their code above. Their seat fills the moment they join your circle.
+            Add a friend with their code above. Their seat fills the moment they
+            join your circle.
           </div>
         </div>
       ) : (
@@ -613,15 +714,17 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                 key={f.profile.id}
                 className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl border transition ${
                   isTopStreak
-                    ? 'bg-orange-400/[.06] border-orange-400/35 shadow-[0_0_24px_rgba(251,146,60,.08)]'
+                    ? "bg-orange-400/[.06] border-orange-400/35 shadow-[0_0_24px_rgba(251,146,60,.08)]"
                     : isTopToday
-                      ? 'bg-[#f6e3ba]/[.05] border-[#f6e3ba]/30'
-                      : 'bg-slate-900 border-slate-800'
+                      ? "bg-[#f6e3ba]/[.05] border-[#f6e3ba]/30"
+                      : "bg-slate-900 border-slate-800"
                 }`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-white text-sm font-medium truncate">{f.profile.display_name}</span>
+                    <span className="text-white text-sm font-medium truncate">
+                      {f.profile.display_name}
+                    </span>
                     {isTopStreak && (
                       <span className="shrink-0 rounded-full bg-orange-400/15 px-1.5 py-px text-[9px] font-extrabold uppercase tracking-wider text-orange-300">
                         Top streak
@@ -633,7 +736,9 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500">{f.profile.friend_code}</div>
+                  <div className="text-xs text-slate-500">
+                    {f.profile.friend_code}
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm">
                   <div className="flex items-center gap-1 text-slate-300">
@@ -680,11 +785,15 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
             className="w-full max-w-xs rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="font-display text-base font-bold text-white">Remove friend?</h3>
+            <h3 className="font-display text-base font-bold text-white">
+              Remove friend?
+            </h3>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Remove{' '}
-              <span className="font-bold text-slate-200">{removeTarget.profile.display_name}</span> from your
-              circle?
+              Remove{" "}
+              <span className="font-bold text-slate-200">
+                {removeTarget.profile.display_name}
+              </span>{" "}
+              from your circle?
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -699,7 +808,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
                 disabled={removing}
                 className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-400 disabled:opacity-50"
               >
-                {removing ? 'Removing…' : 'Yes, remove'}
+                {removing ? "Removing…" : "Yes, remove"}
               </button>
             </div>
           </div>
@@ -711,7 +820,7 @@ export default function FriendsScreen({ onOpenStudyTable }: FriendsScreenProps) 
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) return "just now";
   const mins = Math.floor(seconds / 60);
   return `${mins} min ago`;
 }

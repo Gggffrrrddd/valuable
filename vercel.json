@@ -1,4 +1,6 @@
 {
+  "cleanUrls": true,
+  "rewrites": [{ "source": "/delete-account", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/index.html",

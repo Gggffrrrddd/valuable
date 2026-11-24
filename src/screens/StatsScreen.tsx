@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth';
-import { fetchStats, type Stats } from '@/lib/stats';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { fetchStats, type Stats } from "@/lib/stats";
 import {
   fetchActiveGoal,
   buildDayRecords,
   fetchMinutesByDate,
   dateKey as competeDateKey,
-} from '@/lib/compete';
-import type { CompeteGoal } from '@/types';
-import { generateShareImage } from '@/lib/shareImage';
+} from "@/lib/compete";
+import type { CompeteGoal } from "@/types";
+import { generateShareImage } from "@/lib/shareImage";
 import {
   Flame,
   TrendingUp,
@@ -27,7 +27,12 @@ import {
   Sun,
   Sunset,
   Moon,
-} from 'lucide-react';
+  Lock,
+} from "lucide-react";
+import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
+import { useEntitlement } from "@/lib/premium/useEntitlement";
+import { isFeatureLocked } from "@/lib/premium/features";
+import { openPremiumPage } from "@/lib/premium/openPremium";
 
 interface StatsScreenProps {
   onStartTimer: () => void;
@@ -51,11 +56,22 @@ function formatMinutes(total: number): string {
   return rest === 0 ? `${h}h` : `${h}h ${rest}m`;
 }
 
-function ChangeBadge({ current, previous, label }: { current: number; previous: number; label: string }) {
+function ChangeBadge({
+  current,
+  previous,
+  label,
+}: {
+  current: number;
+  previous: number;
+  label: string;
+}) {
   if (previous <= 0) {
     if (current <= 0) return null;
     return (
-      <span title={label} className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+      <span
+        title={label}
+        className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300"
+      >
         new
       </span>
     );
@@ -64,24 +80,41 @@ function ChangeBadge({ current, previous, label }: { current: number; previous: 
   const up = pct >= 0;
   return (
     <span
-      title={`${label}: ${up ? '+' : ''}${pct}%`}
+      title={`${label}: ${up ? "+" : ""}${pct}%`}
       className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-        up ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/5 text-slate-400'
+        up ? "bg-emerald-400/10 text-emerald-300" : "bg-white/5 text-slate-400"
       }`}
     >
-      {up ? '↑' : '↓'} {Math.abs(pct)}%
+      {up ? "↑" : "↓"} {Math.abs(pct)}%
     </span>
   );
 }
 
-function Donut({ value, size = 132, stroke = 13, children }: { value: number; size?: number; stroke?: number; children?: React.ReactNode }) {
+function Donut({
+  value,
+  size = 132,
+  stroke = 13,
+  children,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  children?: React.ReactNode;
+}) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(246,227,186,.12)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(246,227,186,.12)"
+          strokeWidth={stroke}
+        />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -94,14 +127,21 @@ function Donut({ value, size = 132, stroke = 13, children }: { value: number; si
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {children}
+      </div>
     </div>
   );
 }
 
 function smoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return '';
-  if (pts.length < 3) return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  if (pts.length === 0) return "";
+  if (pts.length < 3)
+    return pts
+      .map(
+        (p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`,
+      )
+      .join(" ");
   let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[Math.max(0, i - 1)];
@@ -125,11 +165,18 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
   const max = Math.max(...data.map((d) => d.minutes), 1);
   const pts = data.map((d, i) => ({
     ...d,
-    x: PAD + (data.length > 1 ? (i / (data.length - 1)) * (W - PAD * 2) : (W - PAD * 2) / 2),
+    x:
+      PAD +
+      (data.length > 1
+        ? (i / (data.length - 1)) * (W - PAD * 2)
+        : (W - PAD * 2) / 2),
     y: H - PAD - (d.minutes / max) * (H - PAD * 2),
   }));
   const line = smoothPath(pts);
-  const area = pts.length > 0 ? `${line} L ${pts[pts.length - 1].x.toFixed(1)} ${H - PAD} L ${pts[0].x.toFixed(1)} ${H - PAD} Z` : '';
+  const area =
+    pts.length > 0
+      ? `${line} L ${pts[pts.length - 1].x.toFixed(1)} ${H - PAD} L ${pts[0].x.toFixed(1)} ${H - PAD} Z`
+      : "";
 
   const pickIndex = (clientX: number, el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -137,9 +184,10 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
     return Math.round(ratio * (data.length - 1));
   };
 
-  const fmtDate = (iso: string) => iso.slice(5).replace('-', '/');
+  const fmtDate = (iso: string) => iso.slice(5).replace("-", "/");
   const hovered = hover !== null ? pts[hover] : null;
-  const leftPct = hover !== null && data.length > 1 ? (hover / (data.length - 1)) * 100 : 0;
+  const leftPct =
+    hover !== null && data.length > 1 ? (hover / (data.length - 1)) * 100 : 0;
 
   return (
     <div>
@@ -148,10 +196,16 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
         onMouseMove={(e) => setHover(pickIndex(e.clientX, e.currentTarget))}
         onMouseLeave={() => setHover(null)}
         onTouchMove={(e) => {
-          if (e.touches.length > 0) setHover(pickIndex(e.touches[0].clientX, e.currentTarget));
+          if (e.touches.length > 0)
+            setHover(pickIndex(e.touches[0].clientX, e.currentTarget));
         }}
       >
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full" style={{ overflow: 'visible' }}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="h-full w-full"
+          style={{ overflow: "visible" }}
+        >
           {[0.25, 0.5, 0.75].map((f) => (
             <line
               key={f}
@@ -188,7 +242,14 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
-              <circle cx={hovered.x} cy={hovered.y} r={5} fill="#60a5fa" stroke="#0f172a" strokeWidth={2} />
+              <circle
+                cx={hovered.x}
+                cy={hovered.y}
+                r={5}
+                fill="#60a5fa"
+                stroke="#0f172a"
+                strokeWidth={2}
+              />
             </g>
           )}
         </svg>
@@ -197,31 +258,52 @@ function TrendChart({ data }: { data: { date: string; minutes: number }[] }) {
             className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl border border-blue-400/30 bg-[#0f172a]/95 px-3 py-1.5 text-center shadow-xl backdrop-blur"
             style={{ left: `${Math.max(9, Math.min(91, leftPct))}%` }}
           >
-            <div className="text-sm font-extrabold text-white">{formatMinutes(hovered.minutes)}</div>
-            <div className="text-[10px] font-semibold text-slate-400">{fmtDate(hovered.date)}</div>
+            <div className="text-sm font-extrabold text-white">
+              {formatMinutes(hovered.minutes)}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-400">
+              {fmtDate(hovered.date)}
+            </div>
           </div>
         )}
       </div>
       <div className="mt-2 flex justify-between text-[10px] font-semibold text-slate-500">
-        <span>{data[0] ? fmtDate(data[0].date) : ''}</span>
-        <span>{data.length > 2 ? fmtDate(data[Math.floor(data.length / 2)].date) : ''}</span>
-        <span>{data.length > 0 ? fmtDate(data[data.length - 1].date) : ''}</span>
+        <span>{data[0] ? fmtDate(data[0].date) : ""}</span>
+        <span>
+          {data.length > 2
+            ? fmtDate(data[Math.floor(data.length / 2)].date)
+            : ""}
+        </span>
+        <span>
+          {data.length > 0 ? fmtDate(data[data.length - 1].date) : ""}
+        </span>
       </div>
     </div>
   );
 }
 
-function MilestoneIcon({ icon, className }: { icon: string; className?: string }) {
-  const cls = className ?? 'h-5 w-5';
-  if (icon === 'flame') return <Flame className={cls} />;
-  if (icon === 'hourglass') return <Hourglass className={cls} />;
-  if (icon === 'check') return <CheckCircle2 className={cls} />;
-  if (icon === 'star') return <Star className={cls} />;
+function MilestoneIcon({
+  icon,
+  className,
+}: {
+  icon: string;
+  className?: string;
+}) {
+  const cls = className ?? "h-5 w-5";
+  if (icon === "flame") return <Flame className={cls} />;
+  if (icon === "hourglass") return <Hourglass className={cls} />;
+  if (icon === "check") return <CheckCircle2 className={cls} />;
+  if (icon === "star") return <Star className={cls} />;
   return <Trophy className={cls} />;
 }
 
-export default function StatsScreen({ onStartTimer, onNavigateToCompete }: StatsScreenProps) {
+export default function StatsScreen({
+  onStartTimer,
+  onNavigateToCompete,
+}: StatsScreenProps) {
   const { session } = useAuth();
+  const { config } = usePremiumConfig();
+  const { isPremium } = useEntitlement();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<30 | 90>(30);
@@ -234,7 +316,7 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
     setLoading(true);
     fetchStats(session.user.id)
       .then(setStats)
-      .catch((e) => console.error('Stats error:', e))
+      .catch((e) => console.error("Stats error:", e))
       .finally(() => setLoading(false));
   }, [session]);
 
@@ -255,17 +337,21 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
         const records = buildDayRecords(goal, minutes, today);
         const target = Number(goal.daily_target_hours) * 60;
         const last = records[records.length - 1];
-        const todayPct = target > 0 && last ? Math.min(100, Math.round((last.minutesCompleted / target) * 100)) : 0;
+        const todayPct =
+          target > 0 && last
+            ? Math.min(100, Math.round((last.minutesCompleted / target) * 100))
+            : 0;
         const met = records.filter((r) => r.targetMet).length;
         setCompete({
           goal,
           todayPct,
-          pacePct: records.length > 0 ? Math.round((met / records.length) * 100) : 0,
+          pacePct:
+            records.length > 0 ? Math.round((met / records.length) * 100) : 0,
           metDays: met,
           totalDays: records.length,
         });
       } catch (e) {
-        console.error('Compete summary error:', e);
+        console.error("Compete summary error:", e);
       }
     })();
   }, [session]);
@@ -273,36 +359,85 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
   if (loading || !stats) {
     return (
       <div className="px-5 py-6">
-        <div className="animate-pulse-soft text-sm text-slate-500">Loading your stats…</div>
+        <div className="animate-pulse-soft text-sm text-slate-500">
+          Loading your stats…
+        </div>
       </div>
     );
   }
 
   const trendData = range === 30 ? stats.last30Days : stats.last90Days;
-  const completionPct = stats.sessionsTotal > 0 ? Math.round((stats.sessionsCompleted / stats.sessionsTotal) * 100) : 0;
+  const completionPct =
+    stats.sessionsTotal > 0
+      ? Math.round((stats.sessionsCompleted / stats.sessionsTotal) * 100)
+      : 0;
 
   const topSubjects = stats.subjects.slice(0, 5);
-  const otherMinutes = stats.subjects.slice(5).reduce((a, s) => a + s.minutes, 0);
-  const otherPct = stats.totalMinutes > 0 ? (stats.subjects.slice(5).reduce((a, s) => a + s.minutes, 0) / stats.totalMinutes) * 100 : 0;
+  const otherMinutes = stats.subjects
+    .slice(5)
+    .reduce((a, s) => a + s.minutes, 0);
+  const otherPct =
+    stats.totalMinutes > 0
+      ? (stats.subjects.slice(5).reduce((a, s) => a + s.minutes, 0) /
+          stats.totalMinutes) *
+        100
+      : 0;
 
   const tod = stats.timeOfDay;
   const todTotal = tod.morning + tod.afternoon + tod.evening + tod.night;
   const buckets = [
-    { key: 'Morning', label: 'Morning', sub: '6 AM – 12 PM', minutes: tod.morning, icon: <Sunrise className="h-4 w-4" /> },
-    { key: 'Afternoon', label: 'Afternoon', sub: '12 – 5 PM', minutes: tod.afternoon, icon: <Sun className="h-4 w-4" /> },
-    { key: 'Evening', label: 'Evening', sub: '5 – 10 PM', minutes: tod.evening, icon: <Sunset className="h-4 w-4" /> },
-    { key: 'Night', label: 'Night', sub: '10 PM – 6 AM', minutes: tod.night, icon: <Moon className="h-4 w-4" /> },
+    {
+      key: "Morning",
+      label: "Morning",
+      sub: "6 AM – 12 PM",
+      minutes: tod.morning,
+      icon: <Sunrise className="h-4 w-4" />,
+    },
+    {
+      key: "Afternoon",
+      label: "Afternoon",
+      sub: "12 – 5 PM",
+      minutes: tod.afternoon,
+      icon: <Sun className="h-4 w-4" />,
+    },
+    {
+      key: "Evening",
+      label: "Evening",
+      sub: "5 – 10 PM",
+      minutes: tod.evening,
+      icon: <Sunset className="h-4 w-4" />,
+    },
+    {
+      key: "Night",
+      label: "Night",
+      sub: "10 PM – 6 AM",
+      minutes: tod.night,
+      icon: <Moon className="h-4 w-4" />,
+    },
   ];
-  const todMax = Math.max(tod.morning, tod.afternoon, tod.evening, tod.night, 1);
+  const todMax = Math.max(
+    tod.morning,
+    tod.afternoon,
+    tod.evening,
+    tod.night,
+    1,
+  );
 
-  async function doShare(type: 'full' | 'streak' | 'milestone' | 'weekly', milestone?: Stats['milestones'][number]) {
+  async function doShare(
+    type: "full" | "streak" | "milestone" | "weekly",
+    milestone?: Stats["milestones"][number],
+  ) {
+    if (isFeatureLocked("share_report", config.flags, isPremium)) {
+      openPremiumPage("Shareable reports");
+      return;
+    }
     if (!stats || sharing) return;
-    const key = type + (milestone ? `-${milestone.id}` : '');
+    const key = type + (milestone ? `-${milestone.id}` : "");
     setSharing(key);
     try {
       await generateShareImage({ type, stats, milestone });
     } catch (e) {
-      console.error('Share failed:', e);
+      console.error("Share failed:", e);
     } finally {
       setSharing(null);
     }
@@ -311,7 +446,7 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
   const secondaryInsight =
     topSubjects.length > 0
       ? `Most of your time goes to ${topSubjects[0].name} (${Math.round(topSubjects[0].percentage)}% of all focus).`
-      : 'Tag your sessions with a subject to see where your time goes.';
+      : "Tag your sessions with a subject to see where your time goes.";
 
   return (
     <div className="page-wrap pb-24">
@@ -321,15 +456,18 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <h2 className="page-title">Your progress</h2>
         </div>
         <button
-          onClick={() => doShare('full')}
+          onClick={() => doShare("full")}
           disabled={sharing !== null}
           className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#f6e3ba]/30 bg-[#f6e3ba]/10 px-3 py-2 text-xs font-bold text-[#f6e3ba] transition hover:bg-[#f6e3ba]/20 disabled:opacity-50"
         >
           <Share2 className="h-3.5 w-3.5" />
-          {sharing === 'full' ? 'Preparing…' : 'Share report'}
+          {sharing === "full" ? "Preparing…" : "Share report"}
         </button>
       </div>
-      <p className="page-copy mb-7">A clear view of the practice you&apos;re building, one focused minute at a time.</p>
+      <p className="page-copy mb-7">
+        A clear view of the practice you&apos;re building, one focused minute at
+        a time.
+      </p>
 
       {/* 1. HEADER STATS ROW */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -337,12 +475,14 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <div className="mb-1 flex items-center gap-1.5 text-xs text-slate-400">
             <Clock className="h-3.5 w-3.5" /> Today
           </div>
-          <div className="mt-2 font-display text-2xl font-extrabold text-white">{formatMinutes(stats.todayMinutes)}</div>
+          <div className="mt-2 font-display text-2xl font-extrabold text-white">
+            {formatMinutes(stats.todayMinutes)}
+          </div>
           <div className="mt-1 text-[11px] text-slate-500">focused today</div>
         </div>
         <div className="relative rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <button
-            onClick={() => doShare('weekly')}
+            onClick={() => doShare("weekly")}
             disabled={sharing !== null}
             title="Share weekly summary"
             aria-label="Share weekly summary"
@@ -354,11 +494,17 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             <TrendingUp className="h-3.5 w-3.5" /> This Week
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="font-display text-2xl font-extrabold text-white">{formatMinutes(stats.weekMinutes)}</span>
-            <ChangeBadge current={stats.weekMinutes} previous={stats.lastWeekMinutes} label="Week over week" />
+            <span className="font-display text-2xl font-extrabold text-white">
+              {formatMinutes(stats.weekMinutes)}
+            </span>
+            <ChangeBadge
+              current={stats.weekMinutes}
+              previous={stats.lastWeekMinutes}
+              label="Week over week"
+            />
           </div>
           <div className="mt-1 text-[11px] text-slate-500">
-            {sharing === 'weekly' ? 'Preparing image…' : 'vs last week'}
+            {sharing === "weekly" ? "Preparing image…" : "vs last week"}
           </div>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
@@ -366,16 +512,26 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             <Calendar className="h-3.5 w-3.5" /> 30 Days
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="font-display text-2xl font-extrabold text-white">{formatMinutes(stats.monthMinutes)}</span>
-            <ChangeBadge current={stats.monthMinutes} previous={stats.lastMonthMinutes} label="30 days vs prior 30" />
+            <span className="font-display text-2xl font-extrabold text-white">
+              {formatMinutes(stats.monthMinutes)}
+            </span>
+            <ChangeBadge
+              current={stats.monthMinutes}
+              previous={stats.lastMonthMinutes}
+              label="30 days vs prior 30"
+            />
           </div>
-          <div className="mt-1 text-[11px] text-slate-500">vs prior 30 days</div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            vs prior 30 days
+          </div>
         </div>
         <div className="rounded-2xl border border-[#f6e3ba]/25 bg-[#f6e3ba]/[.05] p-4">
           <div className="mb-1 flex items-center gap-1.5 text-xs text-[#f6e3ba]">
             <Hourglass className="h-3.5 w-3.5" /> All-time
           </div>
-          <div className="mt-2 font-display text-2xl font-extrabold text-white">{formatMinutes(stats.totalMinutes)}</div>
+          <div className="mt-2 font-display text-2xl font-extrabold text-white">
+            {formatMinutes(stats.totalMinutes)}
+          </div>
           <div className="mt-1 text-[11px] text-slate-500">total focus</div>
         </div>
       </div>
@@ -384,7 +540,7 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="relative min-h-28 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <button
-            onClick={() => doShare('streak')}
+            onClick={() => doShare("streak")}
             disabled={sharing !== null}
             title="Share streak"
             aria-label="Share streak"
@@ -396,10 +552,12 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             <Flame className="h-4 w-4" /> Current Streak
           </div>
           <div className="mt-3 font-display text-2xl font-extrabold text-white">
-            {stats.currentStreak} day{stats.currentStreak !== 1 ? 's' : ''}
+            {stats.currentStreak} day{stats.currentStreak !== 1 ? "s" : ""}
           </div>
           <div className="mt-1 text-[11px] text-emerald-500/70">
-            {sharing && sharing.startsWith('streak') ? 'Preparing image…' : 'keep it burning'}
+            {sharing && sharing.startsWith("streak")
+              ? "Preparing image…"
+              : "keep it burning"}
           </div>
         </div>
         <div className="min-h-28 rounded-2xl border border-slate-800 bg-slate-900 p-4">
@@ -407,9 +565,11 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             <Flame className="h-4 w-4" /> Longest Streak
           </div>
           <div className="mt-3 font-display text-2xl font-extrabold text-white">
-            {stats.longestStreak} day{stats.longestStreak !== 1 ? 's' : ''}
+            {stats.longestStreak} day{stats.longestStreak !== 1 ? "s" : ""}
           </div>
-          <div className="mt-1 text-[11px] text-slate-500">your personal best run</div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            your personal best run
+          </div>
         </div>
       </div>
 
@@ -417,8 +577,12 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
       <div className="surface mb-4 p-6 sm:p-7">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
           <Donut value={completionPct}>
-            <div className="font-display text-2xl font-extrabold text-[#f6e3ba]">{completionPct}%</div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">complete</div>
+            <div className="font-display text-2xl font-extrabold text-[#f6e3ba]">
+              {completionPct}%
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              complete
+            </div>
           </Donut>
           <div className="text-center sm:text-left">
             <div className="flex items-center justify-center gap-2 sm:justify-start">
@@ -426,10 +590,14 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
               <h3 className="font-semibold text-white">Completion rate</h3>
             </div>
             <p className="mt-2 font-display text-xl font-extrabold text-white">
-              {stats.sessionsCompleted} <span className="text-sm font-semibold text-slate-400">of {stats.sessionsTotal} sessions completed</span>
+              {stats.sessionsCompleted}{" "}
+              <span className="text-sm font-semibold text-slate-400">
+                of {stats.sessionsTotal} sessions completed
+              </span>
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">
-              Finishing what you start is the habit that compounds. Every completed session counts — abandoned ones simply don&apos;t.
+              Finishing what you start is the habit that compounds. Every
+              completed session counts — abandoned ones simply don&apos;t.
             </p>
           </div>
         </div>
@@ -443,18 +611,33 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             {([30, 90] as const).map((r) => (
               <button
                 key={r}
-                onClick={() => setRange(r)}
-                className={`rounded-[10px] px-3 py-1.5 transition ${
-                  range === r ? 'bg-blue-400/15 text-blue-300' : 'text-slate-500 hover:text-slate-300'
+                onClick={() =>
+                  r === 90 &&
+                  isFeatureLocked("stats_history_90", config.flags, isPremium)
+                    ? openPremiumPage("90-day stats history")
+                    : setRange(r)
+                }
+                className={`inline-flex items-center gap-1 rounded-[10px] px-3 py-1.5 transition ${
+                  range === r
+                    ? "bg-blue-400/15 text-blue-300"
+                    : "text-slate-500 hover:text-slate-300"
                 }`}
               >
                 {r}D
+                {r === 90 &&
+                  isFeatureLocked(
+                    "stats_history_90",
+                    config.flags,
+                    isPremium,
+                  ) && <Lock className="h-2.5 w-2.5" />}
               </button>
             ))}
           </div>
         </div>
         <TrendChart data={trendData} />
-        <p className="mt-2 text-[11px] text-slate-500">Daily focused minutes · hover or tap the line for exact values</p>
+        <p className="mt-2 text-[11px] text-slate-500">
+          Daily focused minutes · hover or tap the line for exact values
+        </p>
       </div>
 
       {/* 5. SUBJECT BREAKDOWN */}
@@ -463,9 +646,13 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <BookOpen className="h-4 w-4 text-[#f6e3ba]" />
           <h3 className="font-semibold text-white">Subject breakdown</h3>
         </div>
-        <p className="mb-4 text-[11px] text-slate-500">Based on your session tags · all-time</p>
+        <p className="mb-4 text-[11px] text-slate-500">
+          Based on your session tags · all-time
+        </p>
         {topSubjects.length === 0 ? (
-          <p className="text-sm text-slate-400">Tag your focus sessions with a subject to see where your time goes.</p>
+          <p className="text-sm text-slate-400">
+            Tag your focus sessions with a subject to see where your time goes.
+          </p>
         ) : (
           <div className="space-y-3.5">
             {topSubjects.map((s, i) => (
@@ -473,7 +660,10 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
                 <div className="mb-1 flex items-baseline justify-between text-sm">
                   <span className="font-semibold text-slate-200">{s.name}</span>
                   <span className="text-xs text-slate-400">
-                    {formatMinutes(s.minutes)} · <span className="font-bold text-[#f6e3ba]">{Math.round(s.percentage)}%</span>
+                    {formatMinutes(s.minutes)} ·{" "}
+                    <span className="font-bold text-[#f6e3ba]">
+                      {Math.round(s.percentage)}%
+                    </span>
                   </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
@@ -496,7 +686,12 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
                   </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
-                  <div className="h-full rounded-full bg-slate-600" style={{ width: `${Math.max(2, Math.min(100, otherPct))}%` }} />
+                  <div
+                    className="h-full rounded-full bg-slate-600"
+                    style={{
+                      width: `${Math.max(2, Math.min(100, otherPct))}%`,
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -510,26 +705,37 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <Clock className="h-4 w-4 text-[#f6e3ba]" />
           <h3 className="font-semibold text-white">When you focus best</h3>
         </div>
-        <p className="mb-4 text-[11px] text-slate-500">Share of focused minutes by time of day</p>
+        <p className="mb-4 text-[11px] text-slate-500">
+          Share of focused minutes by time of day
+        </p>
         {todTotal === 0 ? (
-          <p className="text-sm text-slate-400">Complete a session and your rhythm will appear here.</p>
+          <p className="text-sm text-slate-400">
+            Complete a session and your rhythm will appear here.
+          </p>
         ) : (
           <div className="space-y-3">
             {buckets.map((b) => {
               const isPeak = tod.peak === b.key;
-              const pct = todTotal > 0 ? Math.round((b.minutes / todTotal) * 100) : 0;
+              const pct =
+                todTotal > 0 ? Math.round((b.minutes / todTotal) * 100) : 0;
               return (
                 <div
                   key={b.key}
                   className={`rounded-2xl border p-3.5 transition ${
-                    isPeak ? 'border-[#f6e3ba]/40 bg-[#f6e3ba]/[.06] shadow-[0_0_30px_rgba(246,227,186,.07)]' : 'border-slate-800 bg-slate-900/60'
+                    isPeak
+                      ? "border-[#f6e3ba]/40 bg-[#f6e3ba]/[.06] shadow-[0_0_30px_rgba(246,227,186,.07)]"
+                      : "border-slate-800 bg-slate-900/60"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className={`flex items-center gap-2 text-sm font-bold ${isPeak ? 'text-[#f6e3ba]' : 'text-slate-300'}`}>
+                    <div
+                      className={`flex items-center gap-2 text-sm font-bold ${isPeak ? "text-[#f6e3ba]" : "text-slate-300"}`}
+                    >
                       {b.icon}
                       {b.label}
-                      <span className="text-[11px] font-medium text-slate-500">{b.sub}</span>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {b.sub}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       {isPeak && (
@@ -538,16 +744,22 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
                         </span>
                       )}
                       <span className="text-xs text-slate-400">
-                        {formatMinutes(b.minutes)} · <span className="font-bold text-slate-200">{pct}%</span>
+                        {formatMinutes(b.minutes)} ·{" "}
+                        <span className="font-bold text-slate-200">{pct}%</span>
                       </span>
                     </div>
                   </div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${isPeak ? '' : 'bg-slate-500/70'}`}
+                      className={`h-full rounded-full transition-all duration-700 ${isPeak ? "" : "bg-slate-500/70"}`}
                       style={{
                         width: `${Math.max(2, (b.minutes / todMax) * 100)}%`,
-                        ...(isPeak ? { background: 'linear-gradient(90deg, rgba(246,227,186,.55), #f6e3ba)' } : {}),
+                        ...(isPeak
+                          ? {
+                              background:
+                                "linear-gradient(90deg, rgba(246,227,186,.55), #f6e3ba)",
+                            }
+                          : {}),
                       }}
                     />
                   </div>
@@ -564,8 +776,12 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <Sparkles className="h-4 w-4 text-[#f6e3ba]" />
           <h3 className="font-semibold text-white">Insights for you</h3>
         </div>
-        <p className="mt-3 text-[15px] leading-7 text-slate-200">{stats.writtenInsight}</p>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{secondaryInsight}</p>
+        <p className="mt-3 text-[15px] leading-7 text-slate-200">
+          {stats.writtenInsight}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          {secondaryInsight}
+        </p>
       </div>
 
       {/* 8. MILESTONES / BADGES */}
@@ -574,20 +790,22 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
           <Trophy className="h-4 w-4 text-[#f6e3ba]" />
           <h3 className="font-semibold text-white">Milestones</h3>
         </div>
-        <p className="mb-4 text-[11px] text-slate-500">Unlocked badges glow — locked ones show what&apos;s ahead</p>
+        <p className="mb-4 text-[11px] text-slate-500">
+          Unlocked badges glow — locked ones show what&apos;s ahead
+        </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {stats.milestones.map((m) => (
             <div
               key={m.id}
               className={`relative rounded-2xl border p-4 transition ${
                 m.unlocked
-                  ? 'border-[#f6e3ba]/40 bg-[#f6e3ba]/[.07] shadow-[0_0_36px_rgba(246,227,186,.10)]'
-                  : 'border-slate-800 bg-slate-900/60 opacity-60 grayscale'
+                  ? "border-[#f6e3ba]/40 bg-[#f6e3ba]/[.07] shadow-[0_0_36px_rgba(246,227,186,.10)]"
+                  : "border-slate-800 bg-slate-900/60 opacity-60 grayscale"
               }`}
             >
               {m.unlocked && (
                 <button
-                  onClick={() => doShare('milestone', m)}
+                  onClick={() => doShare("milestone", m)}
                   disabled={sharing !== null}
                   title={`Share ${m.title}`}
                   aria-label={`Share ${m.title}`}
@@ -596,13 +814,27 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
                   <Share2 className="h-3.5 w-3.5" />
                 </button>
               )}
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.unlocked ? 'bg-[#f6e3ba]/15 text-[#f6e3ba]' : 'bg-slate-800 text-slate-600'}`}>
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.unlocked ? "bg-[#f6e3ba]/15 text-[#f6e3ba]" : "bg-slate-800 text-slate-600"}`}
+              >
                 <MilestoneIcon icon={m.icon} />
               </div>
-              <div className={`mt-3 text-sm font-bold ${m.unlocked ? 'text-white' : 'text-slate-400'}`}>{m.title}</div>
-              <div className="mt-1 text-[11px] leading-4 text-slate-500">{m.description}</div>
-              <div className={`mt-2 text-[10px] font-extrabold uppercase tracking-wider ${m.unlocked ? 'text-[#f6e3ba]' : 'text-slate-600'}`}>
-                {m.unlocked ? (sharing === `milestone-${m.id}` ? 'Preparing…' : 'Unlocked') : 'Locked'}
+              <div
+                className={`mt-3 text-sm font-bold ${m.unlocked ? "text-white" : "text-slate-400"}`}
+              >
+                {m.title}
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                {m.description}
+              </div>
+              <div
+                className={`mt-2 text-[10px] font-extrabold uppercase tracking-wider ${m.unlocked ? "text-[#f6e3ba]" : "text-slate-600"}`}
+              >
+                {m.unlocked
+                  ? sharing === `milestone-${m.id}`
+                    ? "Preparing…"
+                    : "Unlocked"
+                  : "Locked"}
               </div>
             </div>
           ))}
@@ -619,8 +851,15 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
             <div>
               <h3 className="font-semibold text-white">Compete connection</h3>
               <p className="mt-1 text-sm leading-6 text-slate-400">
-                Today&apos;s goal: <span className="font-bold text-emerald-300">{compete.todayPct}% complete</span>
-                {' · '}On pace to finish <span className="font-bold text-slate-200">{compete.pacePct}% of days</span> ({compete.metDays}/{compete.totalDays}) by exam date.
+                Today&apos;s goal:{" "}
+                <span className="font-bold text-emerald-300">
+                  {compete.todayPct}% complete
+                </span>
+                {" · "}On pace to finish{" "}
+                <span className="font-bold text-slate-200">
+                  {compete.pacePct}% of days
+                </span>{" "}
+                ({compete.metDays}/{compete.totalDays}) by exam date.
               </p>
             </div>
           </div>
@@ -641,7 +880,8 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
               <div>
                 <h3 className="font-semibold text-white">Race yourself</h3>
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  Set a Compete goal with an exam date and daily target — your tree grows one day at a time.
+                  Set a Compete goal with an exam date and daily target — your
+                  tree grows one day at a time.
                 </p>
               </div>
             </div>
@@ -655,7 +895,10 @@ export default function StatsScreen({ onStartTimer, onNavigateToCompete }: Stats
         )
       )}
 
-      <button onClick={onStartTimer} className="primary-button mt-6 w-full py-3.5 lg:ml-auto lg:block lg:w-auto lg:px-8">
+      <button
+        onClick={onStartTimer}
+        className="primary-button mt-6 w-full py-3.5 lg:ml-auto lg:block lg:w-auto lg:px-8"
+      >
         Start a Focus Session
       </button>
     </div>

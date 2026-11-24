@@ -1,48 +1,85 @@
-import { useEffect, useRef, useState } from 'react';
-import { AuthProvider, useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
-import { startPresenceHeartbeat } from '@/lib/presence';
-import { breadcrumb, installTelemetry } from '@/lib/telemetry';
-import AuthScreen from '@/screens/AuthScreen';
-import FocusTimer, { readStoredSession, clearSessionStorage } from '@/screens/FocusTimer';
-import StatsScreen from '@/screens/StatsScreen';
-import BreakScreen from '@/screens/BreakScreen';
-import PremiumScreen from '@/screens/PremiumScreen';
-import FriendsScreen from '@/screens/FriendsScreen';
-import StudyTableScreen from '@/screens/StudyTableScreen';
-import CompeteScreen from '@/screens/CompeteScreen';
-import { Home, BarChart3, Users, Crown, LogOut, Timer, Sparkles, ArrowUpRight, Command, TreePine, MoreVertical, Download, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { startPresenceHeartbeat } from "@/lib/presence";
+import { breadcrumb, installTelemetry } from "@/lib/telemetry";
+import AuthScreen from "@/screens/AuthScreen";
+import FocusTimer, {
+  readStoredSession,
+  clearSessionStorage,
+} from "@/screens/FocusTimer";
+import StatsScreen from "@/screens/StatsScreen";
+import BreakScreen from "@/screens/BreakScreen";
+import PremiumScreen from "@/screens/PremiumScreen";
+import FriendsScreen from "@/screens/FriendsScreen";
+import StudyTableScreen from "@/screens/StudyTableScreen";
+import CompeteScreen from "@/screens/CompeteScreen";
+import SettingsScreen from "@/screens/SettingsScreen";
+import { PremiumConfigProvider } from "@/lib/premium/PremiumConfigProvider";
+import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
+import { useEntitlement } from "@/lib/premium/useEntitlement";
+import { isFeatureLocked } from "@/lib/premium/features";
+import { OPEN_PREMIUM_EVENT, openPremiumPage } from "@/lib/premium/openPremium";
+import { billing } from "@/lib/billing";
+import {
+  Home,
+  BarChart3,
+  Users,
+  Crown,
+  LogOut,
+  Timer,
+  Sparkles,
+  ArrowUpRight,
+  Command,
+  TreePine,
+  MoreVertical,
+  Download,
+  Check,
+  Settings2,
+} from "lucide-react";
 
-type Tab = 'home' | 'stats' | 'compete' | 'friends';
-type Screen = 'tab' | 'timer' | 'break' | 'premium' | 'table';
+type Tab = "home" | "stats" | "compete" | "friends";
+type Screen = "tab" | "timer" | "break" | "premium" | "table" | "settings";
 
 /** Minimal shape of the PWA install prompt event. */
 interface DeferredInstallPrompt extends Event {
   prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 function isStandaloneDisplay(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia?.('(display-mode: standalone)').matches
-    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+      true
+  );
 }
 
-const SCREEN_STORAGE_KEY = 'valuable-app-screen';
-const TAB_STORAGE_KEY = 'valuable-app-tab';
+const SCREEN_STORAGE_KEY = "valuable-app-screen";
+const TAB_STORAGE_KEY = "valuable-app-tab";
 
-const VALID_TABS: Tab[] = ['home', 'stats', 'compete', 'friends'];
-const VALID_SCREENS: Screen[] = ['tab', 'timer', 'break', 'premium', 'table'];
+const VALID_TABS: Tab[] = ["home", "stats", "compete", "friends"];
+const VALID_SCREENS: Screen[] = [
+  "tab",
+  "timer",
+  "break",
+  "premium",
+  "table",
+  "settings",
+];
 
 function AppContent() {
   const { session, profile, loading, signOut } = useAuth();
+  const { config } = usePremiumConfig();
+  const { isPremium } = useEntitlement();
   const [tab, setTab] = useState<Tab>(() => {
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
-    return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : 'home';
+    return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : "home";
   });
   const [screen, setScreen] = useState<Screen>(() => {
     const saved = sessionStorage.getItem(SCREEN_STORAGE_KEY);
-    return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : 'tab';
+    return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : "tab";
   });
   const [breakMinutes, setBreakMinutes] = useState(5);
   // True when the study table was opened mid-session: the wall-clock timer
@@ -50,9 +87,16 @@ function AppContent() {
   // "go back" remounts it into the same running session.
   const [tableFromTimer, setTableFromTimer] = useState(false);
 
+  useEffect(() => {
+    const onOpenPremium = () => setScreen("premium");
+    window.addEventListener(OPEN_PREMIUM_EVENT, onOpenPremium);
+    return () => window.removeEventListener(OPEN_PREMIUM_EVENT, onOpenPremium);
+  }, []);
+
   // Mobile overflow menu + PWA install prompt (captured for the menu item).
   const [menuOpen, setMenuOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPrompt | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<DeferredInstallPrompt | null>(null);
   const [installed, setInstalled] = useState(isStandaloneDisplay);
   const [showInstallHint, setShowInstallHint] = useState(false);
 
@@ -65,25 +109,25 @@ function AppContent() {
       setInstalled(true);
       setDeferredPrompt(null);
     };
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
-    window.addEventListener('appinstalled', onInstalled);
-    const mq = window.matchMedia('(display-mode: standalone)');
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    const mq = window.matchMedia("(display-mode: standalone)");
     const onDisplayChange = () => setInstalled(isStandaloneDisplay());
-    mq.addEventListener?.('change', onDisplayChange);
+    mq.addEventListener?.("change", onDisplayChange);
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-      window.removeEventListener('appinstalled', onInstalled);
-      mq.removeEventListener?.('change', onDisplayChange);
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+      mq.removeEventListener?.("change", onDisplayChange);
     };
   }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === "Escape") setMenuOpen(false);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
   async function handleInstallClick() {
@@ -115,7 +159,8 @@ function AppContent() {
   // Skipped when an entry already exists (reload mid-session order).
   useEffect(() => {
     try {
-      if (!window.history.state) window.history.replaceState({ app: 'home' }, '');
+      if (!window.history.state)
+        window.history.replaceState({ app: "home" }, "");
     } catch {
       /* history unavailable — back falls back to default behavior */
     }
@@ -140,21 +185,26 @@ function AppContent() {
       if (s && s.remainingMs > 0) {
         const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
         clearSessionStorage();
-        breadcrumb('nav', 'back-during-session saved', { elapsedSeconds });
-        handleSessionCompleteRef.current(elapsedSeconds, s.subjectTag, false, s.breakMinutes);
+        breadcrumb("nav", "back-during-session saved", { elapsedSeconds });
+        handleSessionCompleteRef.current(
+          elapsedSeconds,
+          s.subjectTag,
+          false,
+          s.breakMinutes,
+        );
       } else {
-        breadcrumb('nav', 'back-to-home', {});
+        breadcrumb("nav", "back-to-home", {});
       }
-      setTab('home');
-      setScreen('tab');
+      setTab("home");
+      setScreen("tab");
       try {
-        window.history.replaceState({ app: 'home' }, '');
+        window.history.replaceState({ app: "home" }, "");
       } catch {
         /* ignore */
       }
     };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -163,18 +213,19 @@ function AppContent() {
   // the slot. Timer screen entries are owned by FocusTimer — skipped here.
   // Desktop: same rules, zero visual change (history only).
   useEffect(() => {
-    if (screen === 'timer') return;
+    if (screen === "timer") return;
     let key: string;
-    if (screen === 'tab' && tab === 'home') key = 'home';
-    else if (screen === 'tab') key = tab;
+    if (screen === "tab" && tab === "home") key = "home";
+    else if (screen === "tab") key = tab;
     else key = screen; // break | premium | table
     try {
-      const cur = (window.history.state as { app?: string } | null)?.app ?? null;
+      const cur =
+        (window.history.state as { app?: string } | null)?.app ?? null;
       if (cur === key) return;
-      if (key === 'home' || (cur !== null && cur !== 'home')) {
-        window.history.replaceState({ app: key }, '');
+      if (key === "home" || (cur !== null && cur !== "home")) {
+        window.history.replaceState({ app: key }, "");
       } else {
-        window.history.pushState({ app: key }, '');
+        window.history.pushState({ app: key }, "");
       }
     } catch {
       /* ignore */
@@ -186,6 +237,7 @@ function AppContent() {
   const userId = session?.user.id;
   useEffect(() => {
     if (!userId) return;
+    void billing.init(userId);
     return startPresenceHeartbeat(userId);
   }, [userId]);
 
@@ -193,7 +245,9 @@ function AppContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#090b0a]">
         <div className="flex flex-col items-center gap-4 text-stone-500 animate-pulse-soft">
-          <div className="h-11 w-11 rounded-2xl bg-lime-300/10 p-3"><Timer className="h-full w-full text-lime-300" /></div>
+          <div className="h-11 w-11 rounded-2xl bg-lime-300/10 p-3">
+            <Timer className="h-full w-full text-lime-300" />
+          </div>
           <span className="text-sm">Preparing your space</span>
         </div>
       </div>
@@ -204,18 +258,23 @@ function AppContent() {
     return <AuthScreen />;
   }
 
-
-  async function handleSessionComplete(durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMins: number, delayNavigation: boolean = false) {
+  async function handleSessionComplete(
+    durationSeconds: number,
+    subjectTag: string | null,
+    completedFully: boolean,
+    breakMins: number,
+    delayNavigation: boolean = false,
+  ) {
     const doNavigate = () => {
       if (durationSeconds < 10 && !completedFully) {
-        setScreen('tab');
+        setScreen("tab");
         return;
       }
       if (completedFully) {
         setBreakMinutes(breakMins);
-        setScreen('break');
+        setScreen("break");
       } else {
-        setScreen('tab');
+        setScreen("tab");
       }
     };
 
@@ -223,9 +282,9 @@ function AppContent() {
       if (!delayNavigation) doNavigate();
       return doNavigate;
     }
-    
+
     try {
-      await supabase.from('focus_sessions').insert({
+      await supabase.from("focus_sessions").insert({
         user_id: session.user.id,
         subject_tag: subjectTag,
         started_at: new Date(Date.now() - durationSeconds * 1000).toISOString(),
@@ -233,57 +292,67 @@ function AppContent() {
         duration_seconds: durationSeconds,
         completed_fully: completedFully,
       });
-      breadcrumb('session', 'focus_sessions insert ok', { durationSeconds, completedFully });
+      breadcrumb("session", "focus_sessions insert ok", {
+        durationSeconds,
+        completedFully,
+      });
     } catch (e) {
-      console.error('Session log error:', e);
-      breadcrumb('session', 'focus_sessions insert failed', { durationSeconds, completedFully });
+      console.error("Session log error:", e);
+      breadcrumb("session", "focus_sessions insert failed", {
+        durationSeconds,
+        completedFully,
+      });
     }
 
     if (!delayNavigation) {
       doNavigate();
     }
-    
+
     return doNavigate;
   }
 
-  if (screen === 'timer') {
+  if (screen === "timer") {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
-          setScreen('table');
+          setScreen("table");
         }}
       />
     );
   }
 
-  if (screen === 'break') {
+  if (screen === "break") {
     return (
       <BreakScreen
         breakMinutes={breakMinutes}
-        onDone={() => setScreen('tab')}
-        onCutToFocus={() => setScreen('timer')}
+        onDone={() => setScreen("tab")}
+        onCutToFocus={() => setScreen("timer")}
       />
     );
   }
 
-  if (screen === 'premium') {
-    return <PremiumScreen onBack={() => setScreen('tab')} />;
+  if (screen === "premium") {
+    return <PremiumScreen onBack={() => setScreen("tab")} />;
   }
 
-  if (screen === 'table') {
+  if (screen === "settings") {
+    return <SettingsScreen onBack={() => setScreen("tab")} />;
+  }
+
+  if (screen === "table") {
     return (
       <StudyTableScreen
         onBack={() => {
           if (tableFromTimer) {
             setTableFromTimer(false);
-            setScreen('timer');
+            setScreen("timer");
           } else {
-            setScreen('tab');
+            setScreen("tab");
           }
         }}
-        backLabel={tableFromTimer ? 'Go back' : 'Circle'}
+        backLabel={tableFromTimer ? "Go back" : "Circle"}
       />
     );
   }
@@ -293,184 +362,340 @@ function AppContent() {
       <div className="mx-auto min-h-screen max-w-[1600px] lg:grid lg:grid-cols-[260px_1fr]">
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col border-r border-white/[.07] bg-[#0d0f0c]/90 p-5 backdrop-blur-2xl lg:flex xl:left-[max(0px,calc((100vw-1600px)/2))]">
           <div className="flex items-center gap-3 px-2 py-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-lime-300 text-[#11130f] shadow-[0_0_34px_rgba(197,255,84,.15)]"><Timer className="h-5 w-5" strokeWidth={2.5} /></div>
-            <span className="font-display text-xl font-extrabold tracking-[-.05em] text-stone-50">Valuable<span className="text-lime-300">.</span></span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-lime-300 text-[#11130f] shadow-[0_0_34px_rgba(197,255,84,.15)]">
+              <Timer className="h-5 w-5" strokeWidth={2.5} />
+            </div>
+            <span className="font-display text-xl font-extrabold tracking-[-.05em] text-stone-50">
+              Valuable<span className="text-lime-300">.</span>
+            </span>
           </div>
 
-          <div className="mt-10 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">Workspace</div>
+          <div className="mt-10 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-stone-600">
+            Workspace
+          </div>
           <nav className="mt-3 space-y-1.5">
-            <SideNavButton active={tab === 'home' && screen === 'tab'} onClick={() => { setTab('home'); setScreen('tab'); }} icon={<Home className="h-[18px] w-[18px]" />} label="Focus space" />
-            <SideNavButton active={tab === 'stats' && screen === 'tab'} onClick={() => { setTab('stats'); setScreen('tab'); }} icon={<BarChart3 className="h-[18px] w-[18px]" />} label="Performance" />
-            <SideNavButton active={tab === 'compete' && screen === 'tab'} onClick={() => { setTab('compete'); setScreen('tab'); }} icon={<TreePine className="h-[18px] w-[18px]" />} label="Compete" />
-            <SideNavButton active={tab === 'friends' && screen === 'tab'} onClick={() => { setTab('friends'); setScreen('tab'); }} icon={<Users className="h-[18px] w-[18px]" />} label="Circle" />
+            <SideNavButton
+              active={tab === "home" && screen === "tab"}
+              onClick={() => {
+                setTab("home");
+                setScreen("tab");
+              }}
+              icon={<Home className="h-[18px] w-[18px]" />}
+              label="Focus space"
+            />
+            <SideNavButton
+              active={tab === "stats" && screen === "tab"}
+              onClick={() => {
+                setTab("stats");
+                setScreen("tab");
+              }}
+              icon={<BarChart3 className="h-[18px] w-[18px]" />}
+              label="Performance"
+            />
+            <SideNavButton
+              active={tab === "compete" && screen === "tab"}
+              onClick={() => {
+                setTab("compete");
+                setScreen("tab");
+              }}
+              icon={<TreePine className="h-[18px] w-[18px]" />}
+              label="Compete"
+            />
+            <SideNavButton
+              active={tab === "friends" && screen === "tab"}
+              onClick={() => {
+                setTab("friends");
+                setScreen("tab");
+              }}
+              icon={<Users className="h-[18px] w-[18px]" />}
+              label="Circle"
+            />
+            <SideNavButton
+              active={false}
+              onClick={() => setScreen("settings")}
+              icon={<Settings2 className="h-[18px] w-[18px]" />}
+              label="Settings"
+            />
           </nav>
 
-          <button onClick={() => setScreen('premium')} className="group relative mt-8 overflow-hidden rounded-[1.5rem] border border-[#c9a24a]/25 bg-[#1a1613] p-4 text-left transition hover:border-[#c9a24a]/40 hover:bg-[#201c17]">
+          <button
+            onClick={() => setScreen("premium")}
+            className="group relative mt-8 overflow-hidden rounded-[1.5rem] border border-[#c9a24a]/25 bg-[#1a1613] p-4 text-left transition hover:border-[#c9a24a]/40 hover:bg-[#201c17]"
+          >
             <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#c9a24a]/10 blur-2xl" />
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#c9a24a] text-[#11130f]"><Crown className="h-4 w-4" /></div>
-            <div className="relative mt-4 font-display text-sm font-bold text-stone-100">Unlock your full potential</div>
-            <div className="relative mt-1 text-xs leading-5 text-stone-500">Deeper insights and unlimited content.</div>
-            <div className="relative mt-4 flex items-center gap-1 text-xs font-bold text-[#c9a24a] transition-colors group-hover:text-[#d4b05f]">Explore Premium <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></div>
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#c9a24a] text-[#11130f]">
+              <Crown className="h-4 w-4" />
+            </div>
+            <div className="relative mt-4 font-display text-sm font-bold text-stone-100">
+              Unlock your full potential
+            </div>
+            <div className="relative mt-1 text-xs leading-5 text-stone-500">
+              Deeper insights and unlimited content.
+            </div>
+            <div className="relative mt-4 flex items-center gap-1 text-xs font-bold text-[#c9a24a] transition-colors group-hover:text-[#d4b05f]">
+              Explore Premium{" "}
+              <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </div>
           </button>
 
           <div className="mt-auto border-t border-white/[.06] pt-4">
             <div className="flex items-center gap-3 rounded-2xl p-2">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-stone-700 to-stone-900 font-display text-sm font-extrabold text-lime-300 ring-1 ring-white/10">{profile.display_name.charAt(0).toUpperCase()}</div>
-              <div className="min-w-0 flex-1"><div className="truncate text-sm font-bold text-stone-200">{profile.display_name}</div><div className="text-[11px] text-stone-600">Focus member</div></div>
-              <button onClick={signOut} className="icon-button h-9 w-9 shrink-0" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-stone-700 to-stone-900 font-display text-sm font-extrabold text-lime-300 ring-1 ring-white/10">
+                {profile.display_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-stone-200">
+                  {profile.display_name}
+                </div>
+                <div className="text-[11px] text-stone-600">Focus member</div>
+              </div>
+              <button
+                onClick={signOut}
+                className="icon-button h-9 w-9 shrink-0"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </aside>
 
         <div className="relative flex min-h-screen min-w-0 flex-col lg:col-start-2">
-        <header className={`safe-top sticky top-0 flex items-center justify-between border-b border-white/[.06] bg-[#090b0a]/80 px-5 pb-4 backdrop-blur-xl sm:px-8 lg:hidden ${tab === 'compete' ? 'z-[60]' : 'z-40'}`}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f] shadow-[0_0_30px_rgba(197,255,84,.12)]">
-              <Timer className="h-[18px] w-[18px]" strokeWidth={2.4} />
-            </div>
-            <span className="font-display text-lg font-extrabold tracking-[-.04em] text-stone-50">Valuable<span className="text-lime-300">.</span></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setScreen('premium')} className="hidden items-center gap-2 rounded-xl border border-lime-300/20 bg-lime-300/[.06] px-3 py-2 text-xs font-bold text-lime-300 sm:flex">
-              <Sparkles className="h-3.5 w-3.5" /> Go Premium
-            </button>
-            <div className="relative">
-              <button onClick={() => setMenuOpen((v) => !v)} className="icon-button h-9 w-9" aria-label="Menu" aria-haspopup="menu" aria-expanded={menuOpen}>
-                <MoreVertical className="h-4 w-4" />
-              </button>
-              {menuOpen && (
-                <>
-                  <button aria-hidden tabIndex={-1} onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent" />
-                  <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d0f0c]/95 p-1.5 shadow-2xl backdrop-blur-2xl">
-                    <button
-                      role="menuitem"
-                      onClick={handleInstallClick}
-                      disabled={installed}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-                    >
-                      {installed ? <Check className="h-4 w-4 text-lime-300" /> : <Download className="h-4 w-4" />}
-                      {installed ? 'Installed' : deferredPrompt ? 'Install app' : 'Download app'}
-                    </button>
-                    {!installed && !deferredPrompt && showInstallHint && (
-                      <p className="px-3 pb-2 pt-1 text-[11px] leading-5 text-stone-500">
-                        {/iphone|ipad|ipod/i.test(navigator.userAgent)
-                          ? 'Tap Share, then “Add to Home Screen”.'
-                          : 'Open the browser menu (⋮), then “Add to Home Screen” or “Install app”.'}
-                      </p>
-                    )}
-                    <div className="mx-2 my-1 h-px bg-white/[.07]" />
-                    <button
-                      role="menuitem"
-                      onClick={() => { setMenuOpen(false); signOut(); }}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
-                    >
-                      <LogOut className="h-4 w-4" /> Sign out
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </header>
-
-        <main
-          className={
-            tab === 'compete'
-              ? 'app-main overflow-hidden bg-[#090b0a] p-0 lg:bg-transparent'
-              : 'app-main lg:px-10 lg:pb-12 xl:px-16'
-          }
-        >
-          {tab === 'home' && (
-            <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
-              <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
-                <div>
-                  <div className="page-kicker">Your focus space</div>
-                  <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-6xl xl:text-7xl">
-                    Make this hour <span className="text-stone-600">count.</span>
-                  </h1>
-                  <p className="mt-5 max-w-xl text-sm leading-6 text-stone-400 sm:text-base">Welcome back, {profile.display_name}. Remove the noise and give one meaningful thing your complete attention.</p>
-                </div>
-                <div className="hidden rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-4 lg:block">
-                  <div className="flex items-center justify-between text-xs text-stone-500"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(197,255,84,.6)]" /> Ready</span><Command className="h-3.5 w-3.5" /></div>
-                  <div className="mt-4 font-display text-sm font-bold text-stone-200">One task. Full presence.</div>
-                  <div className="mt-1 text-xs leading-5 text-stone-600">Your session will be quietly logged when you finish.</div>
-                </div>
+          <header
+            className={`safe-top sticky top-0 flex items-center justify-between border-b border-white/[.06] bg-[#090b0a]/80 px-5 pb-4 backdrop-blur-xl sm:px-8 lg:hidden ${tab === "compete" ? "z-[60]" : "z-40"}`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-300 text-[#11130f] shadow-[0_0_30px_rgba(197,255,84,.12)]">
+                <Timer className="h-[18px] w-[18px]" strokeWidth={2.4} />
               </div>
-              <FocusTimer
-                onComplete={handleSessionComplete}
+              <span className="font-display text-lg font-extrabold tracking-[-.04em] text-stone-50">
+                Valuable<span className="text-lime-300">.</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setScreen("premium")}
+                className="hidden items-center gap-2 rounded-xl border border-lime-300/20 bg-lime-300/[.06] px-3 py-2 text-xs font-bold text-lime-300 sm:flex"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Go Premium
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="icon-button h-9 w-9"
+                  aria-label="Menu"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+                {menuOpen && (
+                  <>
+                    <button
+                      aria-hidden
+                      tabIndex={-1}
+                      onClick={() => setMenuOpen(false)}
+                      className="fixed inset-0 z-40 cursor-default bg-transparent"
+                    />
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d0f0c]/95 p-1.5 shadow-2xl backdrop-blur-2xl"
+                    >
+                      <button
+                        role="menuitem"
+                        onClick={handleInstallClick}
+                        disabled={installed}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                      >
+                        {installed ? (
+                          <Check className="h-4 w-4 text-lime-300" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        {installed
+                          ? "Installed"
+                          : deferredPrompt
+                            ? "Install app"
+                            : "Download app"}
+                      </button>
+                      {!installed && !deferredPrompt && showInstallHint && (
+                        <p className="px-3 pb-2 pt-1 text-[11px] leading-5 text-stone-500">
+                          {/iphone|ipad|ipod/i.test(navigator.userAgent)
+                            ? "Tap Share, then “Add to Home Screen”."
+                            : "Open the browser menu (⋮), then “Add to Home Screen” or “Install app”."}
+                        </p>
+                      )}
+                      <div className="mx-2 my-1 h-px bg-white/[.07]" />
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setScreen("settings");
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
+                      >
+                        <Settings2 className="h-4 w-4" /> Settings
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          signOut();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
+                      >
+                        <LogOut className="h-4 w-4" /> Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </header>
+
+          <main
+            className={
+              tab === "compete"
+                ? "app-main overflow-hidden bg-[#090b0a] p-0 lg:bg-transparent"
+                : "app-main lg:px-10 lg:pb-12 xl:px-16"
+            }
+          >
+            {tab === "home" && (
+              <div className="mx-auto max-w-6xl animate-fade-in pt-7 sm:pt-12 lg:pt-16">
+                <div className="grid items-end gap-8 px-1 pb-3 sm:pb-7 lg:grid-cols-[1fr_280px]">
+                  <div>
+                    <div className="page-kicker">Your focus space</div>
+                    <h1 className="text-4xl font-extrabold leading-[1.08] text-stone-50 sm:text-6xl xl:text-7xl">
+                      Make this hour{" "}
+                      <span className="text-stone-600">count.</span>
+                    </h1>
+                    <p className="mt-5 max-w-xl text-sm leading-6 text-stone-400 sm:text-base">
+                      Welcome back, {profile.display_name}. Remove the noise and
+                      give one meaningful thing your complete attention.
+                    </p>
+                  </div>
+                  <div className="hidden rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-4 lg:block">
+                    <div className="flex items-center justify-between text-xs text-stone-500">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(197,255,84,.6)]" />{" "}
+                        Ready
+                      </span>
+                      <Command className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-4 font-display text-sm font-bold text-stone-200">
+                      One task. Full presence.
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-stone-600">
+                      Your session will be quietly logged when you finish.
+                    </div>
+                  </div>
+                </div>
+                <FocusTimer
+                  onComplete={handleSessionComplete}
+                  onOpenStudyTable={() => {
+                    if (
+                      isFeatureLocked("study_table", config.flags, isPremium)
+                    ) {
+                      openPremiumPage("Study table");
+                      return;
+                    }
+                    setTableFromTimer(true);
+                    setScreen("table");
+                  }}
+                />
+              </div>
+            )}
+            {tab === "stats" && (
+              <StatsScreen
+                onStartTimer={() => setScreen("timer")}
+                onUpgrade={() => setScreen("premium")}
+                onNavigateToCompete={() => setTab("compete")}
+              />
+            )}
+            {tab === "compete" && (
+              <div className="compete-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a] lg:contents">
+                <CompeteScreen />
+              </div>
+            )}
+            {tab === "friends" && (
+              <FriendsScreen
                 onOpenStudyTable={() => {
-                  setTableFromTimer(true);
-                  setScreen('table');
+                  if (isFeatureLocked("study_table", config.flags, isPremium)) {
+                    openPremiumPage("Study table");
+                    return;
+                  }
+                  setTableFromTimer(false);
+                  setScreen("table");
                 }}
               />
-            </div>
-          )}
-          {tab === 'stats' && (
-            <StatsScreen
-              onStartTimer={() => setScreen('timer')}
-              onUpgrade={() => setScreen('premium')}
-              onNavigateToCompete={() => setTab('compete')}
-            />
-          )}
-          {tab === 'compete' && (
-            <div className="compete-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a] lg:contents">
-              <CompeteScreen />
-            </div>
-          )}
-          {tab === 'friends' && (
-            <FriendsScreen
-              onOpenStudyTable={() => {
-                setTableFromTimer(false);
-                setScreen('table');
-              }}
-            />
-          )}
-        </main>
+            )}
+          </main>
 
-        <nav className={`safe-bottom fixed bottom-3 left-1/2 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden ${tab === 'compete' ? 'z-[60]' : 'z-40'}`}>
-          <NavButton
-            active={tab === 'home'}
-            onClick={() => setTab('home')}
-            icon={<Home className="w-5 h-5" />}
-            label="Focus"
-          />
-          <NavButton
-            active={tab === 'stats'}
-            onClick={() => setTab('stats')}
-            icon={<BarChart3 className="w-5 h-5" />}
-            label="Stats"
-          />
-          <NavButton
-            active={tab === 'compete'}
-            onClick={() => setTab('compete')}
-            icon={<TreePine className="w-5 h-5" />}
-            label="Compete"
-          />
-          <NavButton
-            active={tab === 'friends'}
-            onClick={() => setTab('friends')}
-            icon={<Users className="w-5 h-5" />}
-            label="Friends"
-          />
-          <NavButton
-            active={false}
-            onClick={() => setScreen('premium')}
-            icon={<Crown className="w-5 h-5" />}
-            label="Premium"
-          />
-        </nav>
+          <nav
+            className={`safe-bottom fixed bottom-3 left-1/2 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-[1.4rem] border border-white/10 bg-[#171a16]/90 px-2 py-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl lg:hidden ${tab === "compete" ? "z-[60]" : "z-40"}`}
+          >
+            <NavButton
+              active={tab === "home"}
+              onClick={() => setTab("home")}
+              icon={<Home className="w-5 h-5" />}
+              label="Focus"
+            />
+            <NavButton
+              active={tab === "stats"}
+              onClick={() => setTab("stats")}
+              icon={<BarChart3 className="w-5 h-5" />}
+              label="Stats"
+            />
+            <NavButton
+              active={tab === "compete"}
+              onClick={() => setTab("compete")}
+              icon={<TreePine className="w-5 h-5" />}
+              label="Compete"
+            />
+            <NavButton
+              active={tab === "friends"}
+              onClick={() => setTab("friends")}
+              icon={<Users className="w-5 h-5" />}
+              label="Friends"
+            />
+            <NavButton
+              active={false}
+              onClick={() => setScreen("premium")}
+              icon={<Crown className="w-5 h-5" />}
+              label="Premium"
+            />
+          </nav>
         </div>
       </div>
     </div>
   );
 }
 
-function SideNavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function SideNavButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
-    <button onClick={onClick} className={`group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all ${active ? 'bg-white/[.075] text-stone-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,.04)]' : 'text-stone-500 hover:bg-white/[.035] hover:text-stone-200'}`}>
-      <span className={`transition ${active ? 'text-lime-300' : 'text-stone-600 group-hover:text-stone-300'}`}>{icon}</span>
+    <button
+      onClick={onClick}
+      className={`group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all ${active ? "bg-white/[.075] text-stone-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,.04)]" : "text-stone-500 hover:bg-white/[.035] hover:text-stone-200"}`}
+    >
+      <span
+        className={`transition ${active ? "text-lime-300" : "text-stone-600 group-hover:text-stone-300"}`}
+      >
+        {icon}
+      </span>
       <span>{label}</span>
-      {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(197,255,84,.7)]" />}
+      {active && (
+        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(197,255,84,.7)]" />
+      )}
     </button>
   );
 }
@@ -490,7 +715,9 @@ function NavButton({
     <button
       onClick={onClick}
       className={`relative flex min-w-[64px] flex-col items-center gap-1 rounded-2xl px-3 py-2 transition-all ${
-        active ? 'bg-lime-300/[.09] text-lime-300' : 'text-stone-500 hover:text-stone-200'
+        active
+          ? "bg-lime-300/[.09] text-lime-300"
+          : "text-stone-500 hover:text-stone-200"
       }`}
     >
       {icon}
@@ -502,7 +729,9 @@ function NavButton({
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <PremiumConfigProvider>
+        <AppContent />
+      </PremiumConfigProvider>
     </AuthProvider>
   );
 }

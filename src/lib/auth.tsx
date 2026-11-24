@@ -1,19 +1,32 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
-import type { AvatarCharacter, Profile } from '../types';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./supabase";
+import type { AvatarCharacter, Profile } from "../types";
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<AuthResult>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   verifyEmailCode: (email: string, token: string) => Promise<AuthResult>;
   resendVerification: (email: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  updateAvatarCharacter: (character: AvatarCharacter) => Promise<{ error: string | null }>;
+  updateAvatarCharacter: (
+    character: AvatarCharacter,
+  ) => Promise<{ error: string | null }>;
 }
 
 interface AuthResult {
@@ -32,12 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
       .maybeSingle();
     if (error) {
-      console.error('Profile load error:', error.message);
+      console.error("Profile load error:", error.message);
       return null;
     }
     setProfile(data as Profile | null);
@@ -62,17 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!mounted) return;
-      if (event === 'TOKEN_REFRESHED') {
+      if (event === "TOKEN_REFRESHED") {
         setSession(sess);
         return;
       }
-      if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
+      if (
+        event !== "INITIAL_SESSION" &&
+        event !== "SIGNED_IN" &&
+        event !== "SIGNED_OUT"
+      ) {
         setSession(sess);
         return;
       }
-      if (event === 'SIGNED_IN' && sess) {
+      if (event === "SIGNED_IN" && sess) {
         const incomingUserId = sess.user?.id ?? null;
-        if (currentUserIdRef.current && currentUserIdRef.current === incomingUserId) {
+        if (
+          currentUserIdRef.current &&
+          currentUserIdRef.current === incomingUserId
+        ) {
           setSession(sess);
           return;
         }
@@ -85,10 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
         return;
       }
-      if (event === 'INITIAL_SESSION' && sess) {
+      if (event === "INITIAL_SESSION" && sess) {
         currentUserIdRef.current = sess.user?.id ?? null;
       }
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         currentUserIdRef.current = null;
       }
       setSession(sess);
@@ -110,7 +130,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function signUp(email: string, password: string, displayName: string): Promise<AuthResult> {
+  // Keep server-owned entitlement fields reasonably fresh after webhook updates.
+  useEffect(() => {
+    if (!session) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) void loadProfile(session.user.id);
+    }, 60_000);
+    const onVisible = () => {
+      if (!document.hidden) void loadProfile(session.user.id);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
+
+  async function signUp(
+    email: string,
+    password: string,
+    displayName: string,
+  ): Promise<AuthResult> {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,8 +159,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { error: error.message };
     // Supabase returns an empty identities array when the email already exists.
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      return { error: 'An account with this email already exists. Sign in instead.' };
+    if (
+      data.user &&
+      Array.isArray(data.user.identities) &&
+      data.user.identities.length === 0
+    ) {
+      return {
+        error: "An account with this email already exists. Sign in instead.",
+      };
     }
     if (data.session) {
       if (data.user) await loadProfile(data.user.id);
@@ -130,17 +177,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string): Promise<AuthResult> {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) {
       const message = error.message.toLowerCase();
-      if (message.includes('email not confirmed')) {
+      if (message.includes("email not confirmed")) {
         return {
-          error: 'Your email is not verified yet. Enter the code we sent to your inbox.',
+          error:
+            "Your email is not verified yet. Enter the code we sent to your inbox.",
           needsVerification: true,
         };
       }
-      if (message.includes('invalid login credentials')) {
-        return { error: 'Email or password is incorrect.' };
+      if (message.includes("invalid login credentials")) {
+        return { error: "Email or password is incorrect." };
       }
       return { error: error.message };
     }
@@ -148,11 +199,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }
 
-  async function verifyEmailCode(email: string, token: string): Promise<AuthResult> {
+  async function verifyEmailCode(
+    email: string,
+    token: string,
+  ): Promise<AuthResult> {
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token: token.trim(),
-      type: 'signup',
+      type: "signup",
     });
     if (error) return { error: error.message };
     if (data.session?.user) await loadProfile(data.session.user.id);
@@ -160,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resendVerification(email: string): Promise<AuthResult> {
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    const { error } = await supabase.auth.resend({ type: "signup", email });
     if (error) return { error: error.message };
     return { error: null };
   }
@@ -175,18 +229,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function updateAvatarCharacter(character: AvatarCharacter) {
-    if (!session) return { error: 'Not signed in' };
+    if (!session) return { error: "Not signed in" };
     const { error } = await supabase
-      .from('profiles')
+      .from("profiles")
       .update({ avatar_character: character, character_chosen: true })
-      .eq('id', session.user.id);
+      .eq("id", session.user.id);
     if (error) return { error: error.message };
     await loadProfile(session.user.id);
     return { error: null };
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signUp, signIn, verifyEmailCode, resendVerification, signOut, refreshProfile, updateAvatarCharacter }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        profile,
+        loading,
+        signUp,
+        signIn,
+        verifyEmailCode,
+        resendVerification,
+        signOut,
+        refreshProfile,
+        updateAvatarCharacter,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -196,6 +263,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

@@ -1,21 +1,41 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from '@/types';
-import { Play, Pause, X, Check, ChevronDown, Clock3, Coffee, Zap } from 'lucide-react';
-import FocusVisual from '@/components/focus-visuals/FocusVisual';
-import HourglassStage, { useHgLocked } from '@/components/focus-visuals/HourglassStage';
-import JarVisual from '@/components/focus-visuals/JarVisual';
-import JarStage from '@/components/focus-visuals/JarStage';
-import TreeStage from '@/components/focus-visuals/TreeStage';
-import BladeStage from '@/components/focus-visuals/BladeStage';
-import CloudRain from '@/components/focus-visuals/CloudRain';
-import TankLife from '@/components/focus-visuals/TankLife';
-import GardenVisual from '@/components/focus-visuals/GardenVisual';
-import FlipClock from '@/components/FlipClock';
-import LeafPicker from '@/components/LeafPicker';
-import StudyMusicPlayer from '@/components/StudyMusicPlayer';
-import { setSessionPaused, stopAndReset } from '@/lib/studyMusicEngine';
-import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from '@/components/leafOptions';
-import { FOCUS_VISUAL_THEMES, type FocusVisualTheme } from '@/components/focus-visuals/types';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from "@/types";
+import {
+  Play,
+  Pause,
+  X,
+  Check,
+  ChevronDown,
+  Clock3,
+  Coffee,
+  Zap,
+  Lock,
+} from "lucide-react";
+import FocusVisual from "@/components/focus-visuals/FocusVisual";
+import HourglassStage, {
+  useHgLocked,
+} from "@/components/focus-visuals/HourglassStage";
+import JarVisual from "@/components/focus-visuals/JarVisual";
+import JarStage from "@/components/focus-visuals/JarStage";
+import TreeStage from "@/components/focus-visuals/TreeStage";
+import BladeStage from "@/components/focus-visuals/BladeStage";
+import CloudRain from "@/components/focus-visuals/CloudRain";
+import TankLife from "@/components/focus-visuals/TankLife";
+import GardenVisual from "@/components/focus-visuals/GardenVisual";
+import FlipClock from "@/components/FlipClock";
+import LeafPicker from "@/components/LeafPicker";
+import StudyMusicPlayer from "@/components/StudyMusicPlayer";
+import PremiumLock from "@/components/premium/PremiumLock";
+import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
+import { useEntitlement } from "@/lib/premium/useEntitlement";
+import { isFeatureLocked, visualFeature } from "@/lib/premium/features";
+import { openPremiumPage } from "@/lib/premium/openPremium";
+import { setSessionPaused, stopAndReset } from "@/lib/studyMusicEngine";
+import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from "@/components/leafOptions";
+import {
+  FOCUS_VISUAL_THEMES,
+  type FocusVisualTheme,
+} from "@/components/focus-visuals/types";
 import {
   SESSION_START_KEY,
   SESSION_DURATION_KEY,
@@ -26,17 +46,23 @@ import {
   SESSION_PHRASE_KEY,
   syncLiveFocus,
   clearLiveFocus,
-} from '@/lib/localSession';
+} from "@/lib/localSession";
 
 interface FocusTimerProps {
-  onComplete: (durationSeconds: number, subjectTag: string | null, completedFully: boolean, breakMinutes: number, delayNavigation?: boolean) => Promise<() => void> | void;
+  onComplete: (
+    durationSeconds: number,
+    subjectTag: string | null,
+    completedFully: boolean,
+    breakMinutes: number,
+    delayNavigation?: boolean,
+  ) => Promise<() => void> | void;
   /** Peek at the study table mid-session. The wall-clock timer keeps running; visuals rehydrate on return. */
   onOpenStudyTable?: () => void;
 }
 
-type Phase = 'config' | 'focus' | 'paused' | 'completing';
+type Phase = "config" | "focus" | "paused" | "completing";
 
-const VISUAL_STORAGE_KEY = 'valuable-focus-visual';
+const VISUAL_STORAGE_KEY = "valuable-focus-visual";
 
 interface StoredSession {
   startMs: number;
@@ -54,13 +80,20 @@ export function readStoredSession(): StoredSession | null {
   const startRaw = sessionStorage.getItem(SESSION_START_KEY);
   if (!startRaw) return null;
   const startMs = Number(startRaw);
-  const durationMs = Number(sessionStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
-  if (!Number.isFinite(startMs) || !Number.isFinite(durationMs) || durationMs <= 0) {
+  const durationMs =
+    Number(sessionStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(durationMs) ||
+    durationMs <= 0
+  ) {
     return null;
   }
   const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
   const pausedAtMs = pausedAtRaw ? Number(pausedAtRaw) : null;
-  const pausedTotalMs = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
+  const pausedTotalMs = Number(
+    sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0,
+  );
   const now = Date.now();
   const pausedNowMs = pausedAtMs !== null ? Math.max(0, now - pausedAtMs) : 0;
   const pausedMs = pausedTotalMs + pausedNowMs;
@@ -93,30 +126,35 @@ export function clearSessionStorage() {
  *  Base entry ({app:'home'}) is set once by App; the timer pushes its own
  *  entry on session start. Owned/handled centrally by App — see its
  *  popstate effect. No-ops where history is unavailable. */
-const TIMER_HISTORY_STATE = 'timer-session';
+const TIMER_HISTORY_STATE = "timer-session";
 
 function pushTimerHistory() {
   try {
     if (window.history.state?.app !== TIMER_HISTORY_STATE) {
-      window.history.pushState({ app: TIMER_HISTORY_STATE }, '');
+      window.history.pushState({ app: TIMER_HISTORY_STATE }, "");
     }
   } catch {
     /* history unavailable — back falls back to default behavior */
   }
 }
 
-export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerProps) {
+export default function FocusTimer({
+  onComplete,
+  onOpenStudyTable,
+}: FocusTimerProps) {
+  const { config } = usePremiumConfig();
+  const { isPremium } = useEntitlement();
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
   const [isCustom, setIsCustom] = useState(false);
-  const [subjectTag, setSubjectTag] = useState<string>('');
+  const [subjectTag, setSubjectTag] = useState<string>("");
   const [showSubjects, setShowSubjects] = useState(false);
 
   const [phase, setPhase] = useState<Phase>(() => {
     const s = readStoredSession();
-    if (!s) return 'config';
-    return s.remainingMs <= 0 ? 'completing' : s.paused ? 'paused' : 'focus';
+    if (!s) return "config";
+    return s.remainingMs <= 0 ? "completing" : s.paused ? "paused" : "focus";
   });
   const [secondsLeft, setSecondsLeft] = useState(() => {
     const s = readStoredSession();
@@ -130,11 +168,15 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   const SOLAR_DEPTH = 0.2;
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
-    return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved) ? saved as FocusVisualTheme : 'hourglass';
+    return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved)
+      ? (saved as FocusVisualTheme)
+      : "hourglass";
   });
   const [selectedLeaf, setSelectedLeaf] = useState<string>(() => {
     const saved = localStorage.getItem(LEAF_STORAGE_KEY);
-    return LEAF_OPTIONS.some((option) => option.url === saved) ? (saved as string) : LEAF_OPTIONS[0].url;
+    return LEAF_OPTIONS.some((option) => option.url === saved)
+      ? (saved as string)
+      : LEAF_OPTIONS[0].url;
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
 
@@ -145,8 +187,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
   // intentionally does NOT stop it — the engine outlives this component.
   useEffect(() => {
-    if (phase === 'config' || phase === 'completing') stopAndReset();
-    else setSessionPaused(phase === 'paused');
+    if (phase === "config" || phase === "completing") stopAndReset();
+    else setSessionPaused(phase === "paused");
   }, [phase]);
 
   // Immersive session: hide the phone's own system bars (status +
@@ -159,11 +201,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     if (askedFullscreenRef.current) return;
     askedFullscreenRef.current = true;
     try {
-      const request = document.documentElement.requestFullscreen?.bind(document.documentElement) as
-        | (() => Promise<void> | void)
-        | undefined;
+      const request = document.documentElement.requestFullscreen?.bind(
+        document.documentElement,
+      ) as (() => Promise<void> | void) | undefined;
       const result = request?.();
-      if (result && typeof (result as Promise<void>).catch === 'function') {
+      if (result && typeof (result as Promise<void>).catch === "function") {
         (result as Promise<void>).catch(() => undefined);
       }
     } catch {
@@ -177,7 +219,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     try {
       if (document.fullscreenElement) {
         const result = document.exitFullscreen?.();
-        if (result && typeof result.catch === 'function') result.catch(() => undefined);
+        if (result && typeof result.catch === "function")
+          result.catch(() => undefined);
       }
     } catch {
       /* no-op */
@@ -185,16 +228,19 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   }
 
   useEffect(() => {
-    if (phase === 'focus' || phase === 'paused') {
+    if (phase === "focus" || phase === "paused") {
       enterImmersive();
     } else {
       exitImmersive();
     }
   }, [phase]);
 
-  useEffect(() => () => {
-    exitImmersive();
-  }, []);
+  useEffect(
+    () => () => {
+      exitImmersive();
+    },
+    [],
+  );
 
   function selectLeaf(asset: string) {
     setSelectedLeaf(asset);
@@ -219,7 +265,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   // On the mobile landscape lock the hourglass flip clock lives inside the
   // scaled stage (so it tracks the fit); everywhere else it stays in the
   // layout's clock zone, exactly as before.
-  const hgLocked = useHgLocked(visualTheme === 'hourglass');
+  const hgLocked = useHgLocked(visualTheme === "hourglass");
 
   const navigateToNextScreenRef = useRef<(() => void) | null>(null);
 
@@ -228,19 +274,31 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    setPhase('completing');
-    
+    setPhase("completing");
+
     const s = readStoredSession();
     const duration = s ? s.durationMs / 1000 : totalFocusSeconds;
     clearSessionStorage();
-    
-    if (visualTheme === 'butterfly') {
+
+    if (visualTheme === "butterfly") {
       // For butterfly, save stats immediately but delay navigation until finale finishes.
-      const navFn = await onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current, true);
+      const navFn = await onComplete(
+        duration,
+        sessionSubjectRef.current,
+        true,
+        sessionBreakRef.current,
+        true,
+      );
       if (navFn) navigateToNextScreenRef.current = navFn;
     } else {
       completionRef.current = setTimeout(() => {
-        onComplete(duration, sessionSubjectRef.current, true, sessionBreakRef.current, false);
+        onComplete(
+          duration,
+          sessionSubjectRef.current,
+          true,
+          sessionBreakRef.current,
+          false,
+        );
       }, 1300);
     }
   }, [onComplete, totalFocusSeconds, visualTheme]);
@@ -262,11 +320,11 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   }, [completeSession]);
 
   useEffect(() => {
-    if (phase === 'config') setSecondsLeft(totalFocusSeconds);
+    if (phase === "config") setSecondsLeft(totalFocusSeconds);
   }, [totalFocusSeconds, phase]);
 
   useEffect(() => {
-    if (phase === 'focus') {
+    if (phase === "focus") {
       intervalRef.current = setInterval(() => {
         const s = readStoredSession();
         if (!s) return;
@@ -281,9 +339,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     }
   }, [phase, completeSession]);
 
-  useEffect(() => () => {
-    if (completionRef.current) clearTimeout(completionRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (completionRef.current) clearTimeout(completionRef.current);
+    },
+    [],
+  );
 
   function selectVisual(theme: FocusVisualTheme) {
     setVisualTheme(theme);
@@ -296,8 +357,8 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     sessionStorage.setItem(SESSION_START_KEY, String(Date.now()));
     sessionStorage.setItem(SESSION_DURATION_KEY, String(totalFocusSeconds));
     sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
-    sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, '0');
-    sessionStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || '');
+    sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, "0");
+    sessionStorage.setItem(SESSION_SUBJECT_KEY, subjectTag || "");
     sessionStorage.setItem(SESSION_BREAK_KEY, String(breakMinutes));
     syncLiveFocus();
     // New session, new phrase: clear the cached pick so the garden draws a
@@ -305,7 +366,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     sessionStorage.removeItem(SESSION_PHRASE_KEY);
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
-    setPhase('focus');
+    setPhase("focus");
     // Trap the system back button for this session (no-op if already trapped).
     pushTimerHistory();
   }
@@ -314,25 +375,30 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     if (intervalRef.current) clearInterval(intervalRef.current);
     sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     syncLiveFocus();
-    setPhase('paused');
+    setPhase("paused");
   }
 
   function handleResume() {
     const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
     if (pausedAtRaw) {
-      const prevTotal = Number(sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0);
-      sessionStorage.setItem(SESSION_PAUSED_TOTAL_KEY, String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))));
+      const prevTotal = Number(
+        sessionStorage.getItem(SESSION_PAUSED_TOTAL_KEY) ?? 0,
+      );
+      sessionStorage.setItem(
+        SESSION_PAUSED_TOTAL_KEY,
+        String(prevTotal + Math.max(0, Date.now() - Number(pausedAtRaw))),
+      );
       sessionStorage.removeItem(SESSION_PAUSED_AT_KEY);
       syncLiveFocus();
     }
-    setPhase('focus');
+    setPhase("focus");
   }
 
   function handleQuitRequest() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     sessionStorage.setItem(SESSION_PAUSED_AT_KEY, String(Date.now()));
     syncLiveFocus();
-    setPhase('paused');
+    setPhase("paused");
     setShowQuitConfirm(true);
   }
 
@@ -340,27 +406,41 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     setShowQuitConfirm(false);
     if (yes) {
       const s = readStoredSession();
-      const elapsedSeconds = s ? Math.max(0, Math.round(s.elapsedMs / 1000)) : Math.max(0, totalFocusSeconds - secondsLeft);
+      const elapsedSeconds = s
+        ? Math.max(0, Math.round(s.elapsedMs / 1000))
+        : Math.max(0, totalFocusSeconds - secondsLeft);
       clearSessionStorage();
-      setPhase('config');
-      onComplete(elapsedSeconds, sessionSubjectRef.current, false, sessionBreakRef.current);
+      setPhase("config");
+      onComplete(
+        elapsedSeconds,
+        sessionSubjectRef.current,
+        false,
+        sessionBreakRef.current,
+      );
     } else {
       handleResume();
     }
   }
 
-  const progress = activeDurationSeconds > 0 ? Math.min(1, 1 - secondsLeft / activeDurationSeconds) : 0;
+  const progress =
+    activeDurationSeconds > 0
+      ? Math.min(1, 1 - secondsLeft / activeDurationSeconds)
+      : 0;
 
   // Butterfly theme: render the Garden visual as a full-screen background
   // and show the same minimal black flip-clock as the jar/tree sessions.
-  if (visualTheme === 'butterfly' && (phase === 'focus' || phase === 'paused' || phase === 'completing')) {
+  if (
+    visualTheme === "butterfly" &&
+    (phase === "focus" || phase === "paused" || phase === "completing")
+  ) {
     return (
       <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
-        <GardenVisual 
-          progress={progress} 
-          running={phase === 'focus'} 
+        <GardenVisual
+          progress={progress}
+          running={phase === "focus"}
           onFinaleComplete={() => {
-            if (navigateToNextScreenRef.current) navigateToNextScreenRef.current();
+            if (navigateToNextScreenRef.current)
+              navigateToNextScreenRef.current();
           }}
         />
 
@@ -368,22 +448,30 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
           <div />
           <div
             className="pointer-events-none transition-opacity duration-700 ease-out"
-            style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}
+            style={{
+              opacity:
+                activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0
+                  ? 0
+                  : 1,
+            }}
           >
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         </div>
 
         {/* Session controls — same as jar/tree */}
-        {phase !== 'completing' && (
+        {phase !== "completing" && (
           <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
-            {phase === 'focus' ? (
+            {phase === "focus" ? (
               <button
                 onClick={handlePause}
                 className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-100 transition hover:bg-white/[.10] hover:scale-105 active:scale-95"
                 aria-label="Pause"
               >
-                <Pause className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+                <Pause
+                  className="h-7 w-7 transition group-hover:scale-105"
+                  strokeWidth={1.8}
+                />
               </button>
             ) : (
               <button
@@ -391,7 +479,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                 className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#11130f] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
                 aria-label="Resume"
               >
-                <Play className="h-7 w-7 ml-0.5 transition group-hover:scale-105" strokeWidth={1.8} />
+                <Play
+                  className="h-7 w-7 ml-0.5 transition group-hover:scale-105"
+                  strokeWidth={1.8}
+                />
               </button>
             )}
             <button
@@ -399,7 +490,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
               className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-300 transition hover:bg-white/[.10] hover:text-red-400 hover:scale-105 active:scale-95"
               aria-label="Quit session"
             >
-              <X className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+              <X
+                className="h-7 w-7 transition group-hover:scale-105"
+                strokeWidth={1.8}
+              />
             </button>
           </div>
         )}
@@ -407,9 +501,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         {showQuitConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
             <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full border border-slate-800 animate-grow-in">
-              <h3 className="text-lg font-semibold text-white mb-2">End this session?</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                End this session?
+              </h3>
               <p className="text-slate-400 text-sm mb-6">
-                Your progress so far will still be saved. No pressure — you can always start another.
+                Your progress so far will still be saved. No pressure — you can
+                always start another.
               </p>
               <div className="flex gap-3">
                 <button
@@ -432,11 +529,13 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
     );
   }
 
-  if (phase === 'focus' || phase === 'paused' || phase === 'completing') {
+  if (phase === "focus" || phase === "paused" || phase === "completing") {
     return (
-      <div className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === 'hourglass' ? 'hourglass-focus-session hg-sim-hg' : ''} ${visualTheme === 'tree' ? 'tree-focus-session tr-sim' : ''} ${visualTheme === 'jar' ? 'jar-focus-session jr-sim' : ''} ${visualTheme === 'blade' ? 'blade-focus-session bd-sim' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-session' : ''} ${visualTheme === 'solar-system' ? 'solar-system-focus-session !bg-black' : ''}`}>
-        <HourglassStage enabled={visualTheme === 'hourglass'}>
-          {visualTheme === 'hourglass' && hgLocked && (
+      <div
+        className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === "hourglass" ? "hourglass-focus-session hg-sim-hg" : ""} ${visualTheme === "tree" ? "tree-focus-session tr-sim" : ""} ${visualTheme === "jar" ? "jar-focus-session jr-sim" : ""} ${visualTheme === "blade" ? "blade-focus-session bd-sim" : ""} ${visualTheme === "butterfly" ? "butterfly-focus-session" : ""} ${visualTheme === "solar-system" ? "solar-system-focus-session !bg-black" : ""}`}
+      >
+        <HourglassStage enabled={visualTheme === "hourglass"}>
+          {visualTheme === "hourglass" && hgLocked && (
             <img
               className="hg-ext-stage-bg"
               src="/visuals/hourglass/hourglass-scene-ext.png"
@@ -445,15 +544,25 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
               draggable={false}
             />
           )}
-          {visualTheme === 'hourglass' && hgLocked && (
+          {visualTheme === "hourglass" && hgLocked && (
             <div className="hg-stage-clock">
-              <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+              <div
+                className="pointer-events-none transition-opacity duration-700 ease-out"
+                style={{
+                  opacity:
+                    activeDurationSeconds > 0 &&
+                    secondsLeft <= 5 &&
+                    secondsLeft > 0
+                      ? 0
+                      : 1,
+                }}
+              >
                 <FlipClock secondsLeft={secondsLeft} />
               </div>
             </div>
           )}
         </HourglassStage>
-        {visualTheme === 'hourglass' && !hgLocked && (
+        {visualTheme === "hourglass" && !hgLocked && (
           <div className="hg-ext-window" aria-hidden="true">
             <img
               className="hourglass-focus-background-ext"
@@ -478,71 +587,129 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         )}
 
         {/* Solar System Top-Right FlipClock */}
-        {visualTheme === 'solar-system' && (
-          <div className="absolute top-6 right-6 z-50 origin-top-right scale-50 sm:scale-50 md:scale-75 pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+        {visualTheme === "solar-system" && (
+          <div
+            className="absolute top-6 right-6 z-50 origin-top-right scale-50 sm:scale-50 md:scale-75 pointer-events-none transition-opacity duration-700 ease-out"
+            style={{
+              opacity:
+                activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0
+                  ? 0
+                  : 1,
+            }}
+          >
             <FlipClock secondsLeft={secondsLeft} />
           </div>
         )}
 
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
-        <div className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === 'hourglass' ? 'hg-row' : ''} ${visualTheme === 'tree' ? 'tree-focus-layout' : ''} ${visualTheme === 'jar' ? 'jar-focus-layout' : ''} ${visualTheme === 'jar' && !playsAquarium ? 'jr-classic-row' : ''} ${visualTheme === 'blade' ? 'blade-focus-layout' : ''} ${visualTheme === 'butterfly' ? 'butterfly-focus-layout' : ''}`}>
+        <div
+          className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === "hourglass" ? "hg-row" : ""} ${visualTheme === "tree" ? "tree-focus-layout" : ""} ${visualTheme === "jar" ? "jar-focus-layout" : ""} ${visualTheme === "jar" && !playsAquarium ? "jr-classic-row" : ""} ${visualTheme === "blade" ? "blade-focus-layout" : ""} ${visualTheme === "butterfly" ? "butterfly-focus-layout" : ""}`}
+        >
           {/* Left / center zone: hourglass visual. Solar System is always
               full-bleed (absolute inset-0) on every breakpoint — the clock
               is the top-right overlay, never a split-layout sibling. */}
-          <div className={`${visualTheme === 'solar-system' ? 'absolute inset-0 z-0 h-full w-full' : visualTheme === 'jar' ? 'absolute inset-0 z-0 h-full w-full lg:relative lg:flex lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20' : 'flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20'} ${visualTheme === 'hourglass' ? 'hg-visual-zone' : ''} ${visualTheme === 'jar' ? 'jr-visual-zone' : ''}`}>
-            <div className={`${visualTheme === 'solar-system' ? 'relative h-full w-full' : visualTheme === 'jar' ? 'relative h-full w-full lg:max-h-[76vh] lg:max-w-2xl lg:flex lg:items-center lg:justify-center' : 'relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl'} ${visualTheme === 'hourglass' ? 'hg-visual-box' : ''} ${visualTheme === 'jar' ? 'jr-visual-box' : ''}`}>
-              {visualTheme === 'jar' ? (
+          <div
+            className={`${visualTheme === "solar-system" ? "absolute inset-0 z-0 h-full w-full" : visualTheme === "jar" ? "absolute inset-0 z-0 h-full w-full lg:relative lg:flex lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20" : "flex w-full flex-1 items-center justify-center lg:w-7/12 lg:justify-end lg:pr-10 xl:pr-20"} ${visualTheme === "hourglass" ? "hg-visual-zone" : ""} ${visualTheme === "jar" ? "jr-visual-zone" : ""}`}
+          >
+            <div
+              className={`${visualTheme === "solar-system" ? "relative h-full w-full" : visualTheme === "jar" ? "relative h-full w-full lg:max-h-[76vh] lg:max-w-2xl lg:flex lg:items-center lg:justify-center" : "relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl"} ${visualTheme === "hourglass" ? "hg-visual-box" : ""} ${visualTheme === "jar" ? "jr-visual-box" : ""}`}
+            >
+              {visualTheme === "jar" ? (
                 playsAquarium ? (
-                <>
-                  <img
-                    src="/visuals/jar/aquarium-scene.png"
-                    alt="Aquarium"
-                    className="aqua-scene h-full w-full object-contain"
-                    draggable={false}
-                  />
-                  {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for
+                  <>
+                    <img
+                      src="/visuals/jar/aquarium-scene.png"
+                      alt="Aquarium"
+                      className="aqua-scene h-full w-full object-contain"
+                      draggable={false}
+                    />
+                    {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for
                       now — will drive the water/fish animation later. */}
-                  <img
-                    src="/visuals/jar/aquarium-overlay.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 hidden h-full w-full object-contain"
-                    style={{ transform: 'translate(-378px, 152px) scale(0.54)' }}
-                    draggable={false}
-                  />
-                  {/* Cloud + rain — same placement and engine as the jar. */}
-                  <CloudRain running={phase === 'focus'} progress={progress} />
-                  {/* Water fill + fish — mapped live onto the hidden mask. */}
-                  <TankLife progress={progress} />
-                </>
+                    <img
+                      src="/visuals/jar/aquarium-overlay.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 hidden h-full w-full object-contain"
+                      style={{
+                        transform: "translate(-378px, 152px) scale(0.54)",
+                      }}
+                      draggable={false}
+                    />
+                    {/* Cloud + rain — same placement and engine as the jar. */}
+                    <CloudRain
+                      running={phase === "focus"}
+                      progress={progress}
+                    />
+                    {/* Water fill + fish — mapped live onto the hidden mask. */}
+                    <TankLife progress={progress} />
+                  </>
                 ) : (
-                  <JarStage enabled={visualTheme === 'jar' && !playsAquarium}>
-                    <JarVisual progress={progress} running={phase === 'focus'} />
+                  <JarStage enabled={visualTheme === "jar" && !playsAquarium}>
+                    <JarVisual
+                      progress={progress}
+                      running={phase === "focus"}
+                    />
                   </JarStage>
                 )
-              ) : visualTheme === 'tree' ? (
+              ) : visualTheme === "tree" ? (
                 <TreeStage enabled>
-                  <img className="tree-focus-background" src="/visuals/tree/tree-scene.png" alt="" aria-hidden="true" />
-                  <FocusVisual theme="tree" progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} leafAsset={selectedLeaf} depth={SOLAR_DEPTH} />
+                  <img
+                    className="tree-focus-background"
+                    src="/visuals/tree/tree-scene.png"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <FocusVisual
+                    theme="tree"
+                    progress={progress}
+                    duration={activeDurationSeconds}
+                    running={phase === "focus"}
+                    leafAsset={selectedLeaf}
+                    depth={SOLAR_DEPTH}
+                  />
                 </TreeStage>
-              ) : visualTheme === 'blade' ? (
+              ) : visualTheme === "blade" ? (
                 <BladeStage enabled>
-                  <FocusVisual theme="blade" progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} depth={SOLAR_DEPTH} />
+                  <FocusVisual
+                    theme="blade"
+                    progress={progress}
+                    duration={activeDurationSeconds}
+                    running={phase === "focus"}
+                    depth={SOLAR_DEPTH}
+                  />
                 </BladeStage>
               ) : (
-                <FocusVisual theme={visualTheme} progress={progress} duration={activeDurationSeconds} running={phase === 'focus'} depth={SOLAR_DEPTH} />
+                <FocusVisual
+                  theme={visualTheme}
+                  progress={progress}
+                  duration={activeDurationSeconds}
+                  running={phase === "focus"}
+                  depth={SOLAR_DEPTH}
+                />
               )}
             </div>
           </div>
 
           {/* Right zone: flip-clock timer (suppressed for solar-system — digits live on the Sun) */}
-          {visualTheme !== 'solar-system' && (
-            <div className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 mob-clock-zone ${visualTheme === 'hourglass' ? 'hg-clock-zone' : ''}`}>
+          {visualTheme !== "solar-system" && (
+            <div
+              className={`mt-7 flex w-full items-center justify-center lg:mt-0 lg:w-5/12 lg:justify-start lg:pl-8 xl:pl-14 mob-clock-zone ${visualTheme === "hourglass" ? "hg-clock-zone" : ""}`}
+            >
               {/* Hourglass only vacates this zone on the mobile lock, where its
                   clock lives inside the fixed stage to track the backdrop; on
                   desktop (and every other theme) the clock sits here as before. */}
-              {(visualTheme !== 'hourglass' || !hgLocked) && (
-                <div className="pointer-events-none transition-opacity duration-700 ease-out" style={{ opacity: activeDurationSeconds > 0 && secondsLeft <= 5 && secondsLeft > 0 ? 0 : 1 }}>
+              {(visualTheme !== "hourglass" || !hgLocked) && (
+                <div
+                  className="pointer-events-none transition-opacity duration-700 ease-out"
+                  style={{
+                    opacity:
+                      activeDurationSeconds > 0 &&
+                      secondsLeft <= 5 &&
+                      secondsLeft > 0
+                        ? 0
+                        : 1,
+                  }}
+                >
                   <FlipClock secondsLeft={secondsLeft} />
                 </div>
               )}
@@ -551,7 +718,7 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         </div>
 
         {/* See your friends — peeks at the study table while the timer runs on */}
-        {onOpenStudyTable && phase !== 'completing' && (
+        {onOpenStudyTable && phase !== "completing" && (
           <div className="absolute bottom-6 right-5 z-20 flex flex-col items-end gap-3">
             <button
               type="button"
@@ -560,25 +727,39 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
             >
               see your friends →
             </button>
-            <StudyMusicPlayer />
+            <PremiumLock feature="focus_music" compact>
+              <StudyMusicPlayer />
+            </PremiumLock>
           </div>
         )}
 
         {/* Session status */}
         <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
-          {phase === 'paused' ? 'Session paused' : phase === 'completing' ? 'Focus complete' : visualTheme === 'jar' ? (playsAquarium ? 'Aquarium' : 'Water Jar') : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)?.label}
+          {phase === "paused"
+            ? "Session paused"
+            : phase === "completing"
+              ? "Focus complete"
+              : visualTheme === "jar"
+                ? playsAquarium
+                  ? "Aquarium"
+                  : "Water Jar"
+                : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)
+                    ?.label}
         </div>
 
         {/* Session controls */}
-        {phase !== 'completing' && (
+        {phase !== "completing" && (
           <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
-            {phase === 'focus' ? (
+            {phase === "focus" ? (
               <button
                 onClick={handlePause}
                 className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-100 transition hover:bg-white/[.10] hover:scale-105 active:scale-95"
                 aria-label="Pause"
               >
-                <Pause className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+                <Pause
+                  className="h-7 w-7 transition group-hover:scale-105"
+                  strokeWidth={1.8}
+                />
               </button>
             ) : (
               <button
@@ -586,7 +767,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
                 className="group h-[3.75rem] w-[3.75rem] rounded-full bg-lime-300 flex items-center justify-center text-[#11130f] transition hover:bg-lime-200 hover:scale-105 active:scale-95"
                 aria-label="Resume"
               >
-                <Play className="h-7 w-7 ml-0.5 transition group-hover:scale-105" strokeWidth={1.8} />
+                <Play
+                  className="h-7 w-7 ml-0.5 transition group-hover:scale-105"
+                  strokeWidth={1.8}
+                />
               </button>
             )}
             <button
@@ -594,7 +778,10 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
               className="group h-[3.75rem] w-[3.75rem] rounded-full bg-white/[.06] flex items-center justify-center text-stone-300 transition hover:bg-white/[.10] hover:text-red-400 hover:scale-105 active:scale-95"
               aria-label="Quit session"
             >
-              <X className="h-7 w-7 transition group-hover:scale-105" strokeWidth={1.8} />
+              <X
+                className="h-7 w-7 transition group-hover:scale-105"
+                strokeWidth={1.8}
+              />
             </button>
           </div>
         )}
@@ -602,9 +789,12 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
         {showQuitConfirm && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
             <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full border border-slate-800 animate-grow-in">
-              <h3 className="text-lg font-semibold text-white mb-2">End this session?</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                End this session?
+              </h3>
               <p className="text-slate-400 text-sm mb-6">
-                Your progress so far will still be saved. No pressure — you can always start another.
+                Your progress so far will still be saved. No pressure — you can
+                always start another.
               </p>
               <div className="flex gap-3">
                 <button
@@ -630,134 +820,278 @@ export default function FocusTimer({ onComplete, onOpenStudyTable }: FocusTimerP
   return (
     <div className="w-full pt-5 sm:pt-6">
       <div className="surface relative overflow-visible p-4 sm:p-7 lg:p-8">
-      <div className="pointer-events-none absolute right-8 top-0 hidden h-px w-48 bg-gradient-to-r from-transparent via-lime-300/50 to-transparent lg:block" />
-      <div className="mb-5 flex items-center justify-between px-1">
-        <div><div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">Session setup</div><h2 className="mt-1 text-xl font-bold text-stone-50">Choose your rhythm</h2></div>
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/[.08] text-lime-300"><Zap className="h-5 w-5" /></div>
-      </div>
+        <div className="pointer-events-none absolute right-8 top-0 hidden h-px w-48 bg-gradient-to-r from-transparent via-lime-300/50 to-transparent lg:block" />
+        <div className="mb-5 flex items-center justify-between px-1">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">
+              Session setup
+            </div>
+            <h2 className="mt-1 text-xl font-bold text-stone-50">
+              Choose your rhythm
+            </h2>
+          </div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/[.08] text-lime-300">
+            <Zap className="h-5 w-5" />
+          </div>
+        </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {TIMER_PRESETS.map((p) => (
+        <div className="mb-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {TIMER_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() => {
+                setPreset(p);
+                setIsCustom(false);
+              }}
+              className={`group flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3.5 text-left transition-all sm:min-h-28 sm:p-4 ${
+                !isCustom && preset.label === p.label
+                  ? "border-lime-300/40 bg-lime-300/[.08] text-stone-50 shadow-[inset_0_0_30px_rgba(197,255,84,.03),0_8px_30px_rgba(0,0,0,.15)]"
+                  : "border-white/[.07] bg-white/[.025] text-stone-400 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[.045]"
+              }`}
+            >
+              <span className="font-display text-2xl font-extrabold tabular-nums">
+                {p.focusMinutes}
+                <span className="ml-0.5 text-xs font-semibold text-stone-500">
+                  min
+                </span>
+              </span>
+              <span className="text-xs font-semibold leading-tight">
+                {p.label}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="mb-6">
           <button
-            key={p.label}
-            onClick={() => { setPreset(p); setIsCustom(false); }}
-            className={`group flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3.5 text-left transition-all sm:min-h-28 sm:p-4 ${
-              !isCustom && preset.label === p.label
-                ? 'border-lime-300/40 bg-lime-300/[.08] text-stone-50 shadow-[inset_0_0_30px_rgba(197,255,84,.03),0_8px_30px_rgba(0,0,0,.15)]'
-                : 'border-white/[.07] bg-white/[.025] text-stone-400 hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[.045]'
+            onClick={() => setIsCustom(true)}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-colors ${
+              isCustom
+                ? "bg-emerald-500/10 border-emerald-500/40 text-white"
+                : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
             }`}
           >
-            <span className="font-display text-2xl font-extrabold tabular-nums">{p.focusMinutes}<span className="ml-0.5 text-xs font-semibold text-stone-500">min</span></span>
-            <span className="text-xs font-semibold leading-tight">{p.label}</span>
+            <span className="font-semibold">Custom session</span>
+            <span className="text-sm tabular-nums">
+              {customFocus}m focus · {customBreak}m break
+            </span>
           </button>
-        ))}
-      </div>
-      <div className="mb-6">
-        <button
-          onClick={() => setIsCustom(true)}
-          className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-colors ${
-            isCustom
-              ? 'bg-emerald-500/10 border-emerald-500/40 text-white'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-          }`}
-        >
-          <span className="font-semibold">Custom session</span>
-          <span className="text-sm tabular-nums">
-            {customFocus}m focus · {customBreak}m break
-          </span>
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <div className="mb-3 flex items-end justify-between px-1">
-          <div><div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">Choose your focus visual</div><p className="mt-1 text-xs text-stone-600">Your visual unfolds as the session progresses.</p></div>
-          <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">Saved automatically</span>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {FOCUS_VISUAL_THEMES.map((theme, index) => {
-            return (
-              <div key={theme.id} className="relative">
-                <button type="button" onClick={() => selectVisual(theme.id)} aria-pressed={visualTheme === theme.id} className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? 'border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]' : 'border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15'}`}>
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">{theme.id === 'butterfly' ? <img src="/visuals/butterfly/butterfly-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'brightness(0.9)', transform: 'scale(0.96)' }} draggable={false} /> : theme.id === 'hourglass' ? <img src="/visuals/hourglass/hourglass-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]" draggable={false} /> : theme.id === 'tree' ? <img src="/visuals/tree/tree-preview.png" alt={theme.label} className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]" draggable={false} /> : theme.id === 'jar' ? <img src="/visuals/jar/jar-preview.png" alt={theme.label} className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]" draggable={false} /> : theme.id === 'blade' ? <img src="/visuals/blade/particle-painting-preview.png" alt={theme.label} className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]" draggable={false} /> : theme.id === 'solar-system' ? <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]"><img src="/visuals/solar-system/solar-preview.png" alt={theme.label} className="h-full w-full object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)' }} draggable={false} /></span> : <FocusVisual theme={theme.id} progress={[.35, .3, .5, .42, .4, .46][index]} leafAsset={theme.id === 'tree' ? selectedLeaf : undefined} />}</div>
-                  <div className="px-1 pb-1 pt-2.5"><div className={`text-xs font-bold ${visualTheme === theme.id ? 'text-lime-300' : 'text-stone-300'}`}>{theme.label}</div><div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">{theme.description}</div></div>
-                </button>
+
+        <div className="mb-6">
+          <div className="mb-3 flex items-end justify-between px-1">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">
+                Choose your focus visual
               </div>
-            );
-          })}
-        </div>
-        <p className="mt-2 px-1 text-[10px] leading-4 text-stone-600">Planet textures: Solar System Scope · CC BY 4.0</p>
-      </div>
-
-      {isCustom && (
-        <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Focus (min)</label>
-            <input
-              type="number"
-              min={1}
-              max={180}
-              value={customFocus}
-              onChange={(e) => setCustomFocus(Math.max(1, Math.min(180, Number(e.target.value) || 1)))}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Break (min)</label>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              value={customBreak}
-              onChange={(e) => setCustomBreak(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
-              className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="mb-6">
-        <label className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-stone-500">What are you focusing on?</label>
-        <div className="relative">
-          <input
-            type="text"
-            value={subjectTag}
-            onChange={(e) => setSubjectTag(e.target.value)}
-            onFocus={() => setShowSubjects(true)}
-            onBlur={() => setTimeout(() => setShowSubjects(false), 150)}
-            placeholder="e.g. Maths, Physics, Revision…"
-            className="premium-input pr-10"
-          />
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-          {showSubjects && (
-            <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 max-h-48 overflow-auto">
-              {SUBJECT_PRESETS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onMouseDown={() => { setSubjectTag(s); setShowSubjects(false); }}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
-                >
-                  {s}
-                </button>
-              ))}
+              <p className="mt-1 text-xs text-stone-600">
+                Your visual unfolds as the session progresses.
+              </p>
             </div>
-          )}
+            <span className="hidden text-[10px] font-bold uppercase tracking-[.16em] text-stone-700 sm:block">
+              Saved automatically
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {FOCUS_VISUAL_THEMES.map((theme, index) => {
+              const feature = visualFeature(theme.id);
+              const locked = feature
+                ? isFeatureLocked(feature, config.flags, isPremium)
+                : false;
+              return (
+                <div key={theme.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      locked
+                        ? openPremiumPage(theme.label)
+                        : selectVisual(theme.id)
+                    }
+                    aria-pressed={visualTheme === theme.id}
+                    className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? "border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]" : "border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15"}`}
+                  >
+                    <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">
+                      {theme.id === "butterfly" ? (
+                        <img
+                          src="/visuals/butterfly/butterfly-preview.png"
+                          alt={theme.label}
+                          className="h-full w-full object-contain"
+                          style={{
+                            filter: "brightness(0.9)",
+                            transform: "scale(0.96)",
+                          }}
+                          draggable={false}
+                        />
+                      ) : theme.id === "hourglass" ? (
+                        <img
+                          src="/visuals/hourglass/hourglass-preview.png"
+                          alt={theme.label}
+                          className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.8]"
+                          draggable={false}
+                        />
+                      ) : theme.id === "tree" ? (
+                        <img
+                          src="/visuals/tree/tree-preview.png"
+                          alt={theme.label}
+                          className="h-[97%] w-[97%] object-contain brightness-[.72] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[.82]"
+                          draggable={false}
+                        />
+                      ) : theme.id === "jar" ? (
+                        <img
+                          src="/visuals/jar/jar-preview.png"
+                          alt={theme.label}
+                          className="h-[90%] w-[90%] object-contain brightness-[.98] transition-all duration-500 group-hover:scale-[1.1] group-hover:brightness-[1]"
+                          draggable={false}
+                        />
+                      ) : theme.id === "blade" ? (
+                        <img
+                          src="/visuals/blade/particle-painting-preview.png"
+                          alt={theme.label}
+                          className="h-[80%] w-[80%] object-contain transition-transform duration-500 group-hover:scale-[1.1]"
+                          draggable={false}
+                        />
+                      ) : theme.id === "solar-system" ? (
+                        <span className="block h-[92%] w-[92%] transition-transform duration-500 group-hover:scale-[1.08]">
+                          <img
+                            src="/visuals/solar-system/solar-preview.png"
+                            alt={theme.label}
+                            className="h-full w-full object-contain"
+                            style={{
+                              filter:
+                                "drop-shadow(0 0 8px rgba(255,120,70,.9)) drop-shadow(0 0 16px rgba(255,45,70,.5)) brightness(1.03)",
+                            }}
+                            draggable={false}
+                          />
+                        </span>
+                      ) : (
+                        <FocusVisual
+                          theme={theme.id}
+                          progress={[0.35, 0.3, 0.5, 0.42, 0.4, 0.46][index]}
+                          leafAsset={
+                            theme.id === "tree" ? selectedLeaf : undefined
+                          }
+                        />
+                      )}
+                    </div>
+                    <div className="px-1 pb-1 pt-2.5">
+                      <div
+                        className={`text-xs font-bold ${visualTheme === theme.id ? "text-lime-300" : "text-stone-300"}`}
+                      >
+                        {theme.label}
+                      </div>
+                      <div className="mt-1 hidden text-[10px] leading-4 text-stone-600 sm:block">
+                        {theme.description}
+                      </div>
+                    </div>
+                  </button>
+                  {locked && (
+                    <span className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1 rounded-full border border-[#f6e3ba]/25 bg-[#090b0a]/80 px-2 py-1 text-[8px] font-extrabold uppercase tracking-wide text-[#f6e3ba] backdrop-blur">
+                      <Lock className="h-2.5 w-2.5" /> Premium
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 px-1 text-[10px] leading-4 text-stone-600">
+            Planet textures: Solar System Scope · CC BY 4.0
+          </p>
         </div>
-      </div>
 
-      <button
-        onClick={handleStart}
-        className="primary-button flex w-full items-center justify-center gap-2 py-4 text-base"
-      >
-        <Play className="w-5 h-5" />
-        Start {focusMinutes}m focus
-      </button>
+        {isCustom && (
+          <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Focus (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={180}
+                value={customFocus}
+                onChange={(e) =>
+                  setCustomFocus(
+                    Math.max(1, Math.min(180, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Break (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={customBreak}
+                onChange={(e) =>
+                  setCustomBreak(
+                    Math.max(1, Math.min(60, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+        )}
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-stone-500 text-xs">
-        <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5 text-lime-300/60" /> {focusMinutes}m uninterrupted</span>
-        <span className="flex items-center gap-1.5"><Coffee className="h-3.5 w-3.5 text-lime-300/60" /> {breakMinutes}m intentional break</span>
-        <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-lime-300/60" /> Progress saved</span>
-      </div>
+        <div className="mb-6">
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-stone-500">
+            What are you focusing on?
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={subjectTag}
+              onChange={(e) => setSubjectTag(e.target.value)}
+              onFocus={() => setShowSubjects(true)}
+              onBlur={() => setTimeout(() => setShowSubjects(false), 150)}
+              placeholder="e.g. Maths, Physics, Revision…"
+              className="premium-input pr-10"
+            />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            {showSubjects && (
+              <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 max-h-48 overflow-auto">
+                {SUBJECT_PRESETS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onMouseDown={() => {
+                      setSubjectTag(s);
+                      setShowSubjects(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={handleStart}
+          className="primary-button flex w-full items-center justify-center gap-2 py-4 text-base"
+        >
+          <Play className="w-5 h-5" />
+          Start {focusMinutes}m focus
+        </button>
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-stone-500 text-xs">
+          <span className="flex items-center gap-1.5">
+            <Clock3 className="h-3.5 w-3.5 text-lime-300/60" /> {focusMinutes}m
+            uninterrupted
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Coffee className="h-3.5 w-3.5 text-lime-300/60" /> {breakMinutes}m
+            intentional break
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-lime-300/60" /> Progress saved
+          </span>
+        </div>
       </div>
       {showLeafPicker && (
         <LeafPicker

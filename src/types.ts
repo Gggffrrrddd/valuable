@@ -6,6 +6,10 @@ export interface Profile {
   friend_code: string;
   is_premium: boolean;
   premium_expires_at: string | null;
+  /** Server-owned entitlement. Optional while older rows/migrations exist. */
+  plan?: "free" | "premium";
+  premium_until?: string | null;
+  source?: "play" | "trial" | "founder" | null;
   /** Which 3D character the user appears as at the circle table. Always set. */
   avatar_character: AvatarCharacter;
   /** False until the first-time character picker has been resolved. */
@@ -55,16 +59,6 @@ export interface Friendship {
   user_id: string;
   friend_id: string;
   status: "pending" | "accepted";
-  created_at: string;
-}
-
-export interface Payment {
-  id: string;
-  user_id: string;
-  amount: number;
-  status: string;
-  razorpay_order_id: string | null;
-  razorpay_payment_id: string | null;
   created_at: string;
 }
 
