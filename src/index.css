@@ -2325,19 +2325,19 @@ button .butterfly-constellation {
   .music-track-icon { width: 1.75rem; height: 1.75rem; }
 }
 
-/* Keep the drawer clear of the centered pause/quit pill on portrait phones. */
-@media (max-width: 640px) and (min-height: 521px) {
-  .music-drawer {
-    bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 5.75rem);
-    max-height: calc(
-      100dvh - max(1.5rem, env(safe-area-inset-bottom)) - 6.5rem -
-        max(0.75rem, env(safe-area-inset-top))
-    );
-  }
-}
-
 /* Touch targets stay usable in the compact landscape drawer. */
 @media (max-height: 520px) {
   .music-drawer button { min-height: 2.5rem; }
   .music-tabs button { font-size: 10px; line-height: 1.15; }
+}
+
+/* Portrait/tablet portrait: sit fully above the centered session pill. */
+@media (max-aspect-ratio: 1/1) {
+  .music-drawer {
+    bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 7.5rem);
+    max-height: calc(
+      100dvh - max(1.5rem, env(safe-area-inset-bottom)) - 7.5rem -
+        max(0.75rem, env(safe-area-inset-top))
+    );
+  }
 }
