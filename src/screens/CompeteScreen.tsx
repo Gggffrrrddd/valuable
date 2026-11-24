@@ -1,40 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Sprout } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
-import { readLiveFocusElapsedMs } from '@/lib/localSession';
-import TreeScene from '@/components/compete/TreeScene';
-import DreamPicker from '@/components/compete/DreamPicker';
-import PlacementTuner from '@/components/compete/PlacementTuner';
-import GoalHeatmap from '@/components/compete/GoalHeatmap';
-import CompeteTour from '@/components/compete/CompeteTour';
-import CompeteHelp from '@/components/compete/CompeteHelp';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Sprout } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { readLiveFocusElapsedMs } from "@/lib/localSession";
+import TreeScene from "@/components/compete/TreeScene";
+import DreamPicker from "@/components/compete/DreamPicker";
+import PlacementTuner from "@/components/compete/PlacementTuner";
+import GoalHeatmap from "@/components/compete/GoalHeatmap";
+import CompeteTour from "@/components/compete/CompeteTour";
+import CompeteHelp from "@/components/compete/CompeteHelp";
 import {
   DEFAULT_DREAM_STRETCH,
   DEFAULT_RING,
   type PlacementTransform,
-} from '@/components/compete/placementConfig';
+} from "@/components/compete/placementConfig";
 import {
   fetchActiveGoal,
   createGoal,
   fetchMinutesByDate,
   buildDayRecords,
+  fetchDayRecords,
   persistDayRecords,
   uploadDreamImage,
   saveDreamImages,
   deleteDreamImage,
-  dateKey,
+  todayKey,
   daysBetween,
   type DayRecord,
-} from '@/lib/compete';
-import type { CompeteGoal } from '@/types';
+} from "@/lib/compete";
+import type { CompeteGoal } from "@/types";
 
 /** Stores the one-time guided-tour flag when the DB column is unavailable. */
-const TOUR_SEEN_KEY = 'valuable.compete-tour-seen.v1';
+const TOUR_SEEN_KEY = "valuable.compete-tour-seen.v1";
 /** The clip's full-bloom frame lives at 97%, not the very last frame. */
 const TREE_PROGRESS_END = 0.97;
-/** TEMP: pin the scene to full bloom until growth pacing is changed again. */
-const FORCE_FULL_BLOOM = true;
 
 /** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -82,16 +81,17 @@ export default function CompeteScreen() {
   const [dreamBusy, setDreamBusy] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [liveFocusSeconds, setLiveFocusSeconds] = useState(0);
-  const [help, setHelp] = useState<{ type: 'dreams' | 'tracker'; anchor: HTMLElement } | null>(
-    null,
-  );
+  const [help, setHelp] = useState<{
+    type: "dreams" | "tracker";
+    anchor: HTMLElement;
+  } | null>(null);
   const tourAutoRef = useRef(false);
   // Measure via callback ref (not useEffect+ref-object): it fires synchronously
   // on DOM attach/detach, so measurement can never run against a missing node
   // no matter the mount/branch-switch timing.
   const [stageBox, setStageBox] = useState(() => ({
-    w: typeof window !== 'undefined' ? window.innerWidth || 393 : 393,
-    h: typeof window !== 'undefined' ? window.innerHeight || 852 : 852,
+    w: typeof window !== "undefined" ? window.innerWidth || 393 : 393,
+    h: typeof window !== "undefined" ? window.innerHeight || 852 : 852,
   }));
   const roRef = useRef<ResizeObserver | null>(null);
   const measureBox = useCallback((el: HTMLDivElement | null) => {
@@ -106,7 +106,9 @@ export default function CompeteScreen() {
     const h = el.clientHeight;
     if (w >= 1 && h >= 1) {
       setStageBox((prev) =>
-        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h },
+        Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5
+          ? prev
+          : { w, h },
       );
     }
     roRef.current?.disconnect();
@@ -115,7 +117,9 @@ export default function CompeteScreen() {
       const rh = entry.contentRect.height;
       if (rw < 1 || rh < 1) return;
       setStageBox((prev) =>
-        Math.abs(prev.w - rw) < 0.5 && Math.abs(prev.h - rh) < 0.5 ? prev : { w: rw, h: rh },
+        Math.abs(prev.w - rw) < 0.5 && Math.abs(prev.h - rh) < 0.5
+          ? prev
+          : { w: rw, h: rh },
       );
     });
     ro.observe(el);
@@ -126,42 +130,49 @@ export default function CompeteScreen() {
   // the branch never flips and the layout stays stale until hard refresh.
   const [isMobileVp, setIsMobileVp] = useState(
     () =>
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(max-width: 1023.5px)').matches,
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 1023.5px)").matches,
   );
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia('(max-width: 1023.5px)');
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    )
+      return;
+    const mq = window.matchMedia("(max-width: 1023.5px)");
     const sync = () => {
-      setIsMobileVp(window.matchMedia('(max-width: 1023.5px)').matches);
+      setIsMobileVp(window.matchMedia("(max-width: 1023.5px)").matches);
     };
     const onMqChange = () => sync();
     try {
-      mq.addEventListener('change', onMqChange);
+      mq.addEventListener("change", onMqChange);
     } catch {
       /* older engines — resize fallback below covers it */
     }
-    window.addEventListener('resize', sync);
+    window.addEventListener("resize", sync);
     return () => {
       try {
-        mq.removeEventListener('change', onMqChange);
+        mq.removeEventListener("change", onMqChange);
       } catch {
         /* ignore */
       }
-      window.removeEventListener('resize', sync);
+      window.removeEventListener("resize", sync);
     };
   }, []);
   // Keep dream slots matched to the live branch (tuner is hidden, so there
   // are no user edits to lose — a breakpoint switch means a fresh branch).
   useEffect(() => {
-    setDreamTune(isMobileVp ? MOBILE_DREAM_CIRCLE_TRANSFORMS : DREAM_CIRCLE_TRANSFORMS);
+    setDreamTune(
+      isMobileVp ? MOBILE_DREAM_CIRCLE_TRANSFORMS : DREAM_CIRCLE_TRANSFORMS,
+    );
   }, [isMobileVp]);
   // Fit math (mobile only): contain-fit the fixed stage into the measured
   // box. Desktop never reads this (byte-identical branch below).
-  const fitS = stageBox.w >= 1 && stageBox.h >= 1
-    ? Math.min(stageBox.w / FIT_W, stageBox.h / FIT_H)
-    : 1;
+  const fitS =
+    stageBox.w >= 1 && stageBox.h >= 1
+      ? Math.min(stageBox.w / FIT_W, stageBox.h / FIT_H)
+      : 1;
   const fitOX = stageBox.w >= 1 ? (stageBox.w - FIT_W * fitS) / 2 : 0;
   const fitOY = stageBox.h >= 1 ? (stageBox.h - FIT_H * fitS) / 2 : 0;
   // On portrait phones the 855px stage has a lot of empty air under the
@@ -175,9 +186,10 @@ export default function CompeteScreen() {
     : 0;
   /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
   const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 1023.5px)').matches
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 1023.5px)").matches
       ? MOBILE_DREAM_CIRCLE_TRANSFORMS
-      : DREAM_CIRCLE_TRANSFORMS
+      : DREAM_CIRCLE_TRANSFORMS,
   );
   /** Which dream circle the single tuner is editing (0/1/2). */
   const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
@@ -191,8 +203,16 @@ export default function CompeteScreen() {
       setGoal(g);
       if (g) {
         const since = g.start_date || g.created_at.slice(0, 10);
-        const minutes = await fetchMinutesByDate(session.user.id, since);
-        const recs = buildDayRecords(g, minutes);
+        const [minutes, saved] = await Promise.all([
+          fetchMinutesByDate(session.user.id, since),
+          fetchDayRecords(g.id),
+        ]);
+        const savedTargets = new Map(
+          (saved ?? [])
+            .filter((r) => r.targetMinutes > 0)
+            .map((r) => [r.date, r.targetMinutes] as const),
+        );
+        const recs = buildDayRecords(g, minutes, todayKey(), savedTargets);
         setRecords(recs);
         // Persist derived day rows (best-effort: the heatmap still works
         // from focus_sessions if the migration has not been applied yet).
@@ -201,7 +221,7 @@ export default function CompeteScreen() {
         setRecords([]);
       }
     } catch (e) {
-      console.error('Compete load error:', e);
+      console.error("Compete load error:", e);
     }
   }, [session]);
 
@@ -217,7 +237,7 @@ export default function CompeteScreen() {
       setGoal({ ...goal, dream_images: next });
       await saveDreamImages(goal.id, next);
     } catch (e) {
-      console.error('Dream image upload failed:', e);
+      console.error("Dream image upload failed:", e);
     } finally {
       setDreamBusy(false);
     }
@@ -234,7 +254,7 @@ export default function CompeteScreen() {
       await saveDreamImages(goal.id, next);
       void deleteDreamImage(target);
     } catch (e) {
-      console.error('Dream image remove failed:', e);
+      console.error("Dream image remove failed:", e);
     }
   };
 
@@ -254,11 +274,11 @@ export default function CompeteScreen() {
     const onVisible = () => {
       if (!document.hidden) void refresh();
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [session, refresh]);
 
@@ -270,10 +290,10 @@ export default function CompeteScreen() {
     const onVisible = () => {
       if (!document.hidden) tick();
     };
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -284,7 +304,7 @@ export default function CompeteScreen() {
     tourAutoRef.current = true;
     let seenLocally = false;
     try {
-      seenLocally = window.localStorage.getItem(TOUR_SEEN_KEY) === '1';
+      seenLocally = window.localStorage.getItem(TOUR_SEEN_KEY) === "1";
     } catch {
       /* storage can be unavailable in private mode */
     }
@@ -294,15 +314,15 @@ export default function CompeteScreen() {
   const dismissTour = useCallback(async () => {
     setTourOpen(false);
     try {
-      window.localStorage.setItem(TOUR_SEEN_KEY, '1');
+      window.localStorage.setItem(TOUR_SEEN_KEY, "1");
     } catch {
       /* non-fatal fallback */
     }
     if (!session) return;
     const { error } = await supabase
-      .from('profiles')
+      .from("profiles")
       .update({ compete_tour_seen: true })
-      .eq('id', session.user.id);
+      .eq("id", session.user.id);
     if (!error) await refreshProfile();
   }, [session, refreshProfile]);
 
@@ -329,15 +349,14 @@ export default function CompeteScreen() {
     );
   }
 
-  const today = dateKey(new Date());
+  const today = todayKey();
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes =
-    (records.find((r) => r.date === today)?.minutesCompleted ?? 0) + liveFocusSeconds / 60;
+    (records.find((r) => r.date === today)?.minutesCompleted ?? 0) +
+    liveFocusSeconds / 60;
   const autoProgress = Math.min(1, todayMinutes / targetMinutes);
   // The tree stops on its full-bloom frame at 97%, not the final clip frame.
-  const treeProgress = FORCE_FULL_BLOOM
-    ? TREE_PROGRESS_END
-    : autoProgress * TREE_PROGRESS_END;
+  const treeProgress = autoProgress * TREE_PROGRESS_END;
   const todayHours = (todayMinutes / 60).toFixed(1);
   const targetHoursLabel = String(Number(goal.daily_target_hours));
   // Shared scene markup — identical on desktop and mobile; only the
@@ -348,7 +367,7 @@ export default function CompeteScreen() {
       {/* Today's tree: the full scene now lives inside this left card. */}
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
-        style={{ transform: 'scale(0.9)', transformOrigin: 'top left' }}
+        style={{ transform: "scale(0.9)", transformOrigin: "top left" }}
         data-tour="tracker"
       >
         <div className="w-60 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
@@ -359,7 +378,9 @@ export default function CompeteScreen() {
             <button
               type="button"
               aria-label="About today's tree"
-              onClick={(e) => setHelp({ type: 'tracker', anchor: e.currentTarget })}
+              onClick={(e) =>
+                setHelp({ type: "tracker", anchor: e.currentTarget })
+              }
               className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[9px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
             >
               ?
@@ -369,13 +390,18 @@ export default function CompeteScreen() {
             <span className="font-display text-[20px] font-extrabold leading-none text-stone-100">
               {todayHours}
             </span>
-            <span className="ml-1 text-[10px] font-semibold text-stone-500">/ {targetHoursLabel}h</span>
+            <span className="ml-1 text-[10px] font-semibold text-stone-500">
+              / {targetHoursLabel}h
+            </span>
           </div>
           <div
             className="overflow-hidden rounded-[0.95rem] bg-[#090b0a]"
             data-tour="tree"
           >
-            <TreeScene progress={treeProgress} className="aspect-[16/9] w-full" />
+            <TreeScene
+              progress={treeProgress}
+              className="aspect-[16/9] w-full"
+            />
           </div>
         </div>
         <div className="mt-1.5 w-60 text-[10px] font-semibold uppercase tracking-[.18em] text-[#f6e3ba]/70">
@@ -392,7 +418,7 @@ export default function CompeteScreen() {
         busy={dreamBusy}
         onAdd={addDream}
         onRemove={removeDream}
-        onHelp={(anchor) => setHelp({ type: 'dreams', anchor })}
+        onHelp={(anchor) => setHelp({ type: "dreams", anchor })}
       />
 
       {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/Zoom).
@@ -407,8 +433,8 @@ export default function CompeteScreen() {
                 onClick={() => setDreamTuneIdx(i)}
                 className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
                   dreamTuneIdx === i
-                    ? 'border-lime-300/60 bg-lime-300/15 text-lime-200'
-                    : 'border-white/10 bg-black/40 text-stone-500 hover:text-stone-300'
+                    ? "border-lime-300/60 bg-lime-300/15 text-lime-200"
+                    : "border-white/10 bg-black/40 text-stone-500 hover:text-stone-300"
                 }`}
               >
                 s{i + 1}
@@ -420,14 +446,34 @@ export default function CompeteScreen() {
             logTag={`compete-dream-${dreamTuneIdx}`}
             transform={dreamTune[dreamTuneIdx]}
             rows={[
-              { key: 'x', label: 'Move X (left / right)', min: -800, max: 800, step: 1 },
-              { key: 'y', label: 'Move Y (up / down)', min: -400, max: 1000, step: 1 },
-              { key: 'zoom', label: 'Zoom (in / out)', min: 0.5, max: 3, step: 0.01 },
+              {
+                key: "x",
+                label: "Move X (left / right)",
+                min: -800,
+                max: 800,
+                step: 1,
+              },
+              {
+                key: "y",
+                label: "Move Y (up / down)",
+                min: -400,
+                max: 1000,
+                step: 1,
+              },
+              {
+                key: "zoom",
+                label: "Zoom (in / out)",
+                min: 0.5,
+                max: 3,
+                step: 0.01,
+              },
             ]}
             defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
             onChange={(patch) =>
               setDreamTune((prev) =>
-                prev.map((p, j) => (j === dreamTuneIdx ? { ...p, ...patch } : p))
+                prev.map((p, j) =>
+                  j === dreamTuneIdx ? { ...p, ...patch } : p,
+                ),
               )
             }
             compact
@@ -440,14 +486,20 @@ export default function CompeteScreen() {
   const renderDisciplineTracker = () => (
     <div
       className="relative z-10 w-full px-4 pb-28 pt-2 sm:px-6 lg:px-10 lg:pb-12"
-      style={mobileTrackerOverlap > 0 ? { marginTop: -mobileTrackerOverlap } : undefined}
+      style={
+        mobileTrackerOverlap > 0
+          ? { marginTop: -mobileTrackerOverlap }
+          : undefined
+      }
     >
       <div className="mx-auto w-full max-w-6xl" data-tour="discipline-tracker">
         <GoalHeatmap
+          userId={session.user.id}
           startDate={goal.start_date || goal.created_at.slice(0, 10)}
           examDate={goal.exam_date}
           targetHours={Number(goal.daily_target_hours)}
           records={records}
+          todayMinutes={todayMinutes}
         />
       </div>
     </div>
@@ -459,12 +511,12 @@ export default function CompeteScreen() {
       {help && (
         <CompeteHelp
           anchor={help.anchor}
-          title={help.type === 'dreams' ? 'Your dreams' : "Today's tree"}
+          title={help.type === "dreams" ? "Your dreams" : "Today's tree"}
           body={
-            help.type === 'dreams'
+            help.type === "dreams"
               ? (goal.dream_images?.length ?? 0) >= 3
-                ? 'You already have three dreams. Tap × on a dream to remove one, and the + button returns. Seeing them every day keeps you going.'
-                : 'Add what you are working toward — a car, a place, a goal. Tap + to add a dream, or × on a dream to remove it. Seeing it every day keeps you going.'
+                ? "You already have three dreams. Tap × on a dream to remove one, and the + button returns. Seeing them every day keeps you going."
+                : "Add what you are working toward — a car, a place, a goal. Tap + to add a dream, or × on a dream to remove it. Seeing it every day keeps you going."
               : "This card shows today's tracked focus against your daily goal. It resets every midnight. The Discipline tracker below your dreams has your full history."
           }
           onClose={() => setHelp(null)}
@@ -494,7 +546,10 @@ export default function CompeteScreen() {
   // tracker scrolls in below it.
   return (
     <div className="relative flex h-full w-full flex-col overflow-y-auto">
-      <div ref={measureBox} className="relative h-full min-h-0 w-full shrink-0 overflow-hidden bg-[#090b0a]">
+      <div
+        ref={measureBox}
+        className="relative h-full min-h-0 w-full shrink-0 overflow-hidden bg-[#090b0a]"
+      >
         <div
           className="compete-fixed-stage bg-[#090b0a]"
           style={{
@@ -503,7 +558,7 @@ export default function CompeteScreen() {
             left: fitOX,
             top: fitOY,
             transform: `scale(${fitS})`,
-            transformOrigin: '0 0',
+            transformOrigin: "0 0",
           }}
         >
           {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
@@ -516,14 +571,18 @@ export default function CompeteScreen() {
 }
 
 /** Setup: exam date + daily hours, tree metaphor, same layout as before. */
-function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<void> | void }) {
+function SetupForm({
+  onCreated,
+}: {
+  onCreated: (goal: CompeteGoal) => Promise<void> | void;
+}) {
   const { session } = useAuth();
-  const [examDate, setExamDate] = useState('');
-  const [hours, setHours] = useState('4');
+  const [examDate, setExamDate] = useState("");
+  const [hours, setHours] = useState("4");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const today = dateKey(new Date());
+  const today = todayKey();
   const parsedHours = Number(hours);
   const valid = Boolean(examDate) && examDate >= today && parsedHours > 0;
 
@@ -535,8 +594,8 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<vo
       const goal = await createGoal(session.user.id, examDate, parsedHours);
       await onCreated(goal);
     } catch (e) {
-      console.error('Create goal error:', e);
-      setError('Could not plant your goal. Try again.');
+      console.error("Create goal error:", e);
+      setError("Could not plant your goal. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -549,13 +608,16 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<vo
         Plant your goal. <span className="text-stone-600">Watch it grow.</span>
       </h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-stone-400">
-        Your exam date sets how many days you'll tend it. Hit your daily focus target, and today's
-        tree grows to full bloom.
+        Your exam date sets how many days you'll tend it. Hit your daily focus
+        target, and today's tree grows to full bloom.
       </p>
 
       <div className="mt-8 max-w-xl space-y-5 rounded-[1.4rem] border border-white/[.07] bg-white/[.025] p-6">
         <div>
-          <label htmlFor="exam-date" className="text-xs font-bold text-stone-300">
+          <label
+            htmlFor="exam-date"
+            className="text-xs font-bold text-stone-300"
+          >
             When is your exam?
           </label>
           <input
@@ -568,13 +630,17 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<vo
           />
           {examDate && examDate >= today && (
             <div className="mt-2 text-xs text-stone-500">
-              {daysBetween(today, examDate)} days of daily tending · grows from today
+              {daysBetween(today, examDate)} days of daily tending · grows from
+              today
             </div>
           )}
         </div>
 
         <div>
-          <label htmlFor="daily-hours" className="text-xs font-bold text-stone-300">
+          <label
+            htmlFor="daily-hours"
+            className="text-xs font-bold text-stone-300"
+          >
             How many hours will you study each day?
           </label>
           <input
@@ -595,16 +661,19 @@ function SetupForm({ onCreated }: { onCreated: (goal: CompeteGoal) => Promise<vo
           disabled={!valid || submitting}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-lime-300 px-5 py-3 text-sm font-extrabold text-[#11130f] transition hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sprout className="h-4 w-4" />}
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sprout className="h-4 w-4" />
+          )}
           Start growing
         </button>
 
         <p className="text-xs leading-5 text-stone-600">
-          Progress comes straight from your tracked focus sessions — nothing entered by hand. Each
-          new day starts the tree over as a bare seedling.
+          Progress comes straight from your tracked focus sessions — nothing
+          entered by hand. Each new day starts the tree over as a bare seedling.
         </p>
       </div>
     </div>
   );
 }
-

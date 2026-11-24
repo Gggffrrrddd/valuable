@@ -1,4 +1,4 @@
-export type AvatarCharacter = 'boy' | 'girl';
+export type AvatarCharacter = "boy" | "girl";
 
 export interface Profile {
   id: string;
@@ -27,11 +27,11 @@ export interface FocusSession {
 }
 
 export type ContentCategory =
-  | 'Motivational'
-  | 'Study-Tips'
-  | 'Quick-Facts'
-  | 'Success-Stories'
-  | 'Mindfulness';
+  | "Motivational"
+  | "Study-Tips"
+  | "Quick-Facts"
+  | "Success-Stories"
+  | "Mindfulness";
 
 export interface ContentItem {
   id: string;
@@ -54,7 +54,7 @@ export interface Friendship {
   id: string;
   user_id: string;
   friend_id: string;
-  status: 'pending' | 'accepted';
+  status: "pending" | "accepted";
   created_at: string;
 }
 
@@ -89,6 +89,7 @@ export interface CompeteDailyProgress {
   goal_id: string;
   date: string;
   minutes_completed: number;
+  target_minutes: number;
   target_met: boolean;
 }
 
@@ -99,27 +100,27 @@ export interface TimerPreset {
 }
 
 export const TIMER_PRESETS: TimerPreset[] = [
-  { label: 'Classic Pomodoro', focusMinutes: 25, breakMinutes: 5 },
-  { label: 'Deep Focus', focusMinutes: 50, breakMinutes: 10 },
-  { label: 'Short Sprint', focusMinutes: 15, breakMinutes: 3 },
-  { label: 'Long Study', focusMinutes: 90, breakMinutes: 20 },
+  { label: "Classic Pomodoro", focusMinutes: 25, breakMinutes: 5 },
+  { label: "Deep Focus", focusMinutes: 50, breakMinutes: 10 },
+  { label: "Short Sprint", focusMinutes: 15, breakMinutes: 3 },
+  { label: "Long Study", focusMinutes: 90, breakMinutes: 20 },
 ];
 
 export const SUBJECT_PRESETS = [
-  'Maths',
-  'Physics',
-  'Chemistry',
-  'Biology',
-  'Revision',
-  'Assignment',
-  'Reading',
-  'Practice',
+  "Maths",
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "Revision",
+  "Assignment",
+  "Reading",
+  "Practice",
 ];
 
 export const CATEGORIES: ContentCategory[] = [
-  'Motivational',
-  'Study-Tips',
-  'Quick-Facts',
-  'Success-Stories',
-  'Mindfulness',
+  "Motivational",
+  "Study-Tips",
+  "Quick-Facts",
+  "Success-Stories",
+  "Mindfulness",
 ];
