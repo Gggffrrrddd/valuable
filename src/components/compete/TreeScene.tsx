@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import TreeVideo from './TreeVideo';
-import SoilOverlay from './SoilOverlay';
+import { useEffect, useRef, useState } from "react";
+import TreeVideo from "./TreeVideo";
+import SoilOverlay from "./SoilOverlay";
 import {
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_VIDEO_MASK,
   DEFAULT_VIDEO_TRANSFORM,
-} from './placementConfig';
+} from "./placementConfig";
 
 /** Fixed composition box, matched to the 16:9 growth clip. */
 const REF_W = 960;
@@ -18,9 +18,11 @@ const REF_H = 540;
  */
 export default function TreeScene({
   progress,
-  className = '',
+  preview = false,
+  className = "",
 }: {
   progress: number;
+  preview?: boolean;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -52,13 +54,14 @@ export default function TreeScene({
           height: REF_H,
           transform: `translate(-50%, -50%) scale(${scale || 1})`,
           opacity: scale > 0 ? 1 : 0,
-          backgroundColor: '#090b0a',
+          backgroundColor: "#090b0a",
         }}
       >
         <TreeVideo
           transform={DEFAULT_VIDEO_TRANSFORM}
           mask={DEFAULT_VIDEO_MASK}
           progress={progress}
+          preview={preview}
         />
         <SoilOverlay transform={DEFAULT_IMAGE_TRANSFORM} />
       </div>

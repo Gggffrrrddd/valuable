@@ -66,7 +66,7 @@ const SHOW_DREAM_XY_TUNER = false;
  * - The tree view: the growth video seeks with today's tracked
  *   focus vs the daily target — every calendar day it starts over from a
  *   bare seedling, over a static soil overlay.
- * - Dream circles crown the tree (max 3), placement hardcoded per circle.
+ * - One dream sits to the right of the tree card.
  *   Video / image placement stays hardcoded; tree progress comes from
  *   today's tracked focus vs the goal's daily target. The Today's-tree card
  *   sits top-left and embeds the complete scene at 16:9. The growth calendar
@@ -79,6 +79,35 @@ export default function CompeteScreen() {
   const [goal, setGoal] = useState<CompeteGoal | null>(null);
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [dreamBusy, setDreamBusy] = useState(false);
+  const today = todayKey();
+  const [treeStarted, setTreeStarted] = useState(false);
+
+  // One Start per calendar day; until then the tree clip previews on loop.
+  useEffect(() => {
+    if (!session) {
+      setTreeStarted(false);
+      return;
+    }
+    const key = `valuable.compete-tree-started.${session.user.id}.${today}`;
+    try {
+      setTreeStarted(window.localStorage.getItem(key) === "1");
+    } catch {
+      setTreeStarted(false);
+    }
+  }, [session, today]);
+
+  const startTree = useCallback(() => {
+    if (!session) return;
+    setTreeStarted(true);
+    try {
+      window.localStorage.setItem(
+        `valuable.compete-tree-started.${session.user.id}.${today}`,
+        "1",
+      );
+    } catch {
+      /* storage unavailable — still start for this view */
+    }
+  }, [session, today]);
   const [tourOpen, setTourOpen] = useState(false);
   const [liveFocusSeconds, setLiveFocusSeconds] = useState(0);
   const [help, setHelp] = useState<{
@@ -178,8 +207,7 @@ export default function CompeteScreen() {
   // On portrait phones the 855px stage has a lot of empty air under the
   // dream row. Pull the inline tracker up over that empty area so it starts
   // just below the dreams, without rescaling or moving the scene itself.
-  const dreamCount = goal?.dream_images?.length ?? 0;
-  const mobileDreamBottom = dreamCount >= 2 ? 484 : 440;
+  const mobileDreamBottom = 250;
   const compactTracker = isMobileVp && stageBox.h >= stageBox.w;
   const mobileTrackerOverlap = compactTracker
     ? Math.max(0, stageBox.h - (fitOY + mobileDreamBottom * fitS) - 12)
@@ -225,11 +253,11 @@ export default function CompeteScreen() {
     }
   }, [session]);
 
-  // Dream images: upload → optimistic row update → persist (max 3).
+  // Dream image: upload → optimistic row update → persist (one only).
   const addDream = async (file: File) => {
     if (!session || !goal || dreamBusy) return;
     const current = goal.dream_images ?? [];
-    if (current.length >= 3) return;
+    if (current.length >= 1) return;
     setDreamBusy(true);
     try {
       const url = await uploadDreamImage(session.user.id, file);
@@ -349,7 +377,6 @@ export default function CompeteScreen() {
     );
   }
 
-  const today = todayKey();
   const targetMinutes = Number(goal.daily_target_hours) * 60;
   const todayMinutes =
     (records.find((r) => r.date === today)?.minutesCompleted ?? 0) +
@@ -362,7 +389,7 @@ export default function CompeteScreen() {
   // Shared scene markup — identical on desktop and mobile; only the
   // wrappers differ (desktop keeps the original full-bleed layout exactly,
   // mobile wraps it in the fixed portrait stage below).
-  const renderScene = (transforms: PlacementTransform[]) => (
+  const renderScene = () => (
     <>
       {/* Today's tree: the full scene now lives inside this left card. */}
       <div
@@ -375,16 +402,27 @@ export default function CompeteScreen() {
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-stone-500">
               Today's tree
             </div>
-            <button
-              type="button"
-              aria-label="About today's tree"
-              onClick={(e) =>
-                setHelp({ type: "tracker", anchor: e.currentTarget })
-              }
-              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[9px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
-            >
-              ?
-            </button>
+            <div className="flex items-center gap-1.5">
+              {!treeStarted && (
+                <button
+                  type="button"
+                  onClick={startTree}
+                  className="rounded-full bg-lime-300 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#11130f] transition hover:bg-lime-200"
+                >
+                  Start
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="About today's tree"
+                onClick={(e) =>
+                  setHelp({ type: "tracker", anchor: e.currentTarget })
+                }
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-[#f6e3ba]/30 text-[9px] font-bold leading-none text-[#f6e3ba]/80 transition hover:border-[#f6e3ba]/70 hover:text-[#f6e3ba]"
+              >
+                ?
+              </button>
+            </div>
           </div>
           <div className="px-1.5 pb-2">
             <span className="font-display text-[20px] font-extrabold leading-none text-stone-100">
@@ -400,6 +438,7 @@ export default function CompeteScreen() {
           >
             <TreeScene
               progress={treeProgress}
+              preview={!treeStarted}
               className="aspect-[16/9] w-full"
             />
           </div>
@@ -412,7 +451,6 @@ export default function CompeteScreen() {
       {/* Dream images: bare glow circles crowning the tree. */}
       <DreamPicker
         images={goal.dream_images ?? []}
-        transforms={transforms}
         stretch={DEFAULT_DREAM_STRETCH}
         ringWidth={DEFAULT_RING.ring}
         busy={dreamBusy}
@@ -515,8 +553,8 @@ export default function CompeteScreen() {
           body={
             help.type === "dreams"
               ? (goal.dream_images?.length ?? 0) >= 3
-                ? "You already have three dreams. Tap × on a dream to remove one, and the + button returns. Seeing them every day keeps you going."
-                : "Add what you are working toward — a car, a place, a goal. Tap + to add a dream, or × on a dream to remove it. Seeing it every day keeps you going."
+                ? "You already have your dream. Tap × to remove it, and the + button returns. Seeing it every day keeps you going."
+                : "Add what you are working toward — a car, a place, a goal. Tap + to add your dream, or × to remove it. Seeing it every day keeps you going."
               : "This card shows today's tracked focus against your daily goal. It resets every midnight. The Discipline tracker below your dreams has your full history."
           }
           onClose={() => setHelp(null)}
@@ -533,8 +571,8 @@ export default function CompeteScreen() {
   if (!isMobileVp) {
     return (
       <div className="relative flex h-full w-full flex-col overflow-y-auto">
-        <div className="compete-stage relative h-[clamp(300px,38vh,340px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
-          {renderScene(dreamTune)}
+        <div className="compete-stage relative h-[clamp(220px,30vh,250px)] w-full shrink-0 overflow-hidden bg-[#090b0a]">
+          {renderScene()}
         </div>
         {renderDisciplineTracker()}
         {renderOverlays()}
@@ -561,7 +599,7 @@ export default function CompeteScreen() {
             transformOrigin: "0 0",
           }}
         >
-          {renderScene(MOBILE_DREAM_CIRCLE_TRANSFORMS)}
+          {renderScene()}
         </div>
       </div>
       {renderDisciplineTracker()}

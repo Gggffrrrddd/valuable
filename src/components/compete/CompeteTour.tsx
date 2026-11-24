@@ -105,7 +105,7 @@ export default function CompeteTour({ onClose }: { onClose: () => void }) {
     typeof document !== 'undefined' && document.querySelector('[data-tour="add-dream"]') !== null;
   const body =
     current.id === 'add' && !addButtonPresent
-      ? 'You already have three dreams. Tap × on a dream to remove one, and the + button returns.'
+      ? 'You already have your dream. Tap × to remove it, and the + button returns.'
       : current.body;
 
   useLayoutEffect(() => {

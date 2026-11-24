@@ -2341,3 +2341,18 @@ button .butterfly-constellation {
     );
   }
 }
+
+/* Single dream beside Today's tree: label sits under the circle, not on the arc. */
+.compete-dreams .compete-dreams-label {
+  position: static;
+  transform: none;
+  white-space: normal;
+  pointer-events: auto;
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0.16em;
+  color: #f6e3ba;
+}
+@media (min-width: 640px) {
+  .compete-dreams .compete-dreams-label { font-size: 13px; }
+}
