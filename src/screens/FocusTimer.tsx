@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TIMER_PRESETS, type TimerPreset } from "@/types";
-import { Play, Pause, X, Check, Clock3, Coffee, Zap, Lock } from "lucide-react";
+import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from "@/types";
+import {
+  Play,
+  Pause,
+  X,
+  Check,
+  ChevronDown,
+  Clock3,
+  Coffee,
+  Zap,
+  Lock,
+} from "lucide-react";
 import FocusVisual from "@/components/focus-visuals/FocusVisual";
 import HourglassStage, {
   useHgLocked,
@@ -15,7 +25,6 @@ import GardenVisual from "@/components/focus-visuals/GardenVisual";
 import FlipClock from "@/components/FlipClock";
 import LeafPicker from "@/components/LeafPicker";
 import StudyMusicPlayer from "@/components/StudyMusicPlayer";
-import SubjectChips from "@/components/SubjectChips";
 import PremiumLock from "@/components/premium/PremiumLock";
 import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
 import { useEntitlement } from "@/lib/premium/useEntitlement";
@@ -140,6 +149,7 @@ export default function FocusTimer({
   const [customBreak, setCustomBreak] = useState(5);
   const [isCustom, setIsCustom] = useState(false);
   const [subjectTag, setSubjectTag] = useState<string>("");
+  const [showSubjects, setShowSubjects] = useState(false);
 
   const [phase, setPhase] = useState<Phase>(() => {
     const s = readStoredSession();
@@ -247,18 +257,6 @@ export default function FocusTimer({
   const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
   const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
   const totalFocusSeconds = focusMinutes * 60;
-  const clampFocus = (v: number) =>
-    Math.max(1, Math.min(180, Math.round(v) || 1));
-  const clampBreak = (v: number) =>
-    Math.max(1, Math.min(60, Math.round(v) || 1));
-  const changeFocus = (v: number) => {
-    setIsCustom(true);
-    setCustomFocus(clampFocus(v));
-  };
-  const changeBreak = (v: number) => {
-    setIsCustom(true);
-    setCustomBreak(clampBreak(v));
-  };
   // Duration-driven visual: 60 min or less plays the jar, more plays the
   // aquarium — same picker card, decided by the chosen rhythm.
   // Locked at session start so the visual never flips mid-session.
@@ -859,8 +857,6 @@ export default function FocusTimer({
               key={p.label}
               onClick={() => {
                 setPreset(p);
-                setCustomFocus(p.focusMinutes);
-                setCustomBreak(p.breakMinutes);
                 setIsCustom(false);
               }}
               className={`group flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3.5 text-left transition-all sm:min-h-28 sm:p-4 ${
@@ -882,66 +878,19 @@ export default function FocusTimer({
           ))}
         </div>
         <div className="mb-6">
-          <div className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[.16em] text-stone-600">
-            Set your own time
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              {
-                key: "focus",
-                label: "Focus (min)",
-                value: customFocus,
-                min: 1,
-                max: 180,
-                change: changeFocus,
-              },
-              {
-                key: "break",
-                label: "Break (min)",
-                value: customBreak,
-                min: 1,
-                max: 60,
-                change: changeBreak,
-              },
-            ].map((field) => (
-              <div key={field.key}>
-                <label className="mb-1.5 block px-1 text-xs font-semibold text-stone-400">
-                  {field.label}
-                </label>
-                <div className="flex h-11 items-stretch overflow-hidden rounded-xl border border-white/[.09] bg-black/25 focus-within:border-lime-300/45">
-                  <button
-                    type="button"
-                    onClick={() => field.change(field.value - 1)}
-                    disabled={field.value <= field.min}
-                    aria-label={`Decrease ${field.label}`}
-                    className="flex w-11 shrink-0 items-center justify-center text-lg text-stone-400 transition hover:bg-white/[.06] hover:text-white disabled:opacity-25"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min={field.min}
-                    max={field.max}
-                    value={field.value}
-                    onChange={(e) =>
-                      field.change(Number(e.target.value) || field.min)
-                    }
-                    aria-label={field.label}
-                    className="min-w-0 flex-1 appearance-none bg-transparent text-center text-sm font-extrabold tabular-nums text-stone-100 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => field.change(field.value + 1)}
-                    disabled={field.value >= field.max}
-                    aria-label={`Increase ${field.label}`}
-                    className="flex w-11 shrink-0 items-center justify-center text-lg text-stone-400 transition hover:bg-white/[.06] hover:text-white disabled:opacity-25"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={() => setIsCustom(true)}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-colors ${
+              isCustom
+                ? "bg-emerald-500/10 border-emerald-500/40 text-white"
+                : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+            }`}
+          >
+            <span className="font-semibold">Custom session</span>
+            <span className="text-sm tabular-nums">
+              {customFocus}m focus · {customBreak}m break
+            </span>
+          </button>
         </div>
 
         <div className="mb-6">
@@ -1064,7 +1013,79 @@ export default function FocusTimer({
           </p>
         </div>
 
-        <SubjectChips selected={subjectTag} onSelectedChange={setSubjectTag} />
+        {isCustom && (
+          <div className="grid grid-cols-2 gap-3 mb-6 animate-fade-in">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Focus (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={180}
+                value={customFocus}
+                onChange={(e) =>
+                  setCustomFocus(
+                    Math.max(1, Math.min(180, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Break (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={customBreak}
+                onChange={(e) =>
+                  setCustomBreak(
+                    Math.max(1, Math.min(60, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6">
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[.14em] text-stone-500">
+            What are you focusing on?
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={subjectTag}
+              onChange={(e) => setSubjectTag(e.target.value)}
+              onFocus={() => setShowSubjects(true)}
+              onBlur={() => setTimeout(() => setShowSubjects(false), 150)}
+              placeholder="e.g. Maths, Physics, Revision…"
+              className="premium-input pr-10"
+            />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            {showSubjects && (
+              <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 max-h-48 overflow-auto">
+                {SUBJECT_PRESETS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onMouseDown={() => {
+                      setSubjectTag(s);
+                      setShowSubjects(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <button
           onClick={handleStart}
