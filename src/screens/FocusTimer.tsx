@@ -28,12 +28,14 @@ import LeafPicker from "@/components/LeafPicker";
 import StudyMusicPlayer from "@/components/StudyMusicPlayer";
 import PremiumLock from "@/components/premium/PremiumLock";
 import { useAuth } from "@/lib/auth";
+import { pushTimerHistory, useSessionBackGuard } from "@/lib/sessionBackGuard";
 import { SUBJECTS_CHANGED_EVENT, fetchUserSubjects } from "@/lib/subjects";
 import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
 import { useEntitlement } from "@/lib/premium/useEntitlement";
 import { isFeatureLocked, visualFeature } from "@/lib/premium/features";
 import { openPremiumPage } from "@/lib/premium/openPremium";
 import { setSessionPaused, stopAndReset } from "@/lib/studyMusicEngine";
+import { enterVisualLandscape, exitVisualLandscape } from "@/lib/visualOrientation";
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from "@/components/leafOptions";
 import {
   FOCUS_VISUAL_THEMES,
@@ -127,22 +129,6 @@ export function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
-/** History entry marking a live focus session (system back-button trap).
- *  Base entry ({app:'home'}) is set once by App; the timer pushes its own
- *  entry on session start. Owned/handled centrally by App — see its
- *  popstate effect. No-ops where history is unavailable. */
-const TIMER_HISTORY_STATE = "timer-session";
-
-function pushTimerHistory() {
-  try {
-    if (window.history.state?.app !== TIMER_HISTORY_STATE) {
-      window.history.pushState({ app: TIMER_HISTORY_STATE }, "");
-    }
-  } catch {
-    /* history unavailable — back falls back to default behavior */
-  }
-}
-
 export default function FocusTimer({
   onComplete,
   onOpenStudyTable,
@@ -231,22 +217,13 @@ export default function FocusTimer({
   function enterImmersive() {
     if (askedFullscreenRef.current) return;
     askedFullscreenRef.current = true;
-    try {
-      const request = document.documentElement.requestFullscreen?.bind(
-        document.documentElement,
-      ) as (() => Promise<void> | void) | undefined;
-      const result = request?.();
-      if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => undefined);
-      }
-    } catch {
-      /* Fullscreen unavailable (e.g. iPhone Safari) — sim still rotates. */
-    }
+    void enterVisualLandscape();
   }
 
   function exitImmersive() {
     if (!askedFullscreenRef.current) return;
     askedFullscreenRef.current = false;
+    exitVisualLandscape();
     try {
       if (document.fullscreenElement) {
         const result = document.exitFullscreen?.();
@@ -398,6 +375,8 @@ export default function FocusTimer({
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase("focus");
+    // Request fullscreen/orientation lock inside the Start tap (user gesture).
+    enterImmersive();
     // Trap the system back button for this session (no-op if already trapped).
     pushTimerHistory();
   }
@@ -453,6 +432,12 @@ export default function FocusTimer({
     }
   }
 
+  useSessionBackGuard(
+    phase === "focus" || phase === "paused",
+    showQuitConfirm,
+    (open) => (open ? handleQuitConfirm(false) : handleQuitRequest()),
+  );
+
   const progress =
     activeDurationSeconds > 0
       ? Math.min(1, 1 - secondsLeft / activeDurationSeconds)
@@ -496,7 +481,7 @@ export default function FocusTimer({
             <button
               type="button"
               onClick={onOpenStudyTable}
-              className="text-[11px] font-semibold tracking-wide text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+              className="inline-flex items-center rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-stone-100 shadow-lg backdrop-blur-md transition hover:bg-black/90 hover:text-white"
             >
               see your friends →
             </button>
@@ -508,7 +493,7 @@ export default function FocusTimer({
 
         {/* Session controls — same as jar/tree */}
         {phase !== "completing" && (
-          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
+          <div className="solar-controls absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
             {phase === "focus" ? (
               <button
                 onClick={handlePause}
@@ -796,7 +781,7 @@ export default function FocusTimer({
 
         {/* Session controls */}
         {phase !== "completing" && (
-          <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
+          <div className="solar-controls absolute bottom-12 left-1/2 z-20 -translate-x-1/2 flex items-center gap-4 rounded-full border border-white/[.08] bg-black/35 p-2 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
             {phase === "focus" ? (
               <button
                 onClick={handlePause}

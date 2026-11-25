@@ -1385,25 +1385,14 @@ button .butterfly-constellation {
     transform: translateY(-4%);
   }
   /* Flip clock at 80% in every landscape sim (all visuals, not 100). */
-  .mob-sim .mob-clock-zone .flip-clock {
+  .mob-sim .mob-clock-zone .flip-clock,
+  .butterfly-focus-layout > div:last-child .flip-clock {
     zoom: 0.8;
   }
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Generic rotated stage for every focus timer (rotation lives here only). */
-  .mob-sim.mob-sim {
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    width: 100vh;
-    width: 100dvh;
-    height: 100vw;
-    overflow: hidden;
-    transform: translate(-50%, -50%) rotate(90deg);
-    animation: hg-sim-in 300ms ease-out;
-  }
+  /* Natural device orientation now replaces the old CSS rotation hack. */
   /* Desktop row proportions, scaled to the stage (1vw == 1% of its height). */
   /* Scale-to-fit: the row always equals the stage height, the visual caps
      at 60% of stage height — content can never exceed the stage, so no
@@ -2355,4 +2344,24 @@ button .butterfly-constellation {
 }
 @media (min-width: 640px) {
   .compete-dreams .compete-dreams-label { font-size: 13px; }
+}
+
+/* Solar System mobile controls: compact bottom-left, safe-area aware. */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  .solar-system-focus-session .solar-controls {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+    transform: none;
+    gap: 0.5rem;
+    padding: 0.375rem;
+  }
+  .solar-system-focus-session .solar-controls button {
+    width: 3rem;
+    height: 3rem;
+  }
+  .solar-system-focus-session .solar-controls button svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: 0;
+  }
 }

@@ -191,6 +191,7 @@ function AppContent() {
   // async save, so a rapid double-back can never double-insert.
   useEffect(() => {
     const onPopState = () => {
+      if (screen === "timer") return;
       const s = readStoredSession();
       if (s && s.remainingMs > 0) {
         const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
@@ -216,7 +217,7 @@ function AppContent() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [screen]);
 
   // History reconcile: exactly one slot above home. Entering a section
   // swaps the slot (replace); entering from home pushes it. Home collapses
@@ -429,12 +430,6 @@ function AppContent() {
               }}
               icon={<Users className="h-[18px] w-[18px]" />}
               label="Circle"
-            />
-            <SideNavButton
-              active={false}
-              onClick={() => setScreen("settings")}
-              icon={<Settings2 className="h-[18px] w-[18px]" />}
-              label="Settings"
             />
           </nav>
 
