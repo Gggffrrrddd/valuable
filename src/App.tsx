@@ -95,6 +95,7 @@ function AppContent() {
 
   // Mobile overflow menu + PWA install prompt (captured for the menu item).
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] =
     useState<DeferredInstallPrompt | null>(null);
   const [installed, setInstalled] = useState(isStandaloneDisplay);
@@ -129,6 +130,15 @@ function AppContent() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAccountMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [accountMenuOpen]);
 
   async function handleInstallClick() {
     if (installed) return;
@@ -459,13 +469,53 @@ function AppContent() {
                 </div>
                 <div className="text-[11px] text-stone-600">Focus member</div>
               </div>
-              <button
-                onClick={signOut}
-                className="icon-button h-9 w-9 shrink-0"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((v) => !v)}
+                  className="icon-button h-9 w-9 shrink-0"
+                  aria-label="Account menu"
+                  aria-haspopup="menu"
+                  aria-expanded={accountMenuOpen}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+                {accountMenuOpen && (
+                  <>
+                    <button
+                      aria-hidden
+                      tabIndex={-1}
+                      onClick={() => setAccountMenuOpen(false)}
+                      className="fixed inset-0 z-40 cursor-default bg-transparent"
+                    />
+                    <div
+                      role="menu"
+                      className="absolute bottom-full right-0 z-50 mb-2 w-40 overflow-hidden rounded-2xl border border-white/[.08] bg-[#0d0f0c]/95 p-1.5 shadow-2xl backdrop-blur-2xl"
+                    >
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          setScreen("settings");
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
+                      >
+                        <Settings2 className="h-4 w-4" /> Settings
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          void signOut();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-stone-200 transition hover:bg-white/[.06]"
+                      >
+                        <LogOut className="h-4 w-4" /> Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </aside>
