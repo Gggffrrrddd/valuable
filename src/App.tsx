@@ -60,6 +60,10 @@ const SCREEN_STORAGE_KEY = "valuable-app-screen";
 const TAB_STORAGE_KEY = "valuable-app-tab";
 
 const VALID_TABS: Tab[] = ["home", "stats", "compete", "friends"];
+const COMPETE_DEMO =
+  new URLSearchParams(window.location.search).get("compete-demo") ===
+  "complete";
+
 const VALID_SCREENS: Screen[] = [
   "tab",
   "timer",
@@ -74,6 +78,7 @@ function AppContent() {
   const { config } = usePremiumConfig();
   const { isPremium } = useEntitlement();
   const [tab, setTab] = useState<Tab>(() => {
+    if (COMPETE_DEMO) return "compete";
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
     return VALID_TABS.includes(saved as Tab) ? (saved as Tab) : "home";
   });

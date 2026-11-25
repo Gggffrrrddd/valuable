@@ -26,6 +26,7 @@ import {
   deleteDreamImage,
   todayKey,
   daysBetween,
+  addDays,
   buildGoalSummary,
   isGoalComplete,
   archiveGoal,
@@ -37,6 +38,33 @@ import type { CompeteGoal } from "@/types";
 const TOUR_SEEN_KEY = "valuable.compete-tour-seen.v1";
 /** The clip's full-bloom frame lives at 97%, not the very last frame. */
 const TREE_PROGRESS_END = 0.97;
+
+/** Temporary verification mode: /?compete-demo=complete */
+const DEMO_COMPLETE =
+  new URLSearchParams(window.location.search).get("compete-demo") ===
+  "complete";
+const DEMO_TODAY = todayKey();
+const DEMO_EXAM = addDays(DEMO_TODAY, -1);
+const DEMO_START = addDays(DEMO_EXAM, -29);
+const DEMO_GOAL: CompeteGoal = {
+  id: "demo-goal",
+  user_id: "demo-user",
+  exam_date: DEMO_EXAM,
+  daily_target_hours: 2,
+  start_date: DEMO_START,
+  dream_images: [],
+  created_at: `${DEMO_START}T09:00:00.000Z`,
+  updated_at: `${DEMO_TODAY}T09:00:00.000Z`,
+};
+const DEMO_RECORDS: DayRecord[] = Array.from({ length: 30 }, (_, i) => {
+  const mins = [155, 120, 95, 180, 130, 75, 145, 160, 110, 125][i % 10];
+  return {
+    date: addDays(DEMO_START, i),
+    minutesCompleted: mins,
+    targetMinutes: 120,
+    targetMet: mins >= 120,
+  };
+});
 
 /** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
 const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
@@ -78,9 +106,13 @@ const SHOW_DREAM_XY_TUNER = false;
  */
 export default function CompeteScreen() {
   const { session, profile, refreshProfile } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [goal, setGoal] = useState<CompeteGoal | null>(null);
-  const [records, setRecords] = useState<DayRecord[]>([]);
+  const [loading, setLoading] = useState(!DEMO_COMPLETE);
+  const [goal, setGoal] = useState<CompeteGoal | null>(
+    DEMO_COMPLETE ? DEMO_GOAL : null,
+  );
+  const [records, setRecords] = useState<DayRecord[]>(
+    DEMO_COMPLETE ? DEMO_RECORDS : [],
+  );
   const [dreamBusy, setDreamBusy] = useState(false);
   const today = todayKey();
   const [treeStarted, setTreeStarted] = useState(false);
@@ -231,7 +263,7 @@ export default function CompeteScreen() {
   // (Fit-box measurement lives in the callback ref above — no effect needed.)
 
   const refresh = useCallback(async () => {
-    if (!session) return;
+    if (DEMO_COMPLETE || !session) return;
     try {
       const g = await fetchActiveGoal(session.user.id);
       setGoal(g);
@@ -261,7 +293,7 @@ export default function CompeteScreen() {
 
   // Dream image: upload → optimistic row update → persist (one only).
   const addDream = async (file: File) => {
-    if (!session || !goal || dreamBusy) return;
+    if (DEMO_COMPLETE || !session || !goal || dreamBusy) return;
     const current = goal.dream_images ?? [];
     if (current.length >= 1) return;
     setDreamBusy(true);
@@ -278,7 +310,7 @@ export default function CompeteScreen() {
   };
 
   const removeDream = async (index: number) => {
-    if (!session || !goal) return;
+    if (DEMO_COMPLETE || !session || !goal) return;
     const current = goal.dream_images ?? [];
     const target = current[index];
     if (!target) return;
@@ -293,6 +325,7 @@ export default function CompeteScreen() {
   };
 
   useEffect(() => {
+    if (DEMO_COMPLETE) return;
     if (!session) return;
     let cancelled = false;
     (async () => {
@@ -334,7 +367,7 @@ export default function CompeteScreen() {
   // One-time guided tour. The profile flag is authoritative; localStorage is
   // only a fallback for projects where the new migration has not run yet.
   useEffect(() => {
-    if (!goal || !profile || tourAutoRef.current) return;
+    if (DEMO_COMPLETE || !goal || !profile || tourAutoRef.current) return;
     tourAutoRef.current = true;
     let seenLocally = false;
     try {
@@ -352,6 +385,7 @@ export default function CompeteScreen() {
   );
   useEffect(() => {
     if (
+      DEMO_COMPLETE ||
       !goal ||
       !goalComplete ||
       goal.completed_at ||
@@ -593,7 +627,9 @@ export default function CompeteScreen() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setStartingNewGoal(true)}
+                  onClick={() => {
+                    if (!DEMO_COMPLETE) setStartingNewGoal(true);
+                  }}
                   className="rounded-xl bg-lime-300 px-4 py-2.5 text-xs font-extrabold text-[#11130f] transition hover:bg-lime-200"
                 >
                   Start a new goal
