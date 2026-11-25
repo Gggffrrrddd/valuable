@@ -2414,18 +2414,30 @@ button .butterfly-constellation {
   }
 }
 
-/* Solar System mobile: paused label sits above the bottom-left controls. */
+/* Solar System mobile: the label and paused pill sit above the controls. */
 @media (pointer: coarse) and (max-width: 1023.5px) {
+  .solar-system-focus-session .session-status.solar-session-status--running,
   .solar-system-focus-session .session-status.solar-session-status--paused {
     left: max(1rem, env(safe-area-inset-left));
     bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.25rem);
     transform: none;
   }
+  .solar-system-focus-session .solar-session-extra {
+    display: block;
+    left: max(1rem, env(safe-area-inset-left));
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 6.75rem);
+    transform: none;
+  }
 }
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  .solar-system-focus-session .session-status.solar-session-status--running,
   .solar-system-focus-session .session-status.solar-session-status--paused {
     left: max(1rem, env(safe-area-inset-top));
     bottom: calc(max(1rem, env(safe-area-inset-left)) + 4.25rem);
+  }
+  .solar-system-focus-session .solar-session-extra {
+    left: max(1rem, env(safe-area-inset-top));
+    bottom: calc(max(1rem, env(safe-area-inset-left)) + 6.75rem);
   }
 }
 

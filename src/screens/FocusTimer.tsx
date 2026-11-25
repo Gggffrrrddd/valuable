@@ -903,7 +903,7 @@ export default function FocusTimer({
 
         {/* Session status */}
         <div
-          className={`session-status absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem] ${visualTheme === "solar-system" && phase === "paused" ? "solar-session-status--paused" : ""}`}
+          className={`session-status absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem] ${visualTheme === "solar-system" && phase === "focus" ? "solar-session-status--running" : ""} ${visualTheme === "solar-system" && phase === "paused" ? "solar-session-status--paused" : ""}`}
         >
           {phase === "paused"
             ? "Session paused"
@@ -914,6 +914,11 @@ export default function FocusTimer({
                 : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)
                     ?.label}
         </div>
+        {visualTheme === "solar-system" && phase === "paused" && (
+          <div className="solar-session-extra pointer-events-none absolute left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl">
+            Solar System
+          </div>
+        )}
 
         {/* Session controls */}
         {phase !== "completing" && (

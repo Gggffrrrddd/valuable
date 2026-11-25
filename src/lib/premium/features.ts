@@ -8,7 +8,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   garden: "Starlight Butterfly visual",
   stats_history_90: "90-day stats history",
   share_report: "Shareable reports",
-  unlimited_friends: "Unlimited circle",
+  unlimited_friends: "Friends circle",
   focus_music: "Focus music",
   break_content: "Full break library",
 };

@@ -22,6 +22,11 @@ import {
   Trash2,
 } from "lucide-react";
 import PremiumLock from "@/components/premium/PremiumLock";
+import {
+  CIRCLE_FULL_MESSAGE,
+  MAX_FRIENDS,
+  OTHER_CIRCLE_FULL_MESSAGE,
+} from "@/lib/friends";
 
 interface FriendsScreenProps {
   onOpenStudyTable?: () => void;
@@ -46,6 +51,17 @@ function dedupeRequests(list: FriendRequest[]): FriendRequest[] {
   });
 }
 
+function mapFriendError(error: unknown): string {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : String(error ?? "");
+  if (message.includes("Your circle is full")) return CIRCLE_FULL_MESSAGE;
+  if (message.includes("This person's circle is full"))
+    return OTHER_CIRCLE_FULL_MESSAGE;
+  return message || "Could not update friend request";
+}
+
 export default function FriendsScreen({
   onOpenStudyTable,
 }: FriendsScreenProps) {
@@ -55,6 +71,7 @@ export default function FriendsScreen({
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptedCount, setAcceptedCount] = useState(0);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +88,7 @@ export default function FriendsScreen({
   const loadSeqRef = useRef(0);
 
   const currentCharacter = resolveAvatarCharacter(profile?.avatar_character);
+  const atFriendLimit = acceptedCount >= MAX_FRIENDS;
 
   const loadFriends = useCallback(
     async (silent = false) => {
@@ -97,6 +115,7 @@ export default function FriendsScreen({
             ),
           ),
         );
+        setAcceptedCount(friendIds.length);
         const statsPromises = friendIds.map((id) =>
           fetchFriendStat(id).catch(() => null),
         );
@@ -159,6 +178,10 @@ export default function FriendsScreen({
       if (code.length !== 6) {
         setError("Enter the 6-character friend code.");
         setAdding(false);
+        return;
+      }
+      if (acceptedCount >= MAX_FRIENDS) {
+        setError(CIRCLE_FULL_MESSAGE);
         return;
       }
 
@@ -266,7 +289,7 @@ export default function FriendsScreen({
       setCodeInput("");
       await loadFriends(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add friend");
+      setError(mapFriendError(e));
     } finally {
       setAdding(false);
     }
@@ -274,12 +297,16 @@ export default function FriendsScreen({
 
   async function handleAccept(requestId: string) {
     if (!session) return;
+    if (acceptedCount >= MAX_FRIENDS) {
+      setError(CIRCLE_FULL_MESSAGE);
+      return;
+    }
     setError(null);
     const { error: acceptErr } = await supabase.rpc("accept_friend_request", {
       p_request_id: requestId,
     });
     if (acceptErr) {
-      setError(acceptErr.message);
+      setError(mapFriendError(acceptErr));
       return;
     }
     await loadFriends(true);
@@ -292,7 +319,7 @@ export default function FriendsScreen({
       p_request_id: requestId,
     });
     if (rejectErr) {
-      setError(rejectErr.message);
+      setError(mapFriendError(rejectErr));
       return;
     }
     await loadFriends(true);
@@ -305,7 +332,7 @@ export default function FriendsScreen({
       p_request_id: requestId,
     });
     if (cancelErr) {
-      setError(cancelErr.message);
+      setError(mapFriendError(cancelErr));
       return;
     }
     await loadFriends(true);
@@ -359,9 +386,11 @@ export default function FriendsScreen({
   async function handleRemoveFriend(f: FriendStat) {
     setRemoving(true);
     const snapshot = friends;
+    const previousCount = acceptedCount;
     // Invalidate any in-flight poll so it cannot restore the removed card.
     loadSeqRef.current += 1;
     setFriends((prev) => prev.filter((x) => x.profile.id !== f.profile.id));
+    setAcceptedCount((count) => Math.max(0, count - 1));
     try {
       if (session) {
         const myId = session.user.id;
@@ -377,7 +406,8 @@ export default function FriendsScreen({
       await loadFriends(true);
     } catch (e) {
       setFriends(snapshot);
-      setError(e instanceof Error ? e.message : "Could not remove friend");
+      setAcceptedCount(previousCount);
+      setError(mapFriendError(e));
     } finally {
       setRemoving(false);
       setRemoveTarget(null);
@@ -566,13 +596,17 @@ export default function FriendsScreen({
               />
               <button
                 onClick={handleAddFriend}
-                disabled={adding || codeInput.length < 6}
+                disabled={adding || codeInput.length < 6 || atFriendLimit}
                 className="px-4 rounded-xl bg-emerald-500 text-slate-950 font-medium hover:bg-emerald-400 disabled:opacity-50 transition-colors flex items-center gap-1"
               >
                 <UserPlus className="w-4 h-4" />
               </button>
             </div>
-            {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+            {(atFriendLimit || error) && (
+              <p className="text-red-400 text-xs mt-2">
+                {atFriendLimit ? CIRCLE_FULL_MESSAGE : error}
+              </p>
+            )}
           </div>
         </PremiumLock>
       </div>
@@ -582,6 +616,9 @@ export default function FriendsScreen({
           <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-300">
             <UserPlus className="h-4 w-4 text-[#f6e3ba]" /> Friend requests
           </h3>
+          {atFriendLimit && (
+            <p className="text-red-400 text-xs mb-2">{CIRCLE_FULL_MESSAGE}</p>
+          )}
           <div className="space-y-2">
             {incomingRequests.map((r) => (
               <div
@@ -608,7 +645,9 @@ export default function FriendsScreen({
                   <button
                     type="button"
                     onClick={() => handleAccept(r.request_id)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-extrabold text-slate-950 transition-colors hover:bg-emerald-400"
+                    disabled={atFriendLimit}
+                    title={atFriendLimit ? CIRCLE_FULL_MESSAGE : undefined}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-extrabold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-500"
                   >
                     <Check className="h-3.5 w-3.5" /> Accept
                   </button>
