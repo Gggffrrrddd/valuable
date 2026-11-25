@@ -370,7 +370,7 @@ function AppContent() {
   return (
     <div className="app-bg min-h-screen">
       <div className="mx-auto min-h-screen max-w-[1600px] lg:grid lg:grid-cols-[260px_1fr]">
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col border-r border-white/[.07] bg-[#0d0f0c]/90 p-5 backdrop-blur-2xl lg:flex xl:left-[max(0px,calc((100vw-1600px)/2))]">
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] flex-col overflow-y-auto border-r border-white/[.07] bg-[#0d0f0c]/90 p-5 backdrop-blur-2xl lg:flex xl:left-[max(0px,calc((100vw-1600px)/2))]">
           <div className="flex items-center gap-3 px-2 py-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-lime-300 text-[#11130f] shadow-[0_0_34px_rgba(197,255,84,.15)]">
               <Timer className="h-5 w-5" strokeWidth={2.5} />
@@ -430,19 +430,19 @@ function AppContent() {
 
           <button
             onClick={() => setScreen("premium")}
-            className="group relative mt-8 overflow-hidden rounded-[1.5rem] border border-[#c9a24a]/25 bg-[#1a1613] p-4 text-left transition hover:border-[#c9a24a]/40 hover:bg-[#201c17]"
+            className="group relative mt-6 shrink-0 overflow-hidden rounded-[1.5rem] border border-[#c9a24a]/25 bg-[#1a1613] p-4 pb-5 text-left transition hover:border-[#c9a24a]/40 hover:bg-[#201c17]"
           >
             <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#c9a24a]/10 blur-2xl" />
             <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-[#c9a24a] text-[#11130f]">
-              <Crown className="h-4 w-4" />
+              <Crown className="h-3.5 w-3.5" />
             </div>
-            <div className="relative mt-4 font-display text-sm font-bold text-stone-100">
+            <div className="relative mt-3 font-display text-sm font-bold text-stone-100">
               Unlock your full potential
             </div>
             <div className="relative mt-1 text-xs leading-5 text-stone-500">
               Deeper insights and unlimited content.
             </div>
-            <div className="relative mt-4 flex items-center gap-1 text-xs font-bold text-[#c9a24a] transition-colors group-hover:text-[#d4b05f]">
+            <div className="relative mt-3 flex items-center gap-1 text-xs font-bold text-[#c9a24a] transition-colors group-hover:text-[#d4b05f]">
               Explore Premium{" "}
               <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
