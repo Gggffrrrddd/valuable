@@ -2386,3 +2386,43 @@ button .butterfly-constellation {
     left: max(1rem, env(safe-area-inset-top));
   }
 }
+
+/* Minimal focus timer: responsive clock, no fixed stage. */
+.minimal-clock {
+  max-width: 100%;
+  max-height: calc(100dvh - 11rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.minimal-clock .flip-clock-shell {
+  align-items: center;
+}
+@media (max-width: 480px) {
+  .minimal-clock .flip-clock {
+    zoom: 0.72;
+  }
+}
+@media (max-height: 480px) {
+  .minimal-clock .flip-clock {
+    zoom: 0.58;
+  }
+}
+@media (max-height: 400px) {
+  .minimal-clock .flip-clock {
+    zoom: 0.5;
+  }
+}
+
+/* Minimal picker row: compact in short landscape. */
+@media (max-height: 420px) {
+  .minimal-row-sub {
+    display: none;
+  }
+}
+@media (max-height: 520px) {
+  .visual-picker-scroll {
+    max-height: calc(100dvh - 9rem);
+    overflow-y: auto;
+  }
+}

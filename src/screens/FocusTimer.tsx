@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { TIMER_PRESETS, SUBJECT_PRESETS, type TimerPreset } from "@/types";
 import {
   Play,
@@ -128,6 +128,26 @@ export function clearSessionStorage() {
   sessionStorage.removeItem(SESSION_BREAK_KEY);
 }
 
+class VisualErrorBoundary extends Component<
+  { onError: () => void; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error("Focus visual failed:", error);
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export default function FocusTimer({
   onComplete,
   onOpenStudyTable,
@@ -182,6 +202,14 @@ export default function FocusTimer({
   });
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const SOLAR_DEPTH = 0.2;
+  const [minimalMode, setMinimalMode] = useState(() => {
+    try {
+      return localStorage.getItem(VISUAL_STORAGE_KEY) === "minimal";
+    } catch {
+      return false;
+    }
+  });
+  const [visualFallback, setVisualFallback] = useState(false);
   const [visualTheme, setVisualTheme] = useState<FocusVisualTheme>(() => {
     const saved = localStorage.getItem(VISUAL_STORAGE_KEY);
     return FOCUS_VISUAL_THEMES.some((theme) => theme.id === saved)
@@ -206,6 +234,25 @@ export default function FocusTimer({
     if (phase === "config" || phase === "completing") stopAndReset();
     else setSessionPaused(phase === "paused");
   }, [phase]);
+
+  // Asset/video load errors cannot be caught by an error boundary.
+  useEffect(() => {
+    if (minimalMode || !["focus", "paused", "completing"].includes(phase))
+      return;
+    const onResourceError = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        ["IMG", "VIDEO", "CANVAS"].includes(target.tagName)
+      ) {
+        console.error("Focus visual asset failed:", target.tagName);
+        setVisualFallback(true);
+      }
+    };
+    window.addEventListener("error", onResourceError, true);
+    return () =>
+      window.removeEventListener("error", onResourceError, true);
+  }, [minimalMode, phase]);
 
   // Immersive session: hide the phone's own system bars (status +
   // navigation) while the landscape timer runs, YouTube-fullscreen style.
@@ -364,7 +411,15 @@ export default function FocusTimer({
 
   function selectVisual(theme: FocusVisualTheme) {
     setVisualTheme(theme);
+    setMinimalMode(false);
+    setVisualFallback(false);
     localStorage.setItem(VISUAL_STORAGE_KEY, theme);
+  }
+
+  function selectMinimal() {
+    setMinimalMode(true);
+    setVisualFallback(false);
+    localStorage.setItem(VISUAL_STORAGE_KEY, "minimal");
   }
 
   function handleStart() {
@@ -382,6 +437,7 @@ export default function FocusTimer({
     sessionStorage.removeItem(SESSION_PHRASE_KEY);
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
+    setVisualFallback(false);
     setPhase("focus");
     // Trap the system back button for this session (no-op if already trapped).
     pushTimerHistory();
@@ -449,6 +505,99 @@ export default function FocusTimer({
       ? Math.min(1, 1 - secondsLeft / activeDurationSeconds)
       : 0;
 
+  // Minimal mode: no visual assets, just the shared clock and controls.
+  if (
+    (minimalMode || visualFallback) &&
+    (phase === "focus" || phase === "paused" || phase === "completing")
+  ) {
+    return (
+      <div className="minimal-timer fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+        <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5 px-4 pb-[max(6.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
+          {subjectTag && (
+            <div className="max-w-[min(88vw,28rem)] truncate text-center text-[11px] font-bold uppercase tracking-[.2em] text-stone-400">
+              {subjectTag}
+            </div>
+          )}
+          <div className="minimal-clock max-w-full">
+            <FlipClock secondsLeft={secondsLeft} />
+          </div>
+        </div>
+
+        {onOpenStudyTable && phase !== "completing" && (
+          <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-20 flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={onOpenStudyTable}
+              className="inline-flex items-center rounded-full border border-white/20 bg-black/75 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-stone-100 shadow-lg backdrop-blur-md transition hover:bg-black/90 hover:text-white"
+            >
+              see your friends →
+            </button>
+            <PremiumLock feature="focus_music" compact>
+              <StudyMusicPlayer />
+            </PremiumLock>
+          </div>
+        )}
+
+        {phase !== "completing" && (
+          <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/[.08] bg-black/45 p-1.5 backdrop-blur-xl shadow-[0_14px_50px_rgba(0,0,0,.35)]">
+            {phase === "focus" ? (
+              <button
+                onClick={handlePause}
+                className="group flex h-12 w-12 items-center justify-center rounded-full bg-white/[.06] text-stone-100 transition hover:scale-105 hover:bg-white/[.10] active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem]"
+                aria-label="Pause"
+              >
+                <Pause className="h-6 w-6 transition group-hover:scale-105 sm:h-7 sm:w-7" strokeWidth={1.8} />
+              </button>
+            ) : (
+              <button
+                onClick={handleResume}
+                className="group flex h-12 w-12 items-center justify-center rounded-full bg-lime-300 text-[#11130f] transition hover:scale-105 hover:bg-lime-200 active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem]"
+                aria-label="Resume"
+              >
+                <Play className="ml-0.5 h-6 w-6 transition group-hover:scale-105 sm:h-7 sm:w-7" strokeWidth={1.8} />
+              </button>
+            )}
+            <button
+              onClick={handleQuitRequest}
+              className="group flex h-12 w-12 items-center justify-center rounded-full bg-white/[.06] text-stone-300 transition hover:scale-105 hover:bg-white/[.10] hover:text-red-400 active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem]"
+              aria-label="Quit session"
+            >
+              <X className="h-6 w-6 transition group-hover:scale-105 sm:h-7 sm:w-7" strokeWidth={1.8} />
+            </button>
+          </div>
+        )}
+
+        {showQuitConfirm && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#090b0a]/90 px-6 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 animate-grow-in">
+              <h3 className="mb-2 text-lg font-semibold text-white">
+                End this session?
+              </h3>
+              <p className="mb-6 text-sm text-slate-400">
+                Your progress so far will still be saved. No pressure — you can
+                always start another.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleQuitConfirm(false)}
+                  className="flex-1 rounded-xl bg-slate-800 py-3 font-medium text-white transition-colors hover:bg-slate-700"
+                >
+                  Keep Going
+                </button>
+                <button
+                  onClick={() => handleQuitConfirm(true)}
+                  className="flex-1 rounded-xl border border-red-500/20 bg-red-500/10 py-3 font-medium text-red-400 transition-colors hover:bg-red-500/20"
+                >
+                  End Session
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Butterfly theme: render the Garden visual as a full-screen background
   // and show the same minimal black flip-clock as the jar/tree sessions.
   if (
@@ -456,6 +605,7 @@ export default function FocusTimer({
     (phase === "focus" || phase === "paused" || phase === "completing")
   ) {
     return (
+      <VisualErrorBoundary onError={() => setVisualFallback(true)}>
       <div className="mob-sim fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
         <GardenVisual
           progress={progress}
@@ -564,11 +714,13 @@ export default function FocusTimer({
           </div>
         )}
       </div>
+      </VisualErrorBoundary>
     );
   }
 
   if (phase === "focus" || phase === "paused" || phase === "completing") {
     return (
+      <VisualErrorBoundary onError={() => setVisualFallback(true)}>
       <div
         className={`mob-sim fixed inset-0 z-50 bg-[#090b0a] transition-colors duration-1000 ${visualTheme === "hourglass" ? "hourglass-focus-session hg-sim-hg" : ""} ${visualTheme === "tree" ? "tree-focus-session tr-sim" : ""} ${visualTheme === "jar" ? "jar-focus-session jr-sim" : ""} ${visualTheme === "blade" ? "blade-focus-session bd-sim" : ""} ${visualTheme === "butterfly" ? "butterfly-focus-session" : ""} ${visualTheme === "solar-system" ? "solar-system-focus-session !bg-black" : ""}`}
       >
@@ -852,6 +1004,7 @@ export default function FocusTimer({
           </div>
         )}
       </div>
+      </VisualErrorBoundary>
     );
   }
 
@@ -968,7 +1121,11 @@ export default function FocusTimer({
               Saved automatically
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <div
+            className="visual-picker-scroll grid grid-cols-2 gap-2.5 sm:grid-cols-3"
+            role="radiogroup"
+            aria-label="Focus visual"
+          >
             {FOCUS_VISUAL_THEMES.map((theme, index) => {
               const feature = visualFeature(theme.id);
               const locked = feature
@@ -983,8 +1140,10 @@ export default function FocusTimer({
                         ? openPremiumPage(theme.label)
                         : selectVisual(theme.id)
                     }
-                    aria-pressed={visualTheme === theme.id}
-                    className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${visualTheme === theme.id ? "border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]" : "border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15"}`}
+                    aria-pressed={!minimalMode && visualTheme === theme.id}
+                    role="radio"
+                    aria-checked={!minimalMode && visualTheme === theme.id}
+                    className={`group block w-full overflow-hidden rounded-2xl border p-2 text-left transition-all ${!minimalMode && visualTheme === theme.id ? "border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]" : "border-white/[.07] bg-white/[.02] hover:-translate-y-0.5 hover:border-white/15"}`}
                   >
                     <div className="flex h-24 items-center justify-center overflow-hidden rounded-xl bg-black/20 sm:h-28">
                       {theme.id === "butterfly" ? (
@@ -1051,7 +1210,7 @@ export default function FocusTimer({
                     </div>
                     <div className="px-1 pb-1 pt-2.5">
                       <div
-                        className={`text-xs font-bold ${visualTheme === theme.id ? "text-lime-300" : "text-stone-300"}`}
+                        className={`text-xs font-bold ${!minimalMode && visualTheme === theme.id ? "text-lime-300" : "text-stone-300"}`}
                       >
                         {theme.label}
                       </div>
@@ -1068,6 +1227,36 @@ export default function FocusTimer({
                 </div>
               );
             })}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={minimalMode}
+              aria-label="Just the timer, no animation"
+              onClick={selectMinimal}
+              className={`col-span-2 flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-1.5 text-left transition-all sm:col-span-3 ${minimalMode ? "border-lime-300/40 bg-lime-300/[.075] shadow-[inset_0_0_30px_rgba(197,255,84,.025)]" : "border-white/[.07] bg-white/[.02] hover:border-white/15"}`}
+            >
+              <Clock3
+                className={`h-4 w-4 shrink-0 ${minimalMode ? "text-lime-300" : "text-stone-400"}`}
+              />
+              <span className="min-w-0 flex-1">
+                <span
+                  className={`block text-xs font-bold ${minimalMode ? "text-lime-300" : "text-stone-300"}`}
+                >
+                  Just the timer
+                </span>
+                <span className="minimal-row-sub mt-0.5 block text-[10px] leading-4 text-stone-600">
+                  No animation · lightest
+                </span>
+              </span>
+              <span
+                aria-hidden="true"
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${minimalMode ? "border-lime-300" : "border-stone-600"}`}
+              >
+                {minimalMode && (
+                  <span className="h-2.5 w-2.5 rounded-full bg-lime-300" />
+                )}
+              </span>
+            </button>
           </div>
           <p className="mt-2 px-1 text-[10px] leading-4 text-stone-600">
             Planet textures: Solar System Scope · CC BY 4.0
