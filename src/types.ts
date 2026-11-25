@@ -72,6 +72,14 @@ export interface CompeteGoal {
   start_date: string;
   /** Up to 3 public-URLs of uploaded dream images crowning the tree. */
   dream_images?: string[] | null;
+  /** Set when the goal is archived; active goals leave this null. */
+  completed_at?: string | null;
+  completed_summary?: {
+    daysTicked: number;
+    daysMissed: number;
+    totalMinutes: number;
+    longestTickStreak: number;
+  } | null;
   created_at: string;
   updated_at: string;
 }

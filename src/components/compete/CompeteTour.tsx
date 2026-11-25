@@ -18,16 +18,16 @@ interface TourStep {
 const STEPS: TourStep[] = [
   {
     id: 'tree',
-    title: 'Your tree',
-    body: 'Your tree grows as you focus. Reach your daily goal for full bloom. It resets every midnight.',
-    selectors: ['[data-tour="tree"]'],
-    radius: 22,
+    title: "Today's tree",
+    body: 'Your tree grows with today\'s focus time. The glass card fills as you study; reach your daily target for full bloom. It resets every midnight.',
+    selectors: ['[data-tour="today-tree"]', '[data-tour="tree"]'],
+    radius: 18,
     bottomCard: true,
   },
   {
     id: 'dreams',
-    title: 'Your dreams',
-    body: "Add what you're working toward — a car, a place, a goal. Seeing it every day keeps you going.",
+    title: 'Your dream',
+    body: 'Your dream card sits beside the tree. It stays visible while you work toward it — tap × to remove it and the + button returns.',
     selectors: ['[data-dream-circle]', '[data-tour="dreams-label"]'],
     fallbackSelectors: ['[data-tour="dreams"]'],
     radius: 26,
@@ -35,16 +35,16 @@ const STEPS: TourStep[] = [
   {
     id: 'add',
     title: 'Add a dream',
-    body: 'Tap + to add a dream. Tap × on a dream to remove it.',
+    body: 'Tap + to add what you are working toward. It remains on the card for the whole goal.',
     selectors: ['[data-tour="add-dream"]'],
     fallbackSelectors: ['[data-tour="dreams-label"]', '[data-tour="dreams"]'],
     radius: 9999,
   },
   {
     id: 'tracker',
-    title: 'Daily tracker',
-    body: "Today's tree shows your focus time against your daily goal. The Discipline tracker below your dreams has your full history.",
-    selectors: ['[data-tour="tracker"]'],
+    title: 'Glass day tracker',
+    body: 'Each glass box is one day. It fills as you study; a tick or cross marks the day. Scroll below for your full goal history.',
+    selectors: ['[data-tour="discipline-tracker"]'],
     radius: 18,
   },
 ];
@@ -76,14 +76,26 @@ function unionRect(elements: HTMLElement[]): Box | null {
   return { left, top, width: right - left, height: bottom - top };
 }
 
+function findTargets(selectors: string[]): HTMLElement[] {
+  return selectors.flatMap((selector) =>
+    Array.from(document.querySelectorAll<HTMLElement>(selector)),
+  );
+}
+
+function firstTargetElement(step: TourStep): HTMLElement | null {
+  return (
+    findTargets(step.selectors)[0] ??
+    (step.fallbackSelectors ? findTargets(step.fallbackSelectors)[0] : null) ??
+    null
+  );
+}
+
 function targetFor(step: TourStep): Box | null {
-  const find = (selectors: string[]) =>
-    selectors.flatMap((selector) =>
-      Array.from(document.querySelectorAll<HTMLElement>(selector)),
-    );
-  const primary = unionRect(find(step.selectors));
+  const primary = unionRect(findTargets(step.selectors));
   if (primary) return primary;
-  return step.fallbackSelectors ? unionRect(find(step.fallbackSelectors)) : null;
+  return step.fallbackSelectors
+    ? unionRect(findTargets(step.fallbackSelectors))
+    : null;
 }
 
 /**
@@ -109,6 +121,18 @@ export default function CompeteTour({ onClose }: { onClose: () => void }) {
       : current.body;
 
   useLayoutEffect(() => {
+    const target = firstTargetElement(current);
+    if (!target) {
+      // Missing element: skip the step instead of showing a broken spotlight.
+      if (last) onClose();
+      else setStep((value) => Math.min(STEPS.length - 1, value + 1));
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    if (rect.top < 12 || rect.bottom > window.innerHeight - 12) {
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+
     let raf = 0;
     const measure = () => {
       cancelAnimationFrame(raf);
@@ -127,7 +151,7 @@ export default function CompeteTour({ onClose }: { onClose: () => void }) {
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
-  }, [current]);
+  }, [current, last, onClose]);
 
   useEffect(() => {
     nextRef.current?.focus();

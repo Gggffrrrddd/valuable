@@ -79,6 +79,7 @@ export async function createGoal(
   userId: string,
   examDate: string,
   dailyTargetHours: number,
+  dreamImages: string[] = [],
 ): Promise<CompeteGoal> {
   const { data, error } = await supabase
     .from("compete_goals")
@@ -87,6 +88,7 @@ export async function createGoal(
       exam_date: examDate,
       daily_target_hours: dailyTargetHours,
       start_date: todayKey(),
+      dream_images: dreamImages.slice(0, 1),
     })
     .select("*")
     .single();
@@ -298,4 +300,59 @@ export async function deleteDreamImage(url: string): Promise<void> {
   } catch {
     // orphaned objects are harmless; the row is already updated
   }
+}
+
+export interface GoalSummary {
+  daysTicked: number;
+  daysMissed: number;
+  totalMinutes: number;
+  longestTickStreak: number;
+}
+
+/** Real numbers only, from the goal's persisted/computed day records. */
+export function buildGoalSummary(records: DayRecord[]): GoalSummary {
+  let daysTicked = 0;
+  let daysMissed = 0;
+  let totalMinutes = 0;
+  let current = 0;
+  let longest = 0;
+  for (const record of records) {
+    totalMinutes += record.minutesCompleted;
+    if (record.targetMet) {
+      daysTicked += 1;
+      current += 1;
+      longest = Math.max(longest, current);
+    } else {
+      daysMissed += 1;
+      current = 0;
+    }
+  }
+  return {
+    daysTicked,
+    daysMissed,
+    totalMinutes: Math.round(totalMinutes),
+    longestTickStreak: longest,
+  };
+}
+
+/** Completion starts the day AFTER the exam date (local calendar). */
+export function isGoalComplete(
+  goal: CompeteGoal,
+  today: string = todayKey(),
+): boolean {
+  return Boolean(goal.completed_at) || today > goal.exam_date;
+}
+
+export async function archiveGoal(
+  goalId: string,
+  summary: GoalSummary,
+): Promise<void> {
+  const { error } = await supabase
+    .from("compete_goals")
+    .update({
+      completed_at: new Date().toISOString(),
+      completed_summary: summary,
+    })
+    .eq("id", goalId);
+  if (error) throw error;
 }

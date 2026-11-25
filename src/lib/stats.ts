@@ -72,6 +72,18 @@ export async function fetchStats(userId: string): Promise<Stats> {
     /* migration missing — archived subjects simply stay in the active list */
   }
 
+  let hasCompletedGoal = false;
+  try {
+    const { count, error: goalError } = await supabase
+      .from("compete_goals")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .not("completed_at", "is", null);
+    if (!goalError) hasCompletedGoal = (count ?? 0) > 0;
+  } catch {
+    /* completion migration missing — badge simply stays locked */
+  }
+
   const sessions = (data || []) as Pick<
     FocusSession,
     "started_at" | "duration_seconds" | "completed_fully" | "subject_tag"
@@ -254,6 +266,13 @@ export async function fetchStats(userId: string): Promise<Stats> {
       description: "Spent 20+ hours on a single subject.",
       unlocked: allSubjects.some((s) => s.minutes >= 1200),
       icon: "star",
+    },
+    {
+      id: "goal-completed",
+      title: "Goal completed",
+      description: "Finished a Compete goal from start to exam day.",
+      unlocked: hasCompletedGoal,
+      icon: "trophy",
     },
   ];
 

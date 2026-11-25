@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Sprout } from "lucide-react";
+import { ArrowDown, Loader2, Sparkles, Sprout, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { readLiveFocusElapsedMs } from "@/lib/localSession";
@@ -26,6 +26,9 @@ import {
   deleteDreamImage,
   todayKey,
   daysBetween,
+  buildGoalSummary,
+  isGoalComplete,
+  archiveGoal,
   type DayRecord,
 } from "@/lib/compete";
 import type { CompeteGoal } from "@/types";
@@ -81,6 +84,9 @@ export default function CompeteScreen() {
   const [dreamBusy, setDreamBusy] = useState(false);
   const today = todayKey();
   const [treeStarted, setTreeStarted] = useState(false);
+  const [startingNewGoal, setStartingNewGoal] = useState(false);
+  const summaryRef = useRef<HTMLDivElement | null>(null);
+  const archiveAttemptRef = useRef<string | null>(null);
 
   // One Start per calendar day; until then the tree clip previews on loop.
   useEffect(() => {
@@ -339,6 +345,36 @@ export default function CompeteScreen() {
     if (!profile.compete_tour_seen && !seenLocally) setTourOpen(true);
   }, [goal, profile]);
 
+  // Completion starts the day AFTER the exam date. Archive once; never delete.
+  const goalSummary = goal ? buildGoalSummary(records) : null;
+  const goalComplete = Boolean(
+    goal && records.length > 0 && isGoalComplete(goal, today),
+  );
+  useEffect(() => {
+    if (
+      !goal ||
+      !goalComplete ||
+      goal.completed_at ||
+      !goalSummary ||
+      archiveAttemptRef.current === goal.id
+    )
+      return;
+    archiveAttemptRef.current = goal.id;
+    void archiveGoal(goal.id, goalSummary)
+      .then(() =>
+        setGoal((prev) =>
+          prev && prev.id === goal.id
+            ? {
+                ...prev,
+                completed_at: new Date().toISOString(),
+                completed_summary: goalSummary,
+              }
+            : prev,
+        ),
+      )
+      .catch((e) => console.warn("Could not archive completed goal:", e));
+  }, [goal, goalComplete, goalSummary]);
+
   const dismissTour = useCallback(async () => {
     setTourOpen(false);
     try {
@@ -364,12 +400,14 @@ export default function CompeteScreen() {
 
   if (!session) return null;
 
-  if (!goal) {
+  if (!goal || startingNewGoal) {
     return (
       <div className="h-full overflow-y-auto">
         <SetupForm
+          dreamImages={goal?.dream_images ?? []}
           onCreated={async (g) => {
             setGoal(g);
+            setStartingNewGoal(false);
             await refresh();
           }}
         />
@@ -395,7 +433,7 @@ export default function CompeteScreen() {
       <div
         className="compete-today absolute left-4 top-4 z-20 sm:left-6 sm:top-6"
         style={{ transform: "scale(0.9)", transformOrigin: "top left" }}
-        data-tour="tracker"
+        data-tour="today-tree"
       >
         <div className="w-64 rounded-[1.2rem] border border-white/[.07] bg-[#090b0a] p-2 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-0.5">
@@ -531,6 +569,86 @@ export default function CompeteScreen() {
       }
     >
       <div className="mx-auto w-full max-w-6xl" data-tour="discipline-tracker">
+        {goalComplete && goalSummary && (
+          <section className="mb-4 rounded-[1.4rem] border border-[#f6e3ba]/25 bg-[#f6e3ba]/[.06] p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f6e3ba]/30 bg-[#f6e3ba]/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#f6e3ba]">
+                  <Trophy className="h-3.5 w-3.5" /> Goal complete
+                </span>
+                <h2 className="mt-3 flex items-center gap-2 font-display text-xl font-extrabold text-stone-50">
+                  <Sparkles className="h-4 w-4 text-[#f6e3ba]" /> You finished
+                  this goal.
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-stone-400">
+                  Your final{" "}
+                  {daysBetween(
+                    goal.start_date || goal.created_at.slice(0, 10),
+                    goal.exam_date,
+                  ) + 1}
+                  -day goal is complete. Every number below comes from your
+                  tracked focus.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStartingNewGoal(true)}
+                  className="rounded-xl bg-lime-300 px-4 py-2.5 text-xs font-extrabold text-[#11130f] transition hover:bg-lime-200"
+                >
+                  Start a new goal
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    summaryRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[.04] px-4 py-2.5 text-xs font-bold text-stone-200 transition hover:bg-white/[.08]"
+                >
+                  View summary <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <div
+              ref={summaryRef}
+              className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4"
+            >
+              {[
+                {
+                  label: "Days ticked",
+                  value: String(goalSummary.daysTicked),
+                },
+                {
+                  label: "Days missed",
+                  value: String(goalSummary.daysMissed),
+                },
+                {
+                  label: "Total focus",
+                  value: `${Math.round((goalSummary.totalMinutes / 60) * 10) / 10}h`,
+                },
+                {
+                  label: "Longest tick streak",
+                  value: `${goalSummary.longestTickStreak} days`,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-white/[.07] bg-black/20 px-3 py-3"
+                >
+                  <div className="font-display text-xl font-extrabold text-stone-50">
+                    {item.value}
+                  </div>
+                  <div className="mt-1 text-[9px] font-bold uppercase tracking-[.14em] text-stone-500">
+                    {item.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <GoalHeatmap
           userId={session.user.id}
           startDate={goal.start_date || goal.created_at.slice(0, 10)}
@@ -611,8 +729,10 @@ export default function CompeteScreen() {
 /** Setup: exam date + daily hours, tree metaphor, same layout as before. */
 function SetupForm({
   onCreated,
+  dreamImages = [],
 }: {
   onCreated: (goal: CompeteGoal) => Promise<void> | void;
+  dreamImages?: string[];
 }) {
   const { session } = useAuth();
   const [examDate, setExamDate] = useState("");
@@ -629,7 +749,12 @@ function SetupForm({
     setSubmitting(true);
     setError(null);
     try {
-      const goal = await createGoal(session.user.id, examDate, parsedHours);
+      const goal = await createGoal(
+        session.user.id,
+        examDate,
+        parsedHours,
+        dreamImages,
+      );
       await onCreated(goal);
     } catch (e) {
       console.error("Create goal error:", e);
