@@ -70,7 +70,7 @@ const VALID_SCREENS: Screen[] = [
 ];
 
 function AppContent() {
-  const { session, profile, loading, signOut } = useAuth();
+  const { session, profile, loading, passwordRecovery, signOut } = useAuth();
   const { config } = usePremiumConfig();
   const { isPremium } = useEntitlement();
   const [tab, setTab] = useState<Tab>(() => {
@@ -241,7 +241,7 @@ function AppContent() {
     return startPresenceHeartbeat(userId);
   }, [userId]);
 
-  if (loading) {
+  if (loading && !passwordRecovery) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#090b0a]">
         <div className="flex flex-col items-center gap-4 text-stone-500 animate-pulse-soft">
@@ -254,7 +254,7 @@ function AppContent() {
     );
   }
 
-  if (!session || !profile) {
+  if (passwordRecovery || !session || !profile) {
     return <AuthScreen />;
   }
 

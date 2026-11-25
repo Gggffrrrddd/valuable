@@ -9,12 +9,14 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { continueWithGoogle as startGoogleOAuth } from "./googleAuth";
+import { EMAIL_SEND_FALLBACK, isEmailSendError } from "./authErrors";
 import type { AvatarCharacter, Profile } from "../types";
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  passwordRecovery: boolean;
   continueWithGoogle: () => Promise<AuthResult>;
   signUp: (
     email: string,
@@ -24,6 +26,11 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<AuthResult>;
   verifyEmailCode: (email: string, token: string) => Promise<AuthResult>;
   resendVerification: (email: string) => Promise<AuthResult>;
+  sendPasswordReset: (email: string) => Promise<AuthResult>;
+  resendPasswordReset: (email: string) => Promise<AuthResult>;
+  verifyRecoveryCode: (email: string, token: string) => Promise<AuthResult>;
+  updatePassword: (password: string) => Promise<AuthResult>;
+  endPasswordRecovery: () => void;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateAvatarCharacter: (
@@ -38,6 +45,12 @@ interface AuthResult {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function errorMsg(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Something went wrong. Please try again.";
+}
 
 /** Remove OAuth code/hash after a successful redirect without touching app state. */
 function cleanAuthUrl() {
@@ -58,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const currentUserIdRef = useRef<string | null>(null);
 
   async function loadProfile(userId: string) {
@@ -93,6 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!mounted) return;
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+        setSession(sess);
+        return;
+      }
       if (event === "TOKEN_REFRESHED") {
         setSession(sess);
         return;
@@ -176,12 +195,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
   ): Promise<AuthResult> {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { display_name: displayName } },
-    });
-    if (error) return { error: error.message };
+    let result: Awaited<ReturnType<typeof supabase.auth.signUp>>;
+    try {
+      result = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName } },
+      });
+    } catch (error) {
+      return {
+        error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : errorMsg(error),
+      };
+    }
+    const { data, error } = result;
+    if (error) {
+      return {
+        error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : error.message,
+      };
+    }
     // Supabase returns an empty identities array when the email already exists.
     if (
       data.user &&
@@ -238,7 +269,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resendVerification(email: string): Promise<AuthResult> {
-    const { error } = await supabase.auth.resend({ type: "signup", email });
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) {
+        return {
+          error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : error.message,
+        };
+      }
+      return { error: null };
+    } catch (error) {
+      return {
+        error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : errorMsg(error),
+      };
+    }
+  }
+
+  async function sendPasswordReset(email: string): Promise<AuthResult> {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) {
+        return {
+          error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : error.message,
+        };
+      }
+      return { error: null };
+    } catch (error) {
+      return {
+        error: isEmailSendError(error) ? EMAIL_SEND_FALLBACK : errorMsg(error),
+      };
+    }
+  }
+
+  async function resendPasswordReset(email: string): Promise<AuthResult> {
+    return sendPasswordReset(email);
+  }
+
+  async function verifyRecoveryCode(
+    email: string,
+    token: string,
+  ): Promise<AuthResult> {
+    // Set this before verifyOtp so the app does not jump to the main screen
+    // when the recovery session arrives.
+    setPasswordRecovery(true);
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: token.trim(),
+      type: "recovery",
+    });
+    if (error) {
+      setPasswordRecovery(false);
+      return { error: error.message };
+    }
+    if (data.session?.user) await loadProfile(data.session.user.id);
+    return { error: null };
+  }
+
+  async function updatePassword(password: string): Promise<AuthResult> {
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) return { error: error.message };
     return { error: null };
   }
@@ -269,11 +356,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        passwordRecovery,
         continueWithGoogle,
         signUp,
         signIn,
         verifyEmailCode,
         resendVerification,
+        sendPasswordReset,
+        resendPasswordReset,
+        verifyRecoveryCode,
+        updatePassword,
+        endPasswordRecovery: () => setPasswordRecovery(false),
         signOut,
         refreshProfile,
         updateAvatarCharacter,

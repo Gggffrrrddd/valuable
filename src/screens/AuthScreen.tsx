@@ -11,7 +11,13 @@ import {
   Timer,
 } from "lucide-react";
 
-type Mode = "signin" | "signup" | "verify";
+type Mode =
+  | "signin"
+  | "signup"
+  | "verify"
+  | "reset-email"
+  | "reset-code"
+  | "reset-password";
 
 function GoogleMark() {
   return (
@@ -38,10 +44,19 @@ function GoogleMark() {
 
 export default function AuthScreen() {
   const {
+    session,
+    passwordRecovery,
     signIn,
     signUp,
     verifyEmailCode,
     resendVerification,
+    sendPasswordReset,
+    resendPasswordReset,
+    verifyRecoveryCode,
+    updatePassword,
+    endPasswordRecovery,
+    refreshProfile,
+    signOut,
     continueWithGoogle,
   } = useAuth();
   const googleEnabled = useAuthGoogleEnabled();
@@ -58,6 +73,33 @@ export default function AuthScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resendingReset, setResendingReset] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [resetCooldown, setResetCooldown] = useState(0);
+
+  // A PASSWORD_RECOVERY session should land on step 3, not the main app.
+  useEffect(() => {
+    if (passwordRecovery && !mode.startsWith("reset")) {
+      setResetEmail((value) => value || session?.user.email || email.trim());
+      setMode("reset-password");
+    }
+  }, [passwordRecovery, mode, session?.user.email, email]);
+
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = window.setTimeout(
+      () => setResetCooldown((value) => Math.max(0, value - 1)),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [resetCooldown]);
 
   // OAuth cancel/denied errors come back in the URL. Read once, then clean it.
   useEffect(() => {
@@ -142,6 +184,95 @@ export default function AuthScreen() {
     setResending(false);
     if (result.error) setError(result.error);
     else setNotice("A new code is on its way. Check your inbox.");
+  }
+
+  function startPasswordReset() {
+    setResetEmail(email.trim());
+    setResetCode("");
+    setNewPassword("");
+    setResetError(null);
+    setResetNotice(null);
+    setResetSuccess(null);
+    setResetCooldown(0);
+    setMode("reset-email");
+  }
+
+  async function handleSendReset(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError(null);
+    setResetNotice(null);
+    setResetBusy(true);
+    const result = await sendPasswordReset(resetEmail.trim());
+    setResetBusy(false);
+    setResetCode("");
+    setResetNotice(
+      "If this email has an account, we sent a 6-digit code.",
+    );
+    setResetError(result.error);
+    setResetCooldown(30);
+    setMode("reset-code");
+  }
+
+  async function handleVerifyReset(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError(null);
+    if (!/^\d{6}$/.test(resetCode)) {
+      setResetError("Enter the 6-digit code from your email.");
+      return;
+    }
+    setResetBusy(true);
+    const result = await verifyRecoveryCode(resetEmail.trim(), resetCode);
+    setResetBusy(false);
+    if (result.error) {
+      setResetError(result.error);
+      return;
+    }
+    setResetNotice(null);
+    setMode("reset-password");
+  }
+
+  async function handleResendReset() {
+    if (resetCooldown > 0 || resendingReset) return;
+    setResendingReset(true);
+    setResetError(null);
+    setResetNotice(null);
+    const result = await resendPasswordReset(resetEmail.trim());
+    setResendingReset(false);
+    setResetNotice("If this email has an account, we sent a new code.");
+    setResetError(result.error);
+    setResetCooldown(30);
+  }
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError(null);
+    if (newPassword.length < 6) {
+      setResetError("Password must be at least 6 characters.");
+      return;
+    }
+    setResetBusy(true);
+    const result = await updatePassword(newPassword);
+    setResetBusy(false);
+    if (result.error) {
+      setResetError(result.error);
+      return;
+    }
+    setNewPassword("");
+    setResetSuccess("Password updated. Taking you in…");
+    await refreshProfile();
+    window.setTimeout(() => endPasswordRecovery(), 900);
+  }
+
+  async function backToSignIn() {
+    setMode("signin");
+    setResetCode("");
+    setNewPassword("");
+    setResetError(null);
+    setResetNotice(null);
+    setResetSuccess(null);
+    setResetCooldown(0);
+    if (session) await signOut();
+    endPasswordRecovery();
   }
 
   function backToAuth() {
@@ -289,6 +420,212 @@ export default function AuthScreen() {
                 <p className="mt-8 text-center text-xs leading-5 text-stone-600">
                   Sent by Valuable via Supabase. Check spam if it doesn&apos;t
                   arrive.
+                </p>
+              </div>
+            ) : mode.startsWith("reset") ? (
+              <div>
+                <div className="mb-8">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-lime-300/20 bg-lime-300/[.08] text-lime-300">
+                    <MailCheck className="h-5 w-5" />
+                  </div>
+                  <div className="page-kicker">
+                    {mode === "reset-email"
+                      ? "Reset password"
+                      : mode === "reset-code"
+                        ? "Check your inbox"
+                        : "New password"}
+                  </div>
+                  <h2 className="text-3xl font-extrabold text-stone-50">
+                    {mode === "reset-email"
+                      ? "Forgot your password?"
+                      : mode === "reset-code"
+                        ? "Enter reset code."
+                        : "Set a new password."}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-stone-500">
+                    {mode === "reset-email"
+                      ? "We'll email you a 6-digit code to reset it."
+                      : mode === "reset-code"
+                        ? `If this email has an account, we sent a 6-digit code to ${resetEmail}.`
+                        : `Choose a new password for ${resetEmail}.`}
+                  </p>
+                </div>
+
+                {mode === "reset-email" && (
+                  <form onSubmit={handleSendReset} className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="premium-input"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    {resetError && (
+                      <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                        {resetError}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={resetBusy}
+                      className="primary-button flex w-full items-center justify-center gap-2 py-3.5 disabled:opacity-60"
+                    >
+                      {resetBusy ? "Sending..." : "Send code"}
+                      {!resetBusy && <ArrowRight className="h-4 w-4" />}
+                    </button>
+                  </form>
+                )}
+
+                {mode === "reset-code" && (
+                  <>
+                    <form onSubmit={handleVerifyReset} className="space-y-4">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                          Reset code
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          value={resetCode}
+                          onChange={(e) =>
+                            setResetCode(
+                              e.target.value.replace(/\D/g, "").slice(0, 6),
+                            )
+                          }
+                          placeholder="000000"
+                          className="premium-input text-center font-display text-3xl font-extrabold tracking-[.42em]"
+                          autoFocus
+                          required
+                        />
+                      </div>
+
+                      {resetNotice && (
+                        <div className="rounded-xl border border-lime-300/20 bg-lime-300/[.07] px-4 py-3 text-sm text-lime-200">
+                          {resetNotice}
+                        </div>
+                      )}
+                      {resetError && (
+                        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                          {resetError}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={resetBusy || resetCode.length !== 6}
+                        className="primary-button flex w-full items-center justify-center gap-2 py-3.5 disabled:opacity-60"
+                      >
+                        {resetBusy ? "Verifying..." : "Verify"}
+                        {!resetBusy && <ArrowRight className="h-4 w-4" />}
+                      </button>
+                    </form>
+
+                    <div className="mt-6 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleResendReset()}
+                        disabled={resendingReset || resetCooldown > 0}
+                        className="flex items-center gap-1.5 text-xs font-bold text-stone-500 transition hover:text-stone-200 disabled:opacity-50"
+                      >
+                        <RotateCw
+                          className={`h-3.5 w-3.5 ${resendingReset ? "animate-spin" : ""}`}
+                        />
+                        {resendingReset
+                          ? "Sending..."
+                          : resetCooldown > 0
+                            ? `Resend code (${resetCooldown}s)`
+                            : "Resend code"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("reset-email");
+                          setResetCode("");
+                          setResetError(null);
+                          setResetNotice(null);
+                        }}
+                        className="text-xs font-bold text-stone-600 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-300"
+                      >
+                        Use another email
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {mode === "reset-password" && (
+                  <form onSubmit={handleUpdatePassword} className="space-y-4">
+                    <div className="relative">
+                      <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                        New password
+                      </label>
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="At least 6 characters"
+                        minLength={6}
+                        className="premium-input pr-12"
+                        required
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((value) => !value)}
+                        className="absolute bottom-3.5 right-4 text-stone-500 hover:text-stone-200"
+                        aria-label={
+                          showNewPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    {resetError && (
+                      <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                        {resetError}
+                      </div>
+                    )}
+                    {resetSuccess && (
+                      <div className="rounded-xl border border-lime-300/20 bg-lime-300/[.07] px-4 py-3 text-sm text-lime-200">
+                        {resetSuccess}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={resetBusy || Boolean(resetSuccess)}
+                      className="primary-button flex w-full items-center justify-center gap-2 py-3.5 disabled:opacity-60"
+                    >
+                      {resetBusy ? "Updating..." : "Update password"}
+                      {!resetBusy && !resetSuccess && (
+                        <ArrowRight className="h-4 w-4" />
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                <p className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => void backToSignIn()}
+                    className="text-xs font-bold text-stone-600 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-300"
+                  >
+                    Back to sign in
+                  </button>
                 </p>
               </div>
             ) : (
@@ -445,6 +782,18 @@ export default function AuthScreen() {
                       )}
                     </button>
                   </div>
+
+                  {mode === "signin" && (
+                    <div className="-mt-2 text-right">
+                      <button
+                        type="button"
+                        onClick={startPasswordReset}
+                        className="text-xs font-bold text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-stone-200"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
 
                   {error && (
                     <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
