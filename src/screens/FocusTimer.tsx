@@ -20,8 +20,6 @@ import JarVisual from "@/components/focus-visuals/JarVisual";
 import JarStage from "@/components/focus-visuals/JarStage";
 import TreeStage from "@/components/focus-visuals/TreeStage";
 import BladeStage from "@/components/focus-visuals/BladeStage";
-import CloudRain from "@/components/focus-visuals/CloudRain";
-import TankLife from "@/components/focus-visuals/TankLife";
 import GardenVisual from "@/components/focus-visuals/GardenVisual";
 import FlipClock from "@/components/FlipClock";
 import LeafPicker from "@/components/LeafPicker";
@@ -30,6 +28,12 @@ import PremiumLock from "@/components/premium/PremiumLock";
 import { useAuth } from "@/lib/auth";
 import { pushTimerHistory, useSessionBackGuard } from "@/lib/sessionBackGuard";
 import { SUBJECTS_CHANGED_EVENT, fetchUserSubjects } from "@/lib/subjects";
+import {
+  MIN_BREAK_MINUTES,
+  MIN_FOCUS_MINUTES,
+  clampBreakMinutes,
+  clampFocusMinutes,
+} from "@/lib/timerLimits";
 import { usePremiumConfig } from "@/lib/premium/PremiumConfigProvider";
 import { useEntitlement } from "@/lib/premium/useEntitlement";
 import { isFeatureLocked, visualFeature } from "@/lib/premium/features";
@@ -86,15 +90,19 @@ export function readStoredSession(): StoredSession | null {
   const startRaw = sessionStorage.getItem(SESSION_START_KEY);
   if (!startRaw) return null;
   const startMs = Number(startRaw);
-  const durationMs =
+  const storedDurationMs =
     Number(sessionStorage.getItem(SESSION_DURATION_KEY) ?? 0) * 1000;
   if (
     !Number.isFinite(startMs) ||
-    !Number.isFinite(durationMs) ||
-    durationMs <= 0
+    !Number.isFinite(storedDurationMs) ||
+    storedDurationMs <= 0
   ) {
     return null;
   }
+  const durationMs = Math.max(
+    storedDurationMs,
+    MIN_FOCUS_MINUTES * 60 * 1000,
+  );
   const pausedAtRaw = sessionStorage.getItem(SESSION_PAUSED_AT_KEY);
   const pausedAtMs = pausedAtRaw ? Number(pausedAtRaw) : null;
   const pausedTotalMs = Number(
@@ -111,7 +119,10 @@ export function readStoredSession(): StoredSession | null {
     pausedAtMs,
     pausedTotalMs,
     subjectTag: sessionStorage.getItem(SESSION_SUBJECT_KEY) || null,
-    breakMinutes: Number(sessionStorage.getItem(SESSION_BREAK_KEY) ?? 5) || 5,
+    breakMinutes: clampBreakMinutes(
+      Number(sessionStorage.getItem(SESSION_BREAK_KEY) ?? MIN_BREAK_MINUTES) ||
+        MIN_BREAK_MINUTES,
+    ),
     paused: pausedAtMs !== null,
     remainingMs,
     elapsedMs,
@@ -158,7 +169,7 @@ export default function FocusTimer({
   const { isPremium } = useEntitlement();
   const [preset, setPreset] = useState<TimerPreset>(TIMER_PRESETS[0]);
   const [customFocus, setCustomFocus] = useState(25);
-  const [customBreak, setCustomBreak] = useState(5);
+  const [customBreak, setCustomBreak] = useState(MIN_BREAK_MINUTES);
   const [isCustom, setIsCustom] = useState(false);
   const [subjectTag, setSubjectTag] = useState<string>("");
   const [showSubjects, setShowSubjects] = useState(false);
@@ -223,9 +234,6 @@ export default function FocusTimer({
       : LEAF_OPTIONS[0].url;
   });
   const [showLeafPicker, setShowLeafPicker] = useState(false);
-
-  // Aquarium scene placement (hardcoded from tuner): X=41 Y=38 Zoom=1.27.
-  // Mask overlay placement (hardcoded from tuner): X=-378 Y=152 Zoom=0.54.
 
   // Music follows the session rule: pause/resume in sync, stop when the
   // session ends (quit/complete). Navigating away (e.g. study-table peek)
@@ -314,16 +322,16 @@ export default function FocusTimer({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionSubjectRef = useRef<string | null>(null);
-  const sessionBreakRef = useRef(5);
+  const sessionBreakRef = useRef(MIN_BREAK_MINUTES);
   const bootHandledRef = useRef(false);
 
-  const focusMinutes = isCustom ? customFocus : preset.focusMinutes;
-  const breakMinutes = isCustom ? customBreak : preset.breakMinutes;
+  const focusMinutes = clampFocusMinutes(
+    isCustom ? customFocus : preset.focusMinutes,
+  );
+  const breakMinutes = clampBreakMinutes(
+    isCustom ? customBreak : preset.breakMinutes,
+  );
   const totalFocusSeconds = focusMinutes * 60;
-  // Duration-driven visual: 60 min or less plays the jar, more plays the
-  // aquarium — same picker card, decided by the chosen rhythm.
-  // Locked at session start so the visual never flips mid-session.
-  const playsAquarium = activeDurationSeconds > 3600;
 
   // On the mobile landscape lock the hourglass flip clock lives inside the
   // scaled stage (so it tracks the fit); everywhere else it stays in the
@@ -511,7 +519,7 @@ export default function FocusTimer({
     (phase === "focus" || phase === "paused" || phase === "completing")
   ) {
     return (
-      <div className="minimal-timer fixed inset-0 z-50 overflow-hidden bg-[#090b0a]">
+      <div className="minimal-timer fixed inset-0 z-50 overflow-hidden">
         <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5 px-4 pb-[max(6.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
           {subjectTag && (
             <div className="max-w-[min(88vw,28rem)] truncate text-center text-[11px] font-bold uppercase tracking-[.2em] text-stone-400">
@@ -793,7 +801,7 @@ export default function FocusTimer({
 
         {/* Premium split-layout: hourglass left/center, flip-clock right (solar-system takes the full stage, no FlipClock) */}
         <div
-          className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === "hourglass" ? "hg-row" : ""} ${visualTheme === "tree" ? "tree-focus-layout" : ""} ${visualTheme === "jar" ? "jar-focus-layout" : ""} ${visualTheme === "jar" && !playsAquarium ? "jr-classic-row" : ""} ${visualTheme === "blade" ? "blade-focus-layout" : ""} ${visualTheme === "butterfly" ? "butterfly-focus-layout" : ""}`}
+          className={`relative z-10 flex h-full w-full flex-col items-center justify-center px-6 pb-36 pt-24 lg:flex-row lg:items-center lg:justify-center lg:pb-20 lg:pt-16 ${visualTheme === "hourglass" ? "hg-row" : ""} ${visualTheme === "tree" ? "tree-focus-layout" : ""} ${visualTheme === "jar" ? "jar-focus-layout jr-classic-row" : ""} ${visualTheme === "blade" ? "blade-focus-layout" : ""} ${visualTheme === "butterfly" ? "butterfly-focus-layout" : ""}`}
         >
           {/* Left / center zone: hourglass visual. Solar System is always
               full-bleed (absolute inset-0) on every breakpoint — the clock
@@ -805,42 +813,12 @@ export default function FocusTimer({
               className={`${visualTheme === "solar-system" ? "relative h-full w-full" : visualTheme === "jar" ? "relative h-full w-full lg:max-h-[76vh] lg:max-w-2xl lg:flex lg:items-center lg:justify-center" : "relative flex max-h-[48vh] w-full max-w-xl items-center justify-center lg:max-h-[76vh] lg:max-w-2xl"} ${visualTheme === "hourglass" ? "hg-visual-box" : ""} ${visualTheme === "jar" ? "jr-visual-box" : ""}`}
             >
               {visualTheme === "jar" ? (
-                playsAquarium ? (
-                  <>
-                    <img
-                      src="/visuals/jar/aquarium-scene.png"
-                      alt="Aquarium"
-                      className="aqua-scene h-full w-full object-contain"
-                      draggable={false}
-                    />
-                    {/* Mask overlay: hardcoded (X=-378 Y=152 Z=0.54), hidden for
-                      now — will drive the water/fish animation later. */}
-                    <img
-                      src="/visuals/jar/aquarium-overlay.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 hidden h-full w-full object-contain"
-                      style={{
-                        transform: "translate(-378px, 152px) scale(0.54)",
-                      }}
-                      draggable={false}
-                    />
-                    {/* Cloud + rain — same placement and engine as the jar. */}
-                    <CloudRain
-                      running={phase === "focus"}
-                      progress={progress}
-                    />
-                    {/* Water fill + fish — mapped live onto the hidden mask. */}
-                    <TankLife progress={progress} />
-                  </>
-                ) : (
-                  <JarStage enabled={visualTheme === "jar" && !playsAquarium}>
-                    <JarVisual
-                      progress={progress}
-                      running={phase === "focus"}
-                    />
-                  </JarStage>
-                )
+                <JarStage enabled={visualTheme === "jar"}>
+                  <JarVisual
+                    progress={progress}
+                    running={phase === "focus"}
+                  />
+                </JarStage>
               ) : visualTheme === "tree" ? (
                 <TreeStage enabled>
                   <img
@@ -924,15 +902,15 @@ export default function FocusTimer({
         )}
 
         {/* Session status */}
-        <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem]">
+        <div
+          className={`session-status absolute bottom-32 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/[.07] bg-black/30 px-5 py-2 text-[11px] font-bold uppercase tracking-[.18em] text-stone-400 backdrop-blur-xl md:bottom-[7.5rem] ${visualTheme === "solar-system" && phase === "paused" ? "solar-session-status--paused" : ""}`}
+        >
           {phase === "paused"
             ? "Session paused"
             : phase === "completing"
               ? "Focus complete"
               : visualTheme === "jar"
-                ? playsAquarium
-                  ? "Aquarium"
-                  : "Water Jar"
+                ? "Water Jar"
                 : FOCUS_VISUAL_THEMES.find((theme) => theme.id === visualTheme)
                     ?.label}
         </div>
@@ -1076,13 +1054,16 @@ export default function FocusTimer({
               </label>
               <input
                 type="number"
-                min={1}
+                min={MIN_FOCUS_MINUTES}
                 max={180}
                 value={customFocus}
                 onChange={(e) =>
                   setCustomFocus(
-                    Math.max(1, Math.min(180, Number(e.target.value) || 1)),
+                    Math.min(180, Math.max(0, Number(e.target.value) || 0)),
                   )
+                }
+                onBlur={() =>
+                  setCustomFocus((value) => clampFocusMinutes(value))
                 }
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
               />
@@ -1093,19 +1074,30 @@ export default function FocusTimer({
               </label>
               <input
                 type="number"
-                min={1}
+                min={MIN_BREAK_MINUTES}
                 max={60}
                 value={customBreak}
                 onChange={(e) =>
                   setCustomBreak(
-                    Math.max(1, Math.min(60, Number(e.target.value) || 1)),
+                    Math.min(60, Math.max(0, Number(e.target.value) || 0)),
                   )
+                }
+                onBlur={() =>
+                  setCustomBreak((value) => clampBreakMinutes(value))
                 }
                 className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-center focus:outline-none focus:border-emerald-500"
               />
             </div>
           </div>
         )}
+        {isCustom &&
+          (customFocus < MIN_FOCUS_MINUTES ||
+            customBreak < MIN_BREAK_MINUTES) && (
+            <p className="-mt-3 mb-4 px-1 text-xs text-amber-300/80">
+              Minimum focus time is {MIN_FOCUS_MINUTES} minutes · minimum break
+              time is {MIN_BREAK_MINUTES} minutes.
+            </p>
+          )}
 
         <div className="mb-6">
           <div className="mb-3 flex items-end justify-between px-1">

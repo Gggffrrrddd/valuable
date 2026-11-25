@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { CATEGORIES, type ContentItem, type ContentCategory } from "@/types";
 import { Play, SkipForward, Check, Shuffle, X } from "lucide-react";
 import PremiumLock from "@/components/premium/PremiumLock";
+import { MIN_BREAK_MINUTES } from "@/lib/timerLimits";
 
 interface BreakScreenProps {
   breakMinutes: number;
@@ -22,7 +23,8 @@ export default function BreakScreen({
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [category, setCategory] = useState<ContentCategory | "All">("All");
   const [loading, setLoading] = useState(true);
-  const [secondsLeft, setSecondsLeft] = useState(breakMinutes * 60);
+  const safeBreakMinutes = Math.max(MIN_BREAK_MINUTES, breakMinutes);
+  const [secondsLeft, setSecondsLeft] = useState(safeBreakMinutes * 60);
   const [breakOver, setBreakOver] = useState(false);
   const loggedRef = useRef(false);
 
@@ -89,7 +91,7 @@ export default function BreakScreen({
     category === "All" ? items : items.filter((i) => i.category === category);
   const mm = Math.floor(secondsLeft / 60);
   const ss = secondsLeft % 60;
-  const totalBreak = Math.max(1, breakMinutes * 60);
+  const totalBreak = Math.max(1, safeBreakMinutes * 60);
   const breakPct = Math.min(
     100,
     Math.round(((totalBreak - secondsLeft) / totalBreak) * 100),

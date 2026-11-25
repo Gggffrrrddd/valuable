@@ -28,15 +28,14 @@ export const DEFAULT_PREMIUM_CONTENT: PremiumConfig["content"] = {
     "Every focus visual, including future releases",
     "90-day performance history and deeper trends",
     "Shareable reports for your streak and milestones",
-    "Unlimited focus music and break content",
-    "Support independent, ad-free development",
+    "One-year exam tracking",
   ],
   comparison: [
     { feature: "Focus visuals", free: "Core visuals", premium: "Every visual" },
-    { feature: "Stats history", free: "30 days", premium: "90 days" },
+    { feature: "Stats history", free: "Limited", premium: "Full access" },
     { feature: "Share reports", free: "—", premium: "Included" },
     { feature: "Focus music", free: "Limited", premium: "Unlimited" },
-    { feature: "Break content", free: "Rotating", premium: "Full library" },
+    { feature: "Friends", free: "Locked", premium: "Open" },
   ],
   preview: [
     {

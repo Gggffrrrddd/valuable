@@ -44,12 +44,41 @@ function mergeFlags(value: unknown): PremiumFlags {
   };
 }
 
+function normalizeContent(content: PremiumContent): PremiumContent {
+  const oneYear = "One-year exam tracking";
+  const benefits: string[] = [];
+  for (const benefit of content.benefits) {
+    if (benefit === "Support independent, ad-free development") continue;
+    if (benefit === "Unlimited focus music and break content") {
+      if (!benefits.includes(oneYear)) benefits.push(oneYear);
+      continue;
+    }
+    if (!benefits.includes(benefit)) benefits.push(benefit);
+  }
+  if (!benefits.includes(oneYear)) benefits.push(oneYear);
+
+  const comparison = content.comparison
+    .filter((row) => row.feature !== "Break content")
+    .map((row) => {
+      if (row.feature === "Stats history")
+        return { ...row, free: "Limited", premium: "Full access" };
+      if (row.feature === "Friends")
+        return { ...row, free: "Locked", premium: "Open" };
+      return row;
+    });
+  if (!comparison.some((row) => row.feature === "Friends")) {
+    comparison.push({ feature: "Friends", free: "Locked", premium: "Open" });
+  }
+
+  return { ...content, benefits, comparison };
+}
+
 function mergeContent(value: unknown): PremiumContent {
   if (!value || typeof value !== "object")
     return DEFAULT_PREMIUM_CONFIG.content;
   const raw = value as Partial<PremiumContent>;
   const products = raw.products ?? DEFAULT_PREMIUM_CONFIG.content.products;
-  return {
+  return normalizeContent({
     ...DEFAULT_PREMIUM_CONFIG.content,
     ...raw,
     benefits: Array.isArray(raw.benefits)
@@ -71,7 +100,7 @@ function mergeContent(value: unknown): PremiumContent {
       ...DEFAULT_PREMIUM_CONFIG.content.legal,
       ...(raw.legal ?? {}),
     },
-  };
+  });
 }
 
 function readCache(): PremiumConfig | null {
@@ -80,7 +109,10 @@ function readCache(): PremiumConfig | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedConfig;
     if (!parsed || Date.now() - parsed.at > CACHE_TTL_MS) return null;
-    return parsed.value;
+    return {
+      ...parsed.value,
+      content: normalizeContent(parsed.value.content),
+    };
   } catch {
     return null;
   }

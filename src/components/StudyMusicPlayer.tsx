@@ -192,16 +192,25 @@ export default function StudyMusicPlayer() {
         <div className="music-drawer z-50 origin-bottom-right rounded-[1.4rem] border border-white/[.08] bg-[#090b0a]/95 p-4 shadow-2xl backdrop-blur-2xl">
           <div className="music-drawer-header mb-4 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              {showPlus && (
-                <button
-                  onClick={() => setPickTarget({ reselectId: null })}
-                  aria-label="Add your own music"
-                  title="Add your own music"
-                  className="rounded-lg p-1.5 text-stone-400 transition hover:bg-white/10 hover:text-[#f6e3ba]"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  if (showPlus) setPickTarget({ reselectId: null });
+                }}
+                disabled={!showPlus}
+                aria-label={
+                  showPlus
+                    ? "Add your own music"
+                    : `You can add up to ${MAX_OWN_TRACKS} of your own tracks`
+                }
+                title={
+                  showPlus
+                    ? "Add your own music"
+                    : `You can add up to ${MAX_OWN_TRACKS} of your own tracks`
+                }
+                className="rounded-lg p-1.5 text-stone-400 transition hover:bg-white/10 hover:text-[#f6e3ba] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
               <h3 className="flex items-center gap-2 text-sm font-bold text-white">
                 <Music className="h-4 w-4 text-[#f6e3ba]" /> Focus music
               </h3>
@@ -213,6 +222,11 @@ export default function StudyMusicPlayer() {
               <X className="h-4 w-4" />
             </button>
           </div>
+          {!showPlus && (
+            <p className="music-drawer-header -mt-2 text-[10px] leading-4 text-stone-600">
+              You can add up to {MAX_OWN_TRACKS} of your own tracks
+            </p>
+          )}
 
           {/* Volume */}
           <div className="music-volume mb-5 flex items-center gap-3 px-1">
@@ -438,13 +452,6 @@ export default function StudyMusicPlayer() {
                   </span>{" "}
                   the file is never uploaded — it stays on your device and only
                   plays for you.
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#f6e3ba]" />
-                <span>
-                  <span className="font-bold text-stone-200">Fair use:</span>{" "}
-                  please use only music you own or have the right to play.
                 </span>
               </li>
             </ul>

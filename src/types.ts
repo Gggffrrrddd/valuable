@@ -1,3 +1,5 @@
+import { MIN_BREAK_MINUTES } from "@/lib/timerLimits";
+
 export type AvatarCharacter = "boy" | "girl";
 
 export interface Profile {
@@ -104,7 +106,7 @@ export interface TimerPreset {
 export const TIMER_PRESETS: TimerPreset[] = [
   { label: "Classic Pomodoro", focusMinutes: 25, breakMinutes: 5 },
   { label: "Deep Focus", focusMinutes: 50, breakMinutes: 10 },
-  { label: "Short Sprint", focusMinutes: 15, breakMinutes: 3 },
+  { label: "Short Sprint", focusMinutes: 15, breakMinutes: MIN_BREAK_MINUTES },
   { label: "Long Study", focusMinutes: 90, breakMinutes: 20 },
 ];
 

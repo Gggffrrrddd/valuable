@@ -18,8 +18,8 @@ const VOL_KEY = 'valuable-music-vol';
 const OWN_KEY = 'valuable-music-own';
 const OWN_DB = 'valuable-music';
 const OWN_STORE = 'handles';
-/** Brief limit: maximum 2 own tracks. */
-export const MAX_OWN_TRACKS = 2;
+/** Maximum own tracks a user can add. */
+export const MAX_OWN_TRACKS = 3;
 
 export interface OwnTrack {
   id: string;
@@ -53,7 +53,6 @@ function readOwnMetas(): OwnMeta[] {
         (x): x is OwnMeta =>
           !!x && typeof x === 'object' && typeof (x as OwnMeta).id === 'string' && typeof (x as OwnMeta).name === 'string',
       )
-      .slice(0, MAX_OWN_TRACKS)
       .map((x) => ({ id: x.id, name: x.name, persistent: x.persistent === true }));
   } catch {
     return [];
@@ -482,7 +481,7 @@ export function toggleFav(id: string): void {
   emit();
 }
 
-/* ── Own tracks (user's device audio, max 2, Favourites only) ──────────── */
+/* ── Own tracks (user's device audio, max 3, Favourites only) ──────────── */
 
 function markMissing(id: string): void {
   if (!snapshot.ownMissing.includes(id)) {
@@ -498,7 +497,7 @@ function clearMissing(id: string): void {
   }
 }
 
-/** True while another own track can be added (brief: max 2, then hide plus). */
+/** True while another own track can be added. */
 export function canAddOwnTrack(): boolean {
   return snapshot.ownTracks.length < MAX_OWN_TRACKS;
 }
@@ -539,7 +538,7 @@ function registerOwnTrack(id: string, name: string, url: string, persistent: boo
 /**
  * Add an own track from a picked File (plain input fallback).
  * Session-only unless a persistable handle is attached separately.
- * Returns false when the 2-track cap is already reached.
+ * Returns false when the own-track cap is already reached.
  */
 export function addOwnTrackFromFile(file: File): boolean {
   if (!canAddOwnTrack()) return false;

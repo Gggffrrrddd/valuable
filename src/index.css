@@ -272,12 +272,6 @@ button .focus-visual { width: 5.5rem; max-height: 6rem; }
   transform: translateY(-50%);
 }
 
-/* Aquarium scene + overlay placement (desktop tuned framing). */
-.jar-focus-layout .aqua-scene,
-.jar-focus-layout .aqua-layer {
-  transform: translate(41px, 38px) scale(1.27);
-}
-
 /*
  * Extended hourglass scene as the single backdrop, everywhere.
  *
@@ -1640,8 +1634,7 @@ button .butterfly-constellation {
 /* Jar classic desktop: full-screen scene backdrop (hourglass desktop
    pattern). The composition is authored in the 1366×768 reference ≈ the
    full desktop viewport, so the visual goes full-bleed and the flip clock
-   takes the right zone. Aquarium keeps its split panel (jr-classic-row only
-   exists for the classic jar). */
+   takes the right zone. */
 .jr-classic-row .jr-visual-zone {
   position: absolute;
   inset: 0;
@@ -1671,15 +1664,9 @@ button .butterfly-constellation {
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Mobile gets the scene plain (zero crop); overlays share it, so the
-     mask mapping stays exact. Desktop keeps the tuned framing above. */
-  .jr-sim .jar-focus-layout .aqua-scene,
-  .jr-sim .jar-focus-layout .aqua-layer {
-    transform: none;
-  }
   /* (Classic jar uses the desktop feed behavior on mobile too —
      `display: contents`, visual fills its zone — so no mobile-only box
-     rule here. Aquarium untouched.) */
+     rule here.) */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2425,4 +2412,40 @@ button .butterfly-constellation {
     max-height: calc(100dvh - 9rem);
     overflow-y: auto;
   }
+}
+
+/* Solar System mobile: paused label sits above the bottom-left controls. */
+@media (pointer: coarse) and (max-width: 1023.5px) {
+  .solar-system-focus-session .session-status.solar-session-status--paused {
+    left: max(1rem, env(safe-area-inset-left));
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.25rem);
+    transform: none;
+  }
+}
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  .solar-system-focus-session .session-status.solar-session-status--paused {
+    left: max(1rem, env(safe-area-inset-top));
+    bottom: calc(max(1rem, env(safe-area-inset-left)) + 4.25rem);
+  }
+}
+
+/* Minimal focus timer: static layered gradient, no assets. */
+.minimal-timer {
+  background:
+    radial-gradient(
+      ellipse 58% 48% at 50% 46%,
+      rgba(197, 255, 84, 0.11),
+      transparent 72%
+    ),
+    radial-gradient(
+      circle at 88% 8%,
+      rgba(110, 150, 170, 0.08),
+      transparent 46%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      transparent 48%,
+      rgba(0, 0, 0, 0.52) 100%
+    ),
+    #090b0a;
 }

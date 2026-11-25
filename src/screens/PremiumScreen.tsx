@@ -87,7 +87,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
         })
       : "Lifetime access";
     return (
-      <div className="min-h-screen overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
+      <div className="premium-screen min-h-screen overflow-x-hidden overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
         <div className="mx-auto max-w-lg text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-lime-300/25 bg-lime-300/10 text-lime-300">
             <Crown className="h-8 w-8" />
@@ -114,7 +114,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
 
   if (purchaseState === "success") {
     return (
-      <div className="min-h-screen overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
+      <div className="premium-screen min-h-screen overflow-x-hidden overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
         <div className="mx-auto max-w-lg text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-lime-300/25 bg-lime-300/10 text-lime-300">
             <Check className="h-8 w-8" />
@@ -141,7 +141,7 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
   if (purchaseState === "cancelled" || purchaseState === "error") {
     const isError = purchaseState === "error";
     return (
-      <div className="min-h-screen overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
+      <div className="premium-screen min-h-screen overflow-x-hidden overflow-y-auto bg-[#090b0a] px-5 py-8 text-stone-100">
         <div className="mx-auto max-w-lg text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[#f6e3ba]/20 bg-[#f6e3ba]/[.06] text-[#f6e3ba]">
             {isError ? <Lock className="h-7 w-7" /> : <X className="h-7 w-7" />}
@@ -183,8 +183,8 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
   }
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-[#090b0a] text-stone-100">
-      <div className="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-10 lg:pb-12">
+    <div className="premium-screen min-h-screen overflow-x-hidden overflow-y-auto bg-[#090b0a] text-stone-100">
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:px-10 lg:pb-12">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-stone-600">
             <Sparkles className="h-4 w-4 text-[#f6e3ba]" /> Valuable Premium
@@ -280,8 +280,8 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
           </div>
         </section>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_.9fr]">
-          <section className="rounded-[1.6rem] border border-white/[.07] bg-white/[.025] p-5 sm:p-6">
+        <div className="mt-5 grid min-w-0 gap-5 lg:grid-cols-[1fr_.9fr]">
+          <section className="min-w-0 rounded-[1.6rem] border border-white/[.07] bg-white/[.025] p-5 sm:p-6">
             <div className="page-kicker">Why premium</div>
             <ul className="mt-4 space-y-3">
               {content.benefits.map((benefit) => (
@@ -298,9 +298,9 @@ export default function PremiumScreen({ onBack }: PremiumScreenProps) {
             </ul>
           </section>
 
-          <section className="rounded-[1.6rem] border border-[#f6e3ba]/15 bg-[#f6e3ba]/[.04] p-5 sm:p-6">
+          <section className="min-w-0 rounded-[1.6rem] border border-[#f6e3ba]/15 bg-[#f6e3ba]/[.04] p-5 sm:p-6">
             <div className="page-kicker">Free vs Premium</div>
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4 w-full max-w-full min-w-0 overflow-x-auto">
               <table className="w-full min-w-[360px] text-left text-xs">
                 <thead>
                   <tr className="text-[9px] uppercase tracking-[.16em] text-stone-600">

@@ -21,6 +21,7 @@ import { useEntitlement } from "@/lib/premium/useEntitlement";
 import { isFeatureLocked } from "@/lib/premium/features";
 import { OPEN_PREMIUM_EVENT, openPremiumPage } from "@/lib/premium/openPremium";
 import { billing } from "@/lib/billing";
+import { MIN_BREAK_MINUTES } from "@/lib/timerLimits";
 import {
   Home,
   BarChart3,
@@ -81,7 +82,7 @@ function AppContent() {
     const saved = sessionStorage.getItem(SCREEN_STORAGE_KEY);
     return VALID_SCREENS.includes(saved as Screen) ? (saved as Screen) : "tab";
   });
-  const [breakMinutes, setBreakMinutes] = useState(5);
+  const [breakMinutes, setBreakMinutes] = useState(MIN_BREAK_MINUTES);
   // True when the study table was opened mid-session: the wall-clock timer
   // lives in sessionStorage, so the table unmounts FocusTimer safely and
   // "go back" remounts it into the same running session.
