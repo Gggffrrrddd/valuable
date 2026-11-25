@@ -35,7 +35,6 @@ import { useEntitlement } from "@/lib/premium/useEntitlement";
 import { isFeatureLocked, visualFeature } from "@/lib/premium/features";
 import { openPremiumPage } from "@/lib/premium/openPremium";
 import { setSessionPaused, stopAndReset } from "@/lib/studyMusicEngine";
-import { enterVisualLandscape, exitVisualLandscape } from "@/lib/visualOrientation";
 import { LEAF_OPTIONS, LEAF_STORAGE_KEY } from "@/components/leafOptions";
 import {
   FOCUS_VISUAL_THEMES,
@@ -217,13 +216,22 @@ export default function FocusTimer({
   function enterImmersive() {
     if (askedFullscreenRef.current) return;
     askedFullscreenRef.current = true;
-    void enterVisualLandscape();
+    try {
+      const request = document.documentElement.requestFullscreen?.bind(
+        document.documentElement,
+      ) as (() => Promise<void> | void) | undefined;
+      const result = request?.();
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        (result as Promise<void>).catch(() => undefined);
+      }
+    } catch {
+      /* Fullscreen unavailable (e.g. iPhone Safari) — sim still rotates. */
+    }
   }
 
   function exitImmersive() {
     if (!askedFullscreenRef.current) return;
     askedFullscreenRef.current = false;
-    exitVisualLandscape();
     try {
       if (document.fullscreenElement) {
         const result = document.exitFullscreen?.();
@@ -375,8 +383,6 @@ export default function FocusTimer({
     setActiveDurationSeconds(totalFocusSeconds);
     setSecondsLeft(totalFocusSeconds);
     setPhase("focus");
-    // Request fullscreen/orientation lock inside the Start tap (user gesture).
-    enterImmersive();
     // Trap the system back button for this session (no-op if already trapped).
     pushTimerHistory();
   }

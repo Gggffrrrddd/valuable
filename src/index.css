@@ -1392,7 +1392,19 @@ button .butterfly-constellation {
 }
 
 @media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
-  /* Natural device orientation now replaces the old CSS rotation hack. */
+  /* Generic rotated stage for every focus timer (rotation lives here only). */
+  .mob-sim.mob-sim {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    overflow: hidden;
+    transform: translate(-50%, -50%) rotate(90deg);
+    animation: hg-sim-in 300ms ease-out;
+  }
   /* Desktop row proportions, scaled to the stage (1vw == 1% of its height). */
   /* Scale-to-fit: the row always equals the stage height, the visual caps
      at 60% of stage height — content can never exceed the stage, so no
@@ -2363,5 +2375,14 @@ button .butterfly-constellation {
     width: 1.5rem;
     height: 1.5rem;
     margin-left: 0;
+  }
+}
+
+/* In the portrait fake-landscape wrapper, the visual's bottom-left maps to
+   the phone's top-left safe area. */
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 1023.5px) {
+  .solar-system-focus-session .solar-controls {
+    bottom: max(1rem, env(safe-area-inset-left));
+    left: max(1rem, env(safe-area-inset-top));
   }
 }
