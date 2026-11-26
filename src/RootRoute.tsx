@@ -1,10 +1,12 @@
 import { lazy, Suspense } from "react";
 import App from "./App.tsx";
 
-const LeafStemCalibration = lazy(
-  () => import("./screens/LeafStemCalibration.tsx"),
-);
-const StudyTablePreview = lazy(() => import("./screens/StudyTablePreview.tsx"));
+const LeafStemCalibration = import.meta.env.DEV
+  ? lazy(() => import("./screens/LeafStemCalibration.tsx"))
+  : null;
+const StudyTablePreview = import.meta.env.DEV
+  ? lazy(() => import("./screens/StudyTablePreview.tsx"))
+  : null;
 const PublicDeleteAccountPage = lazy(
   () => import("./screens/PublicDeleteAccountPage.tsx"),
 );
@@ -21,14 +23,22 @@ export default function RootRoute() {
   const path = INITIAL_PATH;
   const publicDeleteRequested = INITIAL_PUBLIC_DELETE_REQUESTED;
 
-  if (path === "/leaf-stem-calibration") {
+  if (
+    import.meta.env.DEV &&
+    path === "/leaf-stem-calibration" &&
+    LeafStemCalibration
+  ) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#090b09]" />}>
         <LeafStemCalibration />
       </Suspense>
     );
   }
-  if (path === "/study-table-preview") {
+  if (
+    import.meta.env.DEV &&
+    path === "/study-table-preview" &&
+    StudyTablePreview
+  ) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-[#090b0a]" />}>
         <StudyTablePreview />
