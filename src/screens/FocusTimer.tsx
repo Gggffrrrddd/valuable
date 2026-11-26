@@ -6,6 +6,7 @@ import {
   X,
   Check,
   ChevronDown,
+  ArrowLeft,
   Plus,
   Clock3,
   Coffee,
@@ -68,6 +69,8 @@ interface FocusTimerProps {
   onOpenStudyTable?: () => void;
   /** Opens Settings scrolled to the subjects section. */
   onOpenSettings?: () => void;
+  /** Returns from session setup to the previous app screen. */
+  onBack?: () => void;
 }
 
 type Phase = "config" | "focus" | "paused" | "completing";
@@ -162,6 +165,7 @@ class VisualErrorBoundary extends Component<
 export default function FocusTimer({
   onComplete,
   onOpenStudyTable,
+  onBack,
   onOpenSettings,
 }: FocusTimerProps) {
   const { session } = useAuth();
@@ -996,13 +1000,25 @@ export default function FocusTimer({
       <div className="surface relative overflow-visible p-4 sm:p-7 lg:p-8">
         <div className="pointer-events-none absolute right-8 top-0 hidden h-px w-48 bg-gradient-to-r from-transparent via-lime-300/50 to-transparent lg:block" />
         <div className="mb-5 flex items-center justify-between px-1">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">
-              Session setup
+          <div className="flex items-start gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[.08] bg-white/[.03] text-stone-400 transition hover:border-white/20 hover:bg-white/[.06] hover:text-stone-100"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[.18em] text-stone-500">
+                Session setup
+              </div>
+              <h2 className="mt-1 text-xl font-bold text-stone-50">
+                Choose your rhythm
+              </h2>
             </div>
-            <h2 className="mt-1 text-xl font-bold text-stone-50">
-              Choose your rhythm
-            </h2>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300/[.08] text-lime-300">
             <Zap className="h-5 w-5" />

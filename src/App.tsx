@@ -192,7 +192,14 @@ function AppContent() {
   // async save, so a rapid double-back can never double-insert.
   useEffect(() => {
     const onPopState = () => {
-      if (screen === "timer") return;
+      if (screen === "timer") {
+        // The live-session guard owns back while a session exists. On the
+        // setup screen there is no guard, so return to the tab that opened it.
+        const live = readStoredSession();
+        if (live && live.remainingMs > 0) return;
+        setScreen("tab");
+        return;
+      }
       const s = readStoredSession();
       if (s && s.remainingMs > 0) {
         const elapsedSeconds = Math.max(0, Math.round(s.elapsedMs / 1000));
@@ -336,6 +343,7 @@ function AppContent() {
     return (
       <FocusTimer
         onComplete={handleSessionComplete}
+        onBack={() => setScreen("tab")}
         onOpenSettings={openSettingsSubjects}
         onOpenStudyTable={() => {
           setTableFromTimer(true);
