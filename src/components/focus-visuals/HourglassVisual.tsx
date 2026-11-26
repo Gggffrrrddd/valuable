@@ -148,7 +148,7 @@ export default function HourglassVisual({ progress, duration, running }: Hourgla
         preload="auto"
         muted
         playsInline
-        src="https://res.cloudinary.com/dcydj6gao/video/upload/v1785294925/project_video_1_rdj9o6.mp4"
+        src="https://res.cloudinary.com/r5wvbpys/video/upload/v1795694074/horglass-valuable_fk4RmdoG.mp4"
         onLoadedData={() => setLoaded(true)}
         onEnded={handleEnded}
         aria-hidden="true"
