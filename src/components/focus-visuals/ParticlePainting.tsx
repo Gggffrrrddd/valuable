@@ -253,26 +253,6 @@ export default function ParticlePainting({ progress, running, duration = 0 }: Pr
     const st = s.current;
     st.W = W; st.H = H;
 
-    // TEMP DIAGNOSTIC (mobile placement): log actual stage values once per
-    // init (mount/resize only, no per-frame spam). Remove after diagnosis.
-    try {
-      const pr0dbg = paintRectFor(W, H);
-      const baseElDbg = c.parentElement?.querySelector('img[src*="easel-base"]') as HTMLImageElement | null;
-      const csDbg = baseElDbg ? getComputedStyle(baseElDbg) : null;
-      const r1 = (v: number) => Math.round(v * 10) / 10;
-      console.log('[particle-painting-mobile] init ' + JSON.stringify({
-        containerWH: [r1(W), r1(H)],
-        aspect: Math.round((W / Math.max(1, H)) * 1000) / 1000,
-        coarse: window.matchMedia('(pointer: coarse)').matches,
-        compact: window.matchMedia('(max-width: 1023.5px)').matches,
-        orient: window.innerWidth >= window.innerHeight ? 'landscape' : 'portrait',
-        innerWH: [window.innerWidth, window.innerHeight],
-        imgFit: csDbg ? csDbg.objectFit : null,
-        imgPos: csDbg ? csDbg.objectPosition : null,
-        paintRect: [r1(pr0dbg.x), r1(pr0dbg.y), r1(pr0dbg.w), r1(pr0dbg.h)],
-      }));
-    } catch { /* logging must never break the visual */ }
-
     // fresh offscreens
     const mask = document.createElement('canvas');
     mask.width = W; mask.height = H;

@@ -25,13 +25,6 @@ export const JR_STAGE_H = 768;
 export const JR_LOCKED_MEDIA = '(pointer: coarse) and (max-width: 1023.5px)';
 
 function isLockedContext(): boolean {
-  // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
-  // boundary measurements (`?jrtest=1`). Removed before commit.
-  try {
-    if (new URLSearchParams(window.location.search).has('jrtest')) return true;
-  } catch {
-    /* ignore */
-  }
   try {
     return window.matchMedia(JR_LOCKED_MEDIA).matches;
   } catch {

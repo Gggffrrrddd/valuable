@@ -5,7 +5,6 @@ import { CanvasTexture, ClampToEdgeWrapping, Group, Mesh, SRGBColorSpace, Textur
 import {
   ModelVisualFallback,
   createWrapTextureMaterial,
-  FpsProbe,
   normalizeModel,
   useModelLoader,
   useTextureLoader,
@@ -337,7 +336,6 @@ export default function TableScene3D({
         gl={{ alpha: true, antialias: !lowQ, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <FpsProbe label="study-table" />
         <CanvasSizeFix wrapRef={wrapRef} />
         <ambientLight intensity={0.34} color="#d8d1c7" />
         <spotLight

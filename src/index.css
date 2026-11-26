@@ -1609,7 +1609,6 @@ button .butterfly-constellation {
    near-black, so the plain code fill joins the image with no visible seam —
    no outpainted asset required for this visual.
    -------------------------------------------------------------------------- */
-/* TEMP-MEASURE: pointer:coarse dropped so the desktop harness matches; restored before commit. */
 @media (max-width: 1023.5px) {
   /* Fixed 1366×768 stage (contain-fit, same pattern as HourglassStage).
      overflow stays visible so the jar SVG's sampled backdrop bands can paint
@@ -1718,9 +1717,6 @@ button .butterfly-constellation {
   }
 }
 
-/* TEMP-MEASURE: pointer:coarse dropped for the stage block so the desktop
-   harness matches; restored before commit. The stage only exists when
-   TreeStage is active (coarse pointer), so this does not affect desktop. */
 @media (max-width: 1023.5px) {
   /* Fixed 1366×768 stage (contain-fit, same pattern as jar). The backdrop
      bleeds past the stage, so the stage does not clip; leaves may reach past
@@ -1856,7 +1852,7 @@ button .butterfly-constellation {
    (cards, dream picker, tuners) hidden. Progress is static 97%.
    -------------------------------------------------------------------------- */
 @media (max-width: 1023.5px) {
-  .compete-stage > :not(.compete-tree-stage):not(.compete-dreams):not(.compete-tuner):not(.compete-today) {
+  .compete-stage > :not(.compete-tree-stage):not(.compete-dreams):not(.compete-today) {
     display: none;
   }
   /* Today's-tree card on mobile: top-left like desktop, below the sticky

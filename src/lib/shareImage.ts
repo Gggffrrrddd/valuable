@@ -209,7 +209,7 @@ export async function generateShareImage(data: ShareData): Promise<void> {
             files: [file]
           });
         } catch (e) {
-          console.log('Share canceled or failed', e);
+          console.warn('Share canceled or failed', e);
         }
       } else {
         // Fallback download

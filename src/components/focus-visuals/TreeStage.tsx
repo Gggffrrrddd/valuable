@@ -52,13 +52,6 @@ const SOIL_TOP = Math.round(IMG_H * 0.58);
 const MIRROR_FEATHER = 70;
 
 function isLockedContext(): boolean {
-  // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
-  // boundary measurements (`?trtest=1`). Removed before commit.
-  try {
-    if (new URLSearchParams(window.location.search).has('trtest')) return true;
-  } catch {
-    /* ignore */
-  }
   try {
     return window.matchMedia(TR_LOCKED_MEDIA).matches;
   } catch {

@@ -5,14 +5,12 @@ import { supabase } from "@/lib/supabase";
 import { readLiveFocusElapsedMs } from "@/lib/localSession";
 import TreeScene from "@/components/compete/TreeScene";
 import DreamPicker from "@/components/compete/DreamPicker";
-import PlacementTuner from "@/components/compete/PlacementTuner";
 import GoalHeatmap from "@/components/compete/GoalHeatmap";
 import CompeteTour from "@/components/compete/CompeteTour";
 import CompeteHelp from "@/components/compete/CompeteHelp";
 import {
   DEFAULT_DREAM_STRETCH,
   DEFAULT_RING,
-  type PlacementTransform,
 } from "@/components/compete/placementConfig";
 import {
   fetchActiveGoal,
@@ -38,29 +36,10 @@ const TOUR_SEEN_KEY = "valuable.compete-tour-seen.v1";
 /** The clip's full-bloom frame lives at 97%, not the very last frame. */
 const TREE_PROGRESS_END = 0.97;
 
-/** Hardcoded per-circle placement — DESKTOP values (mobile overrides below). */
-const DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
-  { x: -281, y: 195, zoom: 1.5 },
-  { x: 2, y: 108, zoom: 1.545 },
-  { x: 238, y: 195, zoom: 1.5 },
-];
-/**
- * Mobile arc placement tuned on a reference portrait stage. Offsets are
- * stored as element-% (circle box = 56px) exactly as before, but at runtime
- * they are re-scaled against the *measured* stage so the crown tracks the
- * tree on any phone — never a fixed-px path for one device.
- */
 /** Fixed portrait stage reference (~9:19). All scene geometry is authored
  *  in this box; the box itself is contain-fit scaled, never re-authored. */
 const FIT_W = 405;
 const FIT_H = 855;
-const MOBILE_DREAM_CIRCLE_TRANSFORMS: PlacementTransform[] = [
-  { x: -146, y: 722, zoom: 1.5 },
-  { x: -2, y: 562, zoom: 1.6 },
-  { x: 128, y: 722, zoom: 1.5 },
-];
-/** TEMPORARY — dream-circle tuner is HIDDEN (values hardcoded above). */
-const SHOW_DREAM_XY_TUNER = false;
 
 /**
  * Compete: the daily-tree ritual.
@@ -195,13 +174,6 @@ export default function CompeteScreen() {
       window.removeEventListener("resize", sync);
     };
   }, []);
-  // Keep dream slots matched to the live branch (tuner is hidden, so there
-  // are no user edits to lose — a breakpoint switch means a fresh branch).
-  useEffect(() => {
-    setDreamTune(
-      isMobileVp ? MOBILE_DREAM_CIRCLE_TRANSFORMS : DREAM_CIRCLE_TRANSFORMS,
-    );
-  }, [isMobileVp]);
   // Fit math (mobile only): contain-fit the fixed stage into the measured
   // box. Desktop never reads this (byte-identical branch below).
   const fitS =
@@ -218,16 +190,6 @@ export default function CompeteScreen() {
   const mobileTrackerOverlap = compactTracker
     ? Math.max(0, stageBox.h - (fitOY + mobileDreamBottom * fitS) - 12)
     : 0;
-  /** TEMPORARY: live X/Y/zoom placement for the 3 dream circles (hardcode when final). */
-  const [dreamTune, setDreamTune] = useState<PlacementTransform[]>(() =>
-    typeof window !== "undefined" &&
-    window.matchMedia("(max-width: 1023.5px)").matches
-      ? MOBILE_DREAM_CIRCLE_TRANSFORMS
-      : DREAM_CIRCLE_TRANSFORMS,
-  );
-  /** Which dream circle the single tuner is editing (0/1/2). */
-  const [dreamTuneIdx, setDreamTuneIdx] = useState(0);
-
   // (Fit-box measurement lives in the callback ref above — no effect needed.)
 
   const refresh = useCallback(async () => {
@@ -497,65 +459,6 @@ export default function CompeteScreen() {
         onHelp={(anchor) => setHelp({ type: "dreams", anchor })}
       />
 
-      {/* TEMPORARY — single dream-circle tuner (pick s1/s2/s3, then X/Y/Zoom).
-          Overlaps the plant; mobile only; hardcode + flip off when final. */}
-      {SHOW_DREAM_XY_TUNER && (goal.dream_images?.length ?? 0) > 0 && (
-        <div className="compete-tuner absolute bottom-[28%] left-3 right-3 z-30 lg:hidden">
-          <div className="mb-1 flex gap-1">
-            {dreamTune.slice(0, goal.dream_images?.length ?? 0).map((_, i) => (
-              <button
-                key={`dream-tab-${i}`}
-                type="button"
-                onClick={() => setDreamTuneIdx(i)}
-                className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
-                  dreamTuneIdx === i
-                    ? "border-lime-300/60 bg-lime-300/15 text-lime-200"
-                    : "border-white/10 bg-black/40 text-stone-500 hover:text-stone-300"
-                }`}
-              >
-                s{i + 1}
-              </button>
-            ))}
-          </div>
-          <PlacementTuner
-            title={`Dream ${dreamTuneIdx + 1} (temp)`}
-            logTag={`compete-dream-${dreamTuneIdx}`}
-            transform={dreamTune[dreamTuneIdx]}
-            rows={[
-              {
-                key: "x",
-                label: "Move X (left / right)",
-                min: -800,
-                max: 800,
-                step: 1,
-              },
-              {
-                key: "y",
-                label: "Move Y (up / down)",
-                min: -400,
-                max: 1000,
-                step: 1,
-              },
-              {
-                key: "zoom",
-                label: "Zoom (in / out)",
-                min: 0.5,
-                max: 3,
-                step: 0.01,
-              },
-            ]}
-            defaults={DREAM_CIRCLE_TRANSFORMS[dreamTuneIdx]}
-            onChange={(patch) =>
-              setDreamTune((prev) =>
-                prev.map((p, j) =>
-                  j === dreamTuneIdx ? { ...p, ...patch } : p,
-                ),
-              )
-            }
-            compact
-          />
-        </div>
-      )}
     </>
   );
 

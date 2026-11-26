@@ -36,13 +36,6 @@ const DISP_W = BASE_W * SCENE_SCALE;
 const DISP_H = BASE_H * SCENE_SCALE;
 
 function isLockedContext(): boolean {
-  // TEMP-MEASURE: allow forcing the mobile stage from a desktop browser for
-  // boundary measurements (`?bltest=1`). Removed before commit.
-  try {
-    if (new URLSearchParams(window.location.search).has('bltest')) return true;
-  } catch {
-    /* ignore */
-  }
   try {
     return window.matchMedia(BL_LOCKED_MEDIA).matches;
   } catch {

@@ -75,8 +75,6 @@ export { default as ModelVisualErrorBoundary } from './ModelVisualErrorBoundary'
 export { default as ConstellationPoints } from './ConstellationPoints';
 export type { ConstellationPointsProps } from './ConstellationPoints';
 
-export { default as FpsProbe } from './FpsProbe';
-
 export { useReducedMotion } from './useReducedMotion';
 
 export { smoothstep, clamp01, createGlowTexture, normalizeModel } from './canvasUtils';

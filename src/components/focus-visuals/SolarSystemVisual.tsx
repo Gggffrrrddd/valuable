@@ -27,7 +27,6 @@ import {
   clamp01,
   ConstellationPoints,
   createGlowTexture,
-  FpsProbe,
   ModelVisualFallback,
   preloadAssets,
   smoothstep,
@@ -451,6 +450,8 @@ function EarthBody({
     }
     m.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
       shader.uniforms.uSunPos = { value: new Vector3(0, 0, 0) };
+      shader.uniforms.uSolSpecMap = { value: specTex };
+      shader.uniforms.uSolHasSpecMap = { value: specTex ? 1 : 0 };
       shader.vertexShader = shader.vertexShader
         .replace(
           '#include <common>',
@@ -463,11 +464,11 @@ function EarthBody({
       shader.fragmentShader = shader.fragmentShader
         .replace(
           '#include <common>',
-          '#include <common>\nvarying vec3 vSolWorldPos;\nvarying vec3 vSolWorldNormal;\nvarying vec2 vSolUv;\nuniform vec3 uSunPos;',
+          '#include <common>\nvarying vec3 vSolWorldPos;\nvarying vec3 vSolWorldNormal;\nvarying vec2 vSolUv;\nuniform vec3 uSunPos;\nuniform sampler2D uSolSpecMap;\nuniform float uSolHasSpecMap;',
         )
         .replace(
           '#include <roughnessmap_fragment>',
-          'float specSample = texture2D(roughnessMap, vSolUv).g;\nfloat roughnessFactor = mix(0.92, 0.24, smoothstep(0.35, 0.65, specSample));',
+          'float specSample = 0.0;\nif (uSolHasSpecMap > 0.5) {\n  specSample = texture2D(uSolSpecMap, vSolUv).g;\n}\nfloat roughnessFactor = uSolHasSpecMap > 0.5 ? mix(0.92, 0.24, smoothstep(0.35, 0.65, specSample)) : roughness;',
         )
         .replace(
           '#include <emissivemap_fragment>',
@@ -1071,7 +1072,6 @@ export default function SolarSystemVisual({ progress, running = false, depth = 0
         }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <FpsProbe label="solar-system" />
         <SolarSizeBridge apiRef={sizeApiRef} />
         <SolarRenderGate shareRef={sizeShareRef} />
         <ambientLight intensity={0.38} color="#8fa8d8" />
